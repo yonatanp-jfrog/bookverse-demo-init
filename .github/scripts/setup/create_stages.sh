@@ -11,6 +11,3 @@ curl -X POST "${JFROG_URL}/access/api/v2/stages/" -H "Authorization: Bearer ${JF
 
 curl -X POST "${JFROG_URL}/access/api/v2/stages/" -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" -H "Content-Type: application/json" -d \
 '{"name":"STAGE","category":"promote","scope":"project","project_key":"bookverse","repositories":["bookverse-docker-internal-prod"]}'
-
-curl -X POST "${JFROG_URL}/access/api/v2/stages/" -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" -H "Content-Type: application/json" -d \
-'{"name":"PROD","category":"promote","scope":"global","repositories":["bookverse-docker-external-prod"]}'

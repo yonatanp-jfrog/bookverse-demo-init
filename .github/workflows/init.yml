@@ -1,0 +1,35 @@
+name: 'Initialize JFrog Platform for BookVerse Demo'
+on:
+  workflow_dispatch:
+
+jobs:
+  setup-platform:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup JFrog CLI
+        uses: jfrog/setup-jfrog-cli@v4
+        with:
+          version: latest
+
+      - name: Configure JFrog CLI for Admin
+        run: |
+          jfrog config add bookverse-admin --url=${{ vars.JFROG_URL }} --access-token=${{ secrets.JFROG_ADMIN_TOKEN }}
+          jfrog config use bookverse-admin
+
+      - name: Create Project
+        run: ./.github/scripts/setup/create_project.sh
+
+      - name: Create Repositories
+        run: ./.github/scripts/setup/create_repositories.sh
+
+      - name: Create AppTrust Stages
+        env:
+          JFROG_URL: ${{ vars.JFROG_URL }}
+          JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
+        run: ./.github/scripts/setup/create_stages.sh
+      
+      # Note: OIDC and Application setup are still manual steps due to their complexity
+      # and the need for user-specific information, but could be scripted similarly.

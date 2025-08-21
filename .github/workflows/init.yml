@@ -20,9 +20,15 @@ jobs:
           jfrog config use bookverse-admin
 
       - name: Create Project
+        env:
+          JFROG_URL: ${{ vars.JFROG_URL }}
+          JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
         run: ./.github/scripts/setup/create_project.sh
 
       - name: Create Repositories
+        env:
+          JFROG_URL: ${{ vars.JFROG_URL }}
+          JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
         run: ./.github/scripts/setup/create_repositories.sh
 
       - name: Create AppTrust Stages

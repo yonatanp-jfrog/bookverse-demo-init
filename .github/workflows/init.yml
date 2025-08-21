@@ -42,6 +42,12 @@ jobs:
           JFROG_URL: ${{ vars.JFROG_URL }}
           JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
         run: ./.github/scripts/setup/create_applications.sh
+
+      - name: Create OIDC Integrations
+        env:
+          JFROG_URL: ${{ vars.JFROG_URL }}
+          JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
+        run: ./.github/scripts/setup/create_oidc.sh
       
-      # Note: OIDC setup is still a manual step due to its complexity
-      # and the need for user-specific information, but could be scripted similarly.
+      # Note: All major setup steps are now automated!
+      # The platform is ready for development and deployment.

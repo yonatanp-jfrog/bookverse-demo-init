@@ -88,26 +88,20 @@ create_repo_payloads() {
   
   # Internal repository (DEV, QA, STAGE stages)
   internal_payload=$(jq -n '{
-    "repositories": [{
-      "repoName": "'${PROJECT_KEY}'-'${service_name}'-'${package_type}'-internal-local",
-      "project": "'${PROJECT_KEY}'",
-      "envs": ["DEV","QA","STAGE"],
-      "packageType": "'${package_type}'",
-      "repoType": "LOCAL",
-      "xrayEnabled": true
-    }]
+    "key": "'${PROJECT_KEY}'-'${service_name}'-'${package_type}'-internal-local",
+    "rclass": "local",
+    "packageType": "'${package_type}'",
+    "description": "'${service_name}' '${package_type}' internal repository for DEV/QA/STAGE stages",
+    "xrayIndex": true
   }')
   
   # Release repository (PROD stage)
   release_payload=$(jq -n '{
-    "repositories": [{
-      "repoName": "'${PROJECT_KEY}'-'${service_name}'-'${package_type}'-release-local",
-      "project": "'${PROJECT_KEY}'",
-      "envs": ["PROD"],
-      "packageType": "'${package_type}'",
-      "repoType": "LOCAL",
-      "xrayEnabled": true
-    }]
+    "key": "'${PROJECT_KEY}'-'${service_name}'-'${package_type}'-release-local",
+    "rclass": "local",
+    "packageType": "'${package_type}'",
+    "description": "'${service_name}' '${package_type}' release repository for PROD stage",
+    "xrayIndex": true
   }')
   
   echo "$internal_payload" > /tmp/internal_payload.json
@@ -118,9 +112,9 @@ create_repo_payloads() {
   internal_response=$(curl -s -w "%{http_code}" -o /tmp/internal_response.json \
     --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
     --header "Content-Type: application/json" \
-    -X POST \
+    -X PUT \
     -d "$internal_payload" \
-    "${JFROG_URL}/artifactory/api/onboarding/createQuickRepos")
+    "${JFROG_URL}/artifactory/api/repositories/${PROJECT_KEY}-${service_name}-${package_type}-internal-local")
   
   internal_code=$(echo "$internal_response" | tail -n1)
   if [ "$internal_code" -eq 200 ] || [ "$internal_code" -eq 201 ]; then
@@ -136,9 +130,9 @@ create_repo_payloads() {
   release_response=$(curl -s -w "%{http_code}" -o /tmp/release_response.json \
     --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
     --header "Content-Type: application/json" \
-    -X POST \
+    -X PUT \
     -d "$release_payload" \
-    "${JFROG_URL}/artifactory/api/onboarding/createQuickRepos")
+    "${JFROG_URL}/artifactory/api/repositories/${PROJECT_KEY}-${service_name}-${package_type}-release-local")
   
   release_code=$(echo "$release_response" | tail -n1)
   if [ "$release_code" -eq 200 ] || [ "$release_code" -eq 201 ]; then

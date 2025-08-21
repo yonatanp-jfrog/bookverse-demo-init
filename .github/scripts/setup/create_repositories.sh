@@ -80,9 +80,9 @@ create_repo() {
     response_code=$(curl -s -w "%{http_code}" -o "$temp_response" \
       --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
       --header "Content-Type: application/json" \
-      -X POST \
+      -X PUT \
       -d "$(printf '%s' "$repo_payload")" \
-      "${JFROG_URL}/artifactory/api/onboarding/createQuickRepos")
+      "${JFROG_URL}/artifactory/api/repositories/$(echo "$repo_payload" | jq -r '.key')")
     
     response_body=$(cat "$temp_response")
     
@@ -107,7 +107,7 @@ create_repo() {
 }
 
 echo "Creating Repositories for BookVerse Microservices Platform..."
-echo "API Endpoint: ${JFROG_URL}/artifactory/api/onboarding/createQuickRepos"
+echo "API Endpoint: ${JFROG_URL}/artifactory/api/repositories/{repoKey}"
 echo "Project: ${PROJECT_KEY}"
 echo "Naming Convention: ${PROJECT_KEY}-{service_name}-{package}-{type}-local"
 echo ""
@@ -121,13 +121,13 @@ echo ""
 echo "📦 Creating BookVerse Inventory Microservice repositories..."
 
 # Inventory repositories
-inventory_docker_internal_payload=$(jq -n '{"repositories":[{"repoName":"'${PROJECT_KEY}'-inventory-docker-internal-local","project":"'${PROJECT_KEY}'","envs":["DEV","QA","STAGE"],"packageType":"Docker","repoType":"LOCAL","xrayEnabled":true}]}')
+inventory_docker_internal_payload=$(jq -n '{"key":"'${PROJECT_KEY}'-inventory-docker-internal-local","rclass":"local","packageType":"Docker","description":"Inventory Docker internal repository for DEV/QA/STAGE stages","xrayIndex":true}')
 
-inventory_docker_release_payload=$(jq -n '{"repositories":[{"repoName":"'${PROJECT_KEY}'-inventory-docker-release-local","project":"'${PROJECT_KEY}'","envs":["PROD"],"packageType":"Docker","repoType":"LOCAL","xrayEnabled":true}]}')
+inventory_docker_release_payload=$(jq -n '{"key":"'${PROJECT_KEY}'-inventory-docker-release-local","rclass":"local","packageType":"Docker","description":"Inventory Docker release repository for PROD stage","xrayIndex":true}')
 
-inventory_python_internal_payload=$(jq -n '{"repositories":[{"repoName":"'${PROJECT_KEY}'-inventory-python-internal-local","project":"'${PROJECT_KEY}'","envs":["DEV","QA","STAGE"],"packageType":"Pypi","repoType":"LOCAL","xrayEnabled":true}]}')
+inventory_python_internal_payload=$(jq -n '{"key":"'${PROJECT_KEY}'-inventory-python-internal-local","rclass":"local","packageType":"Pypi","description":"Inventory Python internal repository for DEV/QA/STAGE stages","xrayIndex":true}')
 
-inventory_python_release_payload=$(jq -n '{"repositories":[{"repoName":"'${PROJECT_KEY}'-inventory-python-release-local","project":"'${PROJECT_KEY}'","envs":["PROD"],"packageType":"Pypi","repoType":"LOCAL","xrayEnabled":true}]}')
+inventory_python_release_payload=$(jq -n '{"key":"'${PROJECT_KEY}'-inventory-python-release-local","rclass":"local","packageType":"Pypi","description":"Inventory Python release repository for PROD stage","xrayIndex":true}')
 
 create_repo "Inventory Docker Internal" "$inventory_docker_internal_payload"
 create_repo "Inventory Docker Release" "$inventory_docker_release_payload"
@@ -140,13 +140,13 @@ create_repo "Inventory Python Release" "$inventory_python_release_payload"
 echo "🎯 Creating BookVerse Recommendations Microservice repositories..."
 
 # Recommendations repositories
-recommendations_docker_internal_payload=$(jq -n '{"repositories":[{"repoName":"'${PROJECT_KEY}'-recommendations-docker-internal-local","project":"'${PROJECT_KEY}'","envs":["DEV","QA","STAGE"],"packageType":"Docker","repoType":"LOCAL","xrayEnabled":true}]}')
+recommendations_docker_internal_payload=$(jq -n '{"key":"'${PROJECT_KEY}'-recommendations-docker-internal-local","rclass":"local","packageType":"Docker","description":"Recommendations Docker internal repository for DEV/QA/STAGE stages","xrayIndex":true}')
 
-recommendations_docker_release_payload=$(jq -n '{"repositories":[{"repoName":"'${PROJECT_KEY}'-recommendations-docker-release-local","project":"'${PROJECT_KEY}'","envs":["PROD"],"packageType":"Docker","repoType":"LOCAL","xrayEnabled":true}]}')
+recommendations_docker_release_payload=$(jq -n '{"key":"'${PROJECT_KEY}'-recommendations-docker-release-local","rclass":"local","packageType":"Docker","description":"Recommendations Docker release repository for PROD stage","xrayIndex":true}')
 
-recommendations_python_internal_payload=$(jq -n '{"repositories":[{"repoName":"'${PROJECT_KEY}'-recommendations-python-internal-local","project":"'${PROJECT_KEY}'","envs":["DEV","QA","STAGE"],"packageType":"Pypi","repoType":"LOCAL","xrayEnabled":true}]}')
+recommendations_python_internal_payload=$(jq -n '{"key":"'${PROJECT_KEY}'-recommendations-python-internal-local","rclass":"local","packageType":"Pypi","description":"Recommendations Python internal repository for DEV/QA/STAGE stages","xrayIndex":true}')
 
-recommendations_python_release_payload=$(jq -n '{"repositories":[{"repoName":"'${PROJECT_KEY}'-recommendations-python-release-local","project":"'${PROJECT_KEY}'","envs":["PROD"],"packageType":"Pypi","repoType":"LOCAL","xrayEnabled":true}]}')
+recommendations_python_release_payload=$(jq -n '{"key":"'${PROJECT_KEY}'-recommendations-python-release-local","rclass":"local","packageType":"Pypi","description":"Recommendations Python release repository for PROD stage","xrayIndex":true}')
 
 create_repo "Recommendations Docker Internal" "$recommendations_docker_internal_payload"
 create_repo "Recommendations Docker Release" "$recommendations_docker_release_payload"
@@ -159,13 +159,13 @@ create_repo "Recommendations Python Release" "$recommendations_python_release_pa
 echo "🛒 Creating BookVerse Checkout Microservice repositories..."
 
 # Checkout repositories
-checkout_docker_internal_payload=$(jq -n '{"repositories":[{"repoName":"'${PROJECT_KEY}'-checkout-docker-internal-local","project":"'${PROJECT_KEY}'","envs":["DEV","QA","STAGE"],"packageType":"Docker","repoType":"LOCAL","xrayEnabled":true}]}')
+checkout_docker_internal_payload=$(jq -n '{"key":"'${PROJECT_KEY}'-checkout-docker-internal-local","rclass":"local","packageType":"Docker","description":"Checkout Docker internal repository for DEV/QA/STAGE stages","xrayIndex":true}')
 
-checkout_docker_release_payload=$(jq -n '{"repositories":[{"repoName":"'${PROJECT_KEY}'-checkout-docker-release-local","project":"'${PROJECT_KEY}'","envs":["PROD"],"packageType":"Docker","repoType":"LOCAL","xrayEnabled":true}]}')
+checkout_docker_release_payload=$(jq -n '{"key":"'${PROJECT_KEY}'-checkout-docker-release-local","rclass":"local","packageType":"Docker","description":"Checkout Docker release repository for PROD stage","xrayIndex":true}')
 
-checkout_python_internal_payload=$(jq -n '{"repositories":[{"repoName":"'${PROJECT_KEY}'-checkout-python-internal-local","project":"'${PROJECT_KEY}'","envs":["DEV","QA","STAGE"],"packageType":"Pypi","repoType":"LOCAL","xrayEnabled":true}]}')
+checkout_python_internal_payload=$(jq -n '{"key":"'${PROJECT_KEY}'-checkout-python-internal-local","rclass":"local","packageType":"Pypi","description":"Checkout Python internal repository for DEV/QA/STAGE stages","xrayIndex":true}')
 
-checkout_python_release_payload=$(jq -n '{"repositories":[{"repoName":"'${PROJECT_KEY}'-checkout-python-release-local","project":"'${PROJECT_KEY}'","envs":["PROD"],"packageType":"Pypi","repoType":"LOCAL","xrayEnabled":true}]}')
+checkout_python_release_payload=$(jq -n '{"key":"'${PROJECT_KEY}'-checkout-python-release-local","rclass":"local","packageType":"Pypi","description":"Checkout Python release repository for PROD stage","xrayIndex":true}')
 
 create_repo "Checkout Docker Internal" "$checkout_docker_internal_payload"
 create_repo "Checkout Docker Release" "$checkout_docker_release_payload"
@@ -178,13 +178,13 @@ create_repo "Checkout Python Release" "$checkout_python_release_payload"
 echo "🏗️  Creating BookVerse Platform Solution repositories..."
 
 # Platform repositories
-platform_docker_internal_payload=$(jq -n '{"repositories":[{"repoName":"'${PROJECT_KEY}'-platform-docker-internal-local","project":"'${PROJECT_KEY}'","envs":["DEV","QA","STAGE"],"packageType":"Docker","repoType":"LOCAL","xrayEnabled":true}]}')
+platform_docker_internal_payload=$(jq -n '{"key":"'${PROJECT_KEY}'-platform-docker-internal-local","rclass":"local","packageType":"Docker","description":"Platform Docker internal repository for DEV/QA/STAGE stages","xrayIndex":true}')
 
-platform_docker_release_payload=$(jq -n '{"repositories":[{"repoName":"'${PROJECT_KEY}'-platform-docker-release-local","project":"'${PROJECT_KEY}'","envs":["PROD"],"packageType":"Docker","repoType":"LOCAL","xrayEnabled":true}]}')
+platform_docker_release_payload=$(jq -n '{"key":"'${PROJECT_KEY}'-platform-docker-release-local","rclass":"local","packageType":"Docker","description":"Platform Docker release repository for PROD stage","xrayIndex":true}')
 
-platform_python_internal_payload=$(jq -n '{"repositories":[{"repoName":"'${PROJECT_KEY}'-platform-python-internal-local","project":"'${PROJECT_KEY}'","envs":["DEV","QA","STAGE"],"packageType":"Pypi","repoType":"LOCAL","xrayEnabled":true}]}')
+platform_python_internal_payload=$(jq -n '{"key":"'${PROJECT_KEY}'-platform-python-internal-local","rclass":"local","packageType":"Pypi","description":"Platform Python internal repository for DEV/QA/STAGE stages","xrayIndex":true}')
 
-platform_python_release_payload=$(jq -n '{"repositories":[{"repoName":"'${PROJECT_KEY}'-platform-python-release-local","project":"'${PROJECT_KEY}'","envs":["PROD"],"packageType":"Pypi","repoType":"LOCAL","xrayEnabled":true}]}')
+platform_python_release_payload=$(jq -n '{"key":"'${PROJECT_KEY}'-platform-python-release-local","rclass":"local","packageType":"Pypi","description":"Platform Python release repository for PROD stage","xrayIndex":true}')
 
 create_repo "Platform Docker Internal" "$platform_docker_internal_payload"
 create_repo "Platform Docker Release" "$platform_docker_release_payload"

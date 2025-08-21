@@ -57,7 +57,7 @@ inventory_app_payload=$(jq -n '{
     "environment": "production",
     "team": "inventory-team"
   },
-  "user_owners": ["alice.developer@bookverse.com"],
+  "user_owners": ["charlie.devops@bookverse.com"],
   "group_owners": []
 }')
 
@@ -153,7 +153,7 @@ echo "📦 BookVerse Inventory Service:"
 echo "     - Application Key: bookverse-inventory"
 echo "     - Criticality: High"
 echo "     - Team: Inventory Team"
-echo "     - Owner: Alice Developer"
+echo "     - Owner: Charlie DevOps (Project Manager)"
 echo "     - Description: Inventory management and stock tracking"
 echo ""
 echo "🎯 BookVerse Recommendations Service:"

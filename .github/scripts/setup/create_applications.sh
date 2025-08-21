@@ -57,7 +57,7 @@ inventory_app_payload=$(jq -n '{
     "environment": "production",
     "team": "inventory-team"
   },
-  "user_owners": ["charlie.devops@bookverse.com"],
+  "user_owners": ["frank.inventory@bookverse.com"],
   "group_owners": []
 }')
 
@@ -80,7 +80,7 @@ recommendations_app_payload=$(jq -n '{
     "environment": "production",
     "team": "ai-ml-team"
   },
-  "user_owners": ["diana.architect@bookverse.com"],
+  "user_owners": ["grace.ai@bookverse.com"],
   "group_owners": []
 }')
 
@@ -104,7 +104,7 @@ checkout_app_payload=$(jq -n '{
     "team": "checkout-team",
     "compliance": "pci"
   },
-  "user_owners": ["edward.manager@bookverse.com"],
+  "user_owners": ["henry.checkout@bookverse.com"],
   "group_owners": []
 }')
 
@@ -153,21 +153,21 @@ echo "📦 BookVerse Inventory Service:"
 echo "     - Application Key: bookverse-inventory"
 echo "     - Criticality: High"
 echo "     - Team: Inventory Team"
-echo "     - Owner: Charlie DevOps (Project Manager)"
+echo "     - Owner: Frank Inventory (Inventory Manager)"
 echo "     - Description: Inventory management and stock tracking"
 echo ""
 echo "🎯 BookVerse Recommendations Service:"
 echo "     - Application Key: bookverse-recommendations"
 echo "     - Criticality: Medium"
 echo "     - Team: AI/ML Team"
-echo "     - Owner: Diana Architect"
+echo "     - Owner: Grace AI (AI/ML Manager)"
 echo "     - Description: AI-powered book recommendations"
 echo ""
 echo "🛒 BookVerse Checkout Service:"
 echo "     - Application Key: bookverse-checkout"
 echo "     - Criticality: High (PCI Compliance)"
 echo "     - Team: Checkout Team"
-echo "     - Owner: Edward Manager"
+echo "     - Owner: Henry Checkout (Checkout Manager)"
 echo "     - Description: Payment processing and order fulfillment"
 echo ""
 echo "🏗️  BookVerse Platform:"

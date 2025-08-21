@@ -12,13 +12,16 @@ FAILED=false
 
 echo "Creating users and assigning roles for BookVerse project..."
 
-# Generate 5 users for BookVerse company with specific roles
+# Generate 8 users for BookVerse company with specific roles
 usernames=(
   '{"username": "alice.developer@bookverse.com", "email": "alice.developer@bookverse.com", "password": "BookVerse2024!", "role": "Developer"}'
   '{"username": "bob.release@bookverse.com", "email": "bob.release@bookverse.com", "password": "BookVerse2024!", "role": "Release Manager"}'
   '{"username": "charlie.devops@bookverse.com", "email": "charlie.devops@bookverse.com", "password": "BookVerse2024!", "role": "Project Manager"}'
   '{"username": "diana.architect@bookverse.com", "email": "diana.architect@bookverse.com", "password": "BookVerse2024!", "role": "AppTrust Admin"}'
   '{"username": "edward.manager@bookverse.com", "email": "edward.manager@bookverse.com", "password": "BookVerse2024!", "role": "AppTrust Admin"}'
+  '{"username": "frank.inventory@bookverse.com", "email": "frank.inventory@bookverse.com", "password": "BookVerse2024!", "role": "Inventory Manager"}'
+  '{"username": "grace.ai@bookverse.com", "email": "grace.ai@bookverse.com", "password": "BookVerse2024!", "role": "AI/ML Manager"}'
+  '{"username": "henry.checkout@bookverse.com", "email": "henry.checkout@bookverse.com", "password": "BookVerse2024!", "role": "Checkout Manager"}'
 )
 
 echo "📋 Users to be created:"
@@ -71,6 +74,15 @@ for user in "${usernames[@]}"; do
     "AppTrust Admin")
       jfrog_role="AppTrust Admin"
       ;;
+    "Inventory Manager")
+      jfrog_role="Project Manager"
+      ;;
+    "AI/ML Manager")
+      jfrog_role="Project Manager"
+      ;;
+    "Checkout Manager")
+      jfrog_role="Project Manager"
+      ;;
     *)
       jfrog_role="Developer"  # Default fallback
       ;;
@@ -112,6 +124,9 @@ echo "   - Bob Release (bob.release@bookverse.com) - Release Manager"
 echo "   - Charlie DevOps (charlie.devops@bookverse.com) - Project Manager"
 echo "   - Diana Architect (diana.architect@bookverse.com) - AppTrust Admin"
 echo "   - Edward Manager (edward.manager@bookverse.com) - AppTrust Admin"
+echo "   - Frank Inventory (frank.inventory@bookverse.com) - Inventory Manager"
+echo "   - Grace AI (grace.ai@bookverse.com) - AI/ML Manager"
+echo "   - Henry Checkout (henry.checkout@bookverse.com) - Checkout Manager"
 echo ""
 echo "🔑 Default password for all users: BookVerse2024!"
 echo "💡 Users can change their passwords after first login"

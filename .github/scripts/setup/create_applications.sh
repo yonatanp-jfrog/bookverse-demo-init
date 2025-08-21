@@ -55,9 +55,9 @@ inventory_app_payload=$(jq -n '{
     "domain": "inventory",
     "architecture": "microservices",
     "environment": "production",
-    "team": "backend"
+    "team": "inventory-team"
   },
-  "user_owners": ["alice.developer@bookverse.com", "charlie.devops@bookverse.com"],
+  "user_owners": ["alice.developer@bookverse.com"],
   "group_owners": []
 }')
 
@@ -78,9 +78,9 @@ recommendations_app_payload=$(jq -n '{
     "domain": "recommendations",
     "architecture": "microservices",
     "environment": "production",
-    "team": "ai-ml"
+    "team": "ai-ml-team"
   },
-  "user_owners": ["alice.developer@bookverse.com", "diana.architect@bookverse.com"],
+  "user_owners": ["diana.architect@bookverse.com"],
   "group_owners": []
 }')
 
@@ -101,10 +101,10 @@ checkout_app_payload=$(jq -n '{
     "domain": "checkout",
     "architecture": "microservices",
     "environment": "production",
-    "team": "backend",
+    "team": "checkout-team",
     "compliance": "pci"
   },
-  "user_owners": ["bob.release@bookverse.com", "edward.manager@bookverse.com"],
+  "user_owners": ["edward.manager@bookverse.com"],
   "group_owners": []
 }')
 
@@ -127,7 +127,7 @@ platform_app_payload=$(jq -n '{
     "environment": "production",
     "team": "platform"
   },
-  "user_owners": ["diana.architect@bookverse.com", "edward.manager@bookverse.com", "charlie.devops@bookverse.com"],
+  "user_owners": ["diana.architect@bookverse.com", "edward.manager@bookverse.com", "charlie.devops@bookverse.com", "bob.release@bookverse.com"],
   "group_owners": []
 }')
 
@@ -152,26 +152,31 @@ echo ""
 echo "📦 BookVerse Inventory Service:"
 echo "     - Application Key: bookverse-inventory"
 echo "     - Criticality: High"
-echo "     - Owners: Alice Developer, Charlie DevOps"
+echo "     - Team: Inventory Team"
+echo "     - Owner: Alice Developer"
 echo "     - Description: Inventory management and stock tracking"
 echo ""
 echo "🎯 BookVerse Recommendations Service:"
 echo "     - Application Key: bookverse-recommendations"
 echo "     - Criticality: Medium"
-echo "     - Owners: Alice Developer, Diana Architect"
+echo "     - Team: AI/ML Team"
+echo "     - Owner: Diana Architect"
 echo "     - Description: AI-powered book recommendations"
 echo ""
 echo "🛒 BookVerse Checkout Service:"
 echo "     - Application Key: bookverse-checkout"
 echo "     - Criticality: High (PCI Compliance)"
-echo "     - Owners: Bob Release Manager, Edward Manager"
+echo "     - Team: Checkout Team"
+echo "     - Owner: Edward Manager"
 echo "     - Description: Payment processing and order fulfillment"
 echo ""
 echo "🏗️  BookVerse Platform:"
 echo "     - Application Key: bookverse-platform"
 echo "     - Criticality: High"
-echo "     - Owners: Diana Architect, Edward Manager, Charlie DevOps"
+echo "     - Team: Platform Team"
+echo "     - Owners: Diana Architect, Edward Manager, Charlie DevOps, Bob Release Manager"
 echo "     - Description: Integrated platform solution"
 echo ""
-echo "💡 Each application is configured with appropriate criticality levels,"
-echo "   maturity stages, and ownership assignments based on team roles."
+echo "💡 Each microservice is managed by a dedicated team with specific ownership."
+echo "   The Release Manager (Bob) oversees all services at the project level."
+echo "   Applications are configured with appropriate criticality levels and maturity stages."

@@ -82,7 +82,7 @@ create_repo() {
       --header "Content-Type: application/json" \
       -X PUT \
       -d "$(printf '%s' "$repo_payload")" \
-      "${JFROG_URL}/artifactory/api/repositories/$(echo "$repo_payload" | jq -r '.key')")
+      "${JFROG_URL}/api/repositories/$(echo "$repo_payload" | jq -r '.key')")
     
     response_body=$(cat "$temp_response")
     
@@ -107,7 +107,7 @@ create_repo() {
 }
 
 echo "Creating Repositories for BookVerse Microservices Platform..."
-echo "API Endpoint: ${JFROG_URL}/artifactory/api/repositories/{repoKey}"
+echo "API Endpoint: ${JFROG_URL}/api/repositories/{repoKey}"
 echo "Project: ${PROJECT_KEY}"
 echo "Naming Convention: ${PROJECT_KEY}-{service_name}-{package}-{type}-local"
 echo ""

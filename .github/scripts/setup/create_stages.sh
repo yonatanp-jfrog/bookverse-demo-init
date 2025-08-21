@@ -2,6 +2,13 @@
 
 set -e
 
+# =============================================================================
+# CONFIGURATION - Easy to modify stage names and order
+# =============================================================================
+PROJECT_KEY="bookverse"
+STAGES=("DEV" "QA" "STAGE")  # Add/remove/reorder local stages here (PROD is always last)
+# =============================================================================
+
 FAILED=false
 if [[ -z "${AUTH_TOKEN}" ]]; then
   echo "❌ Error: AUTH_TOKEN is not set. Please export AUTH_TOKEN and try again."
@@ -13,16 +20,14 @@ if [[ -z "${JF_URL}" ]]; then
   exit 1
 fi
 
-
-PROJECT_KEY="gpizza"
-STAGES=("QA")
-
-echo "Creating QA stage and updating lifecycle for project: $PROJECT_KEY"
+echo "Creating local stages in project: $PROJECT_KEY"
 echo "JFrog URL: ${JF_URL}"
+echo "Local stages to create: ${STAGES[*]}"
+echo "Note: PROD stage is always present and always last"
 echo ""
 
 
-echo "Step 1: Creating stages..."
+echo "Step 1: Creating local stages..."
 
 for STAGE_NAME in "${STAGES[@]}"; do
   echo "Creating stage: $STAGE_NAME"
@@ -31,7 +36,10 @@ for STAGE_NAME in "${STAGES[@]}"; do
     --arg name "$STAGE_NAME" \
     --arg project_key "$PROJECT_KEY" \
     '{
-      "name": $name
+      "name": $name,
+      "scope": "project",
+      "project_key": $project_key,
+      "category": "promote"
     }')
 
   temp_response=$(mktemp)
@@ -60,14 +68,17 @@ for STAGE_NAME in "${STAGES[@]}"; do
 done
 
 
-echo "Step 2: Updating lifecycle with promote stages..."
+echo "Step 2: Updating lifecycle with promote stages (PROD is always last)..."
 
-lifecycle_payload=$(jq -n '{
-  "promote_stages": [
-    "DEV",
-    "QA"
-  ]
-}')
+# Convert STAGES array to JSON array format for the payload, then add PROD at the end
+stages_json=$(printf '%s\n' "${STAGES[@]}" | jq -R . | jq -s .)
+stages_with_prod=$(echo "$stages_json" | jq '. + ["PROD"]')
+
+lifecycle_payload=$(jq -n \
+  --argjson stages "$stages_with_prod" \
+  '{
+    "promote_stages": $stages
+  }')
 
 temp_response=$(mktemp)
 response_code=$(curl -s -w "%{http_code}" -o "$temp_response" \
@@ -82,7 +93,7 @@ rm -f "$temp_response"
 
 if [ "$response_code" -eq 200 ] || [ "$response_code" -eq 204 ]; then
   echo "✅ Lifecycle updated successfully with promote stages (HTTP $response_code)"
-  echo "   Promote stages: DEV → QA"
+  echo "   Promote stages: $(IFS=" → "; echo "${STAGES[*]}") → PROD"
 elif [ "$response_code" -eq 404 ]; then
   echo "❌ Project '$PROJECT_KEY' not found for lifecycle update (HTTP $response_code)"
   FAILED=true
@@ -99,9 +110,12 @@ if [ "$FAILED" = true ]; then
   exit 1
 fi
 
-echo "✅ QA stage and lifecycle configuration completed successfully!"
+echo "✅ Local stages and lifecycle configuration completed successfully!"
 echo "Summary of completed tasks:"
-echo "   - QA stage created in project '$PROJECT_KEY'"
-echo "   - Lifecycle updated with promote stages: DEV → QA"
+for STAGE_NAME in "${STAGES[@]}"; do
+  echo "   - $STAGE_NAME stage created in project '$PROJECT_KEY'"
+done
+echo "   - PROD stage is always present (not created by this script)"
+echo "   - Lifecycle updated with promote stages: $(IFS=" → "; echo "${STAGES[*]}") → PROD"
 echo ""
-echo "Project is now ready with QA stage and lifecycle configuration!"
+echo "Project is now ready with local stages and lifecycle configuration!"

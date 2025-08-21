@@ -12,7 +12,7 @@ FAILED=false
 
 echo "Creating users and assigning roles for BookVerse project..."
 
-# Generate 8 users for BookVerse company with specific roles
+# Generate 12 users for BookVerse company with specific roles
 usernames=(
   '{"username": "alice.developer@bookverse.com", "email": "alice.developer@bookverse.com", "password": "BookVerse2024!", "role": "Developer"}'
   '{"username": "bob.release@bookverse.com", "email": "bob.release@bookverse.com", "password": "BookVerse2024!", "role": "Release Manager"}'
@@ -22,6 +22,10 @@ usernames=(
   '{"username": "frank.inventory@bookverse.com", "email": "frank.inventory@bookverse.com", "password": "BookVerse2024!", "role": "Inventory Manager"}'
   '{"username": "grace.ai@bookverse.com", "email": "grace.ai@bookverse.com", "password": "BookVerse2024!", "role": "AI/ML Manager"}'
   '{"username": "henry.checkout@bookverse.com", "email": "henry.checkout@bookverse.com", "password": "BookVerse2024!", "role": "Checkout Manager"}'
+  '{"username": "pipeline.inventory@bookverse.com", "email": "pipeline.inventory@bookverse.com", "password": "Pipeline2024!", "role": "Pipeline User"}'
+  '{"username": "pipeline.recommendations@bookverse.com", "email": "pipeline.recommendations@bookverse.com", "password": "Pipeline2024!", "role": "Pipeline User"}'
+  '{"username": "pipeline.checkout@bookverse.com", "email": "pipeline.checkout@bookverse.com", "password": "Pipeline2024!", "role": "Pipeline User"}'
+  '{"username": "pipeline.platform@bookverse.com", "email": "pipeline.platform@bookverse.com", "password": "Pipeline2024!", "role": "Pipeline User"}'
 )
 
 echo "📋 Users to be created:"
@@ -83,6 +87,9 @@ for user in "${usernames[@]}"; do
     "Checkout Manager")
       jfrog_role="Project Manager"
       ;;
+    "Pipeline User")
+      jfrog_role="Developer"
+      ;;
     *)
       jfrog_role="Developer"  # Default fallback
       ;;
@@ -127,6 +134,12 @@ echo "   - Edward Manager (edward.manager@bookverse.com) - AppTrust Admin"
 echo "   - Frank Inventory (frank.inventory@bookverse.com) - Inventory Manager"
 echo "   - Grace AI (grace.ai@bookverse.com) - AI/ML Manager"
 echo "   - Henry Checkout (henry.checkout@bookverse.com) - Checkout Manager"
+echo "   - Pipeline Inventory (pipeline.inventory@bookverse.com) - Pipeline User"
+echo "   - Pipeline Recommendations (pipeline.recommendations@bookverse.com) - Pipeline User"
+echo "   - Pipeline Checkout (pipeline.checkout@bookverse.com) - Pipeline User"
+echo "   - Pipeline Platform (pipeline.platform@bookverse.com) - Pipeline User"
 echo ""
-echo "🔑 Default password for all users: BookVerse2024!"
+echo "🔑 Default passwords:"
+echo "   - Human users: BookVerse2024!"
+echo "   - Pipeline users: Pipeline2024!"
 echo "💡 Users can change their passwords after first login"

@@ -44,52 +44,130 @@ export JFROG_ADMIN_TOKEN="your-admin-token"
 - Push to main branch to trigger automatic setup
 - Use GitHub Actions UI to manually trigger setup/cleanup workflows
 
-## 🐛 Debug Mode
+## 🎛️ Verbosity Control
 
-All scripts now include a **debug mode** for step-by-step execution and troubleshooting.
+All scripts now include a **verbosity control system** for flexible output management.
 
-### Enable Debug Mode
+### Set Verbosity Level
 
-Set the `DEBUG_MODE` environment variable:
-
-```bash
-# Enable debug mode
-export DEBUG_MODE=true
-
-# Run any script with debug mode
-./init_local.sh
-./cleanup_local.sh
-```
-
-### Debug Mode Features
-
-When `DEBUG_MODE=true` is set:
-
-- ✅ **Step-by-step execution** - One command at a time
-- ✅ **Verbose output** - Show exact commands being run  
-- ✅ **User confirmation** - Ask before each step
-- ✅ **Command preview** - Show what will be executed
-- ✅ **Output display** - Show full response from each command
-- ✅ **Interactive control** - Press Enter to continue, 'q' to quit
-
-### Debug Mode Example
+Set the `VERBOSITY` environment variable:
 
 ```bash
-export DEBUG_MODE=true
-./init_local.sh
+# Silent mode - no output, just execute
+export VERBOSITY=0
+
+# Feedback mode - show progress and results (default)
+export VERBOSITY=1
+
+# Debug mode - show commands, confirmations, and full output
+export VERBOSITY=2
 ```
 
-**Output:**
+### Verbosity Levels
+
+#### Level 0: Silent Mode
+- 🔇 **No output** will be shown
+- 🚀 **Commands execute silently**
+- ❌ **Only errors** will be displayed
+- 🤖 **Perfect for automation** and CI/CD pipelines
+
+#### Level 1: Feedback Mode (Default)
+- 📢 **Progress and results** will be shown
+- 🔧 **Commands execute automatically**
+- ✅ **No user interaction** required
+- 📊 **Summary information** displayed
+
+#### Level 2: Debug Mode
+- 🐛 **Each step shown** before execution
+- 🔍 **Commands displayed verbosely**
+- ⏸️ **User confirmation** required for each step
+- 📋 **Full output** from all commands
+- 🛠️ **Perfect for troubleshooting** and development
+
+### Usage Examples
+
+#### Silent Execution (Automation)
+```bash
+export VERBOSITY=0
+./init_local.sh
+# Runs completely silently, only shows errors
 ```
+
+#### Normal Feedback (Default)
+```bash
+export VERBOSITY=1
+./init_local.sh
+# Shows progress and results, no interaction needed
+```
+
+#### Interactive Debug
+```bash
+export VERBOSITY=2
+./init_local.sh
+# Shows each command, asks for confirmation, displays full output
+```
+
+### What You'll See in Each Mode
+
+#### Silent Mode (VERBOSITY=0)
+```
+🚀 BookVerse JFrog Platform Initialization - Local Runner
+========================================================
+🔇 SILENT MODE ENABLED
+   - No output will be shown
+   - Commands will execute silently
+   - Only errors will be displayed
+
+✅ Environment variables validated
+📋 Configuration loaded
+🔄 Starting initialization sequence...
+[Silent execution - no further output until completion or error]
+```
+
+#### Feedback Mode (VERBOSITY=1)
+```
+🚀 BookVerse JFrog Platform Initialization - Local Runner
+========================================================
+📢 FEEDBACK MODE ENABLED
+   - Progress and results will be shown
+   - Commands will execute automatically
+   - No user interaction required
+
+✅ Environment variables validated
+📋 Configuration loaded
+🔄 Starting initialization sequence...
+
+📁 Step 1/7: Creating Project...
+   🔧 Creating BookVerse project...
+   ✅ Creating BookVerse project completed
+   📊 Step 1 Summary: Project creation process completed
+
+🎭 Step 2/7: Creating AppTrust Stages...
+   🔧 Creating bookverse-DEV stage...
+   ✅ Creating bookverse-DEV stage completed
+   🔧 Creating bookverse-QA stage...
+   ✅ Creating bookverse-QA stage completed
+   [Continues with progress updates...]
+```
+
+#### Debug Mode (VERBOSITY=2)
+```
+🚀 BookVerse JFrog Platform Initialization - Local Runner
+========================================================
 🐛 DEBUG MODE ENABLED
    - Each step will be shown before execution
    - Commands will be displayed verbosely
    - User confirmation required for each step
    - Full output will be shown
 
+✅ Environment variables validated
+📋 Configuration loaded
+🔄 Starting initialization sequence...
+
+📁 Step 1/7: Creating Project...
 🔍 DEBUG MODE: Create BookVerse project
    Command to execute:
-   curl -v -w 'HTTP_CODE: %{http_code}' --header 'Authorization: Bearer [TOKEN]' ...
+   curl -v -w 'HTTP_CODE: %{http_code}' --header 'Authorization: Bearer ***' ...
 
    Press Enter to execute this command, or 'q' to quit: 
 
@@ -102,12 +180,25 @@ export DEBUG_MODE=true
    Press Enter to continue to next step: 
 ```
 
-### Use Cases for Debug Mode
+### Use Cases for Each Level
 
-- **Troubleshooting** - See exactly what's failing and why
-- **Learning** - Understand each step of the process
-- **Testing** - Verify individual commands before full execution
-- **Development** - Debug script logic and API responses
+#### VERBOSITY=0 (Silent)
+- **CI/CD Pipelines** - Automated execution
+- **Background Scripts** - Non-interactive runs
+- **Bulk Operations** - When you don't need feedback
+- **Testing** - Focus on results, not process
+
+#### VERBOSITY=1 (Feedback) - **Recommended for Most Users**
+- **Daily Development** - See what's happening
+- **Troubleshooting** - Understand progress
+- **Learning** - Follow the process
+- **Production** - Balanced output
+
+#### VERBOSITY=2 (Debug)
+- **Development** - Step-by-step debugging
+- **Troubleshooting** - See exact commands and responses
+- **Learning** - Understand every detail
+- **Testing** - Verify individual steps
 
 ## 🧹 Cleanup
 
@@ -117,7 +208,7 @@ export DEBUG_MODE=true
 ./cleanup_local.sh
 
 # Debug mode cleanup
-export DEBUG_MODE=true
+export VERBOSITY=2
 ./cleanup_local.sh
 ```
 

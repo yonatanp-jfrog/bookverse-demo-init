@@ -3,17 +3,21 @@
 set -e
 
 # =============================================================================
-# DEBUG MODE CONFIGURATION
+# VERBOSITY CONFIGURATION
 # =============================================================================
-# Set DEBUG_MODE=true to enable step-by-step execution with user confirmation
-DEBUG_MODE="${DEBUG_MODE:-false}"
+# Set VERBOSITY level for output control:
+# 0 = Silent (no output, just execute)
+# 1 = Feedback (show progress and results)
+# 2 = Debug (show commands, confirmations, and full output)
+VERBOSITY="${VERBOSITY:-1}"
 
-# Function to run command in debug mode
-run_debug_command() {
+# Function to run command with verbosity control
+run_verbose_command() {
     local description="$1"
     local command="$2"
     
-    if [ "$DEBUG_MODE" = "true" ]; then
+    if [ "$VERBOSITY" -ge 2 ]; then
+        # Debug mode - show command and ask for confirmation
         echo ""
         echo "🔍 DEBUG MODE: $description"
         echo "   Command to execute:"
@@ -33,22 +37,46 @@ run_debug_command() {
         echo "   ✅ Command completed."
         echo ""
         read -p "   Press Enter to continue to next step: " continue_input
+    elif [ "$VERBOSITY" -ge 1 ]; then
+        # Feedback mode - show what's happening
+        echo "   🔧 $description..."
+        eval "$command"
+        echo "   ✅ $description completed"
     else
-        # Normal mode - just execute
+        # Silent mode - just execute
         eval "$command"
     fi
 }
 
-# Function to show debug info
-show_debug_info() {
-    if [ "$DEBUG_MODE" = "true" ]; then
-        echo "🐛 DEBUG MODE ENABLED"
-        echo "   - Each step will be shown before execution"
-        echo "   - Commands will be displayed verbosely"
-        echo "   - User confirmation required for each step"
-        echo "   - Full output will be shown"
-        echo ""
-    fi
+# Function to show verbosity info
+show_verbosity_info() {
+    case "$VERBOSITY" in
+        0)
+            echo "🔇 SILENT MODE ENABLED"
+            echo "   - No output will be shown"
+            echo "   - Commands will execute silently"
+            echo "   - Only errors will be displayed"
+            ;;
+        1)
+            echo "📢 FEEDBACK MODE ENABLED"
+            echo "   - Progress and results will be shown"
+            echo "   - Commands will execute automatically"
+            echo "   - No user interaction required"
+            ;;
+        2)
+            echo "🐛 DEBUG MODE ENABLED"
+            echo "   - Each step will be shown before execution"
+            echo "   - Commands will be displayed verbosely"
+            echo "   - User confirmation required for each step"
+            echo "   - Full output will be shown"
+            ;;
+        *)
+            echo "⚠️  Invalid VERBOSITY level: $VERBOSITY"
+            echo "   Using default: VERBOSITY=1 (Feedback mode)"
+            VERBOSITY=1
+            ;;
+    esac
+    echo ""
 }
 
 # Function to obfuscate sensitive data in debug output
@@ -62,7 +90,7 @@ echo "========================================================"
 echo ""
 
 # Show debug mode status
-show_debug_info
+show_verbosity_info
 
 # Check if required environment variables are set
 if [[ -z "${JFROG_URL}" ]]; then
@@ -132,10 +160,10 @@ project_command="curl -v -w '\nHTTP_CODE: %{http_code}\n' \
   -d '$project_payload' \
   '${JFROG_URL}/access/api/v1/projects'"
 
-run_debug_command "Create BookVerse project" "$project_command"
+run_verbose_command "Create BookVerse project" "$project_command"
 
 # Extract response code from debug output
-if [ "$DEBUG_MODE" = "true" ]; then
+if [ "$VERBOSITY" -ge 2 ]; then
     # In debug mode, we need to capture the output differently
     echo "🔍 Extracting response code from debug output..."
     response_code=$(curl -s -o /dev/null -w "%{http_code}" \
@@ -219,10 +247,10 @@ dev_command="curl -v -w '\nHTTP_CODE: %{http_code}\n' \
   }' \
   '${JFROG_URL}/access/api/v2/stages'"
 
-run_debug_command "Create bookverse-DEV stage" "$dev_command"
+run_verbose_command "Create bookverse-DEV stage" "$dev_command"
 
 # Extract response code from debug output
-if [ "$DEBUG_MODE" = "true" ]; then
+if [ "$VERBOSITY" -ge 2 ]; then
     # In debug mode, we need to capture the output differently
     echo "🔍 Extracting response code for DEV stage..."
     dev_response=$(curl -s -w "%{http_code}" -o /tmp/dev_response.json \
@@ -277,10 +305,10 @@ qa_command="curl -v -w '\nHTTP_CODE: %{http_code}\n' \
   }' \
   '${JFROG_URL}/access/api/v2/stages'"
 
-run_debug_command "Create bookverse-QA stage" "$qa_command"
+run_verbose_command "Create bookverse-QA stage" "$qa_command"
 
 # Extract response code from debug output
-if [ "$DEBUG_MODE" = "true" ]; then
+if [ "$VERBOSITY" -ge 2 ]; then
     # In debug mode, we need to capture the output differently
     echo "🔍 Extracting response code for QA stage..."
     qa_response=$(curl -s -w "%{http_code}" -o /tmp/qa_response.json \
@@ -335,10 +363,10 @@ stage_command="curl -v -w '\nHTTP_CODE: %{http_code}\n' \
   }' \
   '${JFROG_URL}/access/api/v2/stages'"
 
-run_debug_command "Create bookverse-STAGING stage" "$stage_command"
+run_verbose_command "Create bookverse-STAGING stage" "$stage_command"
 
 # Extract response code from debug output
-if [ "$DEBUG_MODE" = "true" ]; then
+if [ "$VERBOSITY" -ge 2 ]; then
     # In debug mode, we need to capture the output differently
     echo "🔍 Extracting response code for STAGING stage..."
     stage_response=$(curl -s -w "%{http_code}" -o /tmp/stage_response.json \
@@ -425,10 +453,10 @@ lifecycle_command="curl -v -w '\nHTTP_CODE: %{http_code}\n' \
   -d '$lifecycle_payload' \
   '${JFROG_URL}/access/api/v2/lifecycle/?project_key=${PROJECT_KEY}'"
 
-run_debug_command "Update lifecycle with promote stages" "$lifecycle_command"
+run_verbose_command "Update lifecycle with promote stages" "$lifecycle_command"
 
 # Extract response code from debug output
-if [ "$DEBUG_MODE" = "true" ]; then
+if [ "$VERBOSITY" -ge 2 ]; then
     # In debug mode, we need to capture the output differently
     echo "🔍 Extracting response code for lifecycle update..."
     lifecycle_response=$(curl -s -w "%{http_code}" -o /tmp/lifecycle_response.json \
@@ -723,10 +751,10 @@ create_all_repositories() {
     -d '$batch_payload' \
     '${JFROG_URL}/artifactory/api/v2/repositories/batch'"
 
-  run_debug_command "Create all 16 repositories in batch" "$batch_command"
+  run_verbose_command "Create all 16 repositories in batch" "$batch_command"
 
   # Extract response code from debug output
-  if [ "$DEBUG_MODE" = "true" ]; then
+  if [ "$VERBOSITY" -ge 2 ]; then
       # In debug mode, we need to capture the output differently
       echo "🔍 Extracting response code for batch repository creation..."
       batch_response=$(curl -s -w "%{http_code}" -o /tmp/batch_response.json \
@@ -835,10 +863,10 @@ create_user() {
     -d '$user_payload' \
     '${JFROG_URL}/access/api/v2/users'"
 
-  run_debug_command "Create user $username" "$user_command"
+  run_verbose_command "Create user $username" "$user_command"
 
   # Extract response code from debug output
-  if [ "$DEBUG_MODE" = "true" ]; then
+  if [ "$VERBOSITY" -ge 2 ]; then
       # In debug mode, we need to capture the output differently
       echo "🔍 Extracting response code for user creation..."
       user_response=$(curl -s -w "%{http_code}" -o /tmp/user_response.json \
@@ -921,10 +949,10 @@ create_user() {
     -d '$project_user_payload' \
     '${JFROG_URL}/access/api/v1/projects/${PROJECT_KEY}/users/$username'"
 
-  run_debug_command "Assign user $username to project with role $jfrog_role" "$project_user_command"
+  run_verbose_command "Assign user $username to project with role $jfrog_role" "$project_user_command"
 
   # Extract response code from debug output
-  if [ "$DEBUG_MODE" = "true" ]; then
+  if [ "$VERBOSITY" -ge 2 ]; then
       # In debug mode, we need to capture the output differently
       echo "🔍 Extracting response code for project user assignment..."
       project_user_response=$(curl -s -w "%{http_code}" -o /tmp/project_user_response.json \

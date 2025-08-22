@@ -3,17 +3,21 @@
 set -e
 
 # =============================================================================
-# DEBUG MODE CONFIGURATION
+# VERBOSITY CONFIGURATION
 # =============================================================================
-# Set DEBUG_MODE=true to enable step-by-step execution with user confirmation
-DEBUG_MODE="${DEBUG_MODE:-false}"
+# Set VERBOSITY level for output control:
+# 0 = Silent (no output, just execute)
+# 1 = Feedback (show progress and results)
+# 2 = Debug (show commands, confirmations, and full output)
+VERBOSITY="${VERBOSITY:-1}"
 
-# Function to run command in debug mode
-run_debug_command() {
+# Function to run command with verbosity control
+run_verbose_command() {
     local description="$1"
     local command="$2"
     
-    if [ "$DEBUG_MODE" = "true" ]; then
+    if [ "$VERBOSITY" -ge 2 ]; then
+        # Debug mode - show command and ask for confirmation
         echo ""
         echo "🔍 DEBUG MODE: $description"
         echo "   Command to execute:"
@@ -33,22 +37,46 @@ run_debug_command() {
         echo "   ✅ Command completed."
         echo ""
         read -p "   Press Enter to continue to next step: " continue_input
+    elif [ "$VERBOSITY" -ge 1 ]; then
+        # Feedback mode - show what's happening
+        echo "   🔧 $description..."
+        eval "$command"
+        echo "   ✅ $description completed"
     else
-        # Normal mode - just execute
+        # Silent mode - just execute
         eval "$command"
     fi
 }
 
-# Function to show debug info
-show_debug_info() {
-    if [ "$DEBUG_MODE" = "true" ]; then
-        echo "🐛 DEBUG MODE ENABLED"
-        echo "   - Each step will be shown before execution"
-        echo "   - Commands will be displayed verbosely"
-        echo "   - User confirmation required for each step"
-        echo "   - Full output will be shown"
-        echo ""
-    fi
+# Function to show verbosity info
+show_verbosity_info() {
+    case "$VERBOSITY" in
+        0)
+            echo "🔇 SILENT MODE ENABLED"
+            echo "   - No output will be shown"
+            echo "   - Commands will execute silently"
+            echo "   - Only errors will be displayed"
+            ;;
+        1)
+            echo "📢 FEEDBACK MODE ENABLED"
+            echo "   - Progress and results will be shown"
+            echo "   - Commands will execute automatically"
+            echo "   - No user interaction required"
+            ;;
+        2)
+            echo "🐛 DEBUG MODE ENABLED"
+            echo "   - Each step will be shown before execution"
+            echo "   - Commands will be displayed verbosely"
+            echo "   - User confirmation required for each step"
+            echo "   - Full output will be shown"
+            ;;
+        *)
+            echo "⚠️  Invalid VERBOSITY level: $VERBOSITY"
+            echo "   Using default: VERBOSITY=1 (Feedback mode)"
+            VERBOSITY=1
+            ;;
+    esac
+    echo ""
 }
 
 echo "🧹 BookVerse JFrog Platform Cleanup - Local Runner"
@@ -56,7 +84,7 @@ echo "=================================================="
 echo ""
 
 # Show debug mode status
-show_debug_info
+show_verbosity_info
 
 # Check if required environment variables are set
 if [[ -z "${JFROG_URL}" ]]; then
@@ -100,7 +128,7 @@ echo ""
 echo "   This action is IRREVERSIBLE!"
 echo ""
 
-if [ "$DEBUG_MODE" = "true" ]; then
+if [ "$VERBOSITY" -ge 2 ]; then
     echo "🐛 DEBUG MODE: Skipping confirmation prompt for automated testing"
     echo "   Proceeding with cleanup..."
 else

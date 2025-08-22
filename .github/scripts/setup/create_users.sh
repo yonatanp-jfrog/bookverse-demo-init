@@ -73,19 +73,19 @@ for user in "${usernames[@]}"; do
       jfrog_role="Release Manager"
       ;;
     "Project Manager")
-      jfrog_role="Project Manager"
+      jfrog_role="Project Admin"
       ;;
     "AppTrust Admin")
-      jfrog_role="AppTrust Admin"
+      jfrog_role="Application Admin"
       ;;
     "Inventory Manager")
-      jfrog_role="Project Manager"
+      jfrog_role="Project Admin"
       ;;
     "AI/ML Manager")
-      jfrog_role="Project Manager"
+      jfrog_role="Project Admin"
       ;;
     "Checkout Manager")
-      jfrog_role="Project Manager"
+      jfrog_role="Project Admin"
       ;;
     "Pipeline User")
       jfrog_role="Developer"
@@ -145,12 +145,12 @@ echo ""
 echo "📊 Summary of created users and project assignments:"
 echo "   - Alice Developer (alice.developer@bookverse.com) - Developer role in ${PROJECT_KEY} project"
 echo "   - Bob Release (bob.release@bookverse.com) - Release Manager role in ${PROJECT_KEY} project"
-echo "   - Charlie DevOps (charlie.devops@bookverse.com) - Project Manager role in ${PROJECT_KEY} project"
-echo "   - Diana Architect (diana.architect@bookverse.com) - AppTrust Admin role in ${PROJECT_KEY} project"
-echo "   - Edward Manager (edward.manager@bookverse.com) - AppTrust Admin role in ${PROJECT_KEY} project"
-echo "   - Frank Inventory (frank.inventory@bookverse.com) - Project Manager role in ${PROJECT_KEY} project"
-echo "   - Grace AI (grace.ai@bookverse.com) - Project Manager role in ${PROJECT_KEY} project"
-echo "   - Henry Checkout (henry.checkout@bookverse.com) - Project Manager role in ${PROJECT_KEY} project"
+echo "   - Charlie DevOps (charlie.devops@bookverse.com) - Project Admin role in ${PROJECT_KEY} project"
+echo "   - Diana Architect (diana.architect@bookverse.com) - Application Admin role in ${PROJECT_KEY} project"
+echo "   - Edward Manager (edward.manager@bookverse.com) - Application Admin role in ${PROJECT_KEY} project"
+echo "   - Frank Inventory (frank.inventory@bookverse.com) - Project Admin role in ${PROJECT_KEY} project"
+echo "   - Grace AI (grace.ai@bookverse.com) - Project Admin role in ${PROJECT_KEY} project"
+echo "   - Henry Checkout (henry.checkout@bookverse.com) - Project Admin role in ${PROJECT_KEY} project"
 echo "   - Pipeline Inventory (pipeline.inventory@bookverse.com) - Developer role in ${PROJECT_KEY} project"
 echo "   - Pipeline Recommendations (pipeline.recommendations@bookverse.com) - Developer role in ${PROJECT_KEY} project"
 echo "   - Pipeline Checkout (pipeline.checkout@bookverse.com) - Developer role in ${PROJECT_KEY} project"

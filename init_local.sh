@@ -623,19 +623,19 @@ create_user() {
       jfrog_role="Release Manager"
       ;;
     "Project Manager")
-      jfrog_role="Project Manager"
+      jfrog_role="Project Admin"
       ;;
     "AppTrust Admin")
-      jfrog_role="AppTrust Admin"
+      jfrog_role="Application Admin"
       ;;
     "Inventory Manager")
-      jfrog_role="Project Manager"
+      jfrog_role="Project Admin"
       ;;
     "AI/ML Manager")
-      jfrog_role="Project Manager"
+      jfrog_role="Project Admin"
       ;;
     "Checkout Manager")
-      jfrog_role="Project Manager"
+      jfrog_role="Project Admin"
       ;;
     "Pipeline User")
       jfrog_role="Developer"
@@ -705,7 +705,7 @@ echo "   ✅ User creation and project assignment process completed"
 echo "   👤 Human Users: 8 users with specific roles"
 echo "   🤖 Pipeline Users: 4 users for automation"
 echo "   🔑 Total Users: 12 users created"
-echo "   🎭 Roles: Developer, Release Manager, Project Manager, AppTrust Admin, Inventory Manager, AI/ML Manager, Checkout Manager, Pipeline User"
+echo "   🎭 Roles: Developer, Release Manager, Project Admin, Application Admin, Inventory Manager, AI/ML Manager, Checkout Manager, Pipeline User"
 echo "   📧 Authentication: All users have email-based authentication"
 echo "   🔐 Passwords: Human users (BookVerse2024!), Pipeline users (Pipeline2024!)"
 echo "   🎯 Project Access: All users assigned to '${PROJECT_KEY}' project with appropriate roles"

@@ -729,22 +729,28 @@ create_application() {
   
   echo "   Creating application: $app_name"
   
-  # Create application payload
-  app_payload=$(jq -n '{
-    "project_key": "'${PROJECT_KEY}'",
-    "application_key": "'$app_key'",
-    "application_name": "'$app_name'",
-    "description": "'$description'",
-    "criticality": "'$criticality'",
-    "maturity_level": "production",
-    "labels": {
-      "type": "microservice",
-      "architecture": "microservices",
-      "environment": "production"
-    },
-    "user_owners": ['$user_owners'],
-    "group_owners": []
-  }')
+  # Create application payload using proper jq --arg syntax
+  app_payload=$(jq -n \
+    --arg project_key "${PROJECT_KEY}" \
+    --arg app_key "$app_key" \
+    --arg app_name "$app_name" \
+    --arg description "$description" \
+    --arg criticality "$criticality" \
+    '{
+      "project_key": $project_key,
+      "application_key": $app_key,
+      "application_name": $app_name,
+      "description": $description,
+      "criticality": $criticality,
+      "maturity_level": "production",
+      "labels": {
+        "type": "microservice",
+        "architecture": "microservices",
+        "environment": "production"
+      },
+      "user_owners": ['$user_owners'],
+      "group_owners": []
+    }')
   
   # Create application
   app_response=$(curl -s -w "%{http_code}" -o /tmp/app_response.json \
@@ -786,11 +792,14 @@ create_oidc_integration() {
   
   echo "   Creating OIDC integration: $integration_name"
   
-  # Create OIDC integration payload
-  oidc_payload=$(jq -n '{
-    "name": "github-'${PROJECT_KEY}'-'$service_name'",
-    "issuer_url": "https://token.actions.githubusercontent.com/"
-  }')
+  # Create OIDC integration payload using proper jq --arg syntax
+  oidc_payload=$(jq -n \
+    --arg project_key "${PROJECT_KEY}" \
+    --arg service_name "$service_name" \
+    '{
+      "name": ("github-" + $project_key + "-" + $service_name),
+      "issuer_url": "https://token.actions.githubusercontent.com/"
+    }')
   
   # Create OIDC integration
   oidc_response=$(curl -s -w "%{http_code}" -o /tmp/oidc_response.json \

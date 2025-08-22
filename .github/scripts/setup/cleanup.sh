@@ -28,10 +28,11 @@ echo "🚨 Proceeding with cleanup of '${PROJECT_KEY}' project..."
 echo ""
 
 # =============================================================================
-# STEP 1: DELETE APPLICATIONS
+# STEP 1: DELETE APPLICATIONS (with version cleanup)
 # =============================================================================
 echo "📱 Step 1/6: Deleting Applications..."
 echo "   Deleting all AppTrust applications in project '${PROJECT_KEY}'"
+echo "   Note: Application versions will be deleted first if they exist"
 echo ""
 
 # List of applications to delete
@@ -43,25 +44,65 @@ applications=(
 )
 
 for app in "${applications[@]}"; do
-    echo "   🗑️  Deleting application: ${PROJECT_KEY}-${app}"
+    app_key="${PROJECT_KEY}-${app}"
+    echo "   🗑️  Processing application: $app_key"
     
-    response_code=$(curl -s -o /dev/null -w "%{http_code}" \
+    # First, check if application has versions
+    echo "     🔍 Checking for application versions..."
+    versions_response=$(curl -s \
+        --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+        --header "Content-Type: application/json" \
+        -X GET \
+        "${JFROG_URL}/apptrust/api/v1/applications/$app_key/versions")
+    
+    # Check if response contains versions
+    if echo "$versions_response" | grep -q '"versions"' && echo "$versions_response" | grep -q '"total"' && [ "$(echo "$versions_response" | jq -r '.total // 0')" -gt 0 ]; then
+        total_versions=$(echo "$versions_response" | jq -r '.total // 0')
+        echo "     📋 Found $total_versions application version(s)"
+        
+        # Extract version names and delete them
+        versions=$(echo "$versions_response" | jq -r '.versions[].version // empty')
+        for version in $versions; do
+            if [[ -n "$version" ]]; then
+                echo "       🗑️  Deleting version: $version"
+                version_response_code=$(curl -s -o /dev/null -w "%{http_code}" \
+                    --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+                    --header "Content-Type: application/json" \
+                    -X DELETE \
+                    "${JFROG_URL}/apptrust/api/v1/applications/$app_key/versions/$version")
+                
+                if [ "$version_response_code" -eq 200 ] || [ "$version_response_code" -eq 204 ]; then
+                    echo "         ✅ Version '$version' deleted successfully (HTTP $version_response_code)"
+                elif [ "$version_response_code" -eq 404 ]; then
+                    echo "         ⚠️  Version '$version' not found (HTTP $version_response_code)"
+                else
+                    echo "         ❌ Failed to delete version '$version' (HTTP $version_response_code)"
+                    FAILED=true
+                fi
+            fi
+        done
+    else
+        echo "     ℹ️  No application versions found"
+    fi
+    
+    # Now delete the application itself
+    echo "     🗑️  Deleting application: $app_key"
+    app_response_code=$(curl -s -o /dev/null -w "%{http_code}" \
         --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
         --header "Content-Type: application/json" \
         -X DELETE \
-        "${JFROG_URL}/apptrust/api/v1/applications/${PROJECT_KEY}-${app}")
+        "${JFROG_URL}/apptrust/api/v1/applications/$app_key")
     
-    if [ "$response_code" -eq 200 ] || [ "$response_code" -eq 204 ]; then
-        echo "     ✅ Application '${PROJECT_KEY}-${app}' deleted successfully (HTTP $response_code)"
-    elif [ "$response_code" -eq 404 ]; then
-        echo "     ⚠️  Application '${PROJECT_KEY}-${app}' not found (HTTP $response_code)"
+    if [ "$app_response_code" -eq 200 ] || [ "$app_response_code" -eq 204 ]; then
+        echo "     ✅ Application '$app_key' deleted successfully (HTTP $app_response_code)"
+    elif [ "$app_response_code" -eq 404 ]; then
+        echo "     ⚠️  Application '$app_key' not found (HTTP $app_response_code)"
     else
-        echo "     ❌ Failed to delete application '${PROJECT_KEY}-${app}' (HTTP $response_code)"
+        echo "     ❌ Failed to delete application '$app_key' (HTTP $app_response_code)"
         FAILED=true
     fi
+    echo ""
 done
-
-echo ""
 
 # =============================================================================
 # STEP 2: DELETE OIDC INTEGRATIONS
@@ -191,14 +232,14 @@ done
 echo ""
 
 # =============================================================================
-# STEP 5: REMOVE USERS FROM PROJECT
+# STEP 5: DELETE USERS
 # =============================================================================
-echo "👥 Step 5/6: Removing Users from Project..."
-echo "   Removing all users from project '${PROJECT_KEY}'"
-echo "   Note: Users are not deleted, only removed from project"
+echo "👥 Step 5/6: Deleting Users..."
+echo "   Deleting all users created for the BookVerse project"
+echo "   Note: Users will be completely removed from JFrog Platform"
 echo ""
 
-# List of users to remove from project
+# List of users to delete
 users=(
     "alice.developer@bookverse.com"
     "bob.release@bookverse.com"
@@ -215,20 +256,20 @@ users=(
 )
 
 for user in "${users[@]}"; do
-    echo "   🚫 Removing user from project: $user"
+    echo "   🗑️  Deleting user: $user"
     
     response_code=$(curl -s -o /dev/null -w "%{http_code}" \
         --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
         --header "Content-Type: application/json" \
         -X DELETE \
-        "${JFROG_URL}/access/api/v1/projects/${PROJECT_KEY}/users/$user")
+        "${JFROG_URL}/access/api/v2/users/$user")
     
     if [ "$response_code" -eq 200 ] || [ "$response_code" -eq 204 ]; then
-        echo "     ✅ User '$user' removed from project successfully (HTTP $response_code)"
+        echo "     ✅ User '$user' deleted successfully (HTTP $response_code)"
     elif [ "$response_code" -eq 404 ]; then
-        echo "     ⚠️  User '$user' not found in project (HTTP $response_code)"
+        echo "     ⚠️  User '$user' not found (HTTP $response_code)"
     else
-        echo "     ❌ Failed to remove user '$user' from project (HTTP $response_code)"
+        echo "     ❌ Failed to delete user '$user' (HTTP $response_code)"
         FAILED=true
     fi
 done
@@ -281,15 +322,15 @@ else
     echo "   The project has been deleted."
     echo ""
     echo "   🎯 Resources cleaned up:"
-    echo "     • Applications: 4 AppTrust applications"
+    echo "     • Applications: 4 AppTrust applications (with versions)"
     echo "     • OIDC Integrations: 4 OIDC integrations"
     echo "     • Repositories: 16 Artifactory repositories"
     echo "     • Stages: 3 local stages (DEV, QA, STAGE)"
-    echo "     • Users: 12 users removed from project"
+    echo "     • Users: 12 users completely deleted"
     echo "     • Project: '${PROJECT_KEY}' project deleted"
     echo ""
-    echo "   💡 Note: User accounts still exist in JFrog but are no longer"
-    echo "      associated with the '${PROJECT_KEY}' project."
+    echo "   💡 Note: All user accounts have been completely removed from"
+    echo "      the JFrog Platform, not just from the project."
 fi
 
 echo ""

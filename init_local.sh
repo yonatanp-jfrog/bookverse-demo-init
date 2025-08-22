@@ -48,16 +48,19 @@ echo ""
 
 echo "🔧 Preparing project creation payload..."
 # Create project payload
-project_payload=$(jq -n '{
-  "display_name": "'${PROJECT_DISPLAY_NAME}'",
-  "admin_privileges": {
-    "manage_members": true,
-    "manage_resources": true,
-    "index_resources": true
-  },
-  "storage_quota_bytes": -1,
-  "project_key": "'${PROJECT_KEY}'"
-}')
+project_payload=$(jq -n \
+  --arg display_name "${PROJECT_DISPLAY_NAME}" \
+  --arg project_key "${PROJECT_KEY}" \
+  '{
+    "display_name": $display_name,
+    "admin_privileges": {
+      "manage_members": true,
+      "manage_resources": true,
+      "index_resources": true
+    },
+    "storage_quota_bytes": -1,
+    "project_key": $project_key
+  }')
 
 echo "📤 Sending project creation request..."
 echo "   Payload: Project '${PROJECT_KEY}' with admin privileges"
@@ -135,12 +138,12 @@ dev_response=$(curl -s -w "%{http_code}" -o /tmp/dev_response.json \
   --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
   --header "Content-Type: application/json" \
   -X POST \
-  -d '{
-    "name": "bookverse-DEV",
-    "scope": "project",
-    "project_key": "'${PROJECT_KEY}'",
-    "category": "promote"
-  }' \
+  -d "{
+    \"name\": \"bookverse-DEV\",
+    \"scope\": \"project\",
+    \"project_key\": \"${PROJECT_KEY}\",
+    \"category\": \"promote\"
+  }" \
   "${JFROG_URL}/access/api/v2/stages")
 
 dev_code=$(echo "$dev_response" | tail -n1)
@@ -171,12 +174,12 @@ qa_response=$(curl -s -w "%{http_code}" -o /tmp/qa_response.json \
   --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
   --header "Content-Type: application/json" \
   -X POST \
-  -d '{
-    "name": "bookverse-QA",
-    "scope": "project",
-    "project_key": "'${PROJECT_KEY}'",
-    "category": "promote"
-  }' \
+  -d "{
+    \"name\": \"bookverse-QA\",
+    \"scope\": \"project\",
+    \"project_key\": \"${PROJECT_KEY}\",
+    \"category\": \"promote\"
+  }" \
   "${JFROG_URL}/access/api/v2/stages")
 
 qa_code=$(echo "$qa_response" | tail -n1)
@@ -207,12 +210,12 @@ stage_response=$(curl -s -w "%{http_code}" -o /tmp/stage_response.json \
   --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
   --header "Content-Type: application/json" \
   -X POST \
-  -d '{
-    "name": "bookverse-STAGING",
-    "scope": "project",
-    "project_key": "'${PROJECT_KEY}'",
-    "category": "promote"
-  }' \
+  -d "{
+    \"name\": \"bookverse-STAGING\",
+    \"scope\": \"project\",
+    \"project_key\": \"${PROJECT_KEY}\",
+    \"category\": \"promote\"
+  }" \
   "${JFROG_URL}/access/api/v2/stages")
 
 stage_code=$(echo "$stage_response" | tail -n1)

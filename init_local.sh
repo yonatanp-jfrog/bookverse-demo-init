@@ -176,7 +176,7 @@ echo ""
 # =============================================================================
 # STEP 2: CREATE APPTRUST STAGES
 # =============================================================================
-echo "🎭 Step 2/6: Creating AppTrust Stages..."
+echo "🎭 Step 2/7: Creating AppTrust Stages..."
 echo "   Creating stages: DEV, QA, STAGING (PROD is always present)"
 echo "   API Endpoint: ${JFROG_URL}/access/api/v2/stages"
 echo "   Method: POST"
@@ -387,7 +387,7 @@ echo ""
 # =============================================================================
 # STEP 2.5: UPDATE LIFECYCLE WITH PROMOTE STAGES
 # =============================================================================
-echo "🔄 Step 2.5/6: Updating Lifecycle with Promote Stages..."
+echo "🔄 Step 2.5/7: Updating Lifecycle with Promote Stages..."
 echo "   Updating lifecycle to include project stages in promote category"
 echo "   API Endpoint: ${JFROG_URL}/access/api/v2/lifecycle/?project_key=${PROJECT_KEY}"
 echo "   Method: PATCH"
@@ -527,7 +527,7 @@ create_all_repositories() {
       "rclass": "local",
       "projectKey": "'${PROJECT_KEY}'",
       "xrayIndex": true,
-      "environments": ["DEV", "QA", "STAGE"]
+      "environments": ["bookverse-DEV", "bookverse-QA", "bookverse-STAGING"]
     },
     {
       "key": "'${PROJECT_KEY}'-inventory-docker-release-local",
@@ -551,7 +551,7 @@ create_all_repositories() {
       "rclass": "local",
       "projectKey": "'${PROJECT_KEY}'",
       "xrayIndex": true,
-      "environments": ["DEV", "QA", "STAGE"]
+      "environments": ["bookverse-DEV", "bookverse-QA", "bookverse-STAGING"]
     },
     {
       "key": "'${PROJECT_KEY}'-inventory-python-release-local",
@@ -575,7 +575,7 @@ create_all_repositories() {
       "rclass": "local",
       "projectKey": "'${PROJECT_KEY}'",
       "xrayIndex": true,
-      "environments": ["DEV", "QA", "STAGE"]
+      "environments": ["bookverse-DEV", "bookverse-QA", "bookverse-STAGING"]
     },
     {
       "key": "'${PROJECT_KEY}'-recommendations-docker-release-local",
@@ -599,7 +599,7 @@ create_all_repositories() {
       "rclass": "local",
       "projectKey": "'${PROJECT_KEY}'",
       "xrayIndex": true,
-      "environments": ["DEV", "QA", "STAGE"]
+      "environments": ["bookverse-DEV", "bookverse-QA", "bookverse-STAGING"]
     },
     {
       "key": "'${PROJECT_KEY}'-recommendations-python-release-local",
@@ -623,7 +623,7 @@ create_all_repositories() {
       "rclass": "local",
       "projectKey": "'${PROJECT_KEY}'",
       "xrayIndex": true,
-      "environments": ["DEV", "QA", "STAGE"]
+      "environments": ["bookverse-DEV", "bookverse-QA", "bookverse-STAGING"]
     },
     {
       "key": "'${PROJECT_KEY}'-checkout-docker-release-local",
@@ -647,7 +647,7 @@ create_all_repositories() {
       "rclass": "local",
       "projectKey": "'${PROJECT_KEY}'",
       "xrayIndex": true,
-      "environments": ["DEV", "QA", "STAGE"]
+      "environments": ["bookverse-DEV", "bookverse-QA", "bookverse-STAGING"]
     },
     {
       "key": "'${PROJECT_KEY}'-checkout-python-release-local",
@@ -671,7 +671,7 @@ create_all_repositories() {
       "rclass": "local",
       "projectKey": "'${PROJECT_KEY}'",
       "xrayIndex": true,
-      "environments": ["DEV", "QA", "STAGE"]
+      "environments": ["bookverse-DEV", "bookverse-QA", "bookverse-STAGING"]
     },
     {
       "key": "'${PROJECT_KEY}'-platform-docker-release-local",
@@ -695,7 +695,7 @@ create_all_repositories() {
       "rclass": "local",
       "projectKey": "'${PROJECT_KEY}'",
       "xrayIndex": true,
-      "environments": ["DEV", "QA", "STAGE"]
+      "environments": ["bookverse-DEV", "bookverse-QA", "bookverse-STAGING"]
     },
     {
       "key": "'${PROJECT_KEY}'-platform-python-release-local",

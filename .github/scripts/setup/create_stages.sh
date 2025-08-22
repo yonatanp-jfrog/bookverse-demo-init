@@ -66,21 +66,19 @@ for STAGE_NAME in "${STAGES[@]}"; do
 done
 
 
-echo "Step 2: Updating lifecycle with promote stages (${PROD_STAGE} is always last)..."
+echo "Step 2: Updating lifecycle with promote stages..."
 
-# Convert STAGES array to project-prefixed names, then add PROD at the end
+# Convert STAGES array to project-prefixed names for promote stages
 project_stages=()
 for STAGE_NAME in "${STAGES[@]}"; do
   project_stages+=("${PROJECT_KEY}-${STAGE_NAME}")
 done
 
-stages_json=$(printf '%s\n' "${project_stages[@]}" | jq -R . | jq -s .)
-stages_with_prod=$(echo "$stages_json" | jq --arg prod "${PROD_STAGE}" '. + [$prod]')
-
+# Create lifecycle payload with only promote stages (PROD is system-managed)
 lifecycle_payload=$(jq -n \
-  --argjson stages "$stages_with_prod" \
+  --argjson promote_stages "$(printf '%s\n' "${project_stages[@]}" | jq -R . | jq -s .)" \
   '{
-    "promote_stages": $stages
+    "promote_stages": $promote_stages
   }')
 
 temp_response=$(mktemp)
@@ -96,7 +94,8 @@ rm -f "$temp_response"
 
 if [ "$response_code" -eq 200 ] || [ "$response_code" -eq 204 ]; then
   echo "✅ Lifecycle updated successfully with promote stages (HTTP $response_code)"
-  echo "   Promote stages: $(IFS=" → "; echo "${project_stages[*]}") → ${PROD_STAGE}"
+  echo "   Promote stages: $(IFS=" → "; echo "${project_stages[*]}")"
+  echo "   Note: ${PROD_STAGE} stage is system-managed and not included in lifecycle configuration"
 elif [ "$response_code" -eq 404 ]; then
   echo "❌ Project '${PROJECT_KEY}' not found for lifecycle update (HTTP $response_code)"
   FAILED=true
@@ -120,6 +119,7 @@ for STAGE_NAME in "${STAGES[@]}"; do
   echo "   - $FULL_STAGE_NAME stage created in project '${PROJECT_KEY}'"
 done
 echo "   - ${PROD_STAGE} stage is always present (not created by this script)"
-echo "   - Lifecycle updated with promote stages: $(IFS=" → "; echo "${STAGES[@]/#/${PROJECT_KEY}-}") → ${PROD_STAGE}"
+echo "   - Lifecycle updated with promote stages: $(IFS=" → "; echo "${STAGES[@]/#/${PROJECT_KEY}-}")"
+echo "   - ${PROD_STAGE} stage is system-managed and not included in lifecycle configuration"
 echo ""
 echo "Project is now ready with local stages and lifecycle configuration!"

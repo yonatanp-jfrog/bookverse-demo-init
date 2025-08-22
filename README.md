@@ -14,35 +14,55 @@ BookVerse is a SaaS solution comprising three microservices and a combined Platf
 ## 🚀 Quick Start
 
 ### Prerequisites
-
-- JFrog Platform instance (Artifactory + AppTrust)
-- JFrog Admin token with full permissions
-- `jq` command-line tool installed
-- `curl` command-line tool installed
+- JFrog Platform access with admin privileges
+- `curl` and `jq` installed
+- Bash shell
 
 ### Environment Variables
-
-Set these environment variables before running the scripts:
-
 ```bash
-export JFROG_URL="https://your-instance.jfrog.io"
+export JFROG_URL="https://your-jfrog-instance.com"
 export JFROG_ADMIN_TOKEN="your-admin-token"
 ```
 
-### Setup Options
+### Easy Verbosity Control with Wrapper Scripts
 
-#### Option 1: Local Setup (Recommended for Development)
+For convenience, we've created wrapper scripts that automatically set the correct verbosity level:
+
+#### Silent Execution (No Output)
 ```bash
-# Run the local initialization script
-./init_local.sh
-
-# Run the local cleanup script
-./cleanup_local.sh
+./init_silent.sh
+# Runs completely silently, only shows success/failure at the end
 ```
 
-#### Option 2: GitHub Actions
-- Push to main branch to trigger automatic setup
-- Use GitHub Actions UI to manually trigger setup/cleanup workflows
+#### Normal Feedback (Default)
+```bash
+./init_feedback.sh
+# Shows progress and results, no interaction needed
+```
+
+#### Interactive Debug
+```bash
+./init_debug.sh
+# Shows each command, asks for confirmation, displays full output
+```
+
+### Manual Verbosity Control
+
+You can also set verbosity manually and run the main script:
+
+```bash
+# Silent mode
+export VERBOSITY=0
+./init_local.sh
+
+# Feedback mode (default)
+export VERBOSITY=1
+./init_local.sh
+
+# Debug mode
+export VERBOSITY=2
+./init_local.sh
+```
 
 ## 🎛️ Verbosity Control
 

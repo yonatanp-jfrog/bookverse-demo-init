@@ -43,93 +43,128 @@ echo ""
 # =============================================================================
 echo "📦 Creating BookVerse Inventory Microservice application..."
 
-inventory_app_payload=$(jq -n '{
-  "project_key": "'${PROJECT_KEY}'",
-  "application_key": "bookverse-inventory",
-  "application_name": "BookVerse Inventory Service",
-  "description": "Microservice responsible for managing book inventory, stock levels, and availability tracking across all BookVerse locations",
-  "criticality": "high",
-  "maturity_level": "production",
-  "labels": {
-    "type": "microservice",
-    "domain": "inventory",
-    "architecture": "microservices",
-    "environment": "production",
-    "team": "inventory-team"
-  },
-  "user_owners": ["frank.inventory@bookverse.com"],
-  "group_owners": []
-}')
+inventory_app_payload=$(jq -n \
+  --arg project_key "${PROJECT_KEY}" \
+  --arg app_key "bookverse-inventory" \
+  --arg app_name "BookVerse Inventory Service" \
+  --arg description "Microservice responsible for managing book inventory, stock levels, and availability tracking across all BookVerse locations" \
+  --arg criticality "high" \
+  --arg maturity "production" \
+  --arg team "inventory-team" \
+  --arg owner "frank.inventory@bookverse.com" \
+  '{
+    "project_key": $project_key,
+    "application_key": $app_key,
+    "application_name": $app_name,
+    "description": $description,
+    "criticality": $criticality,
+    "maturity_level": $maturity,
+    "labels": {
+      "type": "microservice",
+      "domain": "inventory",
+      "architecture": "microservices",
+      "environment": "production",
+      "team": $team
+    },
+    "user_owners": [$owner],
+    "group_owners": []
+  }')
 
 # =============================================================================
 # BOOKVERSE RECOMMENDATIONS MICROSERVICE APPLICATION
 # =============================================================================
 echo "🎯 Creating BookVerse Recommendations Microservice application..."
 
-recommendations_app_payload=$(jq -n '{
-  "project_key": "'${PROJECT_KEY}'",
-  "application_key": "bookverse-recommendations",
-  "application_name": "BookVerse Recommendations Service",
-  "description": "AI-powered microservice that provides personalized book recommendations based on user preferences, reading history, and collaborative filtering",
-  "criticality": "medium",
-  "maturity_level": "production",
-  "labels": {
-    "type": "microservice",
-    "domain": "recommendations",
-    "architecture": "microservices",
-    "environment": "production",
-    "team": "ai-ml-team"
-  },
-  "user_owners": ["grace.ai@bookverse.com"],
-  "group_owners": []
-}')
+recommendations_app_payload=$(jq -n \
+  --arg project_key "${PROJECT_KEY}" \
+  --arg app_key "bookverse-recommendations" \
+  --arg app_name "BookVerse Recommendations Service" \
+  --arg description "AI-powered microservice that provides personalized book recommendations based on user preferences, reading history, and collaborative filtering" \
+  --arg criticality "medium" \
+  --arg maturity "production" \
+  --arg team "ai-ml-team" \
+  --arg owner "grace.ai@bookverse.com" \
+  '{
+    "project_key": $project_key,
+    "application_key": $app_key,
+    "application_name": $app_name,
+    "description": $description,
+    "criticality": $criticality,
+    "maturity_level": $maturity,
+    "labels": {
+      "type": "microservice",
+      "domain": "recommendations",
+      "architecture": "microservices",
+      "environment": "production",
+      "team": $team
+    },
+    "user_owners": [$owner],
+    "group_owners": []
+  }')
 
 # =============================================================================
 # BOOKVERSE CHECKOUT MICROSERVICE APPLICATION
 # =============================================================================
 echo "🛒 Creating BookVerse Checkout Microservice application..."
 
-checkout_app_payload=$(jq -n '{
-  "project_key": "'${PROJECT_KEY}'",
-  "application_key": "bookverse-checkout",
-  "application_name": "BookVerse Checkout Service",
-  "description": "Secure microservice handling payment processing, order fulfillment, and transaction management for book purchases",
-  "criticality": "high",
-  "maturity_level": "production",
-  "labels": {
-    "type": "microservice",
-    "domain": "checkout",
-    "architecture": "microservices",
-    "environment": "production",
-    "team": "checkout-team",
-    "compliance": "pci"
-  },
-  "user_owners": ["henry.checkout@bookverse.com"],
-  "group_owners": []
-}')
+checkout_app_payload=$(jq -n \
+  --arg project_key "${PROJECT_KEY}" \
+  --arg app_key "bookverse-checkout" \
+  --arg app_name "BookVerse Checkout Service" \
+  --arg description "Secure microservice handling payment processing, order fulfillment, and transaction management for book purchases" \
+  --arg criticality "high" \
+  --arg maturity "production" \
+  --arg team "checkout-team" \
+  --arg owner "henry.checkout@bookverse.com" \
+  '{
+    "project_key": $project_key,
+    "application_key": $app_key,
+    "application_name": $app_name,
+    "description": $description,
+    "criticality": $criticality,
+    "maturity_level": $maturity,
+    "labels": {
+      "type": "microservice",
+      "domain": "checkout",
+      "architecture": "microservices",
+      "environment": "production",
+      "team": $team,
+      "compliance": "pci"
+    },
+    "user_owners": [$owner],
+    "group_owners": []
+  }')
 
 # =============================================================================
 # BOOKVERSE PLATFORM APPLICATION
 # =============================================================================
 echo "🏗️  Creating BookVerse Platform application..."
 
-platform_app_payload=$(jq -n '{
-  "project_key": "'${PROJECT_KEY}'",
-  "application_key": "bookverse-platform",
-  "application_name": "BookVerse Platform",
-  "description": "Integrated platform solution combining all microservices with unified API gateway, monitoring, and operational tooling",
-  "criticality": "high",
-  "maturity_level": "production",
-  "labels": {
-    "type": "platform",
-    "domain": "platform",
-    "architecture": "microservices",
-    "environment": "production",
-    "team": "platform"
-  },
-  "user_owners": ["diana.architect@bookverse.com", "edward.manager@bookverse.com", "charlie.devops@bookverse.com", "bob.release@bookverse.com"],
-  "group_owners": []
-}')
+platform_app_payload=$(jq -n \
+  --arg project_key "${PROJECT_KEY}" \
+  --arg app_key "bookverse-platform" \
+  --arg app_name "BookVerse Platform" \
+  --arg description "Integrated platform solution combining all microservices with unified API gateway, monitoring, and operational tooling" \
+  --arg criticality "high" \
+  --arg maturity "production" \
+  --arg team "platform" \
+  '{
+    "project_key": $project_key,
+    "application_key": $app_key,
+    "application_name": $app_name,
+    "description": $description,
+    "criticality": $criticality,
+    "maturity_level": $maturity,
+    "labels": {
+      "type": "platform",
+      "domain": "platform",
+      "architecture": "microservices",
+      "environment": "production",
+      "team": $team
+    },
+    "user_owners": ["diana.architect@bookverse.com", "edward.manager@bookverse.com", "charlie.devops@bookverse.com", "bob.release@bookverse.com"],
+    "group_owners": []
+  }')
 
 # Create all applications
 create_application "BookVerse Inventory Service" "$inventory_app_payload"

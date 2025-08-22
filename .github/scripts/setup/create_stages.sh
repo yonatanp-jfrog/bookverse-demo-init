@@ -29,7 +29,7 @@ echo "Step 1: Creating local stages..."
 for STAGE_NAME in "${STAGES[@]}"; do
   FULL_STAGE_NAME="${PROJECT_KEY}-${STAGE_NAME}"
   echo "Creating stage: $FULL_STAGE_NAME"
-  
+
   stage_payload=$(jq -n \
     --arg name "$STAGE_NAME" \
     --arg project_key "${PROJECT_KEY}" \
@@ -96,6 +96,25 @@ if [ "$response_code" -eq 200 ] || [ "$response_code" -eq 204 ]; then
   echo "✅ Lifecycle updated successfully with promote stages (HTTP $response_code)"
   echo "   Promote stages: $(IFS=" → "; echo "${project_stages[*]}")"
   echo "   Note: ${PROD_STAGE} stage is system-managed and not included in lifecycle configuration"
+
+  # Verify the lifecycle was updated correctly
+  echo ""
+  echo "Step 3: Verifying lifecycle configuration..."
+  verify_response=$(curl -s \
+    --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+    --header "Content-Type: application/json" \
+    -X GET \
+    "${JFROG_URL}/access/api/v2/lifecycle/?project_key=${PROJECT_KEY}")
+
+  if echo "$verify_response" | jq -e '.categories[] | select(.category=="promote") | .stages | length > 0' > /dev/null 2>&1; then
+    promote_stages=$(echo "$verify_response" | jq -r '.categories[] | select(.category=="promote") | .stages[].name' | sort)
+    echo "✅ Lifecycle verification successful"
+    echo "   Current promote stages: $(echo "$promote_stages" | tr '\n' ' ')"
+  else
+    echo "❌ Lifecycle verification failed - no promote stages found"
+    FAILED=true
+  fi
+
 elif [ "$response_code" -eq 404 ]; then
   echo "❌ Project '${PROJECT_KEY}' not found for lifecycle update (HTTP $response_code)"
   FAILED=true

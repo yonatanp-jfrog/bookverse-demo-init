@@ -9,7 +9,7 @@
 
 # Project Configuration
 export PROJECT_KEY="bookverse"
-export PROJECT_DISPLAY_NAME="BookVerse"
+export PROJECT_DISPLAY_NAME="BookVerse - Microservices Demo Platform"
 
 # JFrog Platform Configuration
 export JFROG_URL="${JFROG_URL:-https://z0apptrustdev.jfrogdev.org/}"
@@ -22,7 +22,7 @@ export DOCKER_EXTERNAL_PROD_REPO="docker-external-prod"
 export PYPI_LOCAL_REPO="pypi-local"
 
 # Stage Configuration
-export LOCAL_STAGES=("DEV" "QA" "STAGE")  # Local stages to create (PROD is always last)
+export LOCAL_STAGES=("DEV" "QA" "STAGING")  # Local stages to create (PROD is always last)
 export PROD_STAGE="PROD"                   # Production stage (always present, always last)
 
 # =============================================================================

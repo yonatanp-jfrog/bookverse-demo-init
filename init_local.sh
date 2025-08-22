@@ -101,11 +101,11 @@ echo ""
 # STEP 2: CREATE APPTRUST STAGES
 # =============================================================================
 echo "🎭 Step 2/6: Creating AppTrust Stages..."
-echo "   Creating stages: DEV, QA, STAGE (PROD is always present)"
+echo "   Creating stages: DEV, QA, STAGING (PROD is always present)"
 echo "   API Endpoint: ${JFROG_URL}/access/api/v2/stages"
 echo "   Method: POST"
 echo "   Stage Naming: {project_key}-{stage_name}"
-echo "   Lifecycle Order: DEV → QA → STAGE → PROD (hardcoded)"
+echo "   Lifecycle Order: DEV → QA → STAGING → PROD (hardcoded)"
 echo ""
 
 echo "🔧 Preparing stage creation..."
@@ -113,14 +113,14 @@ echo "   Stage Configuration:"
 echo "     • Scope: project (scoped to ${PROJECT_KEY} project)"
 echo "     • Category: promote (for promotion workflow)"
 echo "     • Project Key: ${PROJECT_KEY}"
-echo "     • Stage Names: bookverse-DEV, bookverse-QA, bookverse-STAGE"
+echo "     • Stage Names: bookverse-DEV, bookverse-QA, bookverse-STAGING"
 echo ""
 
 echo "   🚀 Starting stage creation process..."
 echo "   📋 Stage Details:"
 echo "     🟢 bookverse-DEV: Development stage for initial testing"
 echo "     🟡 bookverse-QA: Quality Assurance stage for testing and validation"
-echo "     🟠 bookverse-STAGE: Staging stage for pre-production testing"
+echo "     🟠 bookverse-STAGING: Staging stage for pre-production testing"
       echo "     🔴 PROD: Production stage (always present, not created)"
 echo ""
 
@@ -197,7 +197,7 @@ else
 fi
 
 # Create STAGE stage
-echo "     🟠 Creating bookverse-STAGE stage..."
+echo "     🟠 Creating bookverse-STAGING stage..."
 echo "       API: POST ${JFROG_URL}/access/api/v2/stages"
 echo "       Payload: Staging stage for pre-production testing"
 echo "       Scope: project (${PROJECT_KEY})"
@@ -208,7 +208,7 @@ stage_response=$(curl -s -w "%{http_code}" -o /tmp/stage_response.json \
   --header "Content-Type: application/json" \
   -X POST \
   -d '{
-    "name": "bookverse-STAGE",
+    "name": "bookverse-STAGING",
     "scope": "project",
     "project_key": "'${PROJECT_KEY}'",
     "category": "promote"
@@ -219,15 +219,15 @@ stage_code=$(echo "$stage_response" | tail -n1)
 echo "       📥 Response: HTTP $stage_code"
 
 if [ "$stage_code" -eq 200 ] || [ "$stage_code" -eq 201 ]; then
-  echo "       ✅ bookverse-STAGE stage created successfully (HTTP $stage_code)"
+  echo "       ✅ bookverse-STAGING stage created successfully (HTTP $stage_code)"
   echo "         Status: SUCCESS - Staging stage ready"
   echo "         Purpose: Pre-production testing"
 elif [ "$stage_code" -eq 409 ]; then
-  echo "       ⚠️  bookverse-STAGE stage already exists (HTTP $stage_code)"
+  echo "       ⚠️  bookverse-STAGING stage already exists (HTTP $stage_code)"
   echo "         Status: SKIPPED - Stage was previously created"
   echo "         Action: Continuing to next step"
 else
-  echo "       ⚠️  bookverse-STAGE stage creation returned HTTP $stage_code (continuing anyway)"
+  echo "       ⚠️  bookverse-STAGING stage creation returned HTTP $stage_code (continuing anyway)"
   echo "         Status: UNKNOWN - Unexpected response code"
   echo "         Action: Continuing to next step despite unexpected response"
 fi
@@ -235,11 +235,11 @@ fi
 echo ""
 echo "📊 Step 2 Summary:"
 echo "   ✅ Stage creation process completed"
-echo "   🎭 Stages Created: bookverse-DEV, bookverse-QA, bookverse-STAGE"
+echo "   🎭 Stages Created: bookverse-DEV, bookverse-QA, bookverse-STAGING"
       echo "   🔴 Production Stage: PROD (always present, not created)"
 echo "   🔗 Project Scope: All stages scoped to '${PROJECT_KEY}' project"
 echo "   📋 Category: promote (for promotion workflow)"
-echo "   🔄 Lifecycle Order: DEV → QA → STAGE → PROD"
+echo "   🔄 Lifecycle Order: DEV → QA → STAGING → PROD"
 echo ""
 
 # =============================================================================
@@ -257,9 +257,9 @@ echo "🔧 Preparing repository batch creation..."
 echo "   Repository Structure:"
 echo "     • 4 Microservices: inventory, recommendations, checkout, platform"
 echo "     • 2 Package Types: docker, python (pypi)"
-echo "     • 2 Stages: internal-local (DEV/QA/STAGE), release-local (PROD)"
+echo "     • 2 Stages: internal-local (DEV/QA/STAGING), release-local (PROD)"
 echo "     • Naming Convention: ${PROJECT_KEY}-{service}-{package}-{stage}-local"
-echo "     • Stage Assignment: Internal repos → DEV/QA/STAGE, Release repos → PROD"
+echo "     • Stage Assignment: Internal repos → DEV/QA/STAGING, Release repos → PROD"
 echo ""
 
 # Function to create all repositories in batch
@@ -293,7 +293,7 @@ create_all_repositories() {
     {
       "key": "'${PROJECT_KEY}'-inventory-docker-internal-local",
       "packageType": "docker",
-      "description": "Inventory Docker internal repository for DEV/QA/STAGE stages",
+      "description": "Inventory Docker internal repository for DEV/QA/STAGING stages",
       "notes": "Internal development repository",
       "includesPattern": "**/*",
       "excludesPattern": "",
@@ -317,7 +317,7 @@ create_all_repositories() {
     {
       "key": "'${PROJECT_KEY}'-inventory-python-internal-local",
       "packageType": "pypi",
-      "description": "Inventory Python internal repository for DEV/QA/STAGE stages",
+      "description": "Inventory Python internal repository for DEV/QA/STAGING stages",
       "notes": "Internal development repository",
       "includesPattern": "**/*",
       "excludesPattern": "",
@@ -341,7 +341,7 @@ create_all_repositories() {
     {
       "key": "'${PROJECT_KEY}'-recommendations-docker-internal-local",
       "packageType": "docker",
-      "description": "Recommendations Docker internal repository for DEV/QA/STAGE stages",
+      "description": "Recommendations Docker internal repository for DEV/QA/STAGING stages",
       "notes": "Internal development repository",
       "includesPattern": "**/*",
       "excludesPattern": "",
@@ -365,7 +365,7 @@ create_all_repositories() {
     {
       "key": "'${PROJECT_KEY}'-recommendations-python-internal-local",
       "packageType": "pypi",
-      "description": "Recommendations Python internal repository for DEV/QA/STAGE stages",
+      "description": "Recommendations Python internal repository for DEV/QA/STAGING stages",
       "notes": "Internal development repository",
       "includesPattern": "**/*",
       "excludesPattern": "",
@@ -389,7 +389,7 @@ create_all_repositories() {
     {
       "key": "'${PROJECT_KEY}'-checkout-docker-internal-local",
       "packageType": "docker",
-      "description": "Checkout Docker internal repository for DEV/QA/STAGE stages",
+      "description": "Checkout Docker internal repository for DEV/QA/STAGING stages",
       "notes": "Internal development repository",
       "includesPattern": "**/*",
       "excludesPattern": "",
@@ -413,7 +413,7 @@ create_all_repositories() {
     {
       "key": "'${PROJECT_KEY}'-checkout-python-internal-local",
       "packageType": "pypi",
-      "description": "Checkout Python internal repository for DEV/QA/STAGE stages",
+      "description": "Checkout Python internal repository for DEV/QA/STAGING stages",
       "notes": "Internal development repository",
       "includesPattern": "**/*",
       "excludesPattern": "",
@@ -437,7 +437,7 @@ create_all_repositories() {
     {
       "key": "'${PROJECT_KEY}'-platform-docker-internal-local",
       "packageType": "docker",
-      "description": "Platform Docker internal repository for DEV/QA/STAGE stages",
+      "description": "Platform Docker internal repository for DEV/QA/STAGING stages",
       "notes": "Internal development repository",
       "includesPattern": "**/*",
       "excludesPattern": "",
@@ -461,7 +461,7 @@ create_all_repositories() {
     {
       "key": "'${PROJECT_KEY}'-platform-python-internal-local",
       "packageType": "pypi",
-      "description": "Platform Python internal repository for DEV/QA/STAGE stages",
+      "description": "Platform Python internal repository for DEV/QA/STAGING stages",
       "notes": "Internal development repository",
       "includesPattern": "**/*",
       "excludesPattern": "",
@@ -530,7 +530,7 @@ echo "   📦 Package Types: 2 (docker, python)"
 echo "   🎭 Stages: 2 (internal-local, release-local)"
 echo "   🔗 Project Integration: All repositories linked to '${PROJECT_KEY}' project"
 echo "   🔍 Xray Indexing: Enabled for all repositories"
-echo "   🎯 Stage Assignment: Internal repos → DEV/QA/STAGE, Release repos → PROD"
+echo "   🎯 Stage Assignment: Internal repos → DEV/QA/STAGING, Release repos → PROD"
 echo ""
 
 

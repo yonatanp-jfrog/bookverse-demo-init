@@ -231,7 +231,7 @@ echo ""
 stages=(
     "${PROJECT_KEY}-DEV"
     "${PROJECT_KEY}-QA"
-    "${PROJECT_KEY}-STAGE"
+    "${PROJECT_KEY}-STAGING"
 )
 
 for stage in "${stages[@]}"; do

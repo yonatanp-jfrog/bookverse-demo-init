@@ -125,12 +125,15 @@ echo ""
 # =============================================================================
 # STEP 1: CREATE PROJECT
 # =============================================================================
-echo "📁 Step 1/6: Creating Project..."
-echo "   Project Key: ${PROJECT_KEY}"
-echo "   Display Name: ${PROJECT_DISPLAY_NAME}"
-echo "   API Endpoint: ${JFROG_URL}/access/api/v1/projects"
-echo "   Method: POST"
-echo ""
+if [ "$VERBOSITY" -ge 1 ]; then
+  echo "📁 Step 1/7: Creating Project..."
+  echo "   Creating JFrog project: ${PROJECT_KEY}"
+  echo "   Display Name: ${PROJECT_DISPLAY_NAME}"
+  echo "   API Endpoint: ${JFROG_URL}/access/api/v1/projects"
+  echo "   Method: POST"
+  echo "   Project Type: Standard JFrog project with AppTrust integration"
+  echo ""
+fi
 
 echo "🔧 Preparing project creation payload..."
 # Create project payload
@@ -192,25 +195,29 @@ else
   echo "   Action: Continuing to next step despite unexpected response"
 fi
 
-echo ""
-echo "📊 Step 1 Summary:"
-echo "   ✅ Project creation process completed"
-echo "   📁 Project Key: ${PROJECT_KEY}"
-echo "   🏷️  Display Name: ${PROJECT_DISPLAY_NAME}"
-echo "   🔑 Admin Privileges: Enabled"
-echo "   💾 Storage: Unlimited"
-echo ""
+if [ "$VERBOSITY" -ge 1 ]; then
+  echo ""
+  echo "📊 Step 1 Summary:"
+  echo "   ✅ Project creation process completed"
+  echo "   🏗️  Project Key: ${PROJECT_KEY}"
+  echo "   📝 Display Name: ${PROJECT_DISPLAY_NAME}"
+  echo "   🔗 API: POST /access/api/v1/projects"
+  echo "   🎯 Status: Project ready for AppTrust stages and repositories"
+  echo ""
+fi
 
 # =============================================================================
 # STEP 2: CREATE APPTRUST STAGES
 # =============================================================================
-echo "🎭 Step 2/7: Creating AppTrust Stages..."
-echo "   Creating stages: DEV, QA, STAGING (PROD is always present)"
-echo "   API Endpoint: ${JFROG_URL}/access/api/v2/stages"
-echo "   Method: POST"
-echo "   Stage Naming: {project_key}-{stage_name}"
-echo "   Lifecycle Order: DEV → QA → STAGING → PROD (hardcoded)"
-echo ""
+if [ "$VERBOSITY" -ge 1 ]; then
+  echo "🎭 Step 2/7: Creating AppTrust Stages..."
+  echo "   Creating ${#LOCAL_STAGES[@]} local stages for project: ${PROJECT_KEY}"
+  echo "   API Endpoint: ${JFROG_URL}/access/api/v2/stages"
+  echo "   Method: POST"
+  echo "   Stage Types: promote (DEV, QA, STAGING)"
+  echo "   Note: PROD stage is global and already exists"
+  echo ""
+fi
 
 echo "🔧 Preparing stage creation..."
 echo "   Stage Configuration:"
@@ -415,12 +422,15 @@ echo ""
 # =============================================================================
 # STEP 2.5: UPDATE LIFECYCLE WITH PROMOTE STAGES
 # =============================================================================
-echo "🔄 Step 2.5/7: Updating Lifecycle with Promote Stages..."
-echo "   Updating lifecycle to include project stages in promote category"
-echo "   API Endpoint: ${JFROG_URL}/access/api/v2/lifecycle/?project_key=${PROJECT_KEY}"
-echo "   Method: PATCH"
-echo "   Purpose: Configure stages for promotion workflow"
-echo ""
+if [ "$VERBOSITY" -ge 1 ]; then
+  echo "🔄 Step 2.5/7: Updating Lifecycle with Promote Stages..."
+  echo "   Configuring lifecycle for project: ${PROJECT_KEY}"
+  echo "   API Endpoint: ${JFROG_URL}/access/api/v2/lifecycle/"
+  echo "   Method: PATCH"
+  echo "   Promote Stages: bookverse-DEV, bookverse-QA, bookverse-STAGING"
+  echo "   Note: PROD stage is automatically managed by JFrog"
+  echo ""
+fi
 
 echo "🔧 Preparing lifecycle update..."
 echo "   Lifecycle Configuration:"
@@ -500,13 +510,20 @@ echo ""
 # =============================================================================
 # STEP 3: CREATE REPOSITORIES
 # =============================================================================
-echo "📦 Step 4/7: Creating Repositories..."
-echo "   Creating 16 repositories (4 microservices × 2 package types × 2 stages)"
-echo "   API Endpoint: ${JFROG_URL}/artifactory/api/v2/repositories/batch"
-echo "   Method: PUT"
-echo "   Batch Size: 16 repositories in single API call"
-echo "   Stage Assignment: Repositories will be assigned to appropriate stages"
-echo ""
+if [ "$VERBOSITY" -ge 1 ]; then
+  echo "📦 Step 3/7: Creating Repositories..."
+  echo "   Creating 16 repositories for BookVerse microservices"
+  echo "   API Endpoint: ${JFROG_URL}/artifactory/api/v2/repositories/batch"
+  echo "   Method: PUT"
+  echo "   Repository Types: Local repositories for Python and Docker packages"
+  echo "   Services: inventory, recommendations, checkout, platform"
+  echo "   Package Types: 2 (docker, python)"
+  echo "   🎭 Stages: 2 (internal-local, release-local)"
+  echo "   🔗 Project Integration: All repositories linked to '${PROJECT_KEY}' project"
+  echo "   🔍 Xray Indexing: Enabled for all repositories"
+  echo "   🎯 Stage Assignment: Internal repos → DEV/QA/STAGING, Release repos → PROD"
+  echo ""
+fi
 
 echo "🔧 Preparing repository batch creation..."
 echo "   Repository Structure:"
@@ -793,46 +810,49 @@ create_all_repositories() {
 # Create all repositories in batch
 create_all_repositories
 
-echo "📊 Step 4 Summary:"
-echo "   ✅ Repository creation process completed"
-echo "   📦 Total Repositories: 16"
-echo "   🏗️  Microservices: 4 (inventory, recommendations, checkout, platform)"
-echo "   📦 Package Types: 2 (docker, python)"
-echo "   🎭 Stages: 2 (internal-local, release-local)"
-echo "   🔗 Project Integration: All repositories linked to '${PROJECT_KEY}' project"
-echo "   🔍 Xray Indexing: Enabled for all repositories"
-echo "   🎯 Stage Assignment: Internal repos → DEV/QA/STAGING, Release repos → PROD"
-echo ""
+if [ "$VERBOSITY" -ge 1 ]; then
+  echo ""
+  echo "📊 Step 4 Summary:"
+  echo "   ✅ Repository creation process completed"
+  echo "   📦 Total Repositories: 16"
+  echo "   🏗️  Microservices: 4 (inventory, recommendations, checkout, platform)"
+  echo "   🎭 Stages: 2 (internal-local, release-local)"
+  echo "   🔗 Project Integration: All repositories linked to '${PROJECT_KEY}' project"
+  echo "   🔍 Xray Indexing: Enabled for all repositories"
+  echo "   🎯 Stage Assignment: Internal repos → DEV/QA/STAGING, Release repos → PROD"
+  echo ""
+fi
 
 
 
 # =============================================================================
 # STEP 4: CREATE USERS
 # =============================================================================
-echo "👥 Step 5/7: Creating Users..."
-echo "   Creating 12 users (8 human + 4 pipeline)"
-echo "   API Endpoint: ${JFROG_URL}/access/api/v2/users"
-echo "   Method: POST"
-echo "   User Types: Human users with roles, Pipeline users for automation"
-echo ""
-
-echo "🔧 Preparing user creation..."
-echo "   User Categories:"
-echo "     👤 Human Users (8):"
-echo "       • Alice Developer: Developer role"
-echo "       • Bob Release: Release Manager role"
-echo "       • Charlie DevOps: Project Manager role"
-echo "       • Diana Architect: AppTrust Admin role"
-echo "       • Edward Manager: AppTrust Admin role"
-echo "       • Frank Inventory: Inventory Manager role"
-echo "       • Grace AI: AI/ML Manager role"
-echo "       • Henry Checkout: Checkout Manager role"
-echo "     🤖 Pipeline Users (4):"
-echo "       • pipeline.inventory: Pipeline automation for inventory service"
-echo "       • pipeline.recommendations: Pipeline automation for recommendations service"
-echo "       • pipeline.checkout: Pipeline automation for checkout service"
-echo "       • pipeline.platform: Pipeline automation for platform solution"
-echo ""
+if [ "$VERBOSITY" -ge 1 ]; then
+  echo "👥 Step 4/7: Creating Users..."
+  echo "   Creating 12 users (8 human + 4 pipeline)"
+  echo "   API Endpoint: ${JFROG_URL}/access/api/v2/users"
+  echo "   Method: POST"
+  echo "   User Types: Human users with roles, Pipeline users for automation"
+  echo ""
+  echo "🔧 Preparing user creation..."
+  echo "   User Categories:"
+  echo "     👤 Human Users (8):"
+  echo "       • Alice Developer: Developer role"
+  echo "       • Bob Release: Release Manager role"
+  echo "       • Charlie DevOps: Project Manager role"
+  echo "       • Diana Architect: AppTrust Admin role"
+  echo "       • Edward Manager: AppTrust Admin role"
+  echo "       • Frank Inventory: Inventory Manager role"
+  echo "       • Grace AI: AI/ML Manager role"
+  echo "       • Henry Checkout: Checkout Manager role"
+  echo "     🤖 Pipeline Users (4):"
+  echo "       • pipeline.inventory: Pipeline automation for inventory service"
+  echo "       • pipeline.recommendations: Pipeline automation for recommendations service"
+  echo "       • pipeline.checkout: Pipeline automation for checkout service"
+  echo "       • pipeline.platform: Pipeline automation for platform solution"
+  echo ""
+fi
 
 # Function to create user and assign to project
 create_user() {
@@ -841,10 +861,14 @@ create_user() {
   local password="$3"
   local role="$4"
   
-  echo "   🚀 Creating user: $username"
-  echo "     Role: $role"
-  echo "     Email: $email"
-  echo "     API: POST ${JFROG_URL}/access/api/v2/users"
+  # Only show user creation details if not in silent mode
+  if [ "$VERBOSITY" -ge 1 ]; then
+    echo "   🚀 Creating user: $username"
+    echo "     Role: $role"
+    echo "     Email: $email"
+    echo "     API: POST ${JFROG_URL}/access/api/v2/users"
+    echo "     📤 Sending user creation request..."
+  fi
   
   # Create user payload
   user_payload=$(jq -n '{
@@ -853,21 +877,38 @@ create_user() {
     "password": "'$password'"
   }')
   
-  echo "     📤 Sending user creation request..."
-  
-  # Create user using debug mode
-  user_command="curl -v -w '\nHTTP_CODE: %{http_code}\n' \
-    --header 'Content-Type: application/json' \
-    --header 'Authorization: Bearer ${JFROG_ADMIN_TOKEN}' \
-    -X POST \
-    -d '$user_payload' \
-    '${JFROG_URL}/access/api/v2/users'"
+  # Create user using verbosity-controlled curl
+  if [ "$VERBOSITY" -ge 2 ]; then
+    # Debug mode - show verbose curl output
+    user_command="curl -v -w '\nHTTP_CODE: %{http_code}\n' \
+      --header 'Content-Type: application/json' \
+      --header 'Authorization: Bearer ${JFROG_ADMIN_TOKEN}' \
+      -X POST \
+      -d '$user_payload' \
+      '${JFROG_URL}/access/api/v2/users'"
+  elif [ "$VERBOSITY" -ge 1 ]; then
+    # Feedback mode - show progress but not verbose curl
+    user_command="curl -s -w '\nHTTP_CODE: %{http_code}\n' \
+      --header 'Content-Type: application/json' \
+      --header 'Authorization: Bearer ${JFROG_ADMIN_TOKEN}' \
+      -X POST \
+      -d '$user_payload' \
+      '${JFROG_URL}/access/api/v2/users'"
+  else
+    # Silent mode - completely silent curl
+    user_command="curl -s -o /dev/null -w '%{http_code}' \
+      --header 'Content-Type: application/json' \
+      --header 'Authorization: Bearer ${JFROG_ADMIN_TOKEN}' \
+      -X POST \
+      -d '$user_payload' \
+      '${JFROG_URL}/access/api/v2/users'"
+  fi
 
   run_verbose_command "Create user $username" "$user_command"
 
-  # Extract response code from debug output
+  # Extract response code based on verbosity level
   if [ "$VERBOSITY" -ge 2 ]; then
-      # In debug mode, we need to capture the output differently
+      # Debug mode - we need to capture the output differently
       echo "🔍 Extracting response code for user creation..."
       user_response=$(curl -s -w "%{http_code}" -o /tmp/user_response.json \
         --header "Content-Type: application/json" \
@@ -876,29 +917,49 @@ create_user() {
         -d "$user_payload" \
         "${JFROG_URL}/access/api/v2/users")
       user_code=$(echo "$user_response" | tail -n1)
-  else
-      # In normal mode, extract from the command output
+  elif [ "$VERBOSITY" -ge 1 ]; then
+      # Feedback mode - extract from the command output
       user_code=$(echo "$user_response" | tail -n1)
+  else
+      # Silent mode - get response code directly
+      user_code=$(curl -s -o /dev/null -w "%{http_code}" \
+        --header "Content-Type: application/json" \
+        --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+        -X POST \
+        -d "$user_payload" \
+        "${JFROG_URL}/access/api/v2/users")
   fi
-  echo "     📥 Response: HTTP $user_code"
+  
+  # Only show response details if not in silent mode
+  if [ "$VERBOSITY" -ge 1 ]; then
+    echo "     📥 Response: HTTP $user_code"
+  fi
   
   if [ "$user_code" -eq 201 ]; then
-    echo "     ✅ User '$username' created successfully"
-    echo "       Status: SUCCESS - User account ready"
-    echo "       Role: $role"
-    echo "       Access: JFrog Platform access granted"
+    if [ "$VERBOSITY" -ge 1 ]; then
+      echo "     ✅ User '$username' created successfully"
+      echo "       Status: SUCCESS - User account ready"
+      echo "       Role: $role"
+      echo "       Access: JFrog Platform access granted"
+    fi
   elif [ "$user_code" -eq 409 ]; then
-    echo "     ⚠️  User '$username' already exists"
-    echo "       Status: SKIPPED - User was previously created"
-    echo "       Action: Continuing to next user"
+    if [ "$VERBOSITY" -ge 1 ]; then
+      echo "     ⚠️  User '$username' already exists"
+      echo "       Status: SKIPPED - User was previously created"
+      echo "       Action: Continuing to next user"
+    fi
   else
-    echo "     ⚠️  User '$username' creation returned HTTP $user_code (continuing anyway)"
-    echo "       Status: UNKNOWN - Unexpected response code"
-    echo "       Action: Continuing to next user despite unexpected response"
+    if [ "$VERBOSITY" -ge 1 ]; then
+      echo "     ⚠️  User '$username' creation returned HTTP $user_code (continuing anyway)"
+      echo "       Status: UNKNOWN - Unexpected response code"
+      echo "       Action: Continuing to next user despite unexpected response"
+    fi
   fi
   
   # Now assign user to project with appropriate role
-  echo "     🔐 Assigning user '$username' to project '${PROJECT_KEY}' with role '$role'..."
+  if [ "$VERBOSITY" -ge 1 ]; then
+    echo "     🔐 Assigning user '$username' to project '${PROJECT_KEY}' with role '$role'..."
+  fi
   
   # Determine the correct JFrog role name for project assignment
   local jfrog_role
@@ -932,8 +993,10 @@ create_user() {
       ;;
   esac
   
-  echo "     📤 Assigning role '$jfrog_role' to user '$username' in project '${PROJECT_KEY}'..."
-  echo "     🔗 API: PUT ${JFROG_URL}/access/api/v1/projects/${PROJECT_KEY}/users/$username"
+  if [ "$VERBOSITY" -ge 1 ]; then
+    echo "     📤 Assigning role '$jfrog_role' to user '$username' in project '${PROJECT_KEY}'..."
+    echo "     🔗 API: PUT ${JFROG_URL}/access/api/v1/projects/${PROJECT_KEY}/users/$username"
+  fi
   
   # Create project user assignment payload
   project_user_payload=$(jq -n --arg username "$username" --arg role "$jfrog_role" '{
@@ -941,19 +1004,38 @@ create_user() {
     "roles": [$role]
   }')
   
-  # Assign user to project using debug mode
-  project_user_command="curl -v -w '\nHTTP_CODE: %{http_code}\n' \
-    --header 'Content-Type: application/json' \
-    --header 'Authorization: Bearer ${JFROG_ADMIN_TOKEN}' \
-    -X PUT \
-    -d '$project_user_payload' \
-    '${JFROG_URL}/access/api/v1/projects/${PROJECT_KEY}/users/$username'"
+  # Assign user to project using verbosity-controlled curl
+  if [ "$VERBOSITY" -ge 2 ]; then
+    # Debug mode - show verbose curl output
+    project_user_command="curl -v -w '\nHTTP_CODE: %{http_code}\n' \
+      --header 'Content-Type: application/json' \
+      --header 'Authorization: Bearer ${JFROG_ADMIN_TOKEN}' \
+      -X PUT \
+      -d '$project_user_payload' \
+      '${JFROG_URL}/access/api/v1/projects/${PROJECT_KEY}/users/$username'"
+  elif [ "$VERBOSITY" -ge 1 ]; then
+    # Feedback mode - show progress but not verbose curl
+    project_user_command="curl -s -w '\nHTTP_CODE: %{http_code}\n' \
+      --header 'Content-Type: application/json' \
+      --header 'Authorization: Bearer ${JFROG_ADMIN_TOKEN}' \
+      -X PUT \
+      -d '$project_user_payload' \
+      '${JFROG_URL}/access/api/v1/projects/${PROJECT_KEY}/users/$username'"
+  else
+    # Silent mode - completely silent curl
+    project_user_command="curl -s -o /dev/null -w '%{http_code}' \
+      --header 'Content-Type: application/json' \
+      --header 'Authorization: Bearer ${JFROG_ADMIN_TOKEN}' \
+      -X PUT \
+      -d '$project_user_payload' \
+      '${JFROG_URL}/access/api/v1/projects/${PROJECT_KEY}/users/$username'"
+  fi
 
   run_verbose_command "Assign user $username to project with role $jfrog_role" "$project_user_command"
 
-  # Extract response code from debug output
+  # Extract response code based on verbosity level
   if [ "$VERBOSITY" -ge 2 ]; then
-      # In debug mode, we need to capture the output differently
+      # Debug mode - we need to capture the output differently
       echo "🔍 Extracting response code for project user assignment..."
       project_user_response=$(curl -s -w "%{http_code}" -o /tmp/project_user_response.json \
         --header "Content-Type: application/json" \
@@ -962,28 +1044,46 @@ create_user() {
         -d "$project_user_payload" \
         "${JFROG_URL}/access/api/v1/projects/${PROJECT_KEY}/users/$username")
       project_user_code=$(echo "$project_user_response" | tail -n1)
-  else
-      # In normal mode, extract from the command output
+  elif [ "$VERBOSITY" -ge 1 ]; then
+      # Feedback mode - extract from the command output
       project_user_code=$(echo "$project_user_response" | tail -n1)
+  else
+      # Silent mode - get response code directly
+      project_user_code=$(curl -s -o /dev/null -w "%{http_code}" \
+        --header "Content-Type: application/json" \
+        --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+        -X PUT \
+        -d "$project_user_payload" \
+        "${JFROG_URL}/access/api/v1/projects/${PROJECT_KEY}/users/$username")
   fi
   
   if [ "$project_user_code" -eq 200 ] || [ "$project_user_code" -eq 201 ]; then
-    echo "     ✅ User '$username' successfully assigned to project '${PROJECT_KEY}' with role '$jfrog_role'"
-    echo "       Status: SUCCESS - User now has access to project resources"
-    echo "       Role: $jfrog_role"
-    echo "       Project: ${PROJECT_KEY}"
+    if [ "$VERBOSITY" -ge 1 ]; then
+      echo "     ✅ User '$username' successfully assigned to project '${PROJECT_KEY}' with role '$jfrog_role'"
+      echo "       Status: SUCCESS - User now has access to project resources"
+      echo "       Role: $jfrog_role"
+      echo "       Project: ${PROJECT_KEY}"
+    fi
   elif [ "$project_user_code" -eq 409 ]; then
-    echo "     ⚠️  User '$username' already has role '$jfrog_role' in project '${PROJECT_KEY}'"
-    echo "       Status: SKIPPED - User already assigned to project"
+    if [ "$VERBOSITY" -ge 1 ]; then
+      echo "     ⚠️  User '$username' already has role '$jfrog_role' in project '${PROJECT_KEY}'"
+      echo "       Status: SKIPPED - User already assigned to project"
+    fi
   elif [ "$project_user_code" -eq 404 ]; then
-    echo "     ❌ Project '${PROJECT_KEY}' not found for user assignment"
-    echo "       Status: ERROR - Cannot assign user to non-existent project"
+    if [ "$VERBOSITY" -ge 1 ]; then
+      echo "     ❌ Project '${PROJECT_KEY}' not found for user assignment"
+      echo "       Status: ERROR - Cannot assign user to non-existent project"
+    fi
   else
-    echo "     ⚠️  User '$username' project assignment returned HTTP $project_user_code"
-    echo "       Status: UNKNOWN - Unexpected response code"
-    echo "       Action: Continuing to next user despite unexpected response"
+    if [ "$VERBOSITY" -ge 1 ]; then
+      echo "     ⚠️  User '$username' project assignment returned HTTP $project_user_code"
+      echo "       Status: UNKNOWN - Unexpected response code"
+      echo "       Action: Continuing to next user despite unexpected response"
+    fi
   fi
-  echo ""
+  if [ "$VERBOSITY" -ge 1 ]; then
+    echo ""
+  fi
 }
 
 # Create human users
@@ -1003,24 +1103,29 @@ create_user "pipeline.checkout@bookverse.com" "pipeline.checkout@bookverse.com" 
 create_user "pipeline.platform@bookverse.com" "pipeline.platform@bookverse.com" "Pipeline2024!" "Pipeline User"
 
 echo ""
-echo "📊 Step 5 Summary:"
-echo "   ✅ User creation and project assignment process completed"
-echo "   👤 Human Users: 8 users with specific roles"
-echo "   🤖 Pipeline Users: 4 users for automation"
-echo "   🔑 Total Users: 12 users created"
-echo "   🎭 Roles: Developer, Release Manager, Project Admin, Application Admin, Inventory Manager, AI/ML Manager, Checkout Manager, Pipeline User"
-echo "   📧 Authentication: All users have email-based authentication"
-echo "   🔐 Passwords: Human users (BookVerse2024!), Pipeline users (Pipeline2024!)"
-echo "   🎯 Project Access: All users assigned to '${PROJECT_KEY}' project with appropriate roles"
-echo "   🔗 API: PUT /access/api/v1/projects/{projectKey}/users/{username}"
-echo ""
+if [ "$VERBOSITY" -ge 1 ]; then
+  echo ""
+  echo "📊 Step 5 Summary:"
+  echo "   ✅ User creation and project assignment process completed"
+  echo "   👤 Human Users: 8 users with specific roles"
+  echo "   🤖 Pipeline Users: 4 users for automation"
+  echo "   🔑 Total Users: 12 users created"
+  echo "   🎭 Roles: Developer, Release Manager, Project Admin, Application Admin, Inventory Manager, AI/ML Manager, Checkout Manager, Pipeline User"
+  echo "   📧 Authentication: All users have email-based authentication"
+  echo "   🔐 Passwords: Human users (BookVerse2024!), Pipeline users (Pipeline2024!)"
+  echo "   🎯 Project Access: All users assigned to '${PROJECT_KEY}' project with appropriate roles"
+  echo "   🔗 API: PUT /access/api/v1/projects/{projectKey}/users/{username}"
+  echo ""
+fi
 
 # =============================================================================
 # STEP 5: CREATE APPLICATIONS
 # =============================================================================
-echo "📱 Step 6/7: Creating Applications..."
-echo "   Creating 4 microservice applications + 1 platform application"
-echo ""
+if [ "$VERBOSITY" -ge 1 ]; then
+  echo "📱 Step 5/7: Creating Applications..."
+  echo "   Creating 4 microservice applications + 1 platform application"
+  echo ""
+fi
 
 # Function to create application
 create_application() {
@@ -1084,9 +1189,15 @@ echo ""
 # =============================================================================
 # STEP 6: CREATE OIDC INTEGRATIONS
 # =============================================================================
-echo "🔐 Step 7/7: Creating OIDC Integrations..."
-echo "   Creating GitHub Actions OIDC for each microservice team"
-echo ""
+if [ "$VERBOSITY" -ge 1 ]; then
+  echo "🔐 Step 6/7: Creating OIDC Integrations..."
+  echo "   Creating OIDC integrations for each microservice team"
+  echo "   API Endpoint: ${JFROG_URL}/access/api/v2/oidc"
+  echo "   Method: POST"
+  echo "   Purpose: Enable GitHub Actions authentication to JFrog Platform"
+  echo "   Teams: inventory, recommendations, checkout, platform"
+  echo ""
+fi
 
 # Function to create OIDC integration
 create_oidc_integration() {
@@ -1132,22 +1243,19 @@ create_oidc_integration "BookVerse Platform" "platform"
 rm -f /tmp/*_response.json
 
 echo ""
-echo "🎉 BookVerse JFrog Platform initialization completed successfully!"
-echo ""
-echo "📊 Summary of what was processed:"
-echo "   ✅ Project: ${PROJECT_KEY}"
-echo "   ✅ Repositories: 16 (4 microservices × 2 package types × 2 stages)"
-echo "   ✅ AppTrust Stages: DEV, QA, STAGE, PROD"
-echo "   ✅ Users: 12 (8 human + 4 pipeline)"
-echo "   ✅ Applications: 4 microservices + 1 platform"
-echo "   ✅ OIDC Integrations: 4 (one per microservice team)"
-echo ""
-echo "💡 Note: Existing resources were detected and skipped gracefully"
-echo "   The script continues even if some resources already exist"
-echo ""
-echo "🚀 Your BookVerse platform is ready for development!"
-echo "💡 Next steps: Configure GitHub Actions secrets and run the workflow"
-echo ""
-echo "🔑 Default passwords:"
-echo "   - Human users: BookVerse2024!"
-echo "   - Pipeline users: Pipeline2024!"
+if [ "$VERBOSITY" -ge 1 ]; then
+  echo ""
+  echo "🎉 BookVerse JFrog Platform Initialization Complete!"
+  echo "=================================================="
+  echo ""
+  echo "✅ What was created:"
+  echo "   🏗️  Project: ${PROJECT_KEY} (${PROJECT_DISPLAY_NAME})"
+  echo "   🎭 Stages: bookverse-DEV, bookverse-QA, bookverse-STAGING (PROD is global)"
+  echo "   📦 Repositories: 16 repositories for all microservices"
+  echo "   👥 Users: 12 users (8 human + 4 pipeline)"
+  echo "   📱 Applications: 5 applications (4 microservices + 1 platform)"
+  echo "   🔐 OIDC: 4 OIDC integrations for GitHub Actions"
+  echo ""
+  echo "🔗 Next steps: Configure GitHub Actions secrets and run the workflow"
+  echo ""
+fi

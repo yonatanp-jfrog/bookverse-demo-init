@@ -9,7 +9,7 @@
 
 # Project Configuration
 export PROJECT_KEY="bookverse"
-export PROJECT_DISPLAY_NAME="BookVerse - Microservices Demo Platform"
+export PROJECT_DISPLAY_NAME="BookVerse"
 
 # JFrog Platform Configuration
 export JFROG_URL="${JFROG_URL:-https://z0apptrustdev.jfrogdev.org/}"

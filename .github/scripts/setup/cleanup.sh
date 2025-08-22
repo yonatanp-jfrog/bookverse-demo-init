@@ -150,12 +150,16 @@ echo "🚨 Proceeding with cleanup of '${PROJECT_KEY}' project..."
 echo ""
 
 # =============================================================================
-# STEP 1: DELETE APPLICATIONS (with version cleanup)
+# STEP 1: DELETE APPLICATIONS
 # =============================================================================
-echo "📱 Step 1/6: Deleting Applications..."
-echo "   Deleting all AppTrust applications in project '${PROJECT_KEY}'"
-echo "   Note: Application versions will be deleted first if they exist"
-echo ""
+if [ "$VERBOSITY" -ge 1 ]; then
+  echo "📱 Step 1/6: Deleting Applications..."
+  echo "   Deleting all applications in project: ${PROJECT_KEY}"
+  echo "   API Endpoint: ${JFROG_URL}/apptrust/api/v1/applications"
+  echo "   Method: DELETE"
+  echo "   Note: Application versions must be deleted first"
+  echo ""
+fi
 
 # List of applications to delete
 applications=(
@@ -229,9 +233,13 @@ done
 # =============================================================================
 # STEP 2: DELETE OIDC INTEGRATIONS
 # =============================================================================
-echo "🔐 Step 2/6: Deleting OIDC Integrations..."
-echo "   Deleting all OIDC integrations in project '${PROJECT_KEY}'"
-echo ""
+if [ "$VERBOSITY" -ge 1 ]; then
+  echo "🔐 Step 2/6: Deleting OIDC Integrations..."
+  echo "   Deleting all OIDC integrations in project: ${PROJECT_KEY}"
+  echo "   API Endpoint: ${JFROG_URL}/access/api/v2/oidc"
+  echo "   Method: DELETE"
+  echo ""
+fi
 
 # List of OIDC integrations to delete
 oidc_integrations=(
@@ -265,9 +273,13 @@ echo ""
 # =============================================================================
 # STEP 3: DELETE REPOSITORIES
 # =============================================================================
-echo "📦 Step 3/6: Deleting Repositories..."
-echo "   Deleting all Artifactory repositories in project '${PROJECT_KEY}'"
-echo ""
+if [ "$VERBOSITY" -ge 1 ]; then
+  echo "📦 Step 3/6: Deleting Repositories..."
+  echo "   Deleting all repositories in project: ${PROJECT_KEY}"
+  echo "   API Endpoint: ${JFROG_URL}/artifactory/api/repositories"
+  echo "   Method: DELETE"
+  echo ""
+fi
 
 # List of repositories to delete
 repositories=(
@@ -318,12 +330,16 @@ done
 echo ""
 
 # =============================================================================
-# STEP 4: DELETE STAGES (with lifecycle removal first)
+# STEP 4: DELETE STAGES
 # =============================================================================
-echo "🎭 Step 4/6: Deleting Stages..."
-echo "   Removing stages from lifecycle, then deleting local stages in project '${PROJECT_KEY}'"
-echo "   Note: PROD stage is global and cannot be deleted"
-echo ""
+if [ "$VERBOSITY" -ge 1 ]; then
+  echo "🎭 Step 4/6: Deleting Stages..."
+  echo "   Deleting all stages in project: ${PROJECT_KEY}"
+  echo "   API Endpoint: ${JFROG_URL}/access/api/v2/stages"
+  echo "   Method: DELETE"
+  echo "   Note: Stages must be removed from lifecycle first"
+  echo ""
+fi
 
 # First, remove stages from lifecycle
 echo "   🔄 Removing stages from lifecycle..."
@@ -380,10 +396,14 @@ echo ""
 # =============================================================================
 # STEP 5: DELETE USERS
 # =============================================================================
-echo "👥 Step 5/6: Deleting Users..."
-echo "   Deleting all users created for the BookVerse project"
-echo "   Note: Users will be completely removed from JFrog Platform"
-echo ""
+if [ "$VERBOSITY" -ge 1 ]; then
+  echo "👥 Step 5/6: Deleting Users..."
+  echo "   Deleting all users created for project: ${PROJECT_KEY}"
+  echo "   API Endpoint: ${JFROG_URL}/access/api/v2/users"
+  echo "   Method: DELETE"
+  echo "   Note: Users will be completely removed from JFrog Platform"
+  echo ""
+fi
 
 # List of users to delete
 users=(
@@ -425,9 +445,14 @@ echo ""
 # =============================================================================
 # STEP 6: DELETE PROJECT
 # =============================================================================
-echo "🏗️  Step 6/6: Deleting Project..."
-echo "   Deleting project '${PROJECT_KEY}' and all remaining resources"
-echo ""
+if [ "$VERBOSITY" -ge 1 ]; then
+  echo "🏗️  Step 6/6: Deleting Project..."
+  echo "   Deleting project: ${PROJECT_KEY}"
+  echo "   API Endpoint: ${JFROG_URL}/access/api/v1/projects/${PROJECT_KEY}"
+  echo "   Method: DELETE"
+  echo "   Note: All resources must be deleted first"
+  echo ""
+fi
 
 echo "   🗑️  Deleting project: ${PROJECT_KEY}"
 echo "   🔗 API: DELETE ${JFROG_URL}/access/api/v1/projects/${PROJECT_KEY}"

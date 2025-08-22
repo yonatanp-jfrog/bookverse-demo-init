@@ -1,0 +1,33 @@
+name: 'Cleanup JFrog Platform for BookVerse Demo'
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_cleanup:
+        description: 'Type "DELETE" to confirm cleanup (this action cannot be undone)'
+        required: true
+        type: string
+
+jobs:
+  cleanup-platform:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Validate Confirmation
+        run: |
+          if [[ "${{ github.event.inputs.confirm_cleanup }}" != "DELETE" ]]; then
+            echo "❌ Cleanup cancelled: Invalid confirmation input"
+            echo "   You must type 'DELETE' to confirm cleanup"
+            exit 1
+          fi
+          echo "✅ Cleanup confirmed. Proceeding with BookVerse project cleanup..."
+
+      - name: Cleanup BookVerse Project
+        env:
+          JFROG_URL: ${{ vars.JFROG_URL }}
+          JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
+        run: ./.github/scripts/setup/cleanup.sh
+      
+      # Note: This will completely remove the BookVerse project and all resources!
+      # Use with caution - this action cannot be undone.

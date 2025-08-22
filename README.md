@@ -49,7 +49,7 @@ source .github/scripts/setup/config.sh
    - `JFROG_URL`: Your JFrog Platform URL
 2. Set repository secrets:
    - `JFROG_ADMIN_TOKEN`: Your JFrog admin token
-3. Run the workflow manually with `action: setup`
+3. Run the "Initialize JFrog Platform for BookVerse Demo" workflow manually
 
 ## 🧹 Cleanup
 
@@ -60,8 +60,9 @@ source .github/scripts/setup/config.sh
 ```
 
 ### GitHub Actions Cleanup
-1. Run the workflow manually with `action: cleanup`
-2. This will remove all resources and delete the project
+1. Run the "Cleanup JFrog Platform for BookVerse Demo" workflow manually
+2. Type "DELETE" in the confirmation field to proceed
+3. This will remove all resources and delete the project
 
 ### Manual Cleanup
 ```bash

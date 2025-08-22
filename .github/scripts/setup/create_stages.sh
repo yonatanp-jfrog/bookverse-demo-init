@@ -68,8 +68,13 @@ done
 
 echo "Step 2: Updating lifecycle with promote stages (${PROD_STAGE} is always last)..."
 
-# Convert STAGES array to JSON array format for the payload, then add PROD at the end
-stages_json=$(printf '%s\n' "${STAGES[@]}" | jq -R . | jq -s .)
+# Convert STAGES array to project-prefixed names, then add PROD at the end
+project_stages=()
+for STAGE_NAME in "${STAGES[@]}"; do
+  project_stages+=("${PROJECT_KEY}-${STAGE_NAME}")
+done
+
+stages_json=$(printf '%s\n' "${project_stages[@]}" | jq -R . | jq -s .)
 stages_with_prod=$(echo "$stages_json" | jq --arg prod "${PROD_STAGE}" '. + [$prod]')
 
 lifecycle_payload=$(jq -n \
@@ -91,7 +96,7 @@ rm -f "$temp_response"
 
 if [ "$response_code" -eq 200 ] || [ "$response_code" -eq 204 ]; then
   echo "✅ Lifecycle updated successfully with promote stages (HTTP $response_code)"
-  echo "   Promote stages: $(IFS=" → "; echo "${STAGES[*]}") → ${PROD_STAGE}"
+  echo "   Promote stages: $(IFS=" → "; echo "${project_stages[*]}") → ${PROD_STAGE}"
 elif [ "$response_code" -eq 404 ]; then
   echo "❌ Project '${PROJECT_KEY}' not found for lifecycle update (HTTP $response_code)"
   FAILED=true

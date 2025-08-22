@@ -196,11 +196,35 @@ done
 echo ""
 
 # =============================================================================
-# STEP 4: DELETE STAGES
+# STEP 4: DELETE STAGES (with lifecycle removal first)
 # =============================================================================
 echo "🎭 Step 4/6: Deleting Stages..."
-echo "   Deleting all local stages in project '${PROJECT_KEY}'"
+echo "   Removing stages from lifecycle, then deleting local stages in project '${PROJECT_KEY}'"
 echo "   Note: PROD stage is global and cannot be deleted"
+echo ""
+
+# First, remove stages from lifecycle
+echo "   🔄 Removing stages from lifecycle..."
+lifecycle_payload=$(jq -n '{
+  "promote_stages": []
+}')
+
+lifecycle_response_code=$(curl -s -o /dev/null -w "%{http_code}" \
+  --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+  --header "Content-Type: application/json" \
+  -X PATCH \
+  -d "$lifecycle_payload" \
+  "${JFROG_URL}/access/api/v2/lifecycle/?project_key=${PROJECT_KEY}")
+
+if [ "$lifecycle_response_code" -eq 200 ] || [ "$lifecycle_response_code" -eq 204 ]; then
+  echo "     ✅ Lifecycle cleared successfully (HTTP $lifecycle_response_code)"
+  echo "     Status: SUCCESS - All stages removed from lifecycle"
+elif [ "$lifecycle_response_code" -eq 404 ]; then
+  echo "     ⚠️  Project '${PROJECT_KEY}' not found for lifecycle update (HTTP $lifecycle_response_code)"
+else
+  echo "     ⚠️  Lifecycle update returned HTTP $lifecycle_response_code (continuing anyway)"
+fi
+
 echo ""
 
 # List of stages to delete (only local stages, not PROD)

@@ -98,281 +98,9 @@ echo "   💾 Storage: Unlimited"
 echo ""
 
 # =============================================================================
-# STEP 2: CREATE REPOSITORIES
+# STEP 2: CREATE APPTRUST STAGES
 # =============================================================================
-echo "📦 Step 2/6: Creating Repositories..."
-echo "   Creating 16 repositories (4 microservices × 2 package types × 2 stages)"
-echo "   API Endpoint: ${JFROG_URL}/artifactory/api/v2/repositories/batch"
-echo "   Method: PUT"
-echo "   Batch Size: 16 repositories in single API call"
-echo ""
-
-echo "🔧 Preparing repository batch creation..."
-echo "   Repository Structure:"
-echo "     • 4 Microservices: inventory, recommendations, checkout, platform"
-echo "     • 2 Package Types: docker, python (pypi)"
-echo "     • 2 Stages: internal-local (DEV/QA/STAGE), release-local (PROD)"
-echo "     • Naming Convention: ${PROJECT_KEY}-{service}-{package}-{stage}-local"
-echo ""
-
-# Function to create all repositories in batch
-create_all_repositories() {
-  echo "   🚀 Starting batch repository creation..."
-  echo "   📋 Repository Details:"
-  echo "     📦 Inventory Service:"
-  echo "       - ${PROJECT_KEY}-inventory-docker-internal-local (Docker, DEV/QA/STAGE)"
-  echo "       - ${PROJECT_KEY}-inventory-docker-release-local (Docker, PROD)"
-  echo "       - ${PROJECT_KEY}-inventory-python-internal-local (Python, DEV/QA/STAGE)"
-  echo "       - ${PROJECT_KEY}-inventory-python-release-local (Python, PROD)"
-  echo "     🎯 Recommendations Service:"
-  echo "       - ${PROJECT_KEY}-recommendations-docker-internal-local (Docker, DEV/QA/STAGE)"
-  echo "       - ${PROJECT_KEY}-recommendations-docker-release-local (Docker, PROD)"
-  echo "       - ${PROJECT_KEY}-recommendations-python-internal-local (Python, DEV/QA/STAGE)"
-  echo "       - ${PROJECT_KEY}-recommendations-python-release-local (Python, PROD)"
-  echo "     🛒 Checkout Service:"
-  echo "       - ${PROJECT_KEY}-checkout-docker-internal-local (Docker, DEV/QA/STAGE)"
-  echo "       - ${PROJECT_KEY}-checkout-docker-release-local (Docker, PROD)"
-  echo "       - ${PROJECT_KEY}-checkout-python-internal-local (Python, DEV/QA/STAGE)"
-  echo "       - ${PROJECT_KEY}-checkout-python-release-local (Python, PROD)"
-  echo "     🏗️  Platform Solution:"
-  echo "       - ${PROJECT_KEY}-platform-docker-internal-local (Docker, DEV/QA/STAGE)"
-  echo "       - ${PROJECT_KEY}-platform-docker-release-local (Docker, PROD)"
-  echo "       - ${PROJECT_KEY}-platform-python-internal-local (Python, DEV/QA/STAGE)"
-  echo "       - ${PROJECT_KEY}-platform-python-release-local (Python, PROD)"
-  echo ""
-  
-  # Create batch payload with all 16 repositories
-  batch_payload=$(jq -n '[
-    {
-      "key": "'${PROJECT_KEY}'-inventory-docker-internal-local",
-      "packageType": "docker",
-      "description": "Inventory Docker internal repository for DEV/QA/STAGE stages",
-      "notes": "Internal development repository",
-      "includesPattern": "**/*",
-      "excludesPattern": "",
-      "rclass": "local",
-      "projectKey": "'${PROJECT_KEY}'",
-      "xrayIndex": true
-    },
-    {
-      "key": "'${PROJECT_KEY}'-inventory-docker-release-local",
-      "packageType": "docker",
-      "description": "Inventory Docker release repository for PROD stage",
-      "notes": "Production release repository",
-      "includesPattern": "**/*",
-      "excludesPattern": "",
-      "rclass": "local",
-      "projectKey": "'${PROJECT_KEY}'",
-      "xrayIndex": true
-    },
-    {
-      "key": "'${PROJECT_KEY}'-inventory-python-internal-local",
-      "packageType": "pypi",
-      "description": "Inventory Python internal repository for DEV/QA/STAGE stages",
-      "notes": "Internal development repository",
-      "includesPattern": "**/*",
-      "excludesPattern": "",
-      "rclass": "local",
-      "projectKey": "'${PROJECT_KEY}'",
-      "xrayIndex": true
-    },
-    {
-      "key": "'${PROJECT_KEY}'-inventory-python-release-local",
-      "packageType": "pypi",
-      "description": "Inventory Python release repository for PROD stage",
-      "notes": "Production release repository",
-      "includesPattern": "**/*",
-      "excludesPattern": "",
-      "rclass": "local",
-      "projectKey": "'${PROJECT_KEY}'",
-      "xrayIndex": true
-    },
-    {
-      "key": "'${PROJECT_KEY}'-recommendations-docker-internal-local",
-      "packageType": "docker",
-      "description": "Recommendations Docker internal repository for DEV/QA/STAGE stages",
-      "notes": "Internal development repository",
-      "includesPattern": "**/*",
-      "excludesPattern": "",
-      "rclass": "local",
-      "projectKey": "'${PROJECT_KEY}'",
-      "xrayIndex": true
-    },
-    {
-      "key": "'${PROJECT_KEY}'-recommendations-docker-release-local",
-      "packageType": "docker",
-      "description": "Recommendations Docker release repository for PROD stage",
-      "notes": "Production release repository",
-      "includesPattern": "**/*",
-      "excludesPattern": "",
-      "rclass": "local",
-      "projectKey": "'${PROJECT_KEY}'",
-      "xrayIndex": true
-    },
-    {
-      "key": "'${PROJECT_KEY}'-recommendations-python-internal-local",
-      "packageType": "pypi",
-      "description": "Recommendations Python internal repository for DEV/QA/STAGE stages",
-      "notes": "Internal development repository",
-      "includesPattern": "**/*",
-      "excludesPattern": "",
-      "rclass": "local",
-      "projectKey": "'${PROJECT_KEY}'",
-      "xrayIndex": true
-    },
-    {
-      "key": "'${PROJECT_KEY}'-recommendations-python-release-local",
-      "packageType": "pypi",
-      "description": "Recommendations Python release repository for PROD stage",
-      "notes": "Production release repository",
-      "includesPattern": "**/*",
-      "excludesPattern": "",
-      "rclass": "local",
-      "projectKey": "'${PROJECT_KEY}'",
-      "xrayIndex": true
-    },
-    {
-      "key": "'${PROJECT_KEY}'-checkout-docker-internal-local",
-      "packageType": "docker",
-      "description": "Checkout Docker internal repository for DEV/QA/STAGE stages",
-      "notes": "Internal development repository",
-      "includesPattern": "**/*",
-      "excludesPattern": "",
-      "rclass": "local",
-      "projectKey": "'${PROJECT_KEY}'",
-      "xrayIndex": true
-    },
-    {
-      "key": "'${PROJECT_KEY}'-checkout-docker-release-local",
-      "packageType": "docker",
-      "description": "Checkout Docker release repository for PROD stage",
-      "notes": "Production release repository",
-      "includesPattern": "**/*",
-      "excludesPattern": "",
-      "rclass": "local",
-      "projectKey": "'${PROJECT_KEY}'",
-      "xrayIndex": true
-    },
-    {
-      "key": "'${PROJECT_KEY}'-checkout-python-internal-local",
-      "packageType": "pypi",
-      "description": "Checkout Python internal repository for DEV/QA/STAGE stages",
-      "notes": "Internal development repository",
-      "includesPattern": "**/*",
-      "excludesPattern": "",
-      "rclass": "local",
-      "projectKey": "'${PROJECT_KEY}'",
-      "xrayIndex": true
-    },
-    {
-      "key": "'${PROJECT_KEY}'-checkout-python-release-local",
-      "packageType": "pypi",
-      "description": "Checkout Python release repository for PROD stage",
-      "notes": "Production release repository",
-      "includesPattern": "**/*",
-      "excludesPattern": "",
-      "rclass": "local",
-      "projectKey": "'${PROJECT_KEY}'",
-      "xrayIndex": true
-    },
-    {
-      "key": "'${PROJECT_KEY}'-platform-docker-internal-local",
-      "packageType": "docker",
-      "description": "Platform Docker internal repository for DEV/QA/STAGE stages",
-      "notes": "Internal development repository",
-      "includesPattern": "**/*",
-      "excludesPattern": "",
-      "rclass": "local",
-      "projectKey": "'${PROJECT_KEY}'",
-      "xrayIndex": true
-    },
-    {
-      "key": "'${PROJECT_KEY}'-platform-docker-release-local",
-      "packageType": "docker",
-      "description": "Platform Docker release repository for PROD stage",
-      "notes": "Production release repository",
-      "includesPattern": "**/*",
-      "excludesPattern": "",
-      "rclass": "local",
-      "projectKey": "'${PROJECT_KEY}'",
-      "xrayIndex": true
-    },
-    {
-      "key": "'${PROJECT_KEY}'-platform-python-internal-local",
-      "packageType": "pypi",
-      "description": "Platform Python internal repository for DEV/QA/STAGE stages",
-      "notes": "Internal development repository",
-      "includesPattern": "**/*",
-      "excludesPattern": "",
-      "rclass": "local",
-      "projectKey": "'${PROJECT_KEY}'",
-      "xrayIndex": true
-    },
-    {
-      "key": "'${PROJECT_KEY}'-platform-python-release-local",
-      "packageType": "pypi",
-      "description": "Platform Python release repository for PROD stage",
-      "notes": "Production release repository",
-      "includesPattern": "**/*",
-      "excludesPattern": "",
-      "rclass": "local",
-      "projectKey": "'${PROJECT_KEY}'",
-      "xrayIndex": true
-    }
-  ]')
-  
-  echo "📤 Sending batch repository creation request..."
-  echo "   Payload Size: 16 repository configurations"
-  echo "   Target: ${JFROG_URL}/artifactory/api/v2/repositories/batch"
-  
-  # Create all repositories in batch
-  batch_response=$(curl -s -w "%{http_code}" -o /tmp/batch_response.json \
-    --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
-    --header "Content-Type: application/json" \
-    -X PUT \
-    -d "$batch_payload" \
-    "${JFROG_URL}/artifactory/api/v2/repositories/batch")
-  
-  batch_code=$(echo "$batch_response" | tail -n1)
-  echo "📥 Received response: HTTP $batch_code"
-  
-  if [ "$batch_code" -eq 200 ] || [ "$batch_code" -eq 201 ]; then
-    echo "     ✅ All repositories created successfully in batch (HTTP $batch_code)"
-    echo "     Status: SUCCESS - All 16 repositories created"
-    echo "     Details: Batch operation completed successfully"
-    echo "     Repositories: 4 microservices × 2 packages × 2 stages = 16 total"
-  elif [ "$batch_code" -eq 409 ]; then
-    echo "     ⚠️  Some repositories already exist (HTTP $batch_code)"
-    echo "     Status: PARTIAL - Some repositories were already present"
-    echo "     Action: Continuing to next step"
-    echo "     Note: This is normal if script is re-run"
-  else
-    echo "     ⚠️  Batch repository creation returned HTTP $batch_code (continuing anyway)"
-    echo "     Status: UNKNOWN - Unexpected response code"
-    echo "     Action: Continuing to next step despite unexpected response"
-    echo "     Note: Check JFrog logs for detailed error information"
-  fi
-  
-  echo ""
-}
-
-# Create all repositories in batch
-create_all_repositories
-
-echo "📊 Step 2 Summary:"
-echo "   ✅ Repository creation process completed"
-echo "   📦 Total Repositories: 16"
-echo "   🏗️  Microservices: 4 (inventory, recommendations, checkout, platform)"
-echo "   📦 Package Types: 2 (docker, python)"
-echo "   🎭 Stages: 2 (internal-local, release-local)"
-echo "   🔗 Project Integration: All repositories linked to '${PROJECT_KEY}' project"
-echo "   🔍 Xray Indexing: Enabled for all repositories"
-echo ""
-
-# =============================================================================
-# STEP 3: CREATE APPTRUST STAGES
-# =============================================================================
-echo "🎭 Step 3/6: Creating AppTrust Stages..."
+echo "🎭 Step 2/6: Creating AppTrust Stages..."
 echo "   Creating stages: DEV, QA, STAGE (PROD is always present)"
 echo "   API Endpoint: ${JFROG_URL}/access/api/v2/stages"
 echo "   Method: POST"
@@ -388,7 +116,6 @@ echo "     • Project Key: ${PROJECT_KEY}"
 echo "     • Stage Names: bookverse-DEV, bookverse-QA, bookverse-STAGE"
 echo ""
 
-# Create stages individually using the correct API
 echo "   🚀 Starting stage creation process..."
 echo "   📋 Stage Details:"
 echo "     🟢 bookverse-DEV: Development stage for initial testing"
@@ -434,7 +161,12 @@ else
 fi
 
 # Create QA stage
-echo "     Creating bookverse-QA stage..."
+echo "     🟡 Creating bookverse-QA stage..."
+echo "       API: POST ${JFROG_URL}/access/api/v2/stages"
+echo "       Payload: Quality Assurance stage for testing and validation"
+echo "       Scope: project (${PROJECT_KEY})"
+echo "       Category: promote"
+
 qa_response=$(curl -s -w "%{http_code}" -o /tmp/qa_response.json \
   --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
   --header "Content-Type: application/json" \
@@ -448,16 +180,29 @@ qa_response=$(curl -s -w "%{http_code}" -o /tmp/qa_response.json \
   "${JFROG_URL}/access/api/v2/stages")
 
 qa_code=$(echo "$qa_response" | tail -n1)
+echo "       📥 Response: HTTP $qa_code"
+
 if [ "$qa_code" -eq 200 ] || [ "$qa_code" -eq 201 ]; then
   echo "       ✅ bookverse-QA stage created successfully (HTTP $qa_code)"
+  echo "         Status: SUCCESS - Quality Assurance stage ready"
+  echo "         Purpose: Testing and validation"
 elif [ "$qa_code" -eq 409 ]; then
   echo "       ⚠️  bookverse-QA stage already exists (HTTP $qa_code)"
+  echo "         Status: SKIPPED - Stage was previously created"
+  echo "         Action: Continuing to next stage"
 else
   echo "       ⚠️  bookverse-QA stage creation returned HTTP $qa_code (continuing anyway)"
+  echo "         Status: UNKNOWN - Unexpected response code"
+  echo "         Action: Continuing to next stage despite unexpected response"
 fi
 
 # Create STAGE stage
-echo "     Creating bookverse-STAGE stage..."
+echo "     🟠 Creating bookverse-STAGE stage..."
+echo "       API: POST ${JFROG_URL}/access/api/v2/stages"
+echo "       Payload: Staging stage for pre-production testing"
+echo "       Scope: project (${PROJECT_KEY})"
+echo "       Category: promote"
+
 stage_response=$(curl -s -w "%{http_code}" -o /tmp/stage_response.json \
   --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
   --header "Content-Type: application/json" \
@@ -471,10 +216,16 @@ stage_response=$(curl -s -w "%{http_code}" -o /tmp/stage_response.json \
   "${JFROG_URL}/access/api/v2/stages")
 
 stage_code=$(echo "$stage_response" | tail -n1)
+echo "       📥 Response: HTTP $stage_code"
+
 if [ "$stage_code" -eq 200 ] || [ "$stage_code" -eq 201 ]; then
   echo "       ✅ bookverse-STAGE stage created successfully (HTTP $stage_code)"
+  echo "         Status: SUCCESS - Staging stage ready"
+  echo "         Purpose: Pre-production testing"
 elif [ "$stage_code" -eq 409 ]; then
   echo "       ⚠️  bookverse-STAGE stage already exists (HTTP $stage_code)"
+  echo "         Status: SKIPPED - Stage was previously created"
+  echo "         Action: Continuing to next step"
 else
   echo "       ⚠️  bookverse-STAGE stage creation returned HTTP $stage_code (continuing anyway)"
   echo "         Status: UNKNOWN - Unexpected response code"
@@ -482,7 +233,7 @@ else
 fi
 
 echo ""
-echo "📊 Step 3 Summary:"
+echo "📊 Step 2 Summary:"
 echo "   ✅ Stage creation process completed"
 echo "   🎭 Stages Created: bookverse-DEV, bookverse-QA, bookverse-STAGE"
 echo "   🔴 Production Stage: bookverse-PROD (always present, not created)"
@@ -490,6 +241,299 @@ echo "   🔗 Project Scope: All stages scoped to '${PROJECT_KEY}' project"
 echo "   📋 Category: promote (for promotion workflow)"
 echo "   🔄 Lifecycle Order: DEV → QA → STAGE → PROD"
 echo ""
+
+# =============================================================================
+# STEP 3: CREATE REPOSITORIES
+# =============================================================================
+echo "📦 Step 3/6: Creating Repositories..."
+echo "   Creating 16 repositories (4 microservices × 2 package types × 2 stages)"
+echo "   API Endpoint: ${JFROG_URL}/artifactory/api/v2/repositories/batch"
+echo "   Method: PUT"
+echo "   Batch Size: 16 repositories in single API call"
+echo "   Stage Assignment: Repositories will be assigned to appropriate stages"
+echo ""
+
+echo "🔧 Preparing repository batch creation..."
+echo "   Repository Structure:"
+echo "     • 4 Microservices: inventory, recommendations, checkout, platform"
+echo "     • 2 Package Types: docker, python (pypi)"
+echo "     • 2 Stages: internal-local (DEV/QA/STAGE), release-local (PROD)"
+echo "     • Naming Convention: ${PROJECT_KEY}-{service}-{package}-{stage}-local"
+echo "     • Stage Assignment: Internal repos → DEV/QA/STAGE, Release repos → PROD"
+echo ""
+
+# Function to create all repositories in batch
+create_all_repositories() {
+  echo "   🚀 Starting batch repository creation..."
+  echo "   📋 Repository Details with Stage Assignment:"
+  echo "     📦 Inventory Service:"
+  echo "       - ${PROJECT_KEY}-inventory-docker-internal-local (Docker, DEV/QA/STAGE stages)"
+  echo "       - ${PROJECT_KEY}-inventory-docker-release-local (Docker, PROD stage)"
+  echo "       - ${PROJECT_KEY}-inventory-python-internal-local (Python, DEV/QA/STAGE stages)"
+  echo "       - ${PROJECT_KEY}-inventory-python-release-local (Python, PROD stage)"
+  echo "     🎯 Recommendations Service:"
+  echo "       - ${PROJECT_KEY}-recommendations-docker-internal-local (Docker, DEV/QA/STAGE stages)"
+  echo "       - ${PROJECT_KEY}-recommendations-docker-release-local (Docker, PROD stage)"
+  echo "       - ${PROJECT_KEY}-recommendations-python-internal-local (Python, DEV/QA/STAGE stages)"
+  echo "       - ${PROJECT_KEY}-recommendations-python-release-local (Python, PROD stage)"
+  echo "     🛒 Checkout Service:"
+  echo "       - ${PROJECT_KEY}-checkout-docker-internal-local (Docker, DEV/QA/STAGE stages)"
+  echo "       - ${PROJECT_KEY}-checkout-docker-release-local (Docker, PROD stage)"
+  echo "       - ${PROJECT_KEY}-checkout-python-internal-local (Python, DEV/QA/STAGE stages)"
+  echo "       - ${PROJECT_KEY}-checkout-python-release-local (Python, PROD stage)"
+  echo "     🏗️  Platform Solution:"
+  echo "       - ${PROJECT_KEY}-platform-docker-internal-local (Docker, DEV/QA/STAGE stages)"
+  echo "       - ${PROJECT_KEY}-platform-docker-release-local (Docker, PROD stage)"
+  echo "       - ${PROJECT_KEY}-platform-python-internal-local (Python, DEV/QA/STAGE stages)"
+  echo "       - ${PROJECT_KEY}-platform-python-release-local (Python, PROD stage)"
+  echo ""
+  
+  # Create batch payload with all 16 repositories
+  batch_payload=$(jq -n '[
+    {
+      "key": "'${PROJECT_KEY}'-inventory-docker-internal-local",
+      "packageType": "docker",
+      "description": "Inventory Docker internal repository for DEV/QA/STAGE stages",
+      "notes": "Internal development repository",
+      "includesPattern": "**/*",
+      "excludesPattern": "",
+      "rclass": "local",
+      "projectKey": "'${PROJECT_KEY}'",
+      "xrayIndex": true,
+      "envs": ["DEV", "QA", "STAGE"]
+    },
+    {
+      "key": "'${PROJECT_KEY}'-inventory-docker-release-local",
+      "packageType": "docker",
+      "description": "Inventory Docker release repository for PROD stage",
+      "notes": "Production release repository",
+      "includesPattern": "**/*",
+      "excludesPattern": "",
+      "rclass": "local",
+      "projectKey": "'${PROJECT_KEY}'",
+      "xrayIndex": true,
+      "envs": ["PROD"]
+    },
+    {
+      "key": "'${PROJECT_KEY}'-inventory-python-internal-local",
+      "packageType": "pypi",
+      "description": "Inventory Python internal repository for DEV/QA/STAGE stages",
+      "notes": "Internal development repository",
+      "includesPattern": "**/*",
+      "excludesPattern": "",
+      "rclass": "local",
+      "projectKey": "'${PROJECT_KEY}'",
+      "xrayIndex": true,
+      "envs": ["DEV", "QA", "STAGE"]
+    },
+    {
+      "key": "'${PROJECT_KEY}'-inventory-python-release-local",
+      "packageType": "pypi",
+      "description": "Inventory Python release repository for PROD stage",
+      "notes": "Production release repository",
+      "includesPattern": "**/*",
+      "excludesPattern": "",
+      "rclass": "local",
+      "projectKey": "'${PROJECT_KEY}'",
+      "xrayIndex": true,
+      "envs": ["PROD"]
+    },
+    {
+      "key": "'${PROJECT_KEY}'-recommendations-docker-internal-local",
+      "packageType": "docker",
+      "description": "Recommendations Docker internal repository for DEV/QA/STAGE stages",
+      "notes": "Internal development repository",
+      "includesPattern": "**/*",
+      "excludesPattern": "",
+      "rclass": "local",
+      "projectKey": "'${PROJECT_KEY}'",
+      "xrayIndex": true,
+      "envs": ["DEV", "QA", "STAGE"]
+    },
+    {
+      "key": "'${PROJECT_KEY}'-recommendations-docker-release-local",
+      "packageType": "docker",
+      "description": "Recommendations Docker release repository for PROD stage",
+      "notes": "Production release repository",
+      "includesPattern": "**/*",
+      "excludesPattern": "",
+      "rclass": "local",
+      "projectKey": "'${PROJECT_KEY}'",
+      "xrayIndex": true,
+      "envs": ["PROD"]
+    },
+    {
+      "key": "'${PROJECT_KEY}'-recommendations-python-internal-local",
+      "packageType": "pypi",
+      "description": "Recommendations Python internal repository for DEV/QA/STAGE stages",
+      "notes": "Internal development repository",
+      "includesPattern": "**/*",
+      "excludesPattern": "",
+      "rclass": "local",
+      "projectKey": "'${PROJECT_KEY}'",
+      "xrayIndex": true,
+      "envs": ["DEV", "QA", "STAGE"]
+    },
+    {
+      "key": "'${PROJECT_KEY}'-recommendations-python-release-local",
+      "packageType": "pypi",
+      "description": "Recommendations Python release repository for PROD stage",
+      "notes": "Production release repository",
+      "includesPattern": "**/*",
+      "excludesPattern": "",
+      "rclass": "local",
+      "projectKey": "'${PROJECT_KEY}'",
+      "xrayIndex": true,
+      "envs": ["PROD"]
+    },
+    {
+      "key": "'${PROJECT_KEY}'-checkout-docker-internal-local",
+      "packageType": "docker",
+      "description": "Checkout Docker internal repository for DEV/QA/STAGE stages",
+      "notes": "Internal development repository",
+      "includesPattern": "**/*",
+      "excludesPattern": "",
+      "rclass": "local",
+      "projectKey": "'${PROJECT_KEY}'",
+      "xrayIndex": true,
+      "envs": ["DEV", "QA", "STAGE"]
+    },
+    {
+      "key": "'${PROJECT_KEY}'-checkout-docker-release-local",
+      "packageType": "docker",
+      "description": "Checkout Docker release repository for PROD stage",
+      "notes": "Production release repository",
+      "includesPattern": "**/*",
+      "excludesPattern": "",
+      "rclass": "local",
+      "projectKey": "'${PROJECT_KEY}'",
+      "xrayIndex": true,
+      "envs": ["PROD"]
+    },
+    {
+      "key": "'${PROJECT_KEY}'-checkout-python-internal-local",
+      "packageType": "pypi",
+      "description": "Checkout Python internal repository for DEV/QA/STAGE stages",
+      "notes": "Internal development repository",
+      "includesPattern": "**/*",
+      "excludesPattern": "",
+      "rclass": "local",
+      "projectKey": "'${PROJECT_KEY}'",
+      "xrayIndex": true,
+      "envs": ["DEV", "QA", "STAGE"]
+    },
+    {
+      "key": "'${PROJECT_KEY}'-checkout-python-release-local",
+      "packageType": "pypi",
+      "description": "Checkout Python release repository for PROD stage",
+      "notes": "Production release repository",
+      "includesPattern": "**/*",
+      "excludesPattern": "",
+      "rclass": "local",
+      "projectKey": "'${PROJECT_KEY}'",
+      "xrayIndex": true,
+      "envs": ["PROD"]
+    },
+    {
+      "key": "'${PROJECT_KEY}'-platform-docker-internal-local",
+      "packageType": "docker",
+      "description": "Platform Docker internal repository for DEV/QA/STAGE stages",
+      "notes": "Internal development repository",
+      "includesPattern": "**/*",
+      "excludesPattern": "",
+      "rclass": "local",
+      "projectKey": "'${PROJECT_KEY}'",
+      "xrayIndex": true,
+      "envs": ["DEV", "QA", "STAGE"]
+    },
+    {
+      "key": "'${PROJECT_KEY}'-platform-docker-release-local",
+      "packageType": "docker",
+      "description": "Platform Docker release repository for PROD stage",
+      "notes": "Production release repository",
+      "includesPattern": "**/*",
+      "excludesPattern": "",
+      "rclass": "local",
+      "projectKey": "'${PROJECT_KEY}'",
+      "xrayIndex": true,
+      "envs": ["PROD"]
+    },
+    {
+      "key": "'${PROJECT_KEY}'-platform-python-internal-local",
+      "packageType": "pypi",
+      "description": "Platform Python internal repository for DEV/QA/STAGE stages",
+      "notes": "Internal development repository",
+      "includesPattern": "**/*",
+      "excludesPattern": "",
+      "rclass": "local",
+      "projectKey": "'${PROJECT_KEY}'",
+      "xrayIndex": true,
+      "envs": ["DEV", "QA", "STAGE"]
+    },
+    {
+      "key": "'${PROJECT_KEY}'-platform-python-release-local",
+      "packageType": "pypi",
+      "description": "Platform Python release repository for PROD stage",
+      "notes": "Production release repository",
+      "includesPattern": "**/*",
+      "excludesPattern": "",
+      "rclass": "local",
+      "projectKey": "'${PROJECT_KEY}'",
+      "xrayIndex": true,
+      "envs": ["PROD"]
+    }
+  ]')
+  
+  echo "📤 Sending batch repository creation request..."
+  echo "   Payload Size: 16 repository configurations"
+  echo "   Target: ${JFROG_URL}/artifactory/api/v2/repositories/batch"
+  
+  # Create all repositories in batch
+  batch_response=$(curl -s -w "%{http_code}" -o /tmp/batch_response.json \
+    --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+    --header "Content-Type: application/json" \
+    -X PUT \
+    -d "$batch_payload" \
+    "${JFROG_URL}/artifactory/api/v2/repositories/batch")
+  
+  batch_code=$(echo "$batch_response" | tail -n1)
+  echo "📥 Received response: HTTP $batch_code"
+  
+  if [ "$batch_code" -eq 200 ] || [ "$batch_code" -eq 201 ]; then
+    echo "     ✅ All repositories created successfully in batch (HTTP $batch_code)"
+    echo "     Status: SUCCESS - All 16 repositories created"
+    echo "     Details: Batch operation completed successfully"
+    echo "     Repositories: 4 microservices × 2 packages × 2 stages = 16 total"
+  elif [ "$batch_code" -eq 409 ]; then
+    echo "     ⚠️  Some repositories already exist (HTTP $batch_code)"
+    echo "     Status: PARTIAL - Some repositories were already present"
+    echo "     Action: Continuing to next step"
+    echo "     Note: This is normal if script is re-run"
+  else
+    echo "     ⚠️  Batch repository creation returned HTTP $batch_code (continuing anyway)"
+    echo "     Status: UNKNOWN - Unexpected response code"
+    echo "     Action: Continuing to next step despite unexpected response"
+    echo "     Note: Check JFrog logs for detailed error information"
+  fi
+  
+  echo ""
+}
+
+# Create all repositories in batch
+create_all_repositories
+
+echo "📊 Step 3 Summary:"
+echo "   ✅ Repository creation process completed"
+echo "   📦 Total Repositories: 16"
+echo "   🏗️  Microservices: 4 (inventory, recommendations, checkout, platform)"
+echo "   📦 Package Types: 2 (docker, python)"
+echo "   🎭 Stages: 2 (internal-local, release-local)"
+echo "   🔗 Project Integration: All repositories linked to '${PROJECT_KEY}' project"
+echo "   🔍 Xray Indexing: Enabled for all repositories"
+echo "   🎯 Stage Assignment: Internal repos → DEV/QA/STAGE, Release repos → PROD"
+echo ""
+
+
 
 # =============================================================================
 # STEP 4: CREATE USERS

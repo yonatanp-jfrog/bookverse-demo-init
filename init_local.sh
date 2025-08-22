@@ -51,6 +51,12 @@ show_debug_info() {
     fi
 }
 
+# Function to obfuscate sensitive data in debug output
+obfuscate_token() {
+    local command="$1"
+    echo "$command" | sed 's/Bearer [^[:space:]]*/Bearer ***/g'
+}
+
 echo "🚀 BookVerse JFrog Platform Initialization - Local Runner"
 echo "========================================================"
 echo ""
@@ -191,7 +197,7 @@ echo "   📋 Stage Details:"
 echo "     🟢 bookverse-DEV: Development stage for initial testing"
 echo "     🟡 bookverse-QA: Quality Assurance stage for testing and validation"
 echo "     🟠 bookverse-STAGING: Staging stage for pre-production testing"
-      echo "     🔴 PROD: Production stage (always present, not created)"
+echo "     🔴 PROD: Production stage (always present, not created)"
 echo ""
 
 # Create DEV stage
@@ -201,19 +207,41 @@ echo "       Payload: Development stage for initial testing"
 echo "       Scope: project (${PROJECT_KEY})"
 echo "       Category: promote"
 
-dev_response=$(curl -s -w "%{http_code}" -o /tmp/dev_response.json \
-  --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
-  --header "Content-Type: application/json" \
+dev_command="curl -v -w '\nHTTP_CODE: %{http_code}\n' \
+  --header 'Authorization: Bearer ${JFROG_ADMIN_TOKEN}' \
+  --header 'Content-Type: application/json' \
   -X POST \
-  -d "{
+  -d '{
     \"name\": \"bookverse-DEV\",
     \"scope\": \"project\",
     \"project_key\": \"${PROJECT_KEY}\",
     \"category\": \"promote\"
-  }" \
-  "${JFROG_URL}/access/api/v2/stages")
+  }' \
+  '${JFROG_URL}/access/api/v2/stages'"
 
-dev_code=$(echo "$dev_response" | tail -n1)
+run_debug_command "Create bookverse-DEV stage" "$dev_command"
+
+# Extract response code from debug output
+if [ "$DEBUG_MODE" = "true" ]; then
+    # In debug mode, we need to capture the output differently
+    echo "🔍 Extracting response code for DEV stage..."
+    dev_response=$(curl -s -w "%{http_code}" -o /tmp/dev_response.json \
+      --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+      --header "Content-Type: application/json" \
+      -X POST \
+      -d "{
+        \"name\": \"bookverse-DEV\",
+        \"scope\": \"project\",
+        \"project_key\": \"${PROJECT_KEY}\",
+        \"category\": \"promote\"
+      }" \
+      "${JFROG_URL}/access/api/v2/stages")
+    dev_code=$(echo "$dev_response" | tail -n1)
+else
+    # In normal mode, extract from the command output
+    dev_code=$(echo "$dev_response" | tail -n1)
+fi
+
 echo "       📥 Response: HTTP $dev_code"
 
 if [ "$dev_code" -eq 200 ] || [ "$dev_code" -eq 201 ]; then
@@ -237,19 +265,41 @@ echo "       Payload: Quality Assurance stage for testing and validation"
 echo "       Scope: project (${PROJECT_KEY})"
 echo "       Category: promote"
 
-qa_response=$(curl -s -w "%{http_code}" -o /tmp/qa_response.json \
-  --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
-  --header "Content-Type: application/json" \
+qa_command="curl -v -w '\nHTTP_CODE: %{http_code}\n' \
+  --header 'Authorization: Bearer ${JFROG_ADMIN_TOKEN}' \
+  --header 'Content-Type: application/json' \
   -X POST \
-  -d "{
+  -d '{
     \"name\": \"bookverse-QA\",
     \"scope\": \"project\",
     \"project_key\": \"${PROJECT_KEY}\",
     \"category\": \"promote\"
-  }" \
-  "${JFROG_URL}/access/api/v2/stages")
+  }' \
+  '${JFROG_URL}/access/api/v2/stages'"
 
-qa_code=$(echo "$qa_response" | tail -n1)
+run_debug_command "Create bookverse-QA stage" "$qa_command"
+
+# Extract response code from debug output
+if [ "$DEBUG_MODE" = "true" ]; then
+    # In debug mode, we need to capture the output differently
+    echo "🔍 Extracting response code for QA stage..."
+    qa_response=$(curl -s -w "%{http_code}" -o /tmp/qa_response.json \
+      --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+      --header "Content-Type: application/json" \
+      -X POST \
+      -d "{
+        \"name\": \"bookverse-QA\",
+        \"scope\": \"project\",
+        \"project_key\": \"${PROJECT_KEY}\",
+        \"category\": \"promote\"
+      }" \
+      "${JFROG_URL}/access/api/v2/stages")
+    qa_code=$(echo "$qa_response" | tail -n1)
+else
+    # In normal mode, extract from the command output
+    qa_code=$(echo "$qa_response" | tail -n1)
+fi
+
 echo "       📥 Response: HTTP $qa_code"
 
 if [ "$qa_code" -eq 200 ] || [ "$qa_code" -eq 201 ]; then
@@ -266,26 +316,48 @@ else
   echo "         Action: Continuing to next stage despite unexpected response"
 fi
 
-# Create STAGE stage
+# Create STAGING stage
 echo "     🟠 Creating bookverse-STAGING stage..."
 echo "       API: POST ${JFROG_URL}/access/api/v2/stages"
 echo "       Payload: Staging stage for pre-production testing"
 echo "       Scope: project (${PROJECT_KEY})"
 echo "       Category: promote"
 
-stage_response=$(curl -s -w "%{http_code}" -o /tmp/stage_response.json \
-  --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
-  --header "Content-Type: application/json" \
+stage_command="curl -v -w '\nHTTP_CODE: %{http_code}\n' \
+  --header 'Authorization: Bearer ${JFROG_ADMIN_TOKEN}' \
+  --header 'Content-Type: application/json' \
   -X POST \
-  -d "{
+  -d '{
     \"name\": \"bookverse-STAGING\",
     \"scope\": \"project\",
     \"project_key\": \"${PROJECT_KEY}\",
     \"category\": \"promote\"
-  }" \
-  "${JFROG_URL}/access/api/v2/stages")
+  }' \
+  '${JFROG_URL}/access/api/v2/stages'"
 
-stage_code=$(echo "$stage_response" | tail -n1)
+run_debug_command "Create bookverse-STAGING stage" "$stage_command"
+
+# Extract response code from debug output
+if [ "$DEBUG_MODE" = "true" ]; then
+    # In debug mode, we need to capture the output differently
+    echo "🔍 Extracting response code for STAGING stage..."
+    stage_response=$(curl -s -w "%{http_code}" -o /tmp/stage_response.json \
+      --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+      --header "Content-Type: application/json" \
+      -X POST \
+      -d "{
+        \"name\": \"bookverse-STAGING\",
+        \"scope\": \"project\",
+        \"project_key\": \"${PROJECT_KEY}\",
+        \"category\": \"promote\"
+      }" \
+      "${JFROG_URL}/access/api/v2/stages")
+    stage_code=$(echo "$stage_response" | tail -n1)
+else
+    # In normal mode, extract from the command output
+    stage_code=$(echo "$stage_response" | tail -n1)
+fi
+
 echo "       📥 Response: HTTP $stage_code"
 
 if [ "$stage_code" -eq 200 ] || [ "$stage_code" -eq 201 ]; then
@@ -337,24 +409,24 @@ create_all_repositories() {
   echo "   🚀 Starting batch repository creation..."
   echo "   📋 Repository Details with Stage Assignment:"
   echo "     📦 Inventory Service:"
-  echo "       - ${PROJECT_KEY}-inventory-docker-internal-local (Docker, DEV/QA/STAGE stages)"
+  echo "       - ${PROJECT_KEY}-inventory-docker-internal-local (Docker, DEV/QA/STAGING stages)"
   echo "       - ${PROJECT_KEY}-inventory-docker-release-local (Docker, PROD stage)"
-  echo "       - ${PROJECT_KEY}-inventory-python-internal-local (Python, DEV/QA/STAGE stages)"
+  echo "       - ${PROJECT_KEY}-inventory-python-internal-local (Python, DEV/QA/STAGING stages)"
   echo "       - ${PROJECT_KEY}-inventory-python-release-local (Python, PROD stage)"
   echo "     🎯 Recommendations Service:"
-  echo "       - ${PROJECT_KEY}-recommendations-docker-internal-local (Docker, DEV/QA/STAGE stages)"
+  echo "       - ${PROJECT_KEY}-recommendations-docker-internal-local (Docker, DEV/QA/STAGING stages)"
   echo "       - ${PROJECT_KEY}-recommendations-docker-release-local (Docker, PROD stage)"
-  echo "       - ${PROJECT_KEY}-recommendations-python-internal-local (Python, DEV/QA/STAGE stages)"
+  echo "       - ${PROJECT_KEY}-recommendations-python-internal-local (Python, DEV/QA/STAGING stages)"
   echo "       - ${PROJECT_KEY}-recommendations-python-release-local (Python, PROD stage)"
   echo "     🛒 Checkout Service:"
-  echo "       - ${PROJECT_KEY}-checkout-docker-internal-local (Docker, DEV/QA/STAGE stages)"
+  echo "       - ${PROJECT_KEY}-checkout-docker-internal-local (Docker, DEV/QA/STAGING stages)"
   echo "       - ${PROJECT_KEY}-checkout-docker-release-local (Docker, PROD stage)"
-  echo "       - ${PROJECT_KEY}-checkout-python-internal-local (Python, DEV/QA/STAGE stages)"
+  echo "       - ${PROJECT_KEY}-checkout-python-internal-local (Python, DEV/QA/STAGING stages)"
   echo "       - ${PROJECT_KEY}-checkout-python-release-local (Python, PROD stage)"
   echo "     🏗️  Platform Solution:"
-  echo "       - ${PROJECT_KEY}-platform-docker-internal-local (Docker, DEV/QA/STAGE stages)"
+  echo "       - ${PROJECT_KEY}-platform-docker-internal-local (Docker, DEV/QA/STAGING stages)"
   echo "       - ${PROJECT_KEY}-platform-docker-release-local (Docker, PROD stage)"
-  echo "       - ${PROJECT_KEY}-platform-python-internal-local (Python, DEV/QA/STAGE stages)"
+  echo "       - ${PROJECT_KEY}-platform-python-internal-local (Python, DEV/QA/STAGING stages)"
   echo "       - ${PROJECT_KEY}-platform-python-release-local (Python, PROD stage)"
   echo ""
   
@@ -558,15 +630,31 @@ create_all_repositories() {
   echo "   Payload Size: 16 repository configurations"
   echo "   Target: ${JFROG_URL}/artifactory/api/v2/repositories/batch"
   
-  # Create all repositories in batch
-  batch_response=$(curl -s -w "%{http_code}" -o /tmp/batch_response.json \
-    --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
-    --header "Content-Type: application/json" \
+  # Create all repositories in batch using debug mode
+  batch_command="curl -v -w '\nHTTP_CODE: %{http_code}\n' \
+    --header 'Authorization: Bearer ${JFROG_ADMIN_TOKEN}' \
+    --header 'Content-Type: application/json' \
     -X PUT \
-    -d "$batch_payload" \
-    "${JFROG_URL}/artifactory/api/v2/repositories/batch")
-  
-  batch_code=$(echo "$batch_response" | tail -n1)
+    -d '$batch_payload' \
+    '${JFROG_URL}/artifactory/api/v2/repositories/batch'"
+
+  run_debug_command "Create all 16 repositories in batch" "$batch_command"
+
+  # Extract response code from debug output
+  if [ "$DEBUG_MODE" = "true" ]; then
+      # In debug mode, we need to capture the output differently
+      echo "🔍 Extracting response code for batch repository creation..."
+      batch_response=$(curl -s -w "%{http_code}" -o /tmp/batch_response.json \
+        --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+        --header "Content-Type: application/json" \
+        -X PUT \
+        -d "$batch_payload" \
+        "${JFROG_URL}/artifactory/api/v2/repositories/batch")
+      batch_code=$(echo "$batch_response" | tail -n1)
+  else
+      # In normal mode, extract from the command output
+      batch_code=$(echo "$batch_response" | tail -n1)
+  fi
   echo "📥 Received response: HTTP $batch_code"
   
   if [ "$batch_code" -eq 200 ] || [ "$batch_code" -eq 201 ]; then
@@ -654,15 +742,31 @@ create_user() {
   
   echo "     📤 Sending user creation request..."
   
-  # Create user
-  user_response=$(curl -s -w "%{http_code}" -o /tmp/user_response.json \
-    --header "Content-Type: application/json" \
-    --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+  # Create user using debug mode
+  user_command="curl -v -w '\nHTTP_CODE: %{http_code}\n' \
+    --header 'Content-Type: application/json' \
+    --header 'Authorization: Bearer ${JFROG_ADMIN_TOKEN}' \
     -X POST \
-    -d "$user_payload" \
-    "${JFROG_URL}/access/api/v2/users")
-  
-  user_code=$(echo "$user_response" | tail -n1)
+    -d '$user_payload' \
+    '${JFROG_URL}/access/api/v2/users'"
+
+  run_debug_command "Create user $username" "$user_command"
+
+  # Extract response code from debug output
+  if [ "$DEBUG_MODE" = "true" ]; then
+      # In debug mode, we need to capture the output differently
+      echo "🔍 Extracting response code for user creation..."
+      user_response=$(curl -s -w "%{http_code}" -o /tmp/user_response.json \
+        --header "Content-Type: application/json" \
+        --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+        -X POST \
+        -d "$user_payload" \
+        "${JFROG_URL}/access/api/v2/users")
+      user_code=$(echo "$user_response" | tail -n1)
+  else
+      # In normal mode, extract from the command output
+      user_code=$(echo "$user_response" | tail -n1)
+  fi
   echo "     📥 Response: HTTP $user_code"
   
   if [ "$user_code" -eq 201 ]; then
@@ -724,15 +828,31 @@ create_user() {
     "roles": [$role]
   }')
   
-  # Assign user to project
-  project_user_response=$(curl -s -w "%{http_code}" -o /tmp/project_user_response.json \
-    --header "Content-Type: application/json" \
-    --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+  # Assign user to project using debug mode
+  project_user_command="curl -v -w '\nHTTP_CODE: %{http_code}\n' \
+    --header 'Content-Type: application/json' \
+    --header 'Authorization: Bearer ${JFROG_ADMIN_TOKEN}' \
     -X PUT \
-    -d "$project_user_payload" \
-    "${JFROG_URL}/access/api/v1/projects/${PROJECT_KEY}/users/$username")
-  
-  project_user_code=$(echo "$project_user_response" | tail -n1)
+    -d '$project_user_payload' \
+    '${JFROG_URL}/access/api/v1/projects/${PROJECT_KEY}/users/$username'"
+
+  run_debug_command "Assign user $username to project with role $jfrog_role" "$project_user_command"
+
+  # Extract response code from debug output
+  if [ "$DEBUG_MODE" = "true" ]; then
+      # In debug mode, we need to capture the output differently
+      echo "🔍 Extracting response code for project user assignment..."
+      project_user_response=$(curl -s -w "%{http_code}" -o /tmp/project_user_response.json \
+        --header "Content-Type: application/json" \
+        --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+        -X PUT \
+        -d "$project_user_payload" \
+        "${JFROG_URL}/access/api/v1/projects/${PROJECT_KEY}/users/$username")
+      project_user_code=$(echo "$project_user_response" | tail -n1)
+  else
+      # In normal mode, extract from the command output
+      project_user_code=$(echo "$project_user_response" | tail -n1)
+  fi
   
   if [ "$project_user_code" -eq 200 ] || [ "$project_user_code" -eq 201 ]; then
     echo "     ✅ User '$username' successfully assigned to project '${PROJECT_KEY}' with role '$jfrog_role'"

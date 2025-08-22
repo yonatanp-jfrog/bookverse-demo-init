@@ -2,11 +2,105 @@
 
 set -e
 
+# =============================================================================
+# DEBUG MODE CONFIGURATION
+# =============================================================================
+# Set DEBUG_MODE=true to enable step-by-step execution with user confirmation
+DEBUG_MODE="${DEBUG_MODE:-false}"
+
+# Function to run command in debug mode
+run_debug_command() {
+    local description="$1"
+    local command="$2"
+    
+    if [ "$DEBUG_MODE" = "true" ]; then
+        echo ""
+        echo "🔍 DEBUG MODE: $description"
+        echo "   Command to execute:"
+        echo "   $command"
+        echo ""
+        read -p "   Press Enter to execute this command, or 'q' to quit: " user_input
+        
+        if [ "$user_input" = "q" ] || [ "$user_input" = "Q" ]; then
+            echo "   ❌ User cancelled execution. Exiting."
+            exit 0
+        fi
+        
+        echo "   🚀 Executing command..."
+        echo "   ========================================="
+        eval "$command"
+        echo "   ========================================="
+        echo "   ✅ Command completed."
+        echo ""
+        read -p "   Press Enter to continue to next step: " continue_input
+    else
+        # Normal mode - just execute
+        eval "$command"
+    fi
+}
+
+# Function to show debug info
+show_debug_info() {
+    if [ "$DEBUG_MODE" = "true" ]; then
+        echo "🐛 DEBUG MODE ENABLED"
+        echo "   - Each step will be shown before execution"
+        echo "   - Commands will be displayed verbosely"
+        echo "   - User confirmation required for each step"
+        echo "   - Full output will be shown"
+        echo ""
+    fi
+}
+
 # Source global configuration
 source "$(dirname "$0")/config.sh"
 
+echo "🧹 BookVerse JFrog Platform Cleanup"
+echo "==================================="
+echo ""
+
+# Show debug mode status
+show_debug_info
+
 # Validate environment variables
 validate_environment
+
+echo "📋 Configuration loaded:"
+echo "   Project Key: ${PROJECT_KEY}"
+echo "   Project Display Name: ${PROJECT_DISPLAY_NAME}"
+echo ""
+
+# =============================================================================
+# CONFIRMATION
+# =============================================================================
+echo "⚠️  WARNING: This script will DELETE ALL resources in the BookVerse project!"
+echo "   This includes:"
+echo "   - All applications and their versions"
+echo "   - All OIDC integrations"
+echo "   - All repositories"
+echo "   - All stages"
+echo "   - All users"
+echo "   - The project itself"
+echo ""
+echo "   This action is IRREVERSIBLE!"
+echo ""
+
+if [ "$DEBUG_MODE" = "true" ]; then
+    echo "🐛 DEBUG MODE: Skipping confirmation prompt for automated testing"
+    echo "   Proceeding with cleanup..."
+else
+    read -p "Type 'DELETE' to confirm you want to proceed with cleanup: " confirmation
+    
+    if [ "$confirmation" != "DELETE" ]; then
+        echo "❌ Cleanup cancelled. Exiting."
+        exit 0
+    fi
+    
+    echo "✅ Confirmation received. Proceeding with cleanup..."
+fi
+
+echo ""
+echo "🔄 Starting cleanup sequence..."
+echo ""
 
 FAILED=false
 

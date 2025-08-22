@@ -2,29 +2,120 @@
 
 set -e
 
-# Source global configuration
-source ".github/scripts/setup/config.sh"
+# =============================================================================
+# DEBUG MODE CONFIGURATION
+# =============================================================================
+# Set DEBUG_MODE=true to enable step-by-step execution with user confirmation
+DEBUG_MODE="${DEBUG_MODE:-false}"
 
-# Validate environment variables
-validate_environment
+# Function to run command in debug mode
+run_debug_command() {
+    local description="$1"
+    local command="$2"
+    
+    if [ "$DEBUG_MODE" = "true" ]; then
+        echo ""
+        echo "🔍 DEBUG MODE: $description"
+        echo "   Command to execute:"
+        echo "   $command"
+        echo ""
+        read -p "   Press Enter to execute this command, or 'q' to quit: " user_input
+        
+        if [ "$user_input" = "q" ] || [ "$user_input" = "Q" ]; then
+            echo "   ❌ User cancelled execution. Exiting."
+            exit 0
+        fi
+        
+        echo "   🚀 Executing command..."
+        echo "   ========================================="
+        eval "$command"
+        echo "   ========================================="
+        echo "   ✅ Command completed."
+        echo ""
+        read -p "   Press Enter to continue to next step: " continue_input
+    else
+        # Normal mode - just execute
+        eval "$command"
+    fi
+}
 
-FAILED=false
+# Function to show debug info
+show_debug_info() {
+    if [ "$DEBUG_MODE" = "true" ]; then
+        echo "🐛 DEBUG MODE ENABLED"
+        echo "   - Each step will be shown before execution"
+        echo "   - Commands will be displayed verbosely"
+        echo "   - User confirmation required for each step"
+        echo "   - Full output will be shown"
+        echo ""
+    fi
+}
 
-echo "🧹 Starting cleanup of BookVerse project and all resources..."
-echo "⚠️  WARNING: This will permanently delete ALL resources in the '${PROJECT_KEY}' project!"
-echo "⚠️  WARNING: This action cannot be undone!"
+echo "🧹 BookVerse JFrog Platform Cleanup - Local Runner"
+echo "=================================================="
 echo ""
 
-# Ask for confirmation
-read -p "Are you sure you want to delete the entire '${PROJECT_KEY}' project? (type 'yes' to confirm): " confirmation
+# Show debug mode status
+show_debug_info
 
-if [[ "$confirmation" != "yes" ]]; then
-    echo "❌ Cleanup cancelled by user."
-    exit 0
+# Check if required environment variables are set
+if [[ -z "${JFROG_URL}" ]]; then
+  echo "❌ Error: JFROG_URL is not set"
+  echo "   Please export JFROG_URL='your-jfrog-instance-url'"
+  echo "   Example: export JFROG_URL='https://your-instance.jfrog.io/'"
+  exit 1
+fi
+
+if [[ -z "${JFROG_ADMIN_TOKEN}" ]]; then
+  echo "❌ Error: JFROG_ADMIN_TOKEN is not set"
+  echo "   Please export JFROG_ADMIN_TOKEN='your-admin-token'"
+  exit 1
+fi
+
+echo "✅ Environment variables validated"
+echo "   JFROG_URL: ${JFROG_URL}"
+echo "   JFROG_ADMIN_TOKEN: [HIDDEN]"
+echo ""
+
+# Source global configuration
+source ./.github/scripts/setup/config.sh
+
+echo "📋 Configuration loaded:"
+echo "   Project Key: ${PROJECT_KEY}"
+echo "   Project Display Name: ${PROJECT_DISPLAY_NAME}"
+echo ""
+
+# =============================================================================
+# CONFIRMATION
+# =============================================================================
+echo "⚠️  WARNING: This script will DELETE ALL resources in the BookVerse project!"
+echo "   This includes:"
+echo "   - All applications and their versions"
+echo "   - All OIDC integrations"
+echo "   - All repositories"
+echo "   - All stages"
+echo "   - All users"
+echo "   - The project itself"
+echo ""
+echo "   This action is IRREVERSIBLE!"
+echo ""
+
+if [ "$DEBUG_MODE" = "true" ]; then
+    echo "🐛 DEBUG MODE: Skipping confirmation prompt for automated testing"
+    echo "   Proceeding with cleanup..."
+else
+    read -p "Type 'DELETE' to confirm you want to proceed with cleanup: " confirmation
+    
+    if [ "$confirmation" != "DELETE" ]; then
+        echo "❌ Cleanup cancelled. Exiting."
+        exit 0
+    fi
+    
+    echo "✅ Confirmation received. Proceeding with cleanup..."
 fi
 
 echo ""
-echo "🚨 Proceeding with cleanup of '${PROJECT_KEY}' project..."
+echo "🔄 Starting cleanup sequence..."
 echo ""
 
 # =============================================================================

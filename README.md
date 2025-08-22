@@ -1,156 +1,216 @@
-# BookVerse Demo - JFrog Platform Initialization
+# BookVerse JFrog Platform Demo
 
-This repository contains scripts to automatically set up a complete JFrog Platform environment for the BookVerse demo, which is a SaaS solution comprising three microservices (Inventory, Recommendation, Checkout) and a combined Platform solution.
+A comprehensive demo setup for the BookVerse microservices platform using JFrog Platform (Artifactory + AppTrust).
 
-## 🏗️ Architecture Overview
+## 🏗️ Architecture
 
-### Microservices
-- **Inventory Service**: Manages book inventory and availability
-- **Recommendations Service**: AI-powered book recommendations
-- **Checkout Service**: Handles purchase transactions
-- **Platform Solution**: Combined solution for enterprise customers
+BookVerse is a SaaS solution comprising three microservices and a combined Platform solution:
 
-### JFrog Platform Components
-- **Artifactory**: 16 repositories (4 services × 2 package types × 2 stages)
-- **AppTrust**: 4 applications with lifecycle management
-- **Access Control**: 12 users with role-based permissions
-- **OIDC Integration**: Secure GitHub Actions authentication
+- **Inventory Service** - Manages book inventory and availability
+- **Recommendations Service** - Provides personalized book recommendations  
+- **Checkout Service** - Handles purchase transactions and order processing
+- **Platform Solution** - Combined solution integrating all microservices
 
 ## 🚀 Quick Start
 
 ### Prerequisites
-- JFrog Platform access with admin privileges
-- JFrog admin token
-- Bash shell environment
+
+- JFrog Platform instance (Artifactory + AppTrust)
+- JFrog Admin token with full permissions
+- `jq` command-line tool installed
+- `curl` command-line tool installed
 
 ### Environment Variables
+
+Set these environment variables before running the scripts:
+
 ```bash
-export JFROG_URL="https://your-instance.jfrog.io/"
+export JFROG_URL="https://your-instance.jfrog.io"
 export JFROG_ADMIN_TOKEN="your-admin-token"
 ```
 
-### Local Setup
+### Setup Options
+
+#### Option 1: Local Setup (Recommended for Development)
 ```bash
-# Run the complete initialization locally
+# Run the local initialization script
 ./init_local.sh
 
-# Or run individual steps
-source .github/scripts/setup/config.sh
-./.github/scripts/setup/create_project.sh
-./.github/scripts/setup/create_repositories.sh
-./.github/scripts/setup/create_stages.sh
-./.github/scripts/setup/create_users.sh
-./.github/scripts/setup/create_applications.sh
-./.github/scripts/setup/create_oidc.sh
+# Run the local cleanup script
+./cleanup_local.sh
 ```
 
-### GitHub Actions Setup
-1. Set repository variables:
-   - `JFROG_URL`: Your JFrog Platform URL
-2. Set repository secrets:
-   - `JFROG_ADMIN_TOKEN`: Your JFrog admin token
-3. Run the "Initialize JFrog Platform for BookVerse Demo" workflow manually
+#### Option 2: GitHub Actions
+- Push to main branch to trigger automatic setup
+- Use GitHub Actions UI to manually trigger setup/cleanup workflows
+
+## 🐛 Debug Mode
+
+All scripts now include a **debug mode** for step-by-step execution and troubleshooting.
+
+### Enable Debug Mode
+
+Set the `DEBUG_MODE` environment variable:
+
+```bash
+# Enable debug mode
+export DEBUG_MODE=true
+
+# Run any script with debug mode
+./init_local.sh
+./cleanup_local.sh
+```
+
+### Debug Mode Features
+
+When `DEBUG_MODE=true` is set:
+
+- ✅ **Step-by-step execution** - One command at a time
+- ✅ **Verbose output** - Show exact commands being run  
+- ✅ **User confirmation** - Ask before each step
+- ✅ **Command preview** - Show what will be executed
+- ✅ **Output display** - Show full response from each command
+- ✅ **Interactive control** - Press Enter to continue, 'q' to quit
+
+### Debug Mode Example
+
+```bash
+export DEBUG_MODE=true
+./init_local.sh
+```
+
+**Output:**
+```
+🐛 DEBUG MODE ENABLED
+   - Each step will be shown before execution
+   - Commands will be displayed verbosely
+   - User confirmation required for each step
+   - Full output will be shown
+
+🔍 DEBUG MODE: Create BookVerse project
+   Command to execute:
+   curl -v -w 'HTTP_CODE: %{http_code}' --header 'Authorization: Bearer [TOKEN]' ...
+
+   Press Enter to execute this command, or 'q' to quit: 
+
+   🚀 Executing command...
+   =========================================
+   [Full curl output with headers, request, response]
+   =========================================
+   ✅ Command completed.
+
+   Press Enter to continue to next step: 
+```
+
+### Use Cases for Debug Mode
+
+- **Troubleshooting** - See exactly what's failing and why
+- **Learning** - Understand each step of the process
+- **Testing** - Verify individual commands before full execution
+- **Development** - Debug script logic and API responses
 
 ## 🧹 Cleanup
 
 ### Local Cleanup
 ```bash
-# Clean up the entire BookVerse project
+# Interactive cleanup with confirmation
+./cleanup_local.sh
+
+# Debug mode cleanup
+export DEBUG_MODE=true
 ./cleanup_local.sh
 ```
 
 ### GitHub Actions Cleanup
-1. Run the "Cleanup JFrog Platform for BookVerse Demo" workflow manually
-2. Type "DELETE" in the confirmation field to proceed
-3. This will remove all resources and delete the project
+- Use the cleanup workflow in GitHub Actions
+- Requires typing "DELETE" to confirm
 
 ### Manual Cleanup
 ```bash
-# Run the cleanup script from the setup directory
-./.github/scripts/setup/cleanup.sh
+# Delete specific resources manually
+curl -X DELETE "${JFROG_URL}/access/api/v1/projects/bookverse"
 ```
 
 ## 📋 What Gets Created
 
 ### Projects
-- **bookverse**: Main project containing all resources
+- 1 JFrog Project: `bookverse`
 
-### Repositories (16 total)
-- **Internal repositories** (DEV/QA/STAGE stages):
-  - `bookverse-{service}-{package}-internal-local`
-- **Release repositories** (PROD stage):
-  - `bookverse-{service}-{package}-release-local`
+### Stages  
+- 3 Local Stages: `bookverse-DEV`, `bookverse-QA`, `bookverse-STAGING`
+- 1 Global Stage: `PROD` (always present)
 
-### Stages
-- **bookverse-DEV**: Development stage
-- **bookverse-QA**: Quality assurance stage  
-- **bookverse-STAGE**: Staging stage
-- **PROD**: Global production stage (always present)
+### Repositories
+- 16 Artifactory repositories (4 services × 2 package types × 2 stages)
+- Naming: `{project}-{service}-{package}-{stage}-local`
 
-### Users (12 total)
-- **Human Users**: 8 users with specific roles
-- **Pipeline Users**: 4 users for CI/CD automation
+### Users
+- 8 Human users with different roles
+- 4 Pipeline automation users
 
 ### Applications
-- **bookverse-inventory**: Inventory service application
-- **bookverse-recommendations**: Recommendations service application
-- **bookverse-checkout**: Checkout service application
-- **bookverse-platform**: Platform solution application
+- 4 Microservice applications (inventory, recommendations, checkout, platform)
+- Each with proper ownership and lifecycle management
 
 ### OIDC Integrations
-- **bookverse-inventory-team**: Inventory team OIDC
-- **bookverse-recommendations-team**: Recommendations team OIDC
-- **bookverse-checkout-team**: Checkout team OIDC
-- **bookverse-platform-team**: Platform team OIDC
+- Secure authentication for GitHub Actions pipelines
+- Team-based access control
 
 ## 🔐 Role Mapping
 
-| Business Role | JFrog Role | Access Level |
-|---------------|------------|--------------|
-| Developer | Developer | Basic project access |
-| Release Manager | Release Manager | Release management |
+| Business Role | JFrog Role | Description |
+|---------------|------------|-------------|
+| Developer | Developer | Code development and testing |
+| Release Manager | Release Manager | Release management and deployment |
 | Project Manager | Project Admin | Project administration |
-| AppTrust Admin | Application Admin | Full application admin |
-| Pipeline User | Developer | CI/CD automation |
+| AppTrust Admin | Application Admin | Application lifecycle management |
 
-## 🎯 Repository Naming Convention
+## 📝 Naming Conventions
 
-```
-{project-key}-{service_name}-{package}-{stage}-local
-```
-
-**Examples:**
-- `bookverse-inventory-docker-internal-local`
-- `bookverse-recommendations-python-release-local`
-- `bookverse-platform-docker-internal-local`
+- **Project**: `bookverse`
+- **Stages**: `bookverse-{STAGE}` (DEV, QA, STAGING)
+- **Repositories**: `{project}-{service}-{package}-{stage}-local`
+- **Applications**: `BookVerse {Service} Service`
+- **Users**: `{firstname}.{lastname}@bookverse.com`
 
 ## ⚠️ Important Notes
 
-- **PROD Stage**: The `PROD` stage is global and always exists - it cannot be created or deleted
-- **User Accounts**: Users are not deleted during cleanup, only removed from the project
-- **Global Resources**: Some resources may persist if cleanup fails
-- **Confirmation Required**: Cleanup scripts require explicit confirmation
+- **PROD stage** is system-managed and cannot be deleted
+- **Cleanup is irreversible** - all data will be permanently deleted
+- **Admin token required** - ensure proper permissions before running
+- **Stages must be removed from lifecycle** before deletion
 
 ## 🔧 Troubleshooting
 
 ### Common Issues
-1. **Permission Denied**: Ensure you have admin privileges
-2. **Resource Not Found**: Some resources may already be deleted
-3. **Network Issues**: Check JFrog URL and network connectivity
 
-### Manual Cleanup
-If automated cleanup fails, you may need to manually remove resources through the JFrog UI or contact your administrator.
+#### HTTP 401 (Unauthorized)
+- Check if `JFROG_ADMIN_TOKEN` is valid and not expired
+- Verify token has admin permissions
+
+#### HTTP 409 (Conflict)
+- Resource already exists - this is normal for re-runs
+- Scripts handle this gracefully
+
+#### Project Deletion Fails
+- Ensure all stages are removed from lifecycle first
+- Delete applications, repositories, and users before project
+
+### Debug Commands
+
+```bash
+# Check lifecycle status
+curl "${JFROG_URL}/access/api/v2/lifecycle/?project_key=bookverse"
+
+# Check project stages
+curl "${JFROG_URL}/access/api/v2/stages/?project_key=bookverse"
+
+# Check project details
+curl "${JFROG_URL}/access/api/v1/projects/bookverse"
+```
 
 ## 📚 Additional Resources
 
 - [JFrog REST API Documentation](https://jfrog.com/help/r/jfrog-rest-apis)
-- [JFrog AppTrust Documentation](https://jfrog.com/help/r/jfrog-apptrust)
-- [JFrog Projects Documentation](https://jfrog.com/help/r/jfrog-projects)
-
-## 🤝 Contributing
-
-This is a demo setup - feel free to modify and adapt for your own JFrog Platform environments.
-
-## 📄 License
-
-This project is provided as-is for demonstration purposes.
+- [JFrog CLI Documentation](https://jfrog.com/help/r/jfrog-cli)
+- [AppTrust Lifecycle Management](https://jfrog.com/help/r/jfrog-apptrust-lifecycle-management)

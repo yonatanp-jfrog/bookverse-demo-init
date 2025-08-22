@@ -2,9 +2,61 @@
 
 set -e
 
+# =============================================================================
+# DEBUG MODE CONFIGURATION
+# =============================================================================
+# Set DEBUG_MODE=true to enable step-by-step execution with user confirmation
+DEBUG_MODE="${DEBUG_MODE:-false}"
+
+# Function to run command in debug mode
+run_debug_command() {
+    local description="$1"
+    local command="$2"
+    
+    if [ "$DEBUG_MODE" = "true" ]; then
+        echo ""
+        echo "🔍 DEBUG MODE: $description"
+        echo "   Command to execute:"
+        echo "   $command"
+        echo ""
+        read -p "   Press Enter to execute this command, or 'q' to quit: " user_input
+        
+        if [ "$user_input" = "q" ] || [ "$user_input" = "Q" ]; then
+            echo "   ❌ User cancelled execution. Exiting."
+            exit 0
+        fi
+        
+        echo "   🚀 Executing command..."
+        echo "   ========================================="
+        eval "$command"
+        echo "   ========================================="
+        echo "   ✅ Command completed."
+        echo ""
+        read -p "   Press Enter to continue to next step: " continue_input
+    else
+        # Normal mode - just execute
+        eval "$command"
+    fi
+}
+
+# Function to show debug info
+show_debug_info() {
+    if [ "$DEBUG_MODE" = "true" ]; then
+        echo "🐛 DEBUG MODE ENABLED"
+        echo "   - Each step will be shown before execution"
+        echo "   - Commands will be displayed verbosely"
+        echo "   - User confirmation required for each step"
+        echo "   - Full output will be shown"
+        echo ""
+    fi
+}
+
 echo "🚀 BookVerse JFrog Platform Initialization - Local Runner"
 echo "========================================================"
 echo ""
+
+# Show debug mode status
+show_debug_info
 
 # Check if required environment variables are set
 if [[ -z "${JFROG_URL}" ]]; then
@@ -66,15 +118,30 @@ echo "📤 Sending project creation request..."
 echo "   Payload: Project '${PROJECT_KEY}' with admin privileges"
 echo "   Storage: Unlimited (storage_quota_bytes: -1)"
 
-# Make API call to create project
-response_code=$(curl -s -o /dev/null -w "%{http_code}" \
-  --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
-  --header "Content-Type: application/json" \
+# Make API call to create project using debug mode
+project_command="curl -v -w '\nHTTP_CODE: %{http_code}\n' \
+  --header 'Authorization: Bearer ${JFROG_ADMIN_TOKEN}' \
+  --header 'Content-Type: application/json' \
   -X POST \
-  -d "$project_payload" \
-  "${JFROG_URL}/access/api/v1/projects")
+  -d '$project_payload' \
+  '${JFROG_URL}/access/api/v1/projects'"
 
-echo "📥 Received response: HTTP $response_code"
+run_debug_command "Create BookVerse project" "$project_command"
+
+# Extract response code from debug output
+if [ "$DEBUG_MODE" = "true" ]; then
+    # In debug mode, we need to capture the output differently
+    echo "🔍 Extracting response code from debug output..."
+    response_code=$(curl -s -o /dev/null -w "%{http_code}" \
+      --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+      --header "Content-Type: application/json" \
+      -X POST \
+      -d "$project_payload" \
+      "${JFROG_URL}/access/api/v1/projects")
+else
+    # In normal mode, extract from the command output
+    response_code=$(echo "$project_command" | tail -n1 | grep -o '[0-9]*$')
+fi
 
 if [ "$response_code" -eq 409 ]; then
   echo "⚠️  Project '${PROJECT_KEY}' already exists (HTTP $response_code)"

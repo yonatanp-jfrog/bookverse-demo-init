@@ -420,7 +420,7 @@ create_all_repositories() {
       "rclass": "local",
       "projectKey": "'${PROJECT_KEY}'",
       "xrayIndex": true,
-      "envs": ["DEV", "QA", "STAGE"]
+      "environments": ["DEV", "QA", "STAGE"]
     },
     {
       "key": "'${PROJECT_KEY}'-checkout-python-release-local",
@@ -432,7 +432,7 @@ create_all_repositories() {
       "rclass": "local",
       "projectKey": "'${PROJECT_KEY}'",
       "xrayIndex": true,
-      "envs": ["PROD"]
+      "environments": ["PROD"]
     },
     {
       "key": "'${PROJECT_KEY}'-platform-docker-internal-local",
@@ -444,7 +444,7 @@ create_all_repositories() {
       "rclass": "local",
       "projectKey": "'${PROJECT_KEY}'",
       "xrayIndex": true,
-      "envs": ["DEV", "QA", "STAGE"]
+      "environments": ["DEV", "QA", "STAGE"]
     },
     {
       "key": "'${PROJECT_KEY}'-platform-docker-release-local",
@@ -456,7 +456,7 @@ create_all_repositories() {
       "rclass": "local",
       "projectKey": "'${PROJECT_KEY}'",
       "xrayIndex": true,
-      "envs": ["PROD"]
+      "environments": ["PROD"]
     },
     {
       "key": "'${PROJECT_KEY}'-platform-python-internal-local",
@@ -468,7 +468,7 @@ create_all_repositories() {
       "rclass": "local",
       "projectKey": "'${PROJECT_KEY}'",
       "xrayIndex": true,
-      "envs": ["DEV", "QA", "STAGE"]
+      "environments": ["DEV", "QA", "STAGE"]
     },
     {
       "key": "'${PROJECT_KEY}'-platform-python-release-local",
@@ -480,7 +480,7 @@ create_all_repositories() {
       "rclass": "local",
       "projectKey": "'${PROJECT_KEY}'",
       "xrayIndex": true,
-      "envs": ["PROD"]
+      "environments": ["PROD"]
     }
   ]')
   

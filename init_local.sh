@@ -378,16 +378,101 @@ echo ""
 echo "📊 Step 2 Summary:"
 echo "   ✅ Stage creation process completed"
 echo "   🎭 Stages Created: bookverse-DEV, bookverse-QA, bookverse-STAGING"
-      echo "   🔴 Production Stage: PROD (always present, not created)"
+echo "   🔴 Production Stage: PROD (always present, not created)"
 echo "   🔗 Project Scope: All stages scoped to '${PROJECT_KEY}' project"
 echo "   📋 Category: promote (for promotion workflow)"
 echo "   🔄 Lifecycle Order: DEV → QA → STAGING → PROD"
 echo ""
 
 # =============================================================================
+# STEP 2.5: UPDATE LIFECYCLE WITH PROMOTE STAGES
+# =============================================================================
+echo "🔄 Step 2.5/6: Updating Lifecycle with Promote Stages..."
+echo "   Updating lifecycle to include project stages in promote category"
+echo "   API Endpoint: ${JFROG_URL}/access/api/v2/lifecycle/?project_key=${PROJECT_KEY}"
+echo "   Method: PATCH"
+echo "   Purpose: Configure stages for promotion workflow"
+echo ""
+
+echo "🔧 Preparing lifecycle update..."
+echo "   Lifecycle Configuration:"
+echo "     • Project Key: ${PROJECT_KEY}"
+echo "     • Promote Stages: bookverse-DEV, bookverse-QA, bookverse-STAGING"
+echo "     • Release Stage: PROD (system-managed, always present)"
+echo "     • Workflow: DEV → QA → STAGING → PROD"
+echo ""
+
+# Create lifecycle payload with promote stages
+lifecycle_payload=$(jq -n \
+  --arg project_key "${PROJECT_KEY}" \
+  '{
+    "promote_stages": [
+      ($project_key + "-DEV"),
+      ($project_key + "-QA"),
+      ($project_key + "-STAGING")
+    ]
+  }')
+
+echo "📤 Sending lifecycle update request..."
+echo "   Payload: Configure promote stages for ${PROJECT_KEY} project"
+echo "   Stages: bookverse-DEV, bookverse-QA, bookverse-STAGING"
+
+# Update lifecycle using debug mode
+lifecycle_command="curl -v -w '\nHTTP_CODE: %{http_code}\n' \
+  --header 'Authorization: Bearer ${JFROG_ADMIN_TOKEN}' \
+  --header 'Content-Type: application/json' \
+  -X PATCH \
+  -d '$lifecycle_payload' \
+  '${JFROG_URL}/access/api/v2/lifecycle/?project_key=${PROJECT_KEY}'"
+
+run_debug_command "Update lifecycle with promote stages" "$lifecycle_command"
+
+# Extract response code from debug output
+if [ "$DEBUG_MODE" = "true" ]; then
+    # In debug mode, we need to capture the output differently
+    echo "🔍 Extracting response code for lifecycle update..."
+    lifecycle_response=$(curl -s -w "%{http_code}" -o /tmp/lifecycle_response.json \
+      --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+      --header "Content-Type: application/json" \
+      -X PATCH \
+      -d "$lifecycle_payload" \
+      "${JFROG_URL}/access/api/v2/lifecycle/?project_key=${PROJECT_KEY}")
+    lifecycle_code=$(echo "$lifecycle_response" | tail -n1)
+else
+    # In normal mode, extract from the command output
+    lifecycle_code=$(echo "$lifecycle_response" | tail -n1)
+fi
+
+echo "📥 Lifecycle update response: HTTP $lifecycle_code"
+
+if [ "$lifecycle_code" -eq 200 ] || [ "$lifecycle_code" -eq 204 ]; then
+  echo "     ✅ Lifecycle updated successfully (HTTP $lifecycle_code)"
+  echo "       Status: SUCCESS - Promote stages configured"
+  echo "       Stages: bookverse-DEV → bookverse-QA → bookverse-STAGING → PROD"
+  echo "       Workflow: Promotion pipeline ready"
+elif [ "$lifecycle_code" -eq 404 ]; then
+  echo "     ❌ Project '${PROJECT_KEY}' not found for lifecycle update (HTTP $lifecycle_code)"
+  echo "       Status: ERROR - Cannot update lifecycle for non-existent project"
+  echo "       Action: Check if project was created successfully"
+else
+  echo "     ⚠️  Lifecycle update returned HTTP $lifecycle_code (continuing anyway)"
+  echo "       Status: UNKNOWN - Unexpected response code"
+  echo "       Action: Continuing to next step despite unexpected response"
+fi
+
+echo ""
+echo "📊 Step 2.5 Summary:"
+echo "   ✅ Lifecycle update process completed"
+echo "   🔄 Promote Stages: bookverse-DEV, bookverse-QA, bookverse-STAGING"
+echo "   🎯 Release Stage: PROD (system-managed)"
+echo "   🔗 Workflow: DEV → QA → STAGING → PROD"
+echo "   📋 Category: promote (for promotion workflow)"
+echo ""
+
+# =============================================================================
 # STEP 3: CREATE REPOSITORIES
 # =============================================================================
-echo "📦 Step 3/6: Creating Repositories..."
+echo "📦 Step 4/7: Creating Repositories..."
 echo "   Creating 16 repositories (4 microservices × 2 package types × 2 stages)"
 echo "   API Endpoint: ${JFROG_URL}/artifactory/api/v2/repositories/batch"
 echo "   Method: PUT"
@@ -680,7 +765,7 @@ create_all_repositories() {
 # Create all repositories in batch
 create_all_repositories
 
-echo "📊 Step 3 Summary:"
+echo "📊 Step 4 Summary:"
 echo "   ✅ Repository creation process completed"
 echo "   📦 Total Repositories: 16"
 echo "   🏗️  Microservices: 4 (inventory, recommendations, checkout, platform)"
@@ -696,7 +781,7 @@ echo ""
 # =============================================================================
 # STEP 4: CREATE USERS
 # =============================================================================
-echo "👥 Step 4/6: Creating Users..."
+echo "👥 Step 5/7: Creating Users..."
 echo "   Creating 12 users (8 human + 4 pipeline)"
 echo "   API Endpoint: ${JFROG_URL}/access/api/v2/users"
 echo "   Method: POST"
@@ -890,7 +975,7 @@ create_user "pipeline.checkout@bookverse.com" "pipeline.checkout@bookverse.com" 
 create_user "pipeline.platform@bookverse.com" "pipeline.platform@bookverse.com" "Pipeline2024!" "Pipeline User"
 
 echo ""
-echo "📊 Step 4 Summary:"
+echo "📊 Step 5 Summary:"
 echo "   ✅ User creation and project assignment process completed"
 echo "   👤 Human Users: 8 users with specific roles"
 echo "   🤖 Pipeline Users: 4 users for automation"
@@ -905,7 +990,7 @@ echo ""
 # =============================================================================
 # STEP 5: CREATE APPLICATIONS
 # =============================================================================
-echo "📱 Step 5/6: Creating Applications..."
+echo "📱 Step 6/7: Creating Applications..."
 echo "   Creating 4 microservice applications + 1 platform application"
 echo ""
 
@@ -971,7 +1056,7 @@ echo ""
 # =============================================================================
 # STEP 6: CREATE OIDC INTEGRATIONS
 # =============================================================================
-echo "🔐 Step 6/6: Creating OIDC Integrations..."
+echo "🔐 Step 7/7: Creating OIDC Integrations..."
 echo "   Creating GitHub Actions OIDC for each microservice team"
 echo ""
 

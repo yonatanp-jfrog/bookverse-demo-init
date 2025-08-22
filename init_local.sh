@@ -114,7 +114,7 @@ create_repo_payloads() {
     --header "Content-Type: application/json" \
     -X PUT \
     -d "$internal_payload" \
-    "${JFROG_URL}/api/repositories/${PROJECT_KEY}-${service_name}-${package_type}-internal-local")
+    "${JFROG_URL}/artifactory/api/repositories/${PROJECT_KEY}-${service_name}-${package_type}-internal-local")
   
   internal_code=$(echo "$internal_response" | tail -n1)
   if [ "$internal_code" -eq 200 ] || [ "$internal_code" -eq 201 ]; then
@@ -132,7 +132,7 @@ create_repo_payloads() {
     --header "Content-Type: application/json" \
     -X PUT \
     -d "$release_payload" \
-    "${JFROG_URL}/api/repositories/${PROJECT_KEY}-${service_name}-${package_type}-release-local")
+    "${JFROG_URL}/artifactory/api/repositories/${PROJECT_KEY}-${service_name}-${package_type}-release-local")
   
   release_code=$(echo "$release_response" | tail -n1)
   if [ "$release_code" -eq 200 ] || [ "$release_code" -eq 201 ]; then

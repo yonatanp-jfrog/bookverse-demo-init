@@ -563,7 +563,7 @@ echo "       • pipeline.checkout: Pipeline automation for checkout service"
 echo "       • pipeline.platform: Pipeline automation for platform solution"
 echo ""
 
-# Function to create user
+# Function to create user and assign to project
 create_user() {
   local username="$1"
   local email="$2"
@@ -609,6 +609,77 @@ create_user() {
     echo "       Status: UNKNOWN - Unexpected response code"
     echo "       Action: Continuing to next user despite unexpected response"
   fi
+  
+  # Now assign user to project with appropriate role
+  echo "     🔐 Assigning user '$username' to project '${PROJECT_KEY}' with role '$role'..."
+  
+  # Determine the correct JFrog role name for project assignment
+  local jfrog_role
+  case "$role" in
+    "Developer")
+      jfrog_role="Developer"
+      ;;
+    "Release Manager")
+      jfrog_role="Release Manager"
+      ;;
+    "Project Manager")
+      jfrog_role="Project Manager"
+      ;;
+    "AppTrust Admin")
+      jfrog_role="AppTrust Admin"
+      ;;
+    "Inventory Manager")
+      jfrog_role="Project Manager"
+      ;;
+    "AI/ML Manager")
+      jfrog_role="Project Manager"
+      ;;
+    "Checkout Manager")
+      jfrog_role="Project Manager"
+      ;;
+    "Pipeline User")
+      jfrog_role="Developer"
+      ;;
+    *)
+      jfrog_role="Developer"  # Default fallback
+      ;;
+  esac
+  
+  echo "     📤 Assigning role '$jfrog_role' to user '$username' in project '${PROJECT_KEY}'..."
+  echo "     🔗 API: PUT ${JFROG_URL}/access/api/v1/projects/${PROJECT_KEY}/users/$username"
+  
+  # Create project user assignment payload
+  project_user_payload=$(jq -n --arg username "$username" --arg role "$jfrog_role" '{
+    "name": $username,
+    "roles": [$role]
+  }')
+  
+  # Assign user to project
+  project_user_response=$(curl -s -w "%{http_code}" -o /tmp/project_user_response.json \
+    --header "Content-Type: application/json" \
+    --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+    -X PUT \
+    -d "$project_user_payload" \
+    "${JFROG_URL}/access/api/v1/projects/${PROJECT_KEY}/users/$username")
+  
+  project_user_code=$(echo "$project_user_response" | tail -n1)
+  
+  if [ "$project_user_code" -eq 200 ] || [ "$project_user_code" -eq 201 ]; then
+    echo "     ✅ User '$username' successfully assigned to project '${PROJECT_KEY}' with role '$jfrog_role'"
+    echo "       Status: SUCCESS - User now has access to project resources"
+    echo "       Role: $jfrog_role"
+    echo "       Project: ${PROJECT_KEY}"
+  elif [ "$project_user_code" -eq 409 ]; then
+    echo "     ⚠️  User '$username' already has role '$jfrog_role' in project '${PROJECT_KEY}'"
+    echo "       Status: SKIPPED - User already assigned to project"
+  elif [ "$project_user_code" -eq 404 ]; then
+    echo "     ❌ Project '${PROJECT_KEY}' not found for user assignment"
+    echo "       Status: ERROR - Cannot assign user to non-existent project"
+  else
+    echo "     ⚠️  User '$username' project assignment returned HTTP $project_user_code"
+    echo "       Status: UNKNOWN - Unexpected response code"
+    echo "       Action: Continuing to next user despite unexpected response"
+  fi
   echo ""
 }
 
@@ -630,13 +701,15 @@ create_user "pipeline.platform@bookverse.com" "pipeline.platform@bookverse.com" 
 
 echo ""
 echo "📊 Step 4 Summary:"
-echo "   ✅ User creation process completed"
+echo "   ✅ User creation and project assignment process completed"
 echo "   👤 Human Users: 8 users with specific roles"
 echo "   🤖 Pipeline Users: 4 users for automation"
 echo "   🔑 Total Users: 12 users created"
 echo "   🎭 Roles: Developer, Release Manager, Project Manager, AppTrust Admin, Inventory Manager, AI/ML Manager, Checkout Manager, Pipeline User"
 echo "   📧 Authentication: All users have email-based authentication"
 echo "   🔐 Passwords: Human users (BookVerse2024!), Pipeline users (Pipeline2024!)"
+echo "   🎯 Project Access: All users assigned to '${PROJECT_KEY}' project with appropriate roles"
+echo "   🔗 API: PUT /access/api/v1/projects/{projectKey}/users/{username}"
 echo ""
 
 # =============================================================================

@@ -10,7 +10,7 @@ validate_environment
 
 FAILED=false
 
-echo "Creating users and assigning roles for BookVerse project..."
+echo "Creating users and assigning project roles for BookVerse project..."
 
 # Generate 12 users for BookVerse company with specific roles
 usernames=(
@@ -61,10 +61,10 @@ for user in "${usernames[@]}"; do
     continue  # Skip role assignment if user creation failed
   fi
 
-  # Assign appropriate role based on user type
-  echo "🔐 Assigning $role role to $username..."
+  # Assign user to project with appropriate role
+  echo "🔐 Assigning $username to project '${PROJECT_KEY}' with $role role..."
   
-  # Determine the correct role name for JFrog
+  # Determine the correct JFrog role name for project assignment
   case "$role" in
     "Developer")
       jfrog_role="Developer"
@@ -95,22 +95,39 @@ for user in "${usernames[@]}"; do
       ;;
   esac
   
-  role_payload=$(jq -n --arg name "$username" --arg role "$jfrog_role" '{
-    "name": $name,
+  # Create project user assignment payload
+  # Using the correct API endpoint: PUT /access/api/v1/projects/{projectKey}/users/{username}
+  project_user_payload=$(jq -n --arg username "$username" --arg role "$jfrog_role" '{
+    "name": $username,
     "roles": [$role]
   }')
 
-  role_response_code=$(curl -s -o /dev/null -w "%{http_code}" \
+  echo "   📤 Assigning role '$jfrog_role' to user '$username' in project '${PROJECT_KEY}'..."
+  echo "   🔗 API: PUT ${JFROG_URL}/access/api/v1/projects/${PROJECT_KEY}/users/$username"
+  echo "   📋 Payload: $project_user_payload"
+
+  project_user_response_code=$(curl -s -o /dev/null -w "%{http_code}" \
     --header "Content-Type: application/json" \
     --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
     -X PUT \
-    -d "$role_payload" \
+    -d "$project_user_payload" \
     "${JFROG_URL}/access/api/v1/projects/${PROJECT_KEY}/users/$username")
 
-  if [ "$role_response_code" -eq 200 ] || [ "$role_response_code" -eq 201 ]; then
-    echo "✅ Project Admin role assigned to '$username' successfully (HTTP $role_response_code)"
+  if [ "$project_user_response_code" -eq 200 ] || [ "$project_user_response_code" -eq 201 ]; then
+    echo "✅ User '$username' successfully assigned to project '${PROJECT_KEY}' with role '$jfrog_role' (HTTP $project_user_response_code)"
+    echo "   Status: SUCCESS - User now has access to project resources"
+    echo "   Role: $jfrog_role"
+    echo "   Project: ${PROJECT_KEY}"
+  elif [ "$project_user_response_code" -eq 409 ]; then
+    echo "⚠️  User '$username' already has role '$jfrog_role' in project '${PROJECT_KEY}' (HTTP $project_user_response_code)"
+    echo "   Status: SKIPPED - User already assigned to project"
+  elif [ "$project_user_response_code" -eq 404 ]; then
+    echo "❌ Project '${PROJECT_KEY}' not found for user assignment (HTTP $project_user_response_code)"
+    echo "   Status: ERROR - Cannot assign user to non-existent project"
+    FAILED=true
   else
-    echo "❌ Failed to assign Project Admin role to '$username' (HTTP $role_response_code)"
+    echo "❌ Failed to assign user '$username' to project '${PROJECT_KEY}' (HTTP $project_user_response_code)"
+    echo "   Status: ERROR - User assignment failed"
     FAILED=true
   fi
   echo ""
@@ -122,24 +139,29 @@ if [ "$FAILED" = true ]; then
   exit 1
 fi
 
-echo "✅ User creation and role assignment process completed!"
+echo "✅ User creation and project role assignment process completed!"
 echo "All users have been processed successfully."
 echo ""
-echo "📊 Summary of created users:"
-echo "   - Alice Developer (alice.developer@bookverse.com) - Developer"
-echo "   - Bob Release (bob.release@bookverse.com) - Release Manager"
-echo "   - Charlie DevOps (charlie.devops@bookverse.com) - Project Manager"
-echo "   - Diana Architect (diana.architect@bookverse.com) - AppTrust Admin"
-echo "   - Edward Manager (edward.manager@bookverse.com) - AppTrust Admin"
-echo "   - Frank Inventory (frank.inventory@bookverse.com) - Inventory Manager"
-echo "   - Grace AI (grace.ai@bookverse.com) - AI/ML Manager"
-echo "   - Henry Checkout (henry.checkout@bookverse.com) - Checkout Manager"
-echo "   - Pipeline Inventory (pipeline.inventory@bookverse.com) - Pipeline User"
-echo "   - Pipeline Recommendations (pipeline.recommendations@bookverse.com) - Pipeline User"
-echo "   - Pipeline Checkout (pipeline.checkout@bookverse.com) - Pipeline User"
-echo "   - Pipeline Platform (pipeline.platform@bookverse.com) - Pipeline User"
+echo "📊 Summary of created users and project assignments:"
+echo "   - Alice Developer (alice.developer@bookverse.com) - Developer role in ${PROJECT_KEY} project"
+echo "   - Bob Release (bob.release@bookverse.com) - Release Manager role in ${PROJECT_KEY} project"
+echo "   - Charlie DevOps (charlie.devops@bookverse.com) - Project Manager role in ${PROJECT_KEY} project"
+echo "   - Diana Architect (diana.architect@bookverse.com) - AppTrust Admin role in ${PROJECT_KEY} project"
+echo "   - Edward Manager (edward.manager@bookverse.com) - AppTrust Admin role in ${PROJECT_KEY} project"
+echo "   - Frank Inventory (frank.inventory@bookverse.com) - Project Manager role in ${PROJECT_KEY} project"
+echo "   - Grace AI (grace.ai@bookverse.com) - Project Manager role in ${PROJECT_KEY} project"
+echo "   - Henry Checkout (henry.checkout@bookverse.com) - Project Manager role in ${PROJECT_KEY} project"
+echo "   - Pipeline Inventory (pipeline.inventory@bookverse.com) - Developer role in ${PROJECT_KEY} project"
+echo "   - Pipeline Recommendations (pipeline.recommendations@bookverse.com) - Developer role in ${PROJECT_KEY} project"
+echo "   - Pipeline Checkout (pipeline.checkout@bookverse.com) - Developer role in ${PROJECT_KEY} project"
+echo "   - Pipeline Platform (pipeline.platform@bookverse.com) - Developer role in ${PROJECT_KEY} project"
 echo ""
 echo "🔑 Default passwords:"
 echo "   - Human users: BookVerse2024!"
 echo "   - Pipeline users: Pipeline2024!"
 echo "💡 Users can change their passwords after first login"
+echo ""
+echo "🎯 Project Access:"
+echo "   - All users are now assigned to the '${PROJECT_KEY}' project"
+echo "   - Roles determine access levels to project resources"
+echo "   - Users can access repositories, stages, and applications based on their roles"

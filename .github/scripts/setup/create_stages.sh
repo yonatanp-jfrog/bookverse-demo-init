@@ -27,13 +27,14 @@ echo ""
 echo "Step 1: Creating local stages..."
 
 for STAGE_NAME in "${STAGES[@]}"; do
-  echo "Creating stage: $STAGE_NAME"
+  FULL_STAGE_NAME="${PROJECT_KEY}-${STAGE_NAME}"
+  echo "Creating stage: $FULL_STAGE_NAME"
   
   stage_payload=$(jq -n \
     --arg name "$STAGE_NAME" \
     --arg project_key "${PROJECT_KEY}" \
     '{
-      "name": $name,
+      "name": ($project_key + "-" + $name),
       "scope": "project",
       "project_key": $project_key,
       "category": "promote"
@@ -51,13 +52,13 @@ for STAGE_NAME in "${STAGES[@]}"; do
   rm -f "$temp_response"
 
   if [ "$response_code" -eq 201 ]; then
-    echo "✅ Stage '$STAGE_NAME' created successfully (HTTP $response_code)"
+    echo "✅ Stage '$FULL_STAGE_NAME' created successfully (HTTP $response_code)"
   elif [ "$response_code" -eq 409 ]; then
-    echo "⚠️  Stage '$STAGE_NAME' already exists (HTTP $response_code)"
+    echo "⚠️  Stage '$FULL_STAGE_NAME' already exists (HTTP $response_code)"
   elif [ "$response_code" -eq 400 ] && echo "$response_body" | grep -q "already exists"; then
-    echo "⚠️  Stage '$STAGE_NAME' already exists (HTTP $response_code)"
+    echo "⚠️  Stage '$FULL_STAGE_NAME' already exists (HTTP $response_code)"
   else
-    echo "❌ Failed to create stage '$STAGE_NAME' (HTTP $response_code)"
+    echo "❌ Failed to create stage '$FULL_STAGE_NAME' (HTTP $response_code)"
     echo "   Response body: $response_body"
     FAILED=true
   fi
@@ -110,9 +111,10 @@ fi
 echo "✅ Local stages and lifecycle configuration completed successfully!"
 echo "Summary of completed tasks:"
 for STAGE_NAME in "${STAGES[@]}"; do
-  echo "   - $STAGE_NAME stage created in project '${PROJECT_KEY}'"
+  FULL_STAGE_NAME="${PROJECT_KEY}-${STAGE_NAME}"
+  echo "   - $FULL_STAGE_NAME stage created in project '${PROJECT_KEY}'"
 done
 echo "   - ${PROD_STAGE} stage is always present (not created by this script)"
-echo "   - Lifecycle updated with promote stages: $(IFS=" → "; echo "${STAGES[*]}") → ${PROD_STAGE}"
+echo "   - Lifecycle updated with promote stages: $(IFS=" → "; echo "${STAGES[@]/#/${PROJECT_KEY}-}") → ${PROD_STAGE}"
 echo ""
 echo "Project is now ready with local stages and lifecycle configuration!"

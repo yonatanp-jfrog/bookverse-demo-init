@@ -295,42 +295,76 @@ echo "🎭 Step 3/6: Creating AppTrust Stages..."
 echo "   Creating stages: DEV, QA, STAGE (PROD is always present)"
 echo ""
 
-# Create stages payload
-stages_payload=$(jq -n '{
-  "stages": [
-    {
-      "name": "DEV",
-      "description": "Development stage for BookVerse microservices",
-      "color": "#00ff00"
-    },
-    {
-      "name": "QA",
-      "description": "Quality Assurance stage for BookVerse microservices",
-      "color": "#ffff00"
-    },
-    {
-      "name": "STAGE",
-      "description": "Staging stage for BookVerse microservices",
-      "color": "#ff8800"
-    }
-  ]
-}')
+# Create stages individually using the correct API
+echo "   Creating stages: bookverse-DEV, bookverse-QA, bookverse-STAGE"
 
-# Create stages
-stages_response=$(curl -s -w "%{http_code}" -o /tmp/stages_response.json \
+# Create DEV stage
+echo "     Creating bookverse-DEV stage..."
+dev_response=$(curl -s -w "%{http_code}" -o /tmp/dev_response.json \
   --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
   --header "Content-Type: application/json" \
   -X POST \
-  -d "$stages_payload" \
-  "${JFROG_URL}/apptrust/api/v1/stages")
+  -d '{
+    "name": "bookverse-DEV",
+    "scope": "project",
+    "project_key": "'${PROJECT_KEY}'",
+    "category": "promote"
+  }' \
+  "${JFROG_URL}/access/api/v2/stages")
 
-stages_code=$(echo "$stages_response" | tail -n1)
-if [ "$stages_code" -eq 200 ] || [ "$stages_code" -eq 201 ]; then
-  echo "✅ AppTrust stages created successfully"
-elif [ "$stages_code" -eq 409 ]; then
-  echo "⚠️  Stages already exist (HTTP $stages_code)"
+dev_code=$(echo "$dev_response" | tail -n1)
+if [ "$dev_code" -eq 200 ] || [ "$dev_code" -eq 201 ]; then
+  echo "       ✅ bookverse-DEV stage created successfully (HTTP $dev_code)"
+elif [ "$dev_code" -eq 409 ]; then
+  echo "       ⚠️  bookverse-DEV stage already exists (HTTP $dev_code)"
 else
-  echo "⚠️  Stages creation returned HTTP $stages_code (continuing anyway)"
+  echo "       ⚠️  bookverse-DEV stage creation returned HTTP $dev_code (continuing anyway)"
+fi
+
+# Create QA stage
+echo "     Creating bookverse-QA stage..."
+qa_response=$(curl -s -w "%{http_code}" -o /tmp/qa_response.json \
+  --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+  --header "Content-Type: application/json" \
+  -X POST \
+  -d '{
+    "name": "bookverse-QA",
+    "scope": "project",
+    "project_key": "'${PROJECT_KEY}'",
+    "category": "promote"
+  }' \
+  "${JFROG_URL}/access/api/v2/stages")
+
+qa_code=$(echo "$qa_response" | tail -n1)
+if [ "$qa_code" -eq 200 ] || [ "$qa_code" -eq 201 ]; then
+  echo "       ✅ bookverse-QA stage created successfully (HTTP $qa_code)"
+elif [ "$qa_code" -eq 409 ]; then
+  echo "       ⚠️  bookverse-QA stage already exists (HTTP $qa_code)"
+else
+  echo "       ⚠️  bookverse-QA stage creation returned HTTP $qa_code (continuing anyway)"
+fi
+
+# Create STAGE stage
+echo "     Creating bookverse-STAGE stage..."
+stage_response=$(curl -s -w "%{http_code}" -o /tmp/stage_response.json \
+  --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+  --header "Content-Type: application/json" \
+  -X POST \
+  -d '{
+    "name": "bookverse-STAGE",
+    "scope": "project",
+    "project_key": "'${PROJECT_KEY}'",
+    "category": "promote"
+  }' \
+  "${JFROG_URL}/access/api/v2/stages")
+
+stage_code=$(echo "$stage_response" | tail -n1)
+if [ "$stage_code" -eq 200 ] || [ "$stage_code" -eq 201 ]; then
+  echo "       ✅ bookverse-STAGE stage created successfully (HTTP $stage_code)"
+elif [ "$stage_code" -eq 409 ]; then
+  echo "       ⚠️  bookverse-STAGE stage already exists (HTTP $stage_code)"
+else
+  echo "       ⚠️  bookverse-STAGE stage creation returned HTTP $stage_code (continuing anyway)"
 fi
 
 echo ""

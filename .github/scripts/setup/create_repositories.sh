@@ -112,7 +112,8 @@ batch_payload=$(jq -n '[
     "excludesPattern": "",
     "rclass": "local",
     "projectKey": "'${PROJECT_KEY}'",
-    "xrayIndex": true
+    "xrayIndex": true,
+    "environments": ["DEV", "QA", "STAGE"]
   },
   {
     "key": "'${PROJECT_KEY}'-inventory-docker-release-local",
@@ -123,7 +124,8 @@ batch_payload=$(jq -n '[
     "excludesPattern": "",
     "rclass": "local",
     "projectKey": "'${PROJECT_KEY}'",
-    "xrayIndex": true
+    "xrayIndex": true,
+    "environments": ["PROD"]
   },
   {
     "key": "'${PROJECT_KEY}'-inventory-python-internal-local",
@@ -134,7 +136,8 @@ batch_payload=$(jq -n '[
     "excludesPattern": "",
     "rclass": "local",
     "projectKey": "'${PROJECT_KEY}'",
-    "xrayIndex": true
+    "xrayIndex": true,
+    "environments": ["DEV", "QA", "STAGE"]
   },
   {
     "key": "'${PROJECT_KEY}'-inventory-python-release-local",
@@ -145,7 +148,8 @@ batch_payload=$(jq -n '[
     "excludesPattern": "",
     "rclass": "local",
     "projectKey": "'${PROJECT_KEY}'",
-    "xrayIndex": true
+    "xrayIndex": true,
+    "environments": ["PROD"]
   },
   {
     "key": "'${PROJECT_KEY}'-recommendations-docker-internal-local",
@@ -156,7 +160,8 @@ batch_payload=$(jq -n '[
     "excludesPattern": "",
     "rclass": "local",
     "projectKey": "'${PROJECT_KEY}'",
-    "xrayIndex": true
+    "xrayIndex": true,
+    "environments": ["DEV", "QA", "STAGE"]
   },
   {
     "key": "'${PROJECT_KEY}'-recommendations-docker-release-local",
@@ -167,7 +172,8 @@ batch_payload=$(jq -n '[
     "excludesPattern": "",
     "rclass": "local",
     "projectKey": "'${PROJECT_KEY}'",
-    "xrayIndex": true
+    "xrayIndex": true,
+    "environments": ["PROD"]
   },
   {
     "key": "'${PROJECT_KEY}'-recommendations-python-internal-local",
@@ -178,7 +184,8 @@ batch_payload=$(jq -n '[
     "excludesPattern": "",
     "rclass": "local",
     "projectKey": "'${PROJECT_KEY}'",
-    "xrayIndex": true
+    "xrayIndex": true,
+    "environments": ["DEV", "QA", "STAGE"]
   },
   {
     "key": "'${PROJECT_KEY}'-recommendations-python-release-local",
@@ -189,7 +196,8 @@ batch_payload=$(jq -n '[
     "excludesPattern": "",
     "rclass": "local",
     "projectKey": "'${PROJECT_KEY}'",
-    "xrayIndex": true
+    "xrayIndex": true,
+    "environments": ["PROD"]
   },
   {
     "key": "'${PROJECT_KEY}'-checkout-docker-internal-local",
@@ -200,7 +208,8 @@ batch_payload=$(jq -n '[
     "excludesPattern": "",
     "rclass": "local",
     "projectKey": "'${PROJECT_KEY}'",
-    "xrayIndex": true
+    "xrayIndex": true,
+    "environments": ["DEV", "QA", "STAGE"]
   },
   {
     "key": "'${PROJECT_KEY}'-checkout-docker-release-local",
@@ -211,7 +220,8 @@ batch_payload=$(jq -n '[
     "excludesPattern": "",
     "rclass": "local",
     "projectKey": "'${PROJECT_KEY}'",
-    "xrayIndex": true
+    "xrayIndex": true,
+    "environments": ["PROD"]
   },
   {
     "key": "'${PROJECT_KEY}'-checkout-python-internal-local",
@@ -222,7 +232,8 @@ batch_payload=$(jq -n '[
     "excludesPattern": "",
     "rclass": "local",
     "projectKey": "'${PROJECT_KEY}'",
-    "xrayIndex": true
+    "xrayIndex": true,
+    "environments": ["DEV", "QA", "STAGE"]
   },
   {
     "key": "'${PROJECT_KEY}'-checkout-python-release-local",
@@ -233,7 +244,8 @@ batch_payload=$(jq -n '[
     "excludesPattern": "",
     "rclass": "local",
     "projectKey": "'${PROJECT_KEY}'",
-    "xrayIndex": true
+    "xrayIndex": true,
+    "environments": ["PROD"]
   },
   {
     "key": "'${PROJECT_KEY}'-platform-docker-internal-local",
@@ -244,7 +256,8 @@ batch_payload=$(jq -n '[
     "excludesPattern": "",
     "rclass": "local",
     "projectKey": "'${PROJECT_KEY}'",
-    "xrayIndex": true
+    "xrayIndex": true,
+    "environments": ["DEV", "QA", "STAGE"]
   },
   {
     "key": "'${PROJECT_KEY}'-platform-docker-release-local",
@@ -255,7 +268,8 @@ batch_payload=$(jq -n '[
     "excludesPattern": "",
     "rclass": "local",
     "projectKey": "'${PROJECT_KEY}'",
-    "xrayIndex": true
+    "xrayIndex": true,
+    "environments": ["PROD"]
   },
   {
     "key": "'${PROJECT_KEY}'-platform-python-internal-local",
@@ -266,7 +280,8 @@ batch_payload=$(jq -n '[
     "excludesPattern": "",
     "rclass": "local",
     "projectKey": "'${PROJECT_KEY}'",
-    "xrayIndex": true
+    "xrayIndex": true,
+    "environments": ["DEV", "QA", "STAGE"]
   },
   {
     "key": "'${PROJECT_KEY}'-platform-python-release-local",
@@ -277,7 +292,8 @@ batch_payload=$(jq -n '[
     "excludesPattern": "",
     "rclass": "local",
     "projectKey": "'${PROJECT_KEY}'",
-    "xrayIndex": true
+    "xrayIndex": true,
+    "environments": ["PROD"]
   }
 ]')
 

@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-test-publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install build
+
+      - name: Run tests
+        run: |
+          echo "(placeholder) run unit tests"
+
+      - name: Build python package
+        run: |
+          python -m build
+
+      - name: Build Docker image
+        run: |
+          IMAGE=${{ vars.PROJECT_KEY }}-${{ github.event.repository.name#bookverse- }}-docker-internal-local/${{ github.event.repository.name#bookverse- }}:$(echo $GITHUB_SHA | head -c7)
+          docker build -t ${{ vars.DOCKER_REGISTRY }}/$IMAGE .
+
+      - name: JFrog OIDC login
+        uses: jfrog/setup-jfrog-cli@v4
+      - name: Configure JFrog URL
+        run: |
+          jf c add --interactive=false --url "${{ vars.JFROG_URL }}" --access-token ""
+
+      - name: Push artifacts (placeholder)
+        run: |
+          echo "(placeholder) publish python dist/* to pypi internal repo via twine or jfrog cli"
+          echo "(placeholder) docker push ${{ vars.DOCKER_REGISTRY }}/..."
+
+

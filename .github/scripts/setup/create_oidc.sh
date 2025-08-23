@@ -76,6 +76,8 @@ checkout_integration_payload=$(jq -n '{"name": "github-'${PROJECT_KEY}'-checkout
 
 platform_integration_payload=$(jq -n '{"name": "github-'${PROJECT_KEY}'-platform","issuer_url": "https://token.actions.githubusercontent.com/"}')
 
+web_integration_payload=$(jq -n '{"name": "github-'${PROJECT_KEY}'-web","issuer_url": "https://token.actions.githubusercontent.com/"}')
+
 # =============================================================================
 # IDENTITY MAPPING PAYLOADS
 # =============================================================================
@@ -125,6 +127,17 @@ platform_identity_mapping_payload=$(jq -n '{
   "priority": 1
 }')
 
+web_identity_mapping_payload=$(jq -n '{
+  "name": "github-'${PROJECT_KEY}'-web",
+  "provider_name": "github-'${PROJECT_KEY}'-web",
+  "claims": {"iss":"https://token.actions.githubusercontent.com"},
+  "token_spec": {
+    "username": "alice.developer@bookverse.com",
+    "scope": "applied-permissions/admin"
+  },
+  "priority": 1
+}')
+
 # =============================================================================
 # CREATE OIDC INTEGRATIONS
 # =============================================================================
@@ -136,6 +149,7 @@ create_oidc_integration "BookVerse Inventory" "$inventory_integration_payload"
 create_oidc_integration "BookVerse Recommendations" "$recommendations_integration_payload"
 create_oidc_integration "BookVerse Checkout" "$checkout_integration_payload"
 create_oidc_integration "BookVerse Platform" "$platform_integration_payload"
+create_oidc_integration "BookVerse Web" "$web_integration_payload"
 
 # =============================================================================
 # CREATE IDENTITY MAPPINGS
@@ -148,6 +162,7 @@ create_oidc_identity_mapping "github-${PROJECT_KEY}-inventory" "$inventory_ident
 create_oidc_identity_mapping "github-${PROJECT_KEY}-recommendations" "$recommendations_identity_mapping_payload"
 create_oidc_identity_mapping "github-${PROJECT_KEY}-checkout" "$checkout_identity_mapping_payload"
 create_oidc_identity_mapping "github-${PROJECT_KEY}-platform" "$platform_identity_mapping_payload"
+create_oidc_identity_mapping "github-${PROJECT_KEY}-web" "$web_identity_mapping_payload"
 
 # Check if any operations failed
 if [ "$FAILED" = true ]; then
@@ -179,6 +194,11 @@ echo "🏗️  BookVerse Platform:"
 echo "     - Integration: github-${PROJECT_KEY}-platform"
 echo "     - Issuer: https://token.actions.githubusercontent.com/"
 echo "     - Identity Mapping: diana.architect@bookverse.com (Admin)"
+echo ""
+echo "🕸️  BookVerse Web:"
+echo "     - Integration: github-${PROJECT_KEY}-web"
+echo "     - Issuer: https://token.actions.githubusercontent.com/"
+echo "     - Identity Mapping: alice.developer@bookverse.com (Admin)"
 echo ""
 echo "💡 Each OIDC integration enables secure GitHub Actions authentication"
 echo "   for the respective microservice team with appropriate permissions."

@@ -1,0 +1,39 @@
+name: Promote
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_stage:
+        description: 'Target stage (QA, STAGING, PROD)'
+        required: true
+        type: choice
+        options: [ QA, STAGING, PROD ]
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: JFrog OIDC login
+        uses: jfrog/setup-jfrog-cli@v4
+
+      - name: Configure JFrog URL
+        run: |
+          jf c add --interactive=false --url "${{ vars.JFROG_URL }}" --access-token ""
+
+      - name: Attach promotion evidence (synthetic)
+        run: |
+          echo "qa_summary=All critical tests passed" >> $GITHUB_ENV
+          echo "approvals=2" >> $GITHUB_ENV
+          echo "change_ref=DEMO-123" >> $GITHUB_ENV
+
+      - name: Promote artifact (placeholder)
+        run: |
+          echo "(placeholder) promote artifact to ${{ inputs.target_stage }} with evidence"
+
+

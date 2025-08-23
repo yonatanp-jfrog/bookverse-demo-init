@@ -7,44 +7,57 @@ Link: Plan of Action (`docs/PLAN_OF_ACTION.md`) and the BookVerse playbook (`htt
 - Consistent naming across GitHub and Artifactory
 - CI/CD that maps cleanly to AppTrust lifecycle: DEV → QA → STAGING → PROD
 
-### GitHub repositories
-- bookverse-inventory
-- bookverse-recommendations
-- bookverse-checkout
-- bookverse-platform
+### GitHub repositories (per playbook)
+- bookverse-inventory (service)
+- bookverse-recommendations (service)
+- bookverse-checkout (service)
+- bookverse-platform (aggregations/shared libs)
+- bookverse-web (UI assets as applicable)
+- bookverse-helm (charts for environments)
 - bookverse-demo-assets (datasets, shared workflows, runbook artifacts)
 
-Optional: bookverse-infra (only if you want infra automation separate from this repo).
+Optional: bookverse-infra (if infra automation is split).
 
 ### Artifactory repository keys (local)
-- Internal (project stages): `${PROJECT_KEY}-{service}-{package}-internal-local`
+- Internal (project stages): `${PROJECT_KEY}-{name}-{package}-internal-local`
   - environments: `["bookverse-DEV","bookverse-QA","bookverse-STAGING"]`
-- Release (PROD): `${PROJECT_KEY}-{service}-{package}-release-local`
+- Release (PROD): `${PROJECT_KEY}-{name}-{package}-release-local`
   - environments: `["PROD"]` (PROD is global and not included in lifecycle APIs)
 
 Where:
 - `PROJECT_KEY = bookverse`
-- `service ∈ {inventory,recommendations,checkout,platform}`
-- `package ∈ {docker,python}` (`python` is pypi)
+- `name ∈ {inventory,recommendations,checkout,platform,web,helm}`
+- `package ∈ {docker,python,npm,maven,helm}`
 
 Examples:
-- `bookverse-inventory-docker-internal-local`
-- `bookverse-inventory-docker-release-local`
-- `bookverse-platform-python-internal-local`
+- Docker: `bookverse-inventory-docker-internal-local`, `bookverse-inventory-docker-release-local`
+- Python (pypi): `bookverse-recommendations-python-internal-local`
+- npm (web): `bookverse-web-npm-internal-local`, `bookverse-web-npm-release-local`
+- Maven (java): `bookverse-platform-maven-internal-local`
+- Helm charts: `bookverse-helm-helm-internal-local`
 
 ### Stage and lifecycle
 - Project stages: `bookverse-DEV`, `bookverse-QA`, `bookverse-STAGING`
 - Global release stage: `PROD` (always last; do not send in lifecycle PATCH)
 - Lifecycle promote order: DEV → QA → STAGING → PROD
 
-### Docker and Python publish targets
-- Docker image:
+### Publish targets by ecosystem
+- Docker:
   - Registry: `<JFROG_URL_HOST>` (e.g., `z0apptrustdev.jfrogdev.org`)
-  - Target repo: `${PROJECT_KEY}-{service}-docker-{internal|release}-local`
-  - Image: `<JFROG_URL_HOST>/${PROJECT_KEY}-{service}-docker-{internal|release}-local/{service}:{version}`
-- Python package (pypi):
-  - Name: `bookverse-{service}`
-  - Repo: `${PROJECT_KEY}-{service}-python-{internal|release}-local`
+  - Repo: `${PROJECT_KEY}-{name}-docker-{internal|release}-local`
+  - Image: `<JFROG_URL_HOST>/${PROJECT_KEY}-{name}-docker-{internal|release}-local/{name}:{version}`
+- Python (pypi):
+  - Package: `bookverse-{name}`
+  - Repo: `${PROJECT_KEY}-{name}-python-{internal|release}-local`
+- npm:
+  - Scope: `@bookverse/{name}`
+  - Repo: `${PROJECT_KEY}-{name}-npm-{internal|release}-local`
+- Maven:
+  - Group: `com.bookverse`
+  - Repo: `${PROJECT_KEY}-{name}-maven-{internal|release}-local`
+- Helm:
+  - Chart: `{name}`
+  - Repo: `${PROJECT_KEY}-{name}-helm-{internal|release}-local`
 
 ### Service repo structure (per repo)
 ```
@@ -64,7 +77,11 @@ Examples:
 ### GitHub Actions (per service)
 - `ci.yml`
   - Checkout → setup-python → install deps → tests
-  - Build python wheel (pypi) and Docker image
+  - Build artifact:
+    - Python: wheel/sdist
+    - Node: package tarball
+    - Java: jar
+    - Docker: image
   - Generate SBOM and sign (e.g., Syft + Cosign)
   - OIDC login to JFrog (no stored tokens)
   - Publish artifacts:
@@ -93,7 +110,8 @@ Examples:
 - Repository variables (no secrets needed with OIDC):
   - `PROJECT_KEY=bookverse`
   - `JFROG_URL` (e.g., `https://z0apptrustdev.jfrogdev.org`)
-  - Optional: `DOCKER_REGISTRY` (host portion of `JFROG_URL`)
+  - `DOCKER_REGISTRY` (host portion of `JFROG_URL`, for Docker)
+  - Optional per-ecosystem toggles (e.g., `ENABLE_NPM`, `ENABLE_MAVEN`, etc.)
 
 ### Demo assets repo (bookverse-demo-assets)
 - Store datasets, SBOMs, policy files, re-usable workflow composites, screenshots, and the presenter runbook.
@@ -103,6 +121,7 @@ Examples:
 - Tag release publishes to release repo with environments `[PROD]`
 - OIDC access works (no PAT)
 - Build-info present; SBOM and signatures attached
+- Repo families exist for each required ecosystem per service (docker/python/npm/maven/helm)
 
 ### Notes
 - Stage names must be project-prefixed; `PROD` is global and excluded from lifecycle API payloads.

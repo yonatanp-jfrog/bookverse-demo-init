@@ -176,8 +176,13 @@ if [ "$VERBOSITY" -ge 2 ]; then
       -d "$project_payload" \
       "${JFROG_URL}/access/api/v1/projects")
 else
-    # In normal mode, extract from the command output
-    response_code=$(echo "$project_command" | tail -n1 | grep -o '[0-9]*$')
+    # In normal mode, get response code directly
+    response_code=$(curl -s -o /dev/null -w "%{http_code}" \
+      --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+      --header "Content-Type: application/json" \
+      -X POST \
+      -d "$project_payload" \
+      "${JFROG_URL}/access/api/v1/projects")
 fi
 
 if [ "$response_code" -eq 409 ]; then
@@ -273,8 +278,18 @@ if [ "$VERBOSITY" -ge 2 ]; then
       "${JFROG_URL}/access/api/v2/stages")
     dev_code=$(echo "$dev_response" | tail -n1)
 else
-    # In normal mode, extract from the command output
-    dev_code=$(echo "$dev_response" | tail -n1)
+    # In normal mode, get response code directly
+    dev_code=$(curl -s -o /dev/null -w "%{http_code}" \
+      --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+      --header "Content-Type: application/json" \
+      -X POST \
+      -d "{
+        \"name\": \"bookverse-DEV\",
+        \"scope\": \"project\",
+        \"project_key\": \"${PROJECT_KEY}\",
+        \"category\": \"promote\"
+      }" \
+      "${JFROG_URL}/access/api/v2/stages")
 fi
 
 echo "       📥 Response: HTTP $dev_code"
@@ -331,8 +346,18 @@ if [ "$VERBOSITY" -ge 2 ]; then
       "${JFROG_URL}/access/api/v2/stages")
     qa_code=$(echo "$qa_response" | tail -n1)
 else
-    # In normal mode, extract from the command output
-    qa_code=$(echo "$qa_response" | tail -n1)
+    # In normal mode, get response code directly
+    qa_code=$(curl -s -o /dev/null -w "%{http_code}" \
+      --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+      --header "Content-Type: application/json" \
+      -X POST \
+      -d "{
+        \"name\": \"bookverse-QA\",
+        \"scope\": \"project\",
+        \"category\": \"promote\",
+        \"project_key\": \"${PROJECT_KEY}\"
+      }" \
+      "${JFROG_URL}/access/api/v2/stages")
 fi
 
 echo "       📥 Response: HTTP $qa_code"
@@ -389,8 +414,18 @@ if [ "$VERBOSITY" -ge 2 ]; then
       "${JFROG_URL}/access/api/v2/stages")
     stage_code=$(echo "$stage_response" | tail -n1)
 else
-    # In normal mode, extract from the command output
-    stage_code=$(echo "$stage_response" | tail -n1)
+    # In normal mode, get response code directly
+    stage_code=$(curl -s -o /dev/null -w "%{http_code}" \
+      --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+      --header "Content-Type: application/json" \
+      -X POST \
+      -d "{
+        \"name\": \"bookverse-STAGING\",
+        \"scope\": \"project\",
+        \"project_key\": \"${PROJECT_KEY}\",
+        \"category\": \"promote\"
+      }" \
+      "${JFROG_URL}/access/api/v2/stages")
 fi
 
 echo "       📥 Response: HTTP $stage_code"
@@ -477,8 +512,13 @@ if [ "$VERBOSITY" -ge 2 ]; then
       "${JFROG_URL}/access/api/v2/lifecycle/?project_key=${PROJECT_KEY}")
     lifecycle_code=$(echo "$lifecycle_response" | tail -n1)
 else
-    # In normal mode, extract from the command output
-    lifecycle_code=$(echo "$lifecycle_response" | tail -n1)
+    # In normal mode, get response code directly
+    lifecycle_code=$(curl -s -o /dev/null -w "%{http_code}" \
+      --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+      --header "Content-Type: application/json" \
+      -X PATCH \
+      -d "$lifecycle_payload" \
+      "${JFROG_URL}/access/api/v2/lifecycle/?project_key=${PROJECT_KEY}")
 fi
 
 echo "📥 Lifecycle update response: HTTP $lifecycle_code"
@@ -782,8 +822,13 @@ create_all_repositories() {
         "${JFROG_URL}/artifactory/api/v2/repositories/batch")
       batch_code=$(echo "$batch_response" | tail -n1)
   else
-      # In normal mode, extract from the command output
-      batch_code=$(echo "$batch_response" | tail -n1)
+      # In normal mode, get response code directly
+      batch_code=$(curl -s -o /dev/null -w "%{http_code}" \
+        --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+        --header "Content-Type: application/json" \
+        -X PUT \
+        -d "$batch_payload" \
+        "${JFROG_URL}/artifactory/api/v2/repositories/batch")
   fi
   echo "📥 Received response: HTTP $batch_code"
   
@@ -918,8 +963,13 @@ create_user() {
         "${JFROG_URL}/access/api/v2/users")
       user_code=$(echo "$user_response" | tail -n1)
   elif [ "$VERBOSITY" -ge 1 ]; then
-      # Feedback mode - extract from the command output
-      user_code=$(echo "$user_response" | tail -n1)
+      # Feedback mode - get response code directly (since we don't have user_response)
+      user_code=$(curl -s -o /dev/null -w "%{http_code}" \
+        --header "Content-Type: application/json" \
+        --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+        -X POST \
+        -d "$user_payload" \
+        "${JFROG_URL}/access/api/v2/users")
   else
       # Silent mode - get response code directly
       user_code=$(curl -s -o /dev/null -w "%{http_code}" \
@@ -1045,8 +1095,13 @@ create_user() {
         "${JFROG_URL}/access/api/v1/projects/${PROJECT_KEY}/users/$username")
       project_user_code=$(echo "$project_user_response" | tail -n1)
   elif [ "$VERBOSITY" -ge 1 ]; then
-      # Feedback mode - extract from the command output
-      project_user_code=$(echo "$project_user_response" | tail -n1)
+      # Feedback mode - get response code directly (since we don't have project_user_response)
+      project_user_code=$(curl -s -o /dev/null -w "%{http_code}" \
+        --header "Content-Type: application/json" \
+        --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+        -X PUT \
+        -d "$project_user_payload" \
+        "${JFROG_URL}/access/api/v1/projects/${PROJECT_KEY}/users/$username")
   else
       # Silent mode - get response code directly
       project_user_code=$(curl -s -o /dev/null -w "%{http_code}" \

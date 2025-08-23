@@ -99,21 +99,21 @@ echo "Naming Convention: ${PROJECT_KEY}-{service_name}-{package}-{type}-local"
 echo ""
 
 # Create all repositories in batch
-echo "📦 Creating all 16 repositories in batch..."
+echo "📦 Creating all repositories in batch (docker, pypi, npm, maven, helm)..."
 
 # Create batch payload with all repositories
 batch_payload=$(jq -n '[
   {
     "key": "'${PROJECT_KEY}'-inventory-docker-internal-local",
     "packageType": "docker",
-    "description": "Inventory Docker internal repository for DEV/QA/STAGE stages",
+    "description": "Inventory Docker internal repository for DEV/QA/STAGING stages",
     "notes": "Internal development repository",
     "includesPattern": "**/*",
     "excludesPattern": "",
     "rclass": "local",
     "projectKey": "'${PROJECT_KEY}'",
     "xrayIndex": true,
-    "environments": ["DEV", "QA", "STAGE"]
+    "environments": ["'${PROJECT_KEY}'-DEV", "'${PROJECT_KEY}'-QA", "'${PROJECT_KEY}'-STAGING"]
   },
   {
     "key": "'${PROJECT_KEY}'-inventory-docker-release-local",
@@ -130,14 +130,14 @@ batch_payload=$(jq -n '[
   {
     "key": "'${PROJECT_KEY}'-inventory-python-internal-local",
     "packageType": "pypi",
-    "description": "Inventory Python internal repository for DEV/QA/STAGE stages",
+    "description": "Inventory Python internal repository for DEV/QA/STAGING stages",
     "notes": "Internal development repository",
     "includesPattern": "**/*",
     "excludesPattern": "",
     "rclass": "local",
     "projectKey": "'${PROJECT_KEY}'",
     "xrayIndex": true,
-    "environments": ["DEV", "QA", "STAGE"]
+    "environments": ["'${PROJECT_KEY}'-DEV", "'${PROJECT_KEY}'-QA", "'${PROJECT_KEY}'-STAGING"]
   },
   {
     "key": "'${PROJECT_KEY}'-inventory-python-release-local",
@@ -154,14 +154,14 @@ batch_payload=$(jq -n '[
   {
     "key": "'${PROJECT_KEY}'-recommendations-docker-internal-local",
     "packageType": "docker",
-    "description": "Recommendations Docker internal repository for DEV/QA/STAGE stages",
+    "description": "Recommendations Docker internal repository for DEV/QA/STAGING stages",
     "notes": "Internal development repository",
     "includesPattern": "**/*",
     "excludesPattern": "",
     "rclass": "local",
     "projectKey": "'${PROJECT_KEY}'",
     "xrayIndex": true,
-    "environments": ["DEV", "QA", "STAGE"]
+    "environments": ["'${PROJECT_KEY}'-DEV", "'${PROJECT_KEY}'-QA", "'${PROJECT_KEY}'-STAGING"]
   },
   {
     "key": "'${PROJECT_KEY}'-recommendations-docker-release-local",
@@ -178,14 +178,14 @@ batch_payload=$(jq -n '[
   {
     "key": "'${PROJECT_KEY}'-recommendations-python-internal-local",
     "packageType": "pypi",
-    "description": "Recommendations Python internal repository for DEV/QA/STAGE stages",
+    "description": "Recommendations Python internal repository for DEV/QA/STAGING stages",
     "notes": "Internal development repository",
     "includesPattern": "**/*",
     "excludesPattern": "",
     "rclass": "local",
     "projectKey": "'${PROJECT_KEY}'",
     "xrayIndex": true,
-    "environments": ["DEV", "QA", "STAGE"]
+    "environments": ["'${PROJECT_KEY}'-DEV", "'${PROJECT_KEY}'-QA", "'${PROJECT_KEY}'-STAGING"]
   },
   {
     "key": "'${PROJECT_KEY}'-recommendations-python-release-local",
@@ -202,14 +202,14 @@ batch_payload=$(jq -n '[
   {
     "key": "'${PROJECT_KEY}'-checkout-docker-internal-local",
     "packageType": "docker",
-    "description": "Checkout Docker internal repository for DEV/QA/STAGE stages",
+    "description": "Checkout Docker internal repository for DEV/QA/STAGING stages",
     "notes": "Internal development repository",
     "includesPattern": "**/*",
     "excludesPattern": "",
     "rclass": "local",
     "projectKey": "'${PROJECT_KEY}'",
     "xrayIndex": true,
-    "environments": ["DEV", "QA", "STAGE"]
+    "environments": ["'${PROJECT_KEY}'-DEV", "'${PROJECT_KEY}'-QA", "'${PROJECT_KEY}'-STAGING"]
   },
   {
     "key": "'${PROJECT_KEY}'-checkout-docker-release-local",
@@ -226,14 +226,14 @@ batch_payload=$(jq -n '[
   {
     "key": "'${PROJECT_KEY}'-checkout-python-internal-local",
     "packageType": "pypi",
-    "description": "Checkout Python internal repository for DEV/QA/STAGE stages",
+    "description": "Checkout Python internal repository for DEV/QA/STAGING stages",
     "notes": "Internal development repository",
     "includesPattern": "**/*",
     "excludesPattern": "",
     "rclass": "local",
     "projectKey": "'${PROJECT_KEY}'",
     "xrayIndex": true,
-    "environments": ["DEV", "QA", "STAGE"]
+    "environments": ["'${PROJECT_KEY}'-DEV", "'${PROJECT_KEY}'-QA", "'${PROJECT_KEY}'-STAGING"]
   },
   {
     "key": "'${PROJECT_KEY}'-checkout-python-release-local",
@@ -250,14 +250,14 @@ batch_payload=$(jq -n '[
   {
     "key": "'${PROJECT_KEY}'-platform-docker-internal-local",
     "packageType": "docker",
-    "description": "Platform Docker internal repository for DEV/QA/STAGE stages",
+    "description": "Platform Docker internal repository for DEV/QA/STAGING stages",
     "notes": "Internal development repository",
     "includesPattern": "**/*",
     "excludesPattern": "",
     "rclass": "local",
     "projectKey": "'${PROJECT_KEY}'",
     "xrayIndex": true,
-    "environments": ["DEV", "QA", "STAGE"]
+    "environments": ["'${PROJECT_KEY}'-DEV", "'${PROJECT_KEY}'-QA", "'${PROJECT_KEY}'-STAGING"]
   },
   {
     "key": "'${PROJECT_KEY}'-platform-docker-release-local",
@@ -272,21 +272,69 @@ batch_payload=$(jq -n '[
     "environments": ["PROD"]
   },
   {
-    "key": "'${PROJECT_KEY}'-platform-python-internal-local",
-    "packageType": "pypi",
-    "description": "Platform Python internal repository for DEV/QA/STAGE stages",
+    "key": "'${PROJECT_KEY}'-platform-maven-internal-local",
+    "packageType": "maven",
+    "description": "Platform Maven internal repository for DEV/QA/STAGING stages",
     "notes": "Internal development repository",
     "includesPattern": "**/*",
     "excludesPattern": "",
     "rclass": "local",
     "projectKey": "'${PROJECT_KEY}'",
     "xrayIndex": true,
-    "environments": ["DEV", "QA", "STAGE"]
+    "environments": ["'${PROJECT_KEY}'-DEV", "'${PROJECT_KEY}'-QA", "'${PROJECT_KEY}'-STAGING"]
   },
   {
-    "key": "'${PROJECT_KEY}'-platform-python-release-local",
-    "packageType": "pypi",
-    "description": "Platform Python release repository for PROD stage",
+    "key": "'${PROJECT_KEY}'-platform-maven-release-local",
+    "packageType": "maven",
+    "description": "Platform Maven release repository for PROD stage",
+    "notes": "Production release repository",
+    "includesPattern": "**/*",
+    "excludesPattern": "",
+    "rclass": "local",
+    "projectKey": "'${PROJECT_KEY}'",
+    "xrayIndex": true,
+    "environments": ["PROD"]
+  },
+  {
+    "key": "'${PROJECT_KEY}'-web-npm-internal-local",
+    "packageType": "npm",
+    "description": "Web npm internal repository for DEV/QA/STAGING stages",
+    "notes": "Internal development repository",
+    "includesPattern": "**/*",
+    "excludesPattern": "",
+    "rclass": "local",
+    "projectKey": "'${PROJECT_KEY}'",
+    "xrayIndex": true,
+    "environments": ["'${PROJECT_KEY}'-DEV", "'${PROJECT_KEY}'-QA", "'${PROJECT_KEY}'-STAGING"]
+  },
+  {
+    "key": "'${PROJECT_KEY}'-web-npm-release-local",
+    "packageType": "npm",
+    "description": "Web npm release repository for PROD stage",
+    "notes": "Production release repository",
+    "includesPattern": "**/*",
+    "excludesPattern": "",
+    "rclass": "local",
+    "projectKey": "'${PROJECT_KEY}'",
+    "xrayIndex": true,
+    "environments": ["PROD"]
+  },
+  {
+    "key": "'${PROJECT_KEY}'-helm-helm-internal-local",
+    "packageType": "helm",
+    "description": "Helm charts internal repository for DEV/QA/STAGING stages",
+    "notes": "Internal development repository",
+    "includesPattern": "**/*",
+    "excludesPattern": "",
+    "rclass": "local",
+    "projectKey": "'${PROJECT_KEY}'",
+    "xrayIndex": true,
+    "environments": ["'${PROJECT_KEY}'-DEV", "'${PROJECT_KEY}'-QA", "'${PROJECT_KEY}'-STAGING"]
+  },
+  {
+    "key": "'${PROJECT_KEY}'-helm-helm-release-local",
+    "packageType": "helm",
+    "description": "Helm charts release repository for PROD stage",
     "notes": "Production release repository",
     "includesPattern": "**/*",
     "excludesPattern": "",
@@ -309,35 +357,41 @@ fi
 echo "✅ Repository creation process completed!"
 echo "All repository groups have been processed successfully."
 echo ""
-echo "📊 Summary of created repositories by microservice:"
+echo "📊 Summary of created repositories by component:"
 echo ""
 echo "📦 BookVerse Inventory Microservice:"
-echo "     - ${PROJECT_KEY}-inventory-docker-internal-local (DEV, QA, STAGE stages)"
+echo "     - ${PROJECT_KEY}-inventory-docker-internal-local (DEV, QA, STAGING stages)"
 echo "     - ${PROJECT_KEY}-inventory-docker-release-local (PROD stage)"
-echo "     - ${PROJECT_KEY}-inventory-python-internal-local (DEV, QA, STAGE stages)"
+echo "     - ${PROJECT_KEY}-inventory-python-internal-local (DEV, QA, STAGING stages)"
 echo "     - ${PROJECT_KEY}-inventory-python-release-local (PROD stage)"
 echo ""
 echo "🎯 BookVerse Recommendations Microservice:"
-echo "     - ${PROJECT_KEY}-recommendations-docker-internal-local (DEV, QA, STAGE stages)"
+echo "     - ${PROJECT_KEY}-recommendations-docker-internal-local (DEV, QA, STAGING stages)"
 echo "     - ${PROJECT_KEY}-recommendations-docker-release-local (PROD stage)"
-echo "     - ${PROJECT_KEY}-recommendations-python-internal-local (DEV, QA, STAGE stages)"
+echo "     - ${PROJECT_KEY}-recommendations-python-internal-local (DEV, QA, STAGING stages)"
 echo "     - ${PROJECT_KEY}-recommendations-python-release-local (PROD stage)"
 echo ""
 echo "🛒 BookVerse Checkout Microservice:"
-echo "     - ${PROJECT_KEY}-checkout-docker-internal-local (DEV, QA, STAGE stages)"
+echo "     - ${PROJECT_KEY}-checkout-docker-internal-local (DEV, QA, STAGING stages)"
 echo "     - ${PROJECT_KEY}-checkout-docker-release-local (PROD stage)"
-echo "     - ${PROJECT_KEY}-checkout-python-internal-local (DEV, QA, STAGE stages)"
+echo "     - ${PROJECT_KEY}-checkout-python-internal-local (DEV, QA, STAGING stages)"
 echo "     - ${PROJECT_KEY}-checkout-python-release-local (PROD stage)"
 echo ""
 echo "🏗️  BookVerse Platform Solution:"
-echo "     - ${PROJECT_KEY}-platform-docker-internal-local (DEV, QA, STAGE stages)"
+echo "     - ${PROJECT_KEY}-platform-docker-internal-local (DEV, QA, STAGING stages)"
 echo "     - ${PROJECT_KEY}-platform-docker-release-local (PROD stage)"
-echo "     - ${PROJECT_KEY}-platform-python-internal-local (DEV, QA, STAGE stages)"
-echo "     - ${PROJECT_KEY}-platform-python-release-local (PROD stage)"
+echo "     - ${PROJECT_KEY}-platform-maven-internal-local (DEV, QA, STAGING stages)"
+echo "     - ${PROJECT_KEY}-platform-maven-release-local (PROD stage)"
+echo "🕸️  BookVerse Web UI:"
+echo "     - ${PROJECT_KEY}-web-npm-internal-local (DEV, QA, STAGING stages)"
+echo "     - ${PROJECT_KEY}-web-npm-release-local (PROD stage)"
+echo "📦 Helm Charts:"
+echo "     - ${PROJECT_KEY}-helm-helm-internal-local (DEV, QA, STAGING stages)"
+echo "     - ${PROJECT_KEY}-helm-helm-release-local (PROD stage)"
 echo ""
 echo "🔗 Repository-Stage Mapping:"
-echo "   - Internal repositories: DEV, QA, STAGE stages"
+echo "   - Internal repositories: DEV, QA, STAGING stages"
 echo "   - Release repositories: PROD stage"
 echo ""
-echo "💡 Note: Each microservice has 2 repositories per package type"
-echo "   Total repositories: 16 (4 microservices × 2 package types × 2 repository types)"
+echo "💡 Note: Repositories include docker, pypi, npm, maven, and helm per component"
+echo "   Total repositories: see above (expanded beyond 16 to include UI and charts)"

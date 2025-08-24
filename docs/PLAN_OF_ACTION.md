@@ -164,12 +164,22 @@ Status:
 - 4) Five GitHub repos provisioned – completed ✅
 - 5) CI workflows added to all service repos – completed ✅
 - 6) Promotion workflows added to all service repos – completed ✅
-- 7) OIDC trust and identity mappings – pending (endpoint alignment in progress)
+- 7) OIDC trust and identity mappings – pending (endpoint alignment in progress) ⚠️
 - 8) Users created and project roles assigned; pipeline users added – completed ✅
 - 9) AppTrust applications created with correct owners – completed ✅
 - 10) Artifactory repos batch-created with environments mapping – completed ✅
 - 11) Secrets & variables configured; bootstrap script added – completed ✅
+- 12) Seed sample services and artifacts – skipped ⚠️ (deferred until connectivity)
 - 13) Centralized cleanup enhanced in demo-init only – completed ✅
+- 16.1) Platform web scaffold – completed ✅ (moved to bookverse-web repo per architecture)
+- 16.2) Web Dockerfile – completed ✅
+- 16.3) CI build/push of web image – completed ✅ (push deferred until connectivity)
+- 16.4) Promotion to release on PROD – completed ✅ (actual publish deferred ⚠️)
+- 16.5) Runtime config entrypoint – completed ✅
+- 16.6) SBOM/sign placeholders – completed ✅
+- 16.7) Web README – completed ✅
+- 17) Helm charts (platform-centric) – pending ⚠️
+- 18) ArgoCD GitOps (platform-only) – pending ⚠️
 - Remaining items – pending
 
 

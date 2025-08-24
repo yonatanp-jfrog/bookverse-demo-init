@@ -49,6 +49,33 @@ Each service repo includes:
 - `ci.yml`: run tests, build python wheel + docker image, generate SBOM, sign, OIDC login, publish to internal repos.
 - `promote.yml`: manual/dispatch with target stage; validate artifact existence and lifecycle order; promote to QA→STAGING; for PROD, publish to release repos.
 
+### Website Packaging & Runtime Images
+- Web UI is built from the platform/web project and served via a container image (e.g., NGINX).
+- Add web Docker repos (if not present): `${PROJECT_KEY}-web-docker-internal-local` (DEV/QA/STAGING), `${PROJECT_KEY}-web-docker-release-local` (PROD).
+- CI builds `bookverse-web` image, tags with commit SHA/semver, and pushes to the internal Docker repo. Promotion/publish to release repo on PROD.
+
+### Helm Charts & Release
+- Maintain Helm charts for each service (`inventory`, `recommendations`, `checkout`) and for `platform` + `web` UI.
+- Charts are versioned and packaged in CI, then pushed to `${PROJECT_KEY}-helm-helm-internal-local` (and to `-release-local` for PROD).
+- Provide per-environment values files (DEV/QA/STAGING/PROD) overriding image tags, resources, and config.
+
+### GitOps with ArgoCD
+- Store ArgoCD app manifests in `bookverse-demo-assets` under `gitops/`:
+  - `projects/` definitions (e.g., `bookverse-dev`, `bookverse-qa`, `bookverse-staging`, `bookverse-prod`).
+  - `apps/` per environment (App-of-Apps) referencing Helm charts in the JFrog Helm repo and environment values.
+- ArgoCD integrates with the JFrog Helm repo (`${JFROG_URL}/artifactory/${PROJECT_KEY}-helm-helm-internal-local`) and the Docker registry for image pulls.
+- CI updates Helm chart app versions and/or image tags via GitOps commits to `bookverse-demo-assets`.
+
+### Kubernetes Cluster Prerequisites
+- Namespaces: `bookverse-dev`, `bookverse-qa`, `bookverse-staging`, `bookverse-prod`.
+- Image pull secrets configured for JFrog Docker registry access (or anonymous if allowed).
+- ArgoCD repository credentials to access the JFrog Helm repo.
+- Optional: Ingress controller and DNS for the BookVerse web UI.
+
+### Promotion & GitOps Flow
+- CI publishes images and charts to DEV (internal repos) and updates DEV GitOps app values.
+- Promotion updates the target environment Helm values (image tag/chart version) and/or triggers ArgoCD sync for QA→STAGING→PROD.
+
 ### Demo Assets Repository
 - Store datasets, SBOMs, policy files, shared GH Action composites, screenshots, and the presenter runbook.
 
@@ -93,8 +120,11 @@ Each service repo includes:
 9) Create AppTrust applications with correct owners per service
 10) Batch-create Artifactory repos with environments mapping
 11) Secrets & variables: define org/repo vars and bootstrap instructions
-12) Seed sample services and artifacts for demo flow
-13) Add cleanup workflows per repo and centralized cleanup
+12) Seed sample services and artifacts for demo flow (images, wheels, SBOMs)
+13) Centralized cleanup in demo-init (no per-repo cleanup workflows)
+16) Website build & containerization (bookverse-web Docker image)
+17) Helm charts per service and platform/web; publish to Helm repos
+18) GitOps: ArgoCD projects/apps per env; integrate with JFrog repos
 14) Create demo runbook and operator checklist
 15) Validation checks and smoke tests for each stage
 

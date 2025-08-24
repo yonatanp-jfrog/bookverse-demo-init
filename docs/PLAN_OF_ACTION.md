@@ -103,6 +103,7 @@ Status:
 - 6) Promotion workflows added to all service repos – completed ✅
 - 8) Users created and project roles assigned; pipeline users added – completed ✅
 - 9) AppTrust applications created with correct owners – completed ✅
+- 10) Artifactory repos batch-created with environments mapping – completed ✅
 - 7) OIDC trust and identity mappings – pending (endpoint alignment in progress)
 - Remaining items – pending
 

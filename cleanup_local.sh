@@ -10,6 +10,63 @@ set -e
 # 1 = Feedback (show progress and results)
 # 2 = Debug (show commands, confirmations, and full output)
 VERBOSITY="${VERBOSITY:-1}"
+# Flags
+DRY_RUN=false
+AUTO_YES=false
+EXPLICIT_SCOPES=false
+RUN_APPS=true
+RUN_OIDC=true
+RUN_REPOS=true
+RUN_STAGES=true
+RUN_USERS=true
+RUN_PROJECT=true
+
+print_usage() {
+  cat <<EOF
+Usage: ./cleanup_local.sh [options]
+
+Options:
+  --dry-run           Show what would be deleted; do not perform destructive actions
+  --yes               Skip confirmation prompt (non-interactive)
+  --apps              Delete applications (and their versions)
+  --oidc              Delete OIDC integrations
+  --repos             Delete repositories
+  --stages            Clear lifecycle and delete local stages
+  --users             Delete demo users
+  --project           Delete the JFrog project
+
+Notes:
+  - If any of --apps/--oidc/--repos/--stages/--users/--project are provided,
+    only the provided scopes will run. Otherwise, all scopes run.
+  - Use VERBOSITY=2 for interactive step-by-step debug.
+EOF
+}
+
+# Parse args
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --dry-run)
+      DRY_RUN=true; shift ;;
+    --yes)
+      AUTO_YES=true; shift ;;
+    --apps)
+      EXPLICIT_SCOPES=true; RUN_APPS=true; RUN_OIDC=false; RUN_REPOS=false; RUN_STAGES=false; RUN_USERS=false; RUN_PROJECT=false; shift ;;
+    --oidc)
+      EXPLICIT_SCOPES=true; RUN_OIDC=true; shift ;;
+    --repos)
+      EXPLICIT_SCOPES=true; RUN_REPOS=true; shift ;;
+    --stages)
+      EXPLICIT_SCOPES=true; RUN_STAGES=true; shift ;;
+    --users)
+      EXPLICIT_SCOPES=true; RUN_USERS=true; shift ;;
+    --project)
+      EXPLICIT_SCOPES=true; RUN_PROJECT=true; shift ;;
+    -h|--help)
+      print_usage; exit 0 ;;
+    *)
+      echo "⚠️  Unknown option: $1"; print_usage; exit 1 ;;
+  esac
+done
 
 # Function to run command with verbosity control
 run_verbose_command() {
@@ -128,27 +185,53 @@ echo ""
 echo "   This action is IRREVERSIBLE!"
 echo ""
 
-if [ "$VERBOSITY" -ge 2 ]; then
-    echo "🐛 DEBUG MODE: Skipping confirmation prompt for automated testing"
-    echo "   Proceeding with cleanup..."
+if [ "$VERBOSITY" -ge 2 ] || [ "$AUTO_YES" = true ]; then
+  echo "✅ Auto-confirm enabled (${AUTO_YES:+--yes }VERBOSITY=$VERBOSITY). Proceeding with cleanup..."
 else
-    read -p "Type 'DELETE' to confirm you want to proceed with cleanup: " confirmation
-    
-    if [ "$confirmation" != "DELETE" ]; then
-        echo "❌ Cleanup cancelled. Exiting."
-        exit 0
-    fi
-    
-    echo "✅ Confirmation received. Proceeding with cleanup..."
+  read -p "Type 'DELETE' to confirm you want to proceed with cleanup: " confirmation
+  if [ "$confirmation" != "DELETE" ]; then
+      echo "❌ Cleanup cancelled. Exiting."
+      exit 0
+  fi
+  echo "✅ Confirmation received. Proceeding with cleanup..."
 fi
 
 echo ""
 echo "🔄 Starting cleanup sequence..."
 echo ""
 
+# Helpers for destructive requests
+perform_delete() {
+  local url="$1"
+  if [ "$DRY_RUN" = true ]; then
+    echo "     🧪 DRY-RUN: DELETE $url"
+    echo 204
+  else
+    curl -s -o /dev/null -w "%{http_code}" \
+      --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+      --header "Content-Type: application/json" \
+      -X DELETE "$url"
+  fi
+}
+
+perform_patch() {
+  local url="$1"; local payload="$2"
+  if [ "$DRY_RUN" = true ]; then
+    echo "     🧪 DRY-RUN: PATCH $url"
+    echo "     🧪 Payload: $payload"
+    echo 204
+  else
+    curl -s -o /dev/null -w "%{http_code}" \
+      --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+      --header "Content-Type: application/json" \
+      -X PATCH -d "$payload" "$url"
+  fi
+}
+
 # =============================================================================
 # STEP 1: DELETE APPLICATIONS
 # =============================================================================
+if [ "$EXPLICIT_SCOPES" = false ] || [ "$RUN_APPS" = true ]; then
 if [ "$VERBOSITY" -ge 1 ]; then
   echo "📱 Step 1/6: Deleting Applications..."
   echo "   Deleting all applications in project: ${PROJECT_KEY}"
@@ -226,10 +309,12 @@ for app in "${applications[@]}"; do
     fi
     echo ""
 done
+fi
 
 # =============================================================================
 # STEP 2: DELETE OIDC INTEGRATIONS
 # =============================================================================
+if [ "$EXPLICIT_SCOPES" = false ] || [ "$RUN_OIDC" = true ]; then
 if [ "$VERBOSITY" -ge 1 ]; then
   echo "🔐 Step 2/6: Deleting OIDC Integrations..."
   echo "   Deleting all OIDC integrations in project: ${PROJECT_KEY}"
@@ -249,11 +334,7 @@ oidc_integrations=(
 for oidc in "${oidc_integrations[@]}"; do
     echo "   🗑️  Deleting OIDC integration: ${PROJECT_KEY}-${oidc}"
     
-    response_code=$(curl -s -o /dev/null -w "%{http_code}" \
-        --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
-        --header "Content-Type: application/json" \
-        -X DELETE \
-        "${JFROG_URL}/access/api/v1/oidc/integrations/${PROJECT_KEY}-${oidc}")
+    response_code=$(perform_delete "${JFROG_URL}/access/api/v1/oidc/integrations/${PROJECT_KEY}-${oidc}")
     
     if [ "$response_code" -eq 200 ] || [ "$response_code" -eq 204 ]; then
         echo "     ✅ OIDC integration '${PROJECT_KEY}-${oidc}' deleted successfully (HTTP $response_code)"
@@ -266,10 +347,14 @@ for oidc in "${oidc_integrations[@]}"; do
 done
 
 echo ""
+fi
+
+echo ""
 
 # =============================================================================
 # STEP 3: DELETE REPOSITORIES
 # =============================================================================
+if [ "$EXPLICIT_SCOPES" = false ] || [ "$RUN_REPOS" = true ]; then
 if [ "$VERBOSITY" -ge 1 ]; then
   echo "📦 Step 3/6: Deleting Repositories..."
   echo "   Deleting all repositories in project: ${PROJECT_KEY}"
@@ -308,11 +393,7 @@ repositories=(
 for repo in "${repositories[@]}"; do
     echo "   🗑️  Deleting repository: $repo"
     
-    response_code=$(curl -s -o /dev/null -w "%{http_code}" \
-        --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
-        --header "Content-Type: application/json" \
-        -X DELETE \
-        "${JFROG_URL}/artifactory/api/repositories/$repo")
+    response_code=$(perform_delete "${JFROG_URL}/artifactory/api/repositories/$repo")
     
     if [ "$response_code" -eq 200 ] || [ "$response_code" -eq 204 ]; then
         echo "     ✅ Repository '$repo' deleted successfully (HTTP $response_code)"
@@ -325,10 +406,12 @@ for repo in "${repositories[@]}"; do
 done
 
 echo ""
+fi
 
 # =============================================================================
 # STEP 4: DELETE STAGES
 # =============================================================================
+if [ "$EXPLICIT_SCOPES" = false ] || [ "$RUN_STAGES" = true ]; then
 if [ "$VERBOSITY" -ge 1 ]; then
   echo "🎭 Step 4/6: Deleting Stages..."
   echo "   Deleting all stages in project: ${PROJECT_KEY}"
@@ -344,12 +427,7 @@ lifecycle_payload=$(jq -n '{
   "promote_stages": []
 }')
 
-lifecycle_response_code=$(curl -s -o /dev/null -w "%{http_code}" \
-  --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
-  --header "Content-Type: application/json" \
-  -X PATCH \
-  -d "$lifecycle_payload" \
-  "${JFROG_URL}/access/api/v2/lifecycle/?project_key=${PROJECT_KEY}")
+lifecycle_response_code=$(perform_patch "${JFROG_URL}/access/api/v2/lifecycle/?project_key=${PROJECT_KEY}" "$lifecycle_payload")
 
 if [ "$lifecycle_response_code" -eq 200 ] || [ "$lifecycle_response_code" -eq 204 ]; then
   echo "     ✅ Lifecycle cleared successfully (HTTP $lifecycle_response_code)"
@@ -372,11 +450,7 @@ stages=(
 for stage in "${stages[@]}"; do
     echo "   🗑️  Deleting stage: $stage"
     
-    response_code=$(curl -s -o /dev/null -w "%{http_code}" \
-        --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
-        --header "Content-Type: application/json" \
-        -X DELETE \
-        "${JFROG_URL}/access/api/v2/stages/$stage")
+    response_code=$(perform_delete "${JFROG_URL}/access/api/v2/stages/$stage")
     
     if [ "$response_code" -eq 200 ] || [ "$response_code" -eq 204 ]; then
         echo "     ✅ Stage '$stage' deleted successfully (HTTP $response_code)"
@@ -389,10 +463,12 @@ for stage in "${stages[@]}"; do
 done
 
 echo ""
+fi
 
 # =============================================================================
 # STEP 5: DELETE USERS
 # =============================================================================
+if [ "$EXPLICIT_SCOPES" = false ] || [ "$RUN_USERS" = true ]; then
 if [ "$VERBOSITY" -ge 1 ]; then
   echo "👥 Step 5/6: Deleting Users..."
   echo "   Deleting all users created for project: ${PROJECT_KEY}"
@@ -421,11 +497,7 @@ users=(
 for user in "${users[@]}"; do
     echo "   🗑️  Deleting user: $user"
     
-    response_code=$(curl -s -o /dev/null -w "%{http_code}" \
-        --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
-        --header "Content-Type: application/json" \
-        -X DELETE \
-        "${JFROG_URL}/access/api/v2/users/$user")
+    response_code=$(perform_delete "${JFROG_URL}/access/api/v2/users/$user")
     
     if [ "$response_code" -eq 200 ] || [ "$response_code" -eq 204 ]; then
         echo "     ✅ User '$user' deleted successfully (HTTP $response_code)"
@@ -438,10 +510,12 @@ for user in "${users[@]}"; do
 done
 
 echo ""
+fi
 
 # =============================================================================
 # STEP 6: DELETE PROJECT
 # =============================================================================
+if [ "$EXPLICIT_SCOPES" = false ] || [ "$RUN_PROJECT" = true ]; then
 if [ "$VERBOSITY" -ge 1 ]; then
   echo "🏗️  Step 6/6: Deleting Project..."
   echo "   Deleting project: ${PROJECT_KEY}"
@@ -453,11 +527,7 @@ fi
 
 echo "   🗑️  Deleting project: ${PROJECT_KEY}"
 
-response_code=$(curl -s -o /dev/null -w "%{http_code}" \
-    --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
-    --header "Content-Type: application/json" \
-    -X DELETE \
-    "${JFROG_URL}/access/api/v1/projects/${PROJECT_KEY}")
+response_code=$(perform_delete "${JFROG_URL}/access/api/v1/projects/${PROJECT_KEY}")
 
 if [ "$response_code" -eq 200 ] || [ "$response_code" -eq 204 ]; then
     echo "     ✅ Project '${PROJECT_KEY}' deleted successfully (HTTP $response_code)"

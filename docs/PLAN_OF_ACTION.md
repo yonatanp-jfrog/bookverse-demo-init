@@ -164,10 +164,10 @@ Status:
 - 4) Five GitHub repos provisioned – completed ✅
 - 5) CI workflows added to all service repos – completed ✅
 - 6) Promotion workflows added to all service repos – completed ✅
+- 7) OIDC trust and identity mappings – pending (endpoint alignment in progress)
 - 8) Users created and project roles assigned; pipeline users added – completed ✅
 - 9) AppTrust applications created with correct owners – completed ✅
 - 10) Artifactory repos batch-created with environments mapping – completed ✅
-- 7) OIDC trust and identity mappings – pending (endpoint alignment in progress)
 - 11) Secrets & variables configured; bootstrap script added – completed ✅
 - 13) Centralized cleanup enhanced in demo-init only – completed ✅
 - Remaining items – pending

@@ -105,6 +105,15 @@ run_verbose_command() {
     fi
 }
 
+# Helper to GET JSON content (silent on errors)
+perform_get() {
+  local url="$1"
+  curl -s \
+    --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+    --header "Content-Type: application/json" \
+    -X GET "$url" || true
+}
+
 # Function to show verbosity info
 show_verbosity_info() {
     case "$VERBOSITY" in
@@ -241,13 +250,26 @@ if [ "$VERBOSITY" -ge 1 ]; then
   echo ""
 fi
 
-# List of applications to delete
-applications=(
-    "inventory"
-    "recommendations" 
-    "checkout"
-    "platform"
-)
+# Discover applications dynamically; fallback to known keys
+applications=()
+apps_list_json=$(perform_get "${JFROG_URL}/apptrust/api/v1/applications?project_key=${PROJECT_KEY}")
+if echo "$apps_list_json" | jq -e . >/dev/null 2>&1; then
+    dynamic_apps=$(echo "$apps_list_json" | jq -r '..|.application_key? // empty')
+    if [ -n "$dynamic_apps" ]; then
+        while IFS= read -r ak; do
+            # accept keys that start with project prefix or any returned
+            applications+=("${ak#${PROJECT_KEY}-}")
+        done <<< "$dynamic_apps"
+    fi
+fi
+if [ ${#applications[@]} -eq 0 ]; then
+    applications=(
+        "inventory"
+        "recommendations"
+        "checkout"
+        "platform"
+    )
+fi
 
 for app in "${applications[@]}"; do
     app_key="${PROJECT_KEY}-${app}"
@@ -384,42 +406,43 @@ if [ "$VERBOSITY" -ge 1 ]; then
   echo ""
 fi
 
-# List of repositories to delete
-repositories=(
-    # Inventory repositories
-    "${PROJECT_KEY}-inventory-docker-internal-local"
-    "${PROJECT_KEY}-inventory-docker-release-local"
-    "${PROJECT_KEY}-inventory-python-internal-local"
-    "${PROJECT_KEY}-inventory-python-release-local"
-    
-    # Recommendations repositories
-    "${PROJECT_KEY}-recommendations-docker-internal-local"
-    "${PROJECT_KEY}-recommendations-docker-release-local"
-    "${PROJECT_KEY}-recommendations-python-internal-local"
-    "${PROJECT_KEY}-recommendations-python-release-local"
-    
-    # Checkout repositories
-    "${PROJECT_KEY}-checkout-docker-internal-local"
-    "${PROJECT_KEY}-checkout-docker-release-local"
-    "${PROJECT_KEY}-checkout-python-internal-local"
-    "${PROJECT_KEY}-checkout-python-release-local"
-    
-    # Platform repositories
-    "${PROJECT_KEY}-platform-docker-internal-local"
-    "${PROJECT_KEY}-platform-docker-release-local"
-    "${PROJECT_KEY}-platform-python-internal-local"
-    "${PROJECT_KEY}-platform-python-release-local"
-    "${PROJECT_KEY}-platform-maven-internal-local"
-    "${PROJECT_KEY}-platform-maven-release-local"
-
-    # Web UI npm repositories
-    "${PROJECT_KEY}-web-npm-internal-local"
-    "${PROJECT_KEY}-web-npm-release-local"
-
-    # Helm chart repositories
-    "${PROJECT_KEY}-helm-helm-internal-local"
-    "${PROJECT_KEY}-helm-helm-release-local"
-)
+# Discover repositories by prefix; fallback to known list
+repositories=()
+repos_json=$(perform_get "${JFROG_URL}/artifactory/api/repositories?type=local")
+if echo "$repos_json" | jq -e . >/dev/null 2>&1; then
+    dyn_repos=$(echo "$repos_json" | jq -r '.[]?.key // empty' | grep "^${PROJECT_KEY}-" || true)
+    if [ -n "$dyn_repos" ]; then
+        while IFS= read -r rk; do
+            repositories+=("$rk")
+        done <<< "$dyn_repos"
+    fi
+fi
+if [ ${#repositories[@]} -eq 0 ]; then
+    repositories=(
+        "${PROJECT_KEY}-inventory-docker-internal-local"
+        "${PROJECT_KEY}-inventory-docker-release-local"
+        "${PROJECT_KEY}-inventory-python-internal-local"
+        "${PROJECT_KEY}-inventory-python-release-local"
+        "${PROJECT_KEY}-recommendations-docker-internal-local"
+        "${PROJECT_KEY}-recommendations-docker-release-local"
+        "${PROJECT_KEY}-recommendations-python-internal-local"
+        "${PROJECT_KEY}-recommendations-python-release-local"
+        "${PROJECT_KEY}-checkout-docker-internal-local"
+        "${PROJECT_KEY}-checkout-docker-release-local"
+        "${PROJECT_KEY}-checkout-python-internal-local"
+        "${PROJECT_KEY}-checkout-python-release-local"
+        "${PROJECT_KEY}-platform-docker-internal-local"
+        "${PROJECT_KEY}-platform-docker-release-local"
+        "${PROJECT_KEY}-platform-python-internal-local"
+        "${PROJECT_KEY}-platform-python-release-local"
+        "${PROJECT_KEY}-platform-maven-internal-local"
+        "${PROJECT_KEY}-platform-maven-release-local"
+        "${PROJECT_KEY}-web-npm-internal-local"
+        "${PROJECT_KEY}-web-npm-release-local"
+        "${PROJECT_KEY}-helm-helm-internal-local"
+        "${PROJECT_KEY}-helm-helm-release-local"
+    )
+fi
 
 for repo in "${repositories[@]}"; do
     echo "   🗑️  Deleting repository: $repo"
@@ -471,12 +494,24 @@ fi
 
 echo ""
 
-# List of stages to delete (only local stages, not PROD)
-stages=(
-    "${PROJECT_KEY}-DEV"
-    "${PROJECT_KEY}-QA"
-    "${PROJECT_KEY}-STAGING"
-)
+# Discover stages dynamically; fallback to known names
+stages=()
+stages_json=$(perform_get "${JFROG_URL}/access/api/v2/stages/?project_key=${PROJECT_KEY}")
+if echo "$stages_json" | jq -e . >/dev/null 2>&1; then
+    dyn_stages=$(echo "$stages_json" | jq -r '..|.name? // empty' | grep "^${PROJECT_KEY}-" | sort -u || true)
+    if [ -n "$dyn_stages" ]; then
+        while IFS= read -r sn; do
+            stages+=("$sn")
+        done <<< "$dyn_stages"
+    fi
+fi
+if [ ${#stages[@]} -eq 0 ]; then
+    stages=(
+        "${PROJECT_KEY}-DEV"
+        "${PROJECT_KEY}-QA"
+        "${PROJECT_KEY}-STAGING"
+    )
+fi
 
 for stage in "${stages[@]}"; do
     echo "   🗑️  Deleting stage: $stage"
@@ -509,21 +544,33 @@ if [ "$VERBOSITY" -ge 1 ]; then
   echo ""
 fi
 
-# List of users to delete
-users=(
-    "alice.developer@bookverse.com"
-    "bob.release@bookverse.com"
-    "charlie.devops@bookverse.com"
-    "diana.architect@bookverse.com"
-    "edward.manager@bookverse.com"
-    "frank.inventory@bookverse.com"
-    "grace.ai@bookverse.com"
-    "henry.checkout@bookverse.com"
-    "pipeline.inventory@bookverse.com"
-    "pipeline.recommendations@bookverse.com"
-    "pipeline.checkout@bookverse.com"
-    "pipeline.platform@bookverse.com"
-)
+# Discover project members (best-effort); fallback to known list
+users=()
+proj_json=$(perform_get "${JFROG_URL}/access/api/v1/projects/${PROJECT_KEY}")
+if echo "$proj_json" | jq -e . >/dev/null 2>&1; then
+    dyn_users=$(echo "$proj_json" | jq -r '.members[]?.name // empty' 2>/dev/null || true)
+    if [ -n "$dyn_users" ]; then
+        while IFS= read -r un; do
+            users+=("$un")
+        done <<< "$dyn_users"
+    fi
+fi
+if [ ${#users[@]} -eq 0 ]; then
+    users=(
+        "alice.developer@bookverse.com"
+        "bob.release@bookverse.com"
+        "charlie.devops@bookverse.com"
+        "diana.architect@bookverse.com"
+        "edward.manager@bookverse.com"
+        "frank.inventory@bookverse.com"
+        "grace.ai@bookverse.com"
+        "henry.checkout@bookverse.com"
+        "pipeline.inventory@bookverse.com"
+        "pipeline.recommendations@bookverse.com"
+        "pipeline.checkout@bookverse.com"
+        "pipeline.platform@bookverse.com"
+    )
+fi
 
 for user in "${users[@]}"; do
     echo "   🗑️  Deleting user: $user"

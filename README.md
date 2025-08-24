@@ -24,6 +24,22 @@ export JFROG_URL="https://your-jfrog-instance.com"
 export JFROG_ADMIN_TOKEN="your-admin-token"
 ```
 
+### GitHub Actions Variables (CI/CD bootstrap)
+
+Set common variables across all BookVerse repos (requires a GitHub token with repo scope):
+
+```bash
+export GH_TOKEN=ghp_your_token
+export ORG=your-org              # optional; falls back to user if unset
+export PROJECT_KEY=bookverse
+export JFROG_URL=https://your-jfrog-instance.com
+export DOCKER_REGISTRY=registry.example.com/bookverse
+bash scripts/set_actions_vars.sh
+```
+
+This will set `PROJECT_KEY`, `JFROG_URL`, and `DOCKER_REGISTRY` as Actions variables in:
+`bookverse-inventory`, `bookverse-recommendations`, `bookverse-checkout`, `bookverse-platform`, `bookverse-demo-assets`.
+
 ### Easy Verbosity Control with Wrapper Scripts
 
 For convenience, we've created wrapper scripts that automatically set the correct verbosity level:

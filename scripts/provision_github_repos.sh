@@ -16,6 +16,8 @@ REPOS=(
   "bookverse-recommendations"
   "bookverse-checkout"
   "bookverse-platform"
+  "bookverse-web"
+  "bookverse-helm"
   "bookverse-demo-assets"
 )
 
@@ -109,9 +111,9 @@ for r in "${REPOS[@]}"; do
   echo "⬇️  Cloning $OWNER/$r into repos/$r"
   if [[ -d "repos/$r/.git" ]]; then
     echo "   ↻ Repo exists locally; fetching latest"
-    git -C "repos/$r" -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --all --prune || true
+    git -C "repos/$r" fetch --all --prune || true
   else
-    git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" clone https://github.com/$OWNER/$r.git "repos/$r" || true
+    git clone https://github.com/$OWNER/$r.git "repos/$r" || true
   fi
 
   echo "🔧 Setting default GitHub Actions variables"

@@ -5,7 +5,9 @@
     { "path": "repos/bookverse-recommendations" },
     { "path": "repos/bookverse-checkout" },
     { "path": "repos/bookverse-platform" },
-    { "path": "repos/bookverse-demo-assets" }
+    { "path": "repos/bookverse-demo-assets" },
+    { "path": "repos/bookverse-web" },
+    { "path": "repos/bookverse-helm" }
   ]
 }
 

@@ -419,6 +419,8 @@ if echo "$repos_json" | jq -e . >/dev/null 2>&1; then
 fi
 if [ ${#repositories[@]} -eq 0 ]; then
     repositories=(
+        "${PROJECT_KEY}-web-docker-internal-local"
+        "${PROJECT_KEY}-web-docker-release-local"
         "${PROJECT_KEY}-inventory-docker-internal-local"
         "${PROJECT_KEY}-inventory-docker-release-local"
         "${PROJECT_KEY}-inventory-python-internal-local"

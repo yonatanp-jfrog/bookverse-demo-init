@@ -296,6 +296,30 @@ batch_payload=$(jq -n '[
     "environments": ["PROD"]
   },
   {
+    "key": "'${PROJECT_KEY}'-web-docker-internal-local",
+    "packageType": "docker",
+    "description": "Web UI Docker internal repository for DEV/QA/STAGING stages",
+    "notes": "Internal development repository",
+    "includesPattern": "**/*",
+    "excludesPattern": "",
+    "rclass": "local",
+    "projectKey": "'${PROJECT_KEY}'",
+    "xrayIndex": true,
+    "environments": ["'${PROJECT_KEY}'-DEV", "'${PROJECT_KEY}'-QA", "'${PROJECT_KEY}'-STAGING"]
+  },
+  {
+    "key": "'${PROJECT_KEY}'-web-docker-release-local",
+    "packageType": "docker",
+    "description": "Web UI Docker release repository for PROD stage",
+    "notes": "Production release repository",
+    "includesPattern": "**/*",
+    "excludesPattern": "",
+    "rclass": "local",
+    "projectKey": "'${PROJECT_KEY}'",
+    "xrayIndex": true,
+    "environments": ["PROD"]
+  },
+  {
     "key": "'${PROJECT_KEY}'-web-npm-internal-local",
     "packageType": "npm",
     "description": "Web npm internal repository for DEV/QA/STAGING stages",

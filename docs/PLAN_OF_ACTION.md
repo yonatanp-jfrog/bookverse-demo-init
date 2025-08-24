@@ -99,6 +99,10 @@ Each service repo includes:
 15) Validation checks and smoke tests for each stage
 
 Status:
+- 1) Repo architecture and naming defined – completed ✅
+- 2) Constraints documented (stage naming, PROD, verbosity UX) – completed ✅
+- 3) Init/cleanup repo updated with final scripts and docs – completed ✅
+- 4) Five GitHub repos provisioned – completed ✅
 - 5) CI workflows added to all service repos – completed ✅
 - 6) Promotion workflows added to all service repos – completed ✅
 - 8) Users created and project roles assigned; pipeline users added – completed ✅

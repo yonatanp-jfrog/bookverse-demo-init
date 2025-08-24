@@ -317,34 +317,55 @@ fi
 if [ "$EXPLICIT_SCOPES" = false ] || [ "$RUN_OIDC" = true ]; then
 if [ "$VERBOSITY" -ge 1 ]; then
   echo "🔐 Step 2/6: Deleting OIDC Integrations..."
-  echo "   Deleting all OIDC integrations in project: ${PROJECT_KEY}"
-  echo "   API Endpoint: ${JFROG_URL}/access/api/v2/oidc"
-  echo "   Method: DELETE"
+  echo "   Attempting deletion across possible endpoints and names"
   echo ""
 fi
 
-# List of OIDC integrations to delete
-oidc_integrations=(
-    "inventory-team"
-    "recommendations-team"
-    "checkout-team"
-    "platform-team"
+# Known provider names created by the demo (if present)
+oidc_provider_names=(
+  "github-${PROJECT_KEY}-inventory"
+  "github-${PROJECT_KEY}-recommendations"
+  "github-${PROJECT_KEY}-checkout"
+  "github-${PROJECT_KEY}-platform"
+  "github-${PROJECT_KEY}-web"
 )
 
-for oidc in "${oidc_integrations[@]}"; do
-    echo "   🗑️  Deleting OIDC integration: ${PROJECT_KEY}-${oidc}"
-    
-    response_code=$(perform_delete "${JFROG_URL}/access/api/v1/oidc/integrations/${PROJECT_KEY}-${oidc}")
-    
-    if [ "$response_code" -eq 200 ] || [ "$response_code" -eq 204 ]; then
-        echo "     ✅ OIDC integration '${PROJECT_KEY}-${oidc}' deleted successfully (HTTP $response_code)"
-    elif [ "$response_code" -eq 404 ]; then
-        echo "     ⚠️  OIDC integration '${PROJECT_KEY}-${oidc}' not found (HTTP $response_code)"
-    else
-        echo "     ❌ Failed to delete OIDC integration '${PROJECT_KEY}-${oidc}' (HTTP $response_code)"
-        FAILED=true
-    fi
+# Legacy/team-style names (for backward compatibility)
+legacy_integrations=(
+  "${PROJECT_KEY}-inventory-team"
+  "${PROJECT_KEY}-recommendations-team"
+  "${PROJECT_KEY}-checkout-team"
+  "${PROJECT_KEY}-platform-team"
+)
+
+# Try deleting identity mappings first (best-effort)
+for name in "${oidc_provider_names[@]}"; do
+  echo "   🗑️  Deleting identity mappings for provider: $name (best-effort)"
+  perform_delete "${JFROG_URL}/access/api/v1/oidc/${name}/identity_mappings" >/dev/null || true
+  perform_delete "${JFROG_URL}/access/api/v1/oidc/providers/${name}/identity_mappings" >/dev/null || true
 done
+
+delete_oidc_name() {
+  local name="$1"
+  local endpoints=(
+    "${JFROG_URL}/access/api/v1/oidc/${name}"
+    "${JFROG_URL}/access/api/v1/oidc/providers/${name}"
+    "${JFROG_URL}/access/api/v1/oidc/integrations/${name}"
+  )
+  local ok=false
+  for ep in "${endpoints[@]}"; do
+    code=$(perform_delete "$ep")
+    if [ "$code" -eq 200 ] || [ "$code" -eq 204 ]; then ok=true; break; fi
+  done
+  if [ "$ok" = true ]; then
+    echo "     ✅ OIDC '${name}' deleted"
+  else
+    echo "     ⚠️  OIDC '${name}' not found or could not be deleted (ignored)"
+  fi
+}
+
+for name in "${oidc_provider_names[@]}"; do delete_oidc_name "$name"; done
+for name in "${legacy_integrations[@]}"; do delete_oidc_name "$name"; done
 
 echo ""
 fi
@@ -388,6 +409,16 @@ repositories=(
     "${PROJECT_KEY}-platform-docker-release-local"
     "${PROJECT_KEY}-platform-python-internal-local"
     "${PROJECT_KEY}-platform-python-release-local"
+    "${PROJECT_KEY}-platform-maven-internal-local"
+    "${PROJECT_KEY}-platform-maven-release-local"
+
+    # Web UI npm repositories
+    "${PROJECT_KEY}-web-npm-internal-local"
+    "${PROJECT_KEY}-web-npm-release-local"
+
+    # Helm chart repositories
+    "${PROJECT_KEY}-helm-helm-internal-local"
+    "${PROJECT_KEY}-helm-helm-release-local"
 )
 
 for repo in "${repositories[@]}"; do

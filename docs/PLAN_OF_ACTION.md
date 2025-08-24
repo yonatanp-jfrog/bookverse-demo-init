@@ -109,6 +109,8 @@ Status:
 - 9) AppTrust applications created with correct owners – completed ✅
 - 10) Artifactory repos batch-created with environments mapping – completed ✅
 - 7) OIDC trust and identity mappings – pending (endpoint alignment in progress)
+- 11) Secrets & variables configured; bootstrap script added – completed ✅
+- 13) Centralized cleanup enhanced in demo-init only – completed ✅
 - Remaining items – pending
 
 

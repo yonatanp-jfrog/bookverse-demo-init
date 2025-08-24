@@ -123,8 +123,28 @@ Each service repo includes:
 12) Seed sample services and artifacts for demo flow (images, wheels, SBOMs)
 13) Centralized cleanup in demo-init (no per-repo cleanup workflows)
 16) Website build & containerization (bookverse-web Docker image)
+   16.1) Add `web/` app scaffold under `bookverse-platform` (static assets or SPA)
+   16.2) Create `Dockerfile` (multi-stage build; final NGINX/Alpine image)
+   16.3) Add CI steps to build/tag/push `bookverse-web` to internal Docker repo
+   16.4) Add promotion logic to publish image to release repo on PROD
+   16.5) Parameterize base path/env via build args and runtime config map
+   16.6) Add SBOM/signing step for web image
+   16.7) Update service README with run/debug/publish instructions
 17) Helm charts per service and platform/web; publish to Helm repos
+   17.1) Create Helm chart skeletons: `charts/{inventory,recommendations,checkout,platform,web}`
+   17.2) Define values.yaml (image repo/tag, resources, env, probes)
+   17.3) Create per-env values: `values-dev.yaml`, `values-qa.yaml`, `values-staging.yaml`, `values-prod.yaml`
+   17.4) Add CI packaging step (helm package) and push to Helm internal repo
+   17.5) Implement chart version bumping tied to app/image versions
+   17.6) Add NOTES.txt and standard templates (deployment, service, ingress)
+   17.7) Update docs with install/upgrade commands via Helm
 18) GitOps: ArgoCD projects/apps per env; integrate with JFrog repos
+   18.1) Define ArgoCD Projects: dev/qa/staging/prod with allowed sources/destinations
+   18.2) Create App-of-Apps per env pointing to `bookverse-demo-assets/gitops/apps/<env>`
+   18.3) Add app definitions for each service + platform/web with Helm chart refs
+   18.4) Configure repo credentials for JFrog Helm and Docker registry
+   18.5) Add CI step to update chart versions/image tags via GitOps commits
+   18.6) Document bootstrap commands to register ArgoCD repos and sync apps
 14) Create demo runbook and operator checklist
 15) Validation checks and smoke tests for each stage
 

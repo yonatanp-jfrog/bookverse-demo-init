@@ -55,16 +55,17 @@ Each service repo includes:
 - CI builds `bookverse-web` image, tags with commit SHA/semver, and pushes to the internal Docker repo. Promotion/publish to release repo on PROD.
 
 ### Helm Charts & Release
-- Maintain Helm charts for each service (`inventory`, `recommendations`, `checkout`) and for `platform` + `web` UI.
+- Primary chart: `platform` (includes and pins all microservice images used by the platform release).
+- Optional internal charts: per-service charts may exist for testing but are NOT deployed to clusters.
 - Charts are versioned and packaged in CI, then pushed to `${PROJECT_KEY}-helm-helm-internal-local` (and to `-release-local` for PROD).
 - Provide per-environment values files (DEV/QA/STAGING/PROD) overriding image tags, resources, and config.
 
 ### GitOps with ArgoCD
 - Store ArgoCD app manifests in `bookverse-demo-assets` under `gitops/`:
   - `projects/` definitions (e.g., `bookverse-dev`, `bookverse-qa`, `bookverse-staging`, `bookverse-prod`).
-  - `apps/` per environment (App-of-Apps) referencing Helm charts in the JFrog Helm repo and environment values.
+  - `apps/` per environment that deploy ONLY the `platform` chart and values.
 - ArgoCD integrates with the JFrog Helm repo (`${JFROG_URL}/artifactory/${PROJECT_KEY}-helm-helm-internal-local`) and the Docker registry for image pulls.
-- CI updates Helm chart app versions and/or image tags via GitOps commits to `bookverse-demo-assets`.
+- A webhook from AppTrust triggers a GitHub workflow to update the platform Helm chart values (image tags) when the `platform` application version is promoted to PROD.
 
 ### Kubernetes Cluster Prerequisites
 - Namespaces: `bookverse-dev`, `bookverse-qa`, `bookverse-staging`, `bookverse-prod`.
@@ -73,8 +74,15 @@ Each service repo includes:
 - Optional: Ingress controller and DNS for the BookVerse web UI.
 
 ### Promotion & GitOps Flow
-- CI publishes images and charts to DEV (internal repos) and updates DEV GitOps app values.
-- Promotion updates the target environment Helm values (image tag/chart version) and/or triggers ArgoCD sync for QA→STAGING→PROD.
+- Microservices: CI publishes artifacts and creates AppTrust application versions; microservice versions run through DEV→QA→STAGING→PROD.
+- Platform: a scheduled process aggregates the latest microservice PROD versions, creates a combined `platform` application version, and runs it through DEV→QA→STAGING→PROD.
+- On `platform` promotion to PROD, a webhook triggers a GitHub action to update the platform Helm chart values (pins microservice image tags) and ArgoCD syncs the platform only.
+
+### AppTrust Release Orchestration (Microservices → Platform aggregation)
+- Each microservice has its own AppTrust application and versions tied to builds; versions are promoted independently through the SDLC.
+- The `platform` application periodically (bi-weekly) queries AppTrust for the latest released (PROD) versions of each microservice.
+- The process creates a combined `platform` application version with metadata that references the exact microservice versions/images.
+- The combined `platform` version is promoted through the SDLC. Upon promotion to PROD, an AppTrust webhook calls a GitHub workflow to update the platform Helm chart values (locking image tags) and commit changes in `bookverse-demo-assets`.
 
 ### Demo Assets Repository
 - Store datasets, SBOMs, policy files, shared GH Action composites, screenshots, and the presenter runbook.
@@ -130,21 +138,22 @@ Each service repo includes:
    16.5) Parameterize base path/env via build args and runtime config map
    16.6) Add SBOM/signing step for web image
    16.7) Update service README with run/debug/publish instructions
-17) Helm charts per service and platform/web; publish to Helm repos
-   17.1) Create Helm chart skeletons: `charts/{inventory,recommendations,checkout,platform,web}`
-   17.2) Define values.yaml (image repo/tag, resources, env, probes)
+17) Helm charts (platform-centric) and publish to Helm repos
+   17.1) Create Helm chart skeleton for `platform` (and optional `web`)
+   17.2) Define values.yaml (per microservice image repo/tag, resources, env, probes)
    17.3) Create per-env values: `values-dev.yaml`, `values-qa.yaml`, `values-staging.yaml`, `values-prod.yaml`
    17.4) Add CI packaging step (helm package) and push to Helm internal repo
-   17.5) Implement chart version bumping tied to app/image versions
+   17.5) Implement chart version bumping tied to platform app/image versions
    17.6) Add NOTES.txt and standard templates (deployment, service, ingress)
    17.7) Update docs with install/upgrade commands via Helm
-18) GitOps: ArgoCD projects/apps per env; integrate with JFrog repos
+18) GitOps: ArgoCD projects/apps per env; integrate with JFrog repos (platform-only deploy)
    18.1) Define ArgoCD Projects: dev/qa/staging/prod with allowed sources/destinations
    18.2) Create App-of-Apps per env pointing to `bookverse-demo-assets/gitops/apps/<env>`
-   18.3) Add app definitions for each service + platform/web with Helm chart refs
+   18.3) Add app definition for platform (and optional web) Helm chart only
    18.4) Configure repo credentials for JFrog Helm and Docker registry
-   18.5) Add CI step to update chart versions/image tags via GitOps commits
+   18.5) Add CI step to update chart versions/image tags via GitOps commits when platform is released
    18.6) Document bootstrap commands to register ArgoCD repos and sync apps
+   18.7) Document AppTrust webhook endpoint to trigger the GitHub workflow
 14) Create demo runbook and operator checklist
 15) Validation checks and smoke tests for each stage
 

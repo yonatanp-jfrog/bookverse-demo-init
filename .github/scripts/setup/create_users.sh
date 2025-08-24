@@ -12,6 +12,20 @@ FAILED=false
 
 echo "Creating users and assigning project roles for BookVerse project..."
 
+# Only platform application admins should be Project Admins at the project level
+is_platform_owner() {
+  local u="$1"
+  case "$u" in
+    "diana.architect@bookverse.com"|\
+    "edward.manager@bookverse.com"|\
+    "charlie.devops@bookverse.com"|\
+    "bob.release@bookverse.com")
+      return 0 ;;
+    *)
+      return 1 ;;
+  esac
+}
+
 # Generate 12 users for BookVerse company with specific roles
 usernames=(
   '{"username": "alice.developer@bookverse.com", "email": "alice.developer@bookverse.com", "password": "BookVerse2024!", "role": "Developer"}'
@@ -64,36 +78,34 @@ for user in "${usernames[@]}"; do
   # Assign user to project with appropriate role
   echo "🔐 Assigning $username to project '${PROJECT_KEY}' with $role role..."
   
-  # Determine the correct JFrog role name for project assignment
-  case "$role" in
-    "Developer")
-      jfrog_role="Developer"
-      ;;
-    "Release Manager")
-      jfrog_role="Release Manager"
-      ;;
-    "Project Manager")
-      jfrog_role="Project Admin"
-      ;;
-    "AppTrust Admin")
-      jfrog_role="Application Admin"
-      ;;
-    "Inventory Manager")
-      jfrog_role="Project Admin"
-      ;;
-    "AI/ML Manager")
-      jfrog_role="Project Admin"
-      ;;
-    "Checkout Manager")
-      jfrog_role="Project Admin"
-      ;;
-    "Pipeline User")
-      jfrog_role="Developer"
-      ;;
-    *)
-      jfrog_role="Developer"  # Default fallback
-      ;;
-  esac
+  # Determine the correct JFrog role name for project assignment per policy
+  if is_platform_owner "$username"; then
+    jfrog_role="Project Admin"
+  else
+    case "$role" in
+      "Developer")
+        jfrog_role="Developer"
+        ;;
+      "Release Manager")
+        jfrog_role="Release Manager"
+        ;;
+      "Project Manager")
+        jfrog_role="Application Admin"
+        ;;
+      "AppTrust Admin")
+        jfrog_role="Application Admin"
+        ;;
+      "Inventory Manager"|"AI/ML Manager"|"Checkout Manager")
+        jfrog_role="Application Admin"
+        ;;
+      "Pipeline User")
+        jfrog_role="Developer"
+        ;;
+      *)
+        jfrog_role="Developer"  # Default fallback
+        ;;
+    esac
+  fi
   
   # Create project user assignment payload
   # Using the correct API endpoint: PUT /access/api/v1/projects/{projectKey}/users/{username}

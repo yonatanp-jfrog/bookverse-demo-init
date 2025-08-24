@@ -98,6 +98,12 @@ Each service repo includes:
 14) Create demo runbook and operator checklist
 15) Validation checks and smoke tests for each stage
 
-Status: pending for all tasks above. As items complete, update this section with dates and links to PRs.
+Status:
+- 5) CI workflows added to all service repos – completed ✅
+- 6) Promotion workflows added to all service repos – completed ✅
+- 8) Users created and project roles assigned; pipeline users added – completed ✅
+- 9) AppTrust applications created with correct owners – completed ✅
+- 7) OIDC trust and identity mappings – pending (endpoint alignment in progress)
+- Remaining items – pending
 
 

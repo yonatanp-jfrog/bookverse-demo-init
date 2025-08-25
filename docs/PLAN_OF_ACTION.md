@@ -178,8 +178,8 @@ Status:
 - 16.5) Runtime config entrypoint – completed ✅
 - 16.6) SBOM/sign placeholders – completed ✅
 - 16.7) Web README – completed ✅
-- 17) Helm charts (platform-centric) – pending ⚠️
-- 18) ArgoCD GitOps (platform-only) – pending ⚠️
+- 17) Helm charts (platform-centric) – completed ✅ (chart, env values, CI placeholder)
+- 18) ArgoCD GitOps (platform-only) – completed ✅ (projects/apps scaffolding)
 - Remaining items – pending
 
 

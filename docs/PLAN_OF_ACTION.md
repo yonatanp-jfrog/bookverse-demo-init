@@ -158,28 +158,31 @@ Each service repo includes:
 15) Validation checks and smoke tests for each stage
 
 Status:
-- 1) Repo architecture and naming defined – completed ✅
-- 2) Constraints documented (stage naming, PROD, verbosity UX) – completed ✅
-- 3) Init/cleanup repo updated with final scripts and docs – completed ✅
-- 4) Five GitHub repos provisioned – completed ✅
-- 5) CI workflows added to all service repos – completed ✅
-- 6) Promotion workflows added to all service repos – completed ✅
-- 7) OIDC trust and identity mappings – pending (endpoint alignment in progress) ⚠️
-- 8) Users created and project roles assigned; pipeline users added – completed ✅
-- 9) AppTrust applications created with correct owners – completed ✅
-- 10) Artifactory repos batch-created with environments mapping – completed ✅
-- 11) Secrets & variables configured; bootstrap script added – completed ✅
+Completed:
+- 1) Repo architecture and naming defined ✅
+- 2) Constraints documented (stage naming, PROD, verbosity UX) ✅
+- 3) Init/cleanup repo updated with final scripts and docs ✅
+- 4) Five GitHub repos provisioned ✅
+- 5) CI workflows added to all service repos ✅
+- 6) Promotion workflows added to all service repos ✅
+- 8) Users created and project roles assigned; pipeline users added ✅
+- 9) AppTrust applications created with correct owners ✅
+- 10) Artifactory repos batch-created with environments mapping ✅
+- 11) Secrets & variables configured; bootstrap script added ✅
+- 13) Centralized cleanup enhanced in demo-init only ✅
+- 16.1) Platform web scaffold ✅ (moved to bookverse-web repo per architecture)
+- 16.2) Web Dockerfile ✅
+- 16.3) CI build/push of web image ✅ (push deferred until connectivity)
+- 16.4) Promotion to release on PROD ✅ (actual publish deferred ⚠️)
+- 16.5) Runtime config entrypoint ✅
+- 16.6) SBOM/sign placeholders ✅
+- 16.7) Web README ✅
+- 17) Helm charts (platform-centric) ✅ (chart, env values, CI placeholder)
+- 18) ArgoCD GitOps (platform-only) ✅ (projects/apps scaffolding)
+
+Pending/Skipped:
+- 7) OIDC trust and identity mappings – pending ⚠️ (endpoint alignment in progress)
 - 12) Seed sample services and artifacts – skipped ⚠️ (deferred until connectivity)
-- 13) Centralized cleanup enhanced in demo-init only – completed ✅
-- 16.1) Platform web scaffold – completed ✅ (moved to bookverse-web repo per architecture)
-- 16.2) Web Dockerfile – completed ✅
-- 16.3) CI build/push of web image – completed ✅ (push deferred until connectivity)
-- 16.4) Promotion to release on PROD – completed ✅ (actual publish deferred ⚠️)
-- 16.5) Runtime config entrypoint – completed ✅
-- 16.6) SBOM/sign placeholders – completed ✅
-- 16.7) Web README – completed ✅
-- 17) Helm charts (platform-centric) – completed ✅ (chart, env values, CI placeholder)
-- 18) ArgoCD GitOps (platform-only) – completed ✅ (projects/apps scaffolding)
-- Remaining items – pending
+- Remaining items – pending ⚠️
 
 

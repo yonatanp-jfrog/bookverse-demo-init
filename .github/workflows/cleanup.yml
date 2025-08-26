@@ -24,11 +24,6 @@ jobs:
           jfrog config add bookverse-admin --url=${{ vars.JFROG_URL }} --access-token=${{ secrets.JFROG_ADMIN_TOKEN }} --interactive=false
           jfrog config use bookverse-admin
 
-      - name: Start Build Info Collection
-        run: |
-          echo "🔄 Starting build info collection for BookVerse Platform Cleanup"
-          jfrog rt build-start
-
       - name: Validate Confirmation
         run: |
           if [[ "${{ github.event.inputs.confirm_cleanup }}" != "DELETE" ]]; then
@@ -43,22 +38,6 @@ jobs:
           JFROG_URL: ${{ vars.JFROG_URL }}
           JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
         run: ./.github/scripts/setup/cleanup.sh
-
-      - name: Publish Build Info
-        if: always()
-        run: |
-          echo "📊 Publishing build info for BookVerse Platform Cleanup"
-          jfrog rt build-publish
-          echo "✅ Build info published successfully"
-
-      - name: Build Info Summary
-        if: always()
-        run: |
-          echo "📋 BookVerse Platform Cleanup Complete"
-          echo "   Build Name: ${JFROG_CLI_BUILD_NAME:-'BookVerse-Cleanup'}"
-          echo "   Build Number: ${JFROG_CLI_BUILD_NUMBER:-${{ github.run_number }}}"
-          echo "   Build URL: ${JFROG_CLI_BUILD_URL:-${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}}"
-          echo "   All cleanup actions have been captured in JFrog build info"
       
       # Note: This will completely remove the BookVerse project and all resources!
       # Use with caution - this action cannot be undone.

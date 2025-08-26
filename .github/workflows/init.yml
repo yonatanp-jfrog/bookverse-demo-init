@@ -37,11 +37,13 @@ jobs:
           JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
         run: |
           set -euo pipefail
-          echo "JFROG_URL=${JFROG_URL}"
-          echo -n "GET /access/api/v1/system/ping -> "
-          curl -s -o /dev/null -w "%{http_code}\n" "${JFROG_URL%/}/access/api/v1/system/ping"
-          echo -n "GET /access/api/v1/projects -> "
-          curl -s -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" "${JFROG_URL%/}/access/api/v1/projects"
+          URL_NO_SLASH="${JFROG_URL%/}"
+          echo "JFROG_URL=${URL_NO_SLASH}"
+          code_ping=$(curl -s -o /dev/null -w "%{http_code}" "${URL_NO_SLASH}/access/api/v1/system/ping"); echo "GET /access/api/v1/system/ping -> ${code_ping}"
+          code_projects=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" "${URL_NO_SLASH}/access/api/v1/projects"); echo "GET /access/api/v1/projects -> ${code_projects}"
+          code_lifecycle=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" "${URL_NO_SLASH}/access/api/v2/lifecycle/?project_key=bookverse"); echo "GET /access/api/v2/lifecycle -> ${code_lifecycle}"
+          if [ "${code_ping}" != "200" ]; then echo "❌ system/ping failed"; exit 1; fi
+          if [ "${code_projects}" != "200" ]; then echo "❌ projects API unauthorized/failed"; exit 1; fi
 
       - name: Create Project
         env:

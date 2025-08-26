@@ -326,7 +326,7 @@ fi
 echo "   📋 Using JFrog URL: ${JFROG_URL}"
 echo "   📋 Token length: ${#JFROG_ADMIN_TOKEN} characters"
 
-jf c add bookverse-admin --url="${JFROG_URL}" --access-token="${JFROG_ADMIN_TOKEN}" --interactive=false
+jf c add bookverse-admin --url="${JFROG_URL}" --access-token="${JFROG_ADMIN_TOKEN}" --interactive=false --overwrite
 jf c use bookverse-admin
 
 # Test authentication

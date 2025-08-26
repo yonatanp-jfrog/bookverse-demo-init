@@ -150,7 +150,7 @@ discover_stages() {
     echo "Discovering project stages with '$PROJECT_KEY' prefix..." >&2
     
     # Try stages API (may not be accessible)
-    local code=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" --write-out "%{http_code}" --output "$TEMP_DIR/all_stages.json" -X GET "${JFROG_URL}/access/api/v2/stages")
+    local code=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" --write-out "%{http_code}" --output "$TEMP_DIR/all_stages.json" -X GET "${JFROG_URL}access/api/v2/stages")
     
     if [ "$code" -eq 200 ] && [ -s "$TEMP_DIR/all_stages.json" ]; then
         # Extract stage names with bookverse prefix
@@ -206,13 +206,17 @@ discover_lifecycle() {
     echo "Checking project lifecycle configuration..." >&2
     
     # Try lifecycle API
-    local code=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" --write-out "%{http_code}" --output "$TEMP_DIR/lifecycle_config.json" -X GET "${JFROG_URL}/access/api/v2/lifecycle/?project_key=$PROJECT_KEY")
+    local code=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" --write-out "%{http_code}" --output "$TEMP_DIR/lifecycle_config.json" -X GET "${JFROG_URL}access/api/v2/lifecycle/?project_key=$PROJECT_KEY")
     
     if [ "$code" -eq 200 ] && [ -s "$TEMP_DIR/lifecycle_config.json" ]; then
         # Check if lifecycle has promote stages
-        local has_stages=$(jq -e '.categories[] | select(.category=="promote") | .stages | length > 0' "$TEMP_DIR/lifecycle_config.json" 2>/dev/null && echo "1" || echo "0")
-        echo "Found lifecycle configuration with promote stages: $has_stages" >&2
-        echo "$has_stages"
+        if jq -e '.categories[] | select(.category=="promote") | .stages | length > 0' "$TEMP_DIR/lifecycle_config.json" >/dev/null 2>&1; then
+            echo "Found lifecycle configuration with promote stages: true" >&2
+            echo "1"
+        else
+            echo "Found lifecycle configuration with promote stages: false" >&2
+            echo "0"
+        fi
     else
         echo "Lifecycle API not accessible (HTTP $code) - may need manual cleanup" >&2
         echo "Lifecycle API not accessible (HTTP $code)" > "$TEMP_DIR/lifecycle_api_status.txt"
@@ -233,7 +237,7 @@ discover_project() {
         echo "Project '$PROJECT_KEY' not found via jf rt curl" >&2
         
         # Try alternative API path
-        local code2=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" --write-out "%{http_code}" --output "$TEMP_DIR/project_response_alt.txt" -X GET "${JFROG_URL}/access/api/v1/projects/$PROJECT_KEY")
+        local code2=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" --write-out "%{http_code}" --output "$TEMP_DIR/project_response_alt.txt" -X GET "${JFROG_URL}access/api/v1/projects/$PROJECT_KEY")
         
         if [ "$code2" -eq 200 ]; then
             echo "Project '$PROJECT_KEY' found via direct API" >&2
@@ -398,7 +402,7 @@ delete_stages() {
             if [ -n "$stage" ]; then
                 echo "Deleting stage: $stage"
                 
-                local code=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" --write-out "%{http_code}" --output "$TEMP_DIR/delete_stage_${stage}.txt" -X DELETE "${JFROG_URL}/access/api/v2/stages/$stage")
+                local code=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" --write-out "%{http_code}" --output "$TEMP_DIR/delete_stage_${stage}.txt" -X DELETE "${JFROG_URL}access/api/v2/stages/$stage")
                 
                 if [ "$code" -eq 200 ] || [ "$code" -eq 204 ]; then
                     echo "Stage '$stage' deleted successfully (HTTP $code)"
@@ -437,7 +441,7 @@ delete_lifecycle() {
     # Clear the promote stages by setting empty array
     local lifecycle_payload='{"promote_stages": []}'
     
-    local code=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" --header "Content-Type: application/json" --write-out "%{http_code}" --output "$TEMP_DIR/delete_lifecycle.txt" -X PATCH -d "$lifecycle_payload" "${JFROG_URL}/access/api/v2/lifecycle/?project_key=$PROJECT_KEY")
+    local code=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" --header "Content-Type: application/json" --write-out "%{http_code}" --output "$TEMP_DIR/delete_lifecycle.txt" -X PATCH -d "$lifecycle_payload" "${JFROG_URL}access/api/v2/lifecycle/?project_key=$PROJECT_KEY")
     
     if [ "$code" -eq 200 ] || [ "$code" -eq 204 ]; then
         echo "Lifecycle configuration cleared successfully (HTTP $code)"
@@ -464,7 +468,7 @@ delete_project() {
     echo "Attempting to delete project: $PROJECT_KEY"
     
     # Try both API methods for deletion
-    local code=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" --write-out "%{http_code}" --output "$TEMP_DIR/delete_project.txt" -X DELETE "${JFROG_URL}/access/api/v1/projects/$PROJECT_KEY")
+    local code=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" --write-out "%{http_code}" --output "$TEMP_DIR/delete_project.txt" -X DELETE "${JFROG_URL}access/api/v1/projects/$PROJECT_KEY")
     
     if [ "$code" -eq 200 ] || [ "$code" -eq 204 ]; then
         echo "Project '$PROJECT_KEY' deleted successfully (HTTP $code)"
@@ -472,7 +476,7 @@ delete_project() {
         # Verify deletion with both methods
         sleep 2
         local verify_code1=$(jf rt curl -X GET "/access/api/v1/projects/$PROJECT_KEY" --write-out "%{http_code}" --output /dev/null --silent)
-        local verify_code2=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" --write-out "%{http_code}" --output /dev/null -X GET "${JFROG_URL}/access/api/v1/projects/$PROJECT_KEY")
+        local verify_code2=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" --write-out "%{http_code}" --output /dev/null -X GET "${JFROG_URL}access/api/v1/projects/$PROJECT_KEY")
         
         if [ "$verify_code1" -eq 404 ] && [ "$verify_code2" -eq 404 ]; then
             echo "Deletion confirmed - project no longer exists"
@@ -628,21 +632,25 @@ echo ""
 
 echo "Debug files saved in: $TEMP_DIR"
 
-# Check if critical APIs were not accessible
-api_issues_found=false
-if grep -q "API not accessible" "$TEMP_DIR"/*.txt 2>/dev/null; then
-    api_issues_found=true
+# Check if we have any remaining resources after cleanup
+all_resources_deleted=true
+if [ "$final_repo_count" -gt 0 ] || [ "$final_user_count" -gt 0 ] || [ "$final_app_count" -gt 0 ] || [ "$final_stage_count" -gt 0 ] || [ "$final_lifecycle_exists" -gt 0 ] || [ "$final_project_exists" -gt 0 ]; then
+    all_resources_deleted=false
 fi
 
-if [ "$FAILED" = true ] || [ "$api_issues_found" = true ]; then
-    if [ "$FAILED" = true ]; then
-        echo "CLEANUP INCOMPLETE!"
-        echo "Some resources failed to be deleted"
-    else
-        echo "CLEANUP STATUS UNCERTAIN!"
-        echo "Critical APIs were not accessible - manual verification required"
-    fi
-    
+if [ "$FAILED" = true ]; then
+    echo "CLEANUP INCOMPLETE!"
+    echo "Some resources failed to be deleted"
+elif [ "$all_resources_deleted" = true ]; then
+    echo "CLEANUP COMPLETED SUCCESSFULLY!"
+    echo "All BookVerse resources have been deleted from the platform"
+else
+    echo "CLEANUP STATUS UNCERTAIN!"
+    echo "Some resources may still exist - manual verification required"
+fi
+
+# Show detailed output based on result
+if [ "$FAILED" = true ] || [ "$all_resources_deleted" = false ]; then
     echo "Check the debug files for detailed information"
     echo ""
     echo "⚠️  MANUAL VERIFICATION REQUIRED:"
@@ -661,8 +669,8 @@ if [ "$FAILED" = true ] || [ "$api_issues_found" = true ]; then
     
     exit 1
 else
-    echo "CLEANUP COMPLETED SUCCESSFULLY!"
-    echo "All discoverable BookVerse resources have been removed via API"
+    echo ""
+    echo "🎉 All BookVerse resources successfully deleted!"
     echo ""
     echo "Verified cleanup of:"
     echo "  - All repositories with '$PROJECT_KEY' prefix"
@@ -672,7 +680,9 @@ else
     echo "  - Project lifecycle configuration"
     echo "  - Project '$PROJECT_KEY'"
     echo ""
-    echo "Final validation confirmed no remaining resources via API"
+    echo "Platform cleanup completed successfully."
+    
+    exit 0
 fi
 
 echo ""

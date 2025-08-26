@@ -112,7 +112,9 @@ jf_api_call() {
 # =============================================================================
 
 discover_repositories() {
-    echo "🔍 Discovering repositories with '$PROJECT_KEY' prefix..."
+    if [ "$VERBOSITY" -ge 1 ]; then
+        echo "🔍 Discovering repositories with '$PROJECT_KEY' prefix..." >&2
+    fi
     
     local code=$(jf_api_call "GET" "/api/repositories" "List all repositories")
     
@@ -120,13 +122,17 @@ discover_repositories() {
         local repos=$(echo "$LAST_API_RESPONSE" | jq -r --arg prefix "$PROJECT_KEY" '.[] | select(.key | startswith($prefix)) | .key' 2>/dev/null || echo "")
         echo "$repos"
     else
-        echo "   ❌ Failed to list repositories (HTTP $code)"
+        if [ "$VERBOSITY" -ge 1 ]; then
+            echo "   ❌ Failed to list repositories (HTTP $code)" >&2
+        fi
         echo ""
     fi
 }
 
 discover_users() {
-    echo "🔍 Discovering users with '@bookverse.com' domain..."
+    if [ "$VERBOSITY" -ge 1 ]; then
+        echo "🔍 Discovering users with '@bookverse.com' domain..." >&2
+    fi
     
     local code=$(jf_api_call "GET" "/api/security/users" "List all users")
     
@@ -134,23 +140,31 @@ discover_users() {
         local users=$(echo "$LAST_API_RESPONSE" | jq -r '.[] | select(.name | contains("@bookverse.com")) | .name' 2>/dev/null || echo "")
         echo "$users"
     else
-        echo "   ❌ Failed to list users (HTTP $code)"
+        if [ "$VERBOSITY" -ge 1 ]; then
+            echo "   ❌ Failed to list users (HTTP $code)" >&2
+        fi
         echo ""
     fi
 }
 
 discover_project() {
-    echo "🔍 Checking if project '$PROJECT_KEY' exists..."
+    if [ "$VERBOSITY" -ge 1 ]; then
+        echo "🔍 Checking if project '$PROJECT_KEY' exists..." >&2
+    fi
     
     local code=$(jf_api_call "GET" "/api/access/api/v1/projects/$PROJECT_KEY" "Get project details")
     
     if [ "$code" -eq 200 ]; then
         echo "$PROJECT_KEY"
     elif [ "$code" -eq 404 ]; then
-        echo "   ℹ️  Project '$PROJECT_KEY' not found"
+        if [ "$VERBOSITY" -ge 1 ]; then
+            echo "   ℹ️  Project '$PROJECT_KEY' not found" >&2
+        fi
         echo ""
     else
-        echo "   ⚠️  Failed to check project (HTTP $code)"
+        if [ "$VERBOSITY" -ge 1 ]; then
+            echo "   ⚠️  Failed to check project (HTTP $code)" >&2
+        fi
         echo ""
     fi
 }

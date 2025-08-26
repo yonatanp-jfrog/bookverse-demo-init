@@ -38,6 +38,16 @@ jobs:
         run: |
           set -euo pipefail
           URL_NO_SLASH="${JFROG_URL%/}"
+
+          # TEST
+          curl 'https://evidencetrial.jfrog.io/access/api/v1/projects' \
+          -H 'Authorization: Bearer eyJ2ZXIiOiIyIiwidHlwIjoiSldUIiwiYWxnIjoiUlMyNTYiLCJraWQiOiI1b0NoLWtjVTk0aXBTbHZvZWJoenVvZ2NuX2VndlV1d2lWLUFpclJCME84In0.eyJpc3MiOiJqZmZlQDAxajF3d2E2ZWhyM2tkMWV6ZjFucXgwcnluIiwic3ViIjoiamZhY0AwMWoxd3dhNmVocjNrZDFlemYxbnF4MHJ5bi91c2Vycy95b25hdGFuIiwic2NwIjoiYXBwbGllZC1wZXJtaXNzaW9ucy9hZG1pbiIsImF1ZCI6IipAKiIsImlhdCI6MTc1NjE5NTYzOCwianRpIjoiNWU1M2QxZmYtZjRjMy00NDA0LThlMDQtODA5NTE4MGYwNTdmIn0.Xb2-ulEl2DcSr0hEK0jM-EG6JsqNY4Yk40za2w9tszolTcYgZNksbaeABXpLHZ9XYMlhWSujbF1hsTx6OMLRc3wDPffCXfzl46uC4CvMdgi8qGVuppt6gBjkgxdLVAvME4VDp7hG8-Pw61ys6zxgwXxhXsz7uUuApDxirSlUH_KjtkK2FtYbHblvIOcOle3S3RyikOdhZuXBR1D2X13AptR0cp5nhr5I-atkLPuryKKnSKGu4eO5kjgiRYRjJR_usoudUW54-xk1aK_Ofh9403pAe5SowvCPhcYmsg2503ewSXGF0KLkKMnMGe1HoSAfcqKnLKSDGahMeR2-u_8zHw'
+
+          curl 'https://evidencetrial.jfrog.io/access/api/v2/lifecycle/?project_key=bookverse' \
+           -H 'Authorization: Bearer eyJ2ZXIiOiIyIiwidHlwIjoiSldUIiwiYWxnIjoiUlMyNTYiLCJraWQiOiI1b0NoLWtjVTk0aXBTbHZvZWJoenVvZ2NuX2VndlV1d2lWLUFpclJCME84In0.eyJpc3MiOiJqZmZlQDAxajF3d2E2ZWhyM2tkMWV6ZjFucXgwcnluIiwic3ViIjoiamZhY0AwMWoxd3dhNmVocjNrZDFlemYxbnF4MHJ5bi91c2Vycy95b25hdGFuIiwic2NwIjoiYXBwbGllZC1wZXJtaXNzaW9ucy9hZG1pbiIsImF1ZCI6IipAKiIsImlhdCI6MTc1NjE5NTYzOCwianRpIjoiNWU1M2QxZmYtZjRjMy00NDA0LThlMDQtODA5NTE4MGYwNTdmIn0.Xb2-ulEl2DcSr0hEK0jM-EG6JsqNY4Yk40za2w9tszolTcYgZNksbaeABXpLHZ9XYMlhWSujbF1hsTx6OMLRc3wDPffCXfzl46uC4CvMdgi8qGVuppt6gBjkgxdLVAvME4VDp7hG8-Pw61ys6zxgwXxhXsz7uUuApDxirSlUH_KjtkK2FtYbHblvIOcOle3S3RyikOdhZuXBR1D2X13AptR0cp5nhr5I-atkLPuryKKnSKGu4eO5kjgiRYRjJR_usoudUW54-xk1aK_Ofh9403pAe5SowvCPhcYmsg2503ewSXGF0KLkKMnMGe1HoSAfcqKnLKSDGahMeR2-u_8zHw'
+
+           # END TEST
+
           echo "JFROG_URL=${URL_NO_SLASH}"
           code_ping=$(curl -s -o /dev/null -w "%{http_code}" "${URL_NO_SLASH}/access/api/v1/system/ping"); echo "GET /access/api/v1/system/ping -> ${code_ping}"
           code_projects=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" "${URL_NO_SLASH}/access/api/v1/projects"); echo "GET /access/api/v1/projects -> ${code_projects}"

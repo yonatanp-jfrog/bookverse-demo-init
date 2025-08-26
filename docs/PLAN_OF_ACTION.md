@@ -130,6 +130,8 @@ Each service repo includes:
 11) Secrets & variables: define org/repo vars and bootstrap instructions
 12) Seed sample services and artifacts for demo flow (images, wheels, SBOMs)
 13) Centralized cleanup in demo-init (no per-repo cleanup workflows)
+14) Create demo runbook and operator checklist
+15) Validation checks and smoke tests for each stage
 16) Website build & containerization (bookverse-web Docker image)
    16.1) Add `web/` app scaffold under `bookverse-platform` (static assets or SPA)
    16.2) Create `Dockerfile` (multi-stage build; final NGINX/Alpine image)
@@ -154,8 +156,6 @@ Each service repo includes:
    18.5) Add CI step to update chart versions/image tags via GitOps commits when platform is released
    18.6) Document bootstrap commands to register ArgoCD repos and sync apps
    18.7) Document AppTrust webhook endpoint to trigger the GitHub workflow
-14) Create demo runbook and operator checklist
-15) Validation checks and smoke tests for each stage
 
 Status:
 Completed:

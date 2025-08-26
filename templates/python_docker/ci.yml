@@ -17,6 +17,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup JFrog CLI
+        uses: jfrog/setup-jfrog-cli@v4
+        with:
+          version: latest
+
+      - name: Configure JFrog CLI
+        run: |
+          jf c add --interactive=false --url "${{ vars.JFROG_URL }}" --access-token ""
+
+      - name: Start Build Info Collection
+        run: |
+          echo "🔄 Starting build info collection for Service CI"
+          jf rt build-start
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -40,15 +54,24 @@ jobs:
           IMAGE=${{ vars.PROJECT_KEY }}-${{ github.event.repository.name#bookverse- }}-docker-internal-local/${{ github.event.repository.name#bookverse- }}:$(echo $GITHUB_SHA | head -c7)
           docker build -t ${{ vars.DOCKER_REGISTRY }}/$IMAGE .
 
-      - name: JFrog OIDC login
-        uses: jfrog/setup-jfrog-cli@v4
-      - name: Configure JFrog URL
-        run: |
-          jf c add --interactive=false --url "${{ vars.JFROG_URL }}" --access-token ""
-
       - name: Push artifacts (placeholder)
         run: |
           echo "(placeholder) publish python dist/* to pypi internal repo via twine or jfrog cli"
           echo "(placeholder) docker push ${{ vars.DOCKER_REGISTRY }}/..."
+
+      - name: Publish Build Info
+        if: always()
+        run: |
+          echo "📊 Publishing build info for Service CI"
+          jf rt build-publish
+          echo "✅ Build info published successfully"
+
+      - name: Build Info Summary
+        if: always()
+        run: |
+          echo "📋 Service CI Complete"
+          echo "   Build Name: ${JFROG_CLI_BUILD_NAME:-'Service-CI'}"
+          echo "   Build Number: ${JFROG_CLI_BUILD_NUMBER:-${{ github.run_number }}}"
+          echo "   All CI actions captured in JFrog build info"
 
 

@@ -98,7 +98,7 @@ jobs:
         if: always()
         run: |
           echo "📋 BookVerse Platform Initialization Complete"
-          echo "   Build Name: ${{ env.JFROG_CLI_BUILD_NAME }}"
-          echo "   Build Number: ${{ env.JFROG_CLI_BUILD_NUMBER }}"
-          echo "   Build URL: ${{ env.JFROG_CLI_BUILD_URL }}"
+          echo "   Build Name: ${JFROG_CLI_BUILD_NAME:-'BookVerse-Init'}"
+          echo "   Build Number: ${JFROG_CLI_BUILD_NUMBER:-${{ github.run_number }}}"
+          echo "   Build URL: ${JFROG_CLI_BUILD_URL:-${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}}"
           echo "   All setup actions have been captured in JFrog build info"

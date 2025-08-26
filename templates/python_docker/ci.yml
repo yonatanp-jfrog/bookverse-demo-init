@@ -26,11 +26,6 @@ jobs:
         run: |
           jf c add --interactive=false --url "${{ vars.JFROG_URL }}" --access-token ""
 
-      - name: Start Build Info Collection
-        run: |
-          echo "🔄 Starting build info collection for Service CI"
-          jf rt build-start
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:

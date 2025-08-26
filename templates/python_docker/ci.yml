@@ -54,19 +54,4 @@ jobs:
           echo "(placeholder) publish python dist/* to pypi internal repo via twine or jfrog cli"
           echo "(placeholder) docker push ${{ vars.DOCKER_REGISTRY }}/..."
 
-      - name: Publish Build Info
-        if: always()
-        run: |
-          echo "📊 Publishing build info for Service CI"
-          jf rt build-publish
-          echo "✅ Build info published successfully"
-
-      - name: Build Info Summary
-        if: always()
-        run: |
-          echo "📋 Service CI Complete"
-          echo "   Build Name: ${JFROG_CLI_BUILD_NAME:-'Service-CI'}"
-          echo "   Build Number: ${JFROG_CLI_BUILD_NUMBER:-${{ github.run_number }}}"
-          echo "   All CI actions captured in JFrog build info"
-
 

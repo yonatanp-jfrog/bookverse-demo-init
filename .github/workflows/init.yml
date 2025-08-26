@@ -1,4 +1,75 @@
 name: 'Initialize JFrog Platform for BookVerse Demo'
+
+on:
+  workflow_dispatch:
+
+jobs:
+  setup-platform:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup JFrog CLI
+        uses: jfrog/setup-jfrog-cli@v4
+        with:
+          version: latest
+
+      - name: Configure JFrog CLI for Admin
+        run: |
+          jfrog config add bookverse-admin --url=${{ vars.JFROG_URL }} --access-token=${{ secrets.JFROG_ADMIN_TOKEN }} --interactive=false
+          jfrog config use bookverse-admin
+
+      - name: Preflight JFrog connectivity (HTTP codes)
+        env:
+          JFROG_URL: ${{ vars.JFROG_URL }}
+          JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
+        run: |
+          set -euo pipefail
+          echo "JFROG_URL=${JFROG_URL}"
+          echo -n "GET /access/api/v1/system/ping -> "
+          curl -s -o /dev/null -w "%{http_code}\n" "${JFROG_URL%/}/access/api/v1/system/ping"
+          echo -n "GET /access/api/v1/projects -> "
+          curl -s -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" "${JFROG_URL%/}/access/api/v1/projects"
+
+      - name: Create Project
+        env:
+          JFROG_URL: ${{ vars.JFROG_URL }}
+          JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
+        run: ./.github/scripts/setup/create_project.sh
+
+      # Reordered: stages first, then repositories (repos require stage environments)
+      - name: Create AppTrust Stages
+        env:
+          JFROG_URL: ${{ vars.JFROG_URL }}
+          JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
+        run: ./.github/scripts/setup/create_stages.sh
+
+      - name: Create Repositories
+        env:
+          JFROG_URL: ${{ vars.JFROG_URL }}
+          JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
+        run: ./.github/scripts/setup/create_repositories.sh
+
+      - name: Create Users
+        env:
+          JFROG_URL: ${{ vars.JFROG_URL }}
+          JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
+        run: ./.github/scripts/setup/create_users.sh
+
+      - name: Create Applications
+        env:
+          JFROG_URL: ${{ vars.JFROG_URL }}
+          JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
+        run: ./.github/scripts/setup/create_applications.sh
+
+      - name: Create OIDC Integrations
+        env:
+          JFROG_URL: ${{ vars.JFROG_URL }}
+          JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
+        run: ./.github/scripts/setup/create_oidc.sh
+
+name: 'Initialize JFrog Platform for BookVerse Demo'
 on:
   workflow_dispatch:
 

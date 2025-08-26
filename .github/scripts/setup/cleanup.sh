@@ -177,11 +177,11 @@ if [ "$VERBOSITY" -ge 1 ]; then
 discover_applications() {
     echo "Discovering applications in project '$PROJECT_KEY'..." >&2
     
-    # Try AppTrust applications API
-    local code=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" --write-out "%{http_code}" --output "$TEMP_DIR/all_applications.json" -X GET "${JFROG_URL}/apptrust/api/v1/applications")
+    # Try AppTrust applications API  
+    local code=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" --write-out "%{http_code}" --output "$TEMP_DIR/all_applications.json" -X GET "${JFROG_URL}apptrust/api/v1/applications")
     
     if [ "$code" -eq 200 ] && [ -s "$TEMP_DIR/all_applications.json" ]; then
-        # Extract application keys by project_key (not by application_key prefix)
+        # Extract application keys by project_key filter
         jq -r --arg project_key "$PROJECT_KEY" '.[] | select(.project_key == $project_key) | .application_key' "$TEMP_DIR/all_applications.json" > "$TEMP_DIR/bookverse_applications.txt" 2>/dev/null || true
         
         local count=$(wc -l < "$TEMP_DIR/bookverse_applications.txt" 2>/dev/null || echo "0")
@@ -356,7 +356,7 @@ delete_applications() {
             if [ -n "$app" ]; then
                 echo "Deleting application: $app"
                 
-                local code=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" --write-out "%{http_code}" --output "$TEMP_DIR/delete_app_${app}.txt" -X DELETE "${JFROG_URL}/apptrust/api/v1/applications/$app")
+                local code=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" --write-out "%{http_code}" --output "$TEMP_DIR/delete_app_${app}.txt" -X DELETE "${JFROG_URL}apptrust/api/v1/applications/$app")
                 
                 if [ "$code" -eq 200 ] || [ "$code" -eq 204 ]; then
                     echo "Application '$app' deleted successfully (HTTP $code)"

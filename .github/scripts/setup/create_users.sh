@@ -79,6 +79,9 @@ for user in "${usernames[@]}"; do
   echo "🔐 Assigning $username to project '${PROJECT_KEY}' with $role role..."
   
   # Determine the correct JFrog role name for project assignment per policy
+  # Temporary workaround: "Application Admin" role is currently unavailable due to a known bug.
+  # Until fixed, we assign "Project Admin" where "Application Admin" would be used.
+  # TODO: Revert fallback to "Application Admin" once the upstream issue is resolved.
   if is_platform_owner "$username"; then
     jfrog_role="Project Admin"
   else
@@ -90,13 +93,13 @@ for user in "${usernames[@]}"; do
         jfrog_role="Release Manager"
         ;;
       "Project Manager")
-        jfrog_role="Application Admin"
+        jfrog_role="Project Admin"  # was: Application Admin (temporary fallback)
         ;;
       "AppTrust Admin")
-        jfrog_role="Application Admin"
+        jfrog_role="Project Admin"  # was: Application Admin (temporary fallback)
         ;;
       "Inventory Manager"|"AI/ML Manager"|"Checkout Manager")
-        jfrog_role="Application Admin"
+        jfrog_role="Project Admin"  # was: Application Admin (temporary fallback)
         ;;
       "Pipeline User")
         jfrog_role="Developer"

@@ -94,7 +94,7 @@ discover_repositories() {
     echo "Discovering repositories with '$PROJECT_KEY' prefix..." >&2
     
     # Save raw API response for debugging
-    jf rt curl -X GET "/api/repositories" > "$TEMP_DIR/all_repos.json" 2>&1
+    jf rt curl -X GET "/api/repositories" --silent > "$TEMP_DIR/all_repos.json" 2>&1
     
     if [ $? -eq 0 ] && [ -s "$TEMP_DIR/all_repos.json" ]; then
         # Extract repository names with bookverse prefix
@@ -122,7 +122,7 @@ discover_users() {
     echo "Discovering users with '@bookverse.com' domain..." >&2
     
     # Save raw API response for debugging
-    jf rt curl -X GET "/api/security/users" > "$TEMP_DIR/all_users.json" 2>&1
+    jf rt curl -X GET "/api/security/users" --silent > "$TEMP_DIR/all_users.json" 2>&1
     
     if [ $? -eq 0 ] && [ -s "$TEMP_DIR/all_users.json" ]; then
         # Extract users with bookverse domain
@@ -146,20 +146,80 @@ discover_users() {
     fi
 }
 
+discover_stages() {
+    echo "Discovering project stages with '$PROJECT_KEY' prefix..." >&2
+    
+    # Try stages API (may not be accessible)
+    local code=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" --write-out "%{http_code}" --output "$TEMP_DIR/all_stages.json" -X GET "${JFROG_URL}/access/api/v2/stages")
+    
+    if [ "$code" -eq 200 ] && [ -s "$TEMP_DIR/all_stages.json" ]; then
+        # Extract stage names with bookverse prefix
+        jq -r --arg prefix "$PROJECT_KEY" '.[] | select(.name | startswith($prefix + "-")) | .name' "$TEMP_DIR/all_stages.json" > "$TEMP_DIR/bookverse_stages.txt" 2>/dev/null || true
+        
+        local count=$(wc -l < "$TEMP_DIR/bookverse_stages.txt" 2>/dev/null || echo "0")
+        echo "Found $count project stages with '$PROJECT_KEY-' prefix" >&2
+        
+        if [ "$count" -gt 0 ]; then
+            echo "Stage list saved to: $TEMP_DIR/bookverse_stages.txt" >&2
+if [ "$VERBOSITY" -ge 1 ]; then
+                cat "$TEMP_DIR/bookverse_stages.txt" | sed 's/^/  - /' >&2
+            fi
+        fi
+        
+        echo "$count"
+    else
+        echo "Stages API not accessible (HTTP $code) - may need manual cleanup" >&2
+        echo "Stages API not accessible (HTTP $code)" > "$TEMP_DIR/stages_api_status.txt"
+        echo "0"
+    fi
+}
+
+discover_lifecycle() {
+    echo "Checking project lifecycle configuration..." >&2
+    
+    # Try lifecycle API
+    local code=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" --write-out "%{http_code}" --output "$TEMP_DIR/lifecycle_config.json" -X GET "${JFROG_URL}/access/api/v2/lifecycle/?project_key=$PROJECT_KEY")
+    
+    if [ "$code" -eq 200 ] && [ -s "$TEMP_DIR/lifecycle_config.json" ]; then
+        # Check if lifecycle has promote stages
+        local has_stages=$(jq -e '.categories[] | select(.category=="promote") | .stages | length > 0' "$TEMP_DIR/lifecycle_config.json" 2>/dev/null && echo "1" || echo "0")
+        echo "Found lifecycle configuration with promote stages: $has_stages" >&2
+        echo "$has_stages"
+    else
+        echo "Lifecycle API not accessible (HTTP $code) - may need manual cleanup" >&2
+        echo "Lifecycle API not accessible (HTTP $code)" > "$TEMP_DIR/lifecycle_api_status.txt"
+        echo "0"
+    fi
+}
+
 discover_project() {
     echo "Checking if project '$PROJECT_KEY' exists..." >&2
     
-    local code=$(jf rt curl -X GET "/api/access/api/v1/projects/$PROJECT_KEY" --write-out "%{http_code}" --output "$TEMP_DIR/project_response.txt" --silent)
+    # Try both API approaches for project discovery
+    local code=$(jf rt curl -X GET "/access/api/v1/projects/$PROJECT_KEY" --write-out "%{http_code}" --output "$TEMP_DIR/project_response.txt" --silent)
     
     if [ "$code" -eq 200 ]; then
         echo "Project '$PROJECT_KEY' exists" >&2
         echo "1"
     elif [ "$code" -eq 404 ]; then
-        echo "Project '$PROJECT_KEY' not found" >&2
-        echo "0"
+        echo "Project '$PROJECT_KEY' not found via jf rt curl" >&2
+        
+        # Try alternative API path
+        local code2=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" --write-out "%{http_code}" --output "$TEMP_DIR/project_response_alt.txt" -X GET "${JFROG_URL}/access/api/v1/projects/$PROJECT_KEY")
+        
+        if [ "$code2" -eq 200 ]; then
+            echo "Project '$PROJECT_KEY' found via direct API" >&2
+            echo "1"
+        elif [ "$code2" -eq 404 ]; then
+            echo "Project '$PROJECT_KEY' not found via any API method" >&2
+            echo "0"
+        else
+            echo "Project API not accessible (HTTP $code2) - project may exist but not accessible" >&2
+            echo "1"  # Assume exists if API not accessible
+        fi
     else
-        echo "Failed to check project (HTTP $code)" >&2
-        echo "0"
+        echo "Project API not accessible (HTTP $code) - project may exist but not accessible" >&2
+        echo "1"  # Assume exists if API not accessible
     fi
 }
 
@@ -250,6 +310,77 @@ delete_users() {
     return 0
 }
 
+delete_stages() {
+    local stage_count="$1"
+    
+    echo "Starting project stages deletion..."
+    
+    if [ "$stage_count" -eq 0 ]; then
+        echo "No project stages to delete"
+        return 0
+    fi
+    
+    local deleted_count=0
+    local failed_count=0
+    
+    if [ -f "$TEMP_DIR/bookverse_stages.txt" ]; then
+        while IFS= read -r stage; do
+            if [ -n "$stage" ]; then
+                echo "Deleting stage: $stage"
+                
+                local code=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" --write-out "%{http_code}" --output "$TEMP_DIR/delete_stage_${stage}.txt" -X DELETE "${JFROG_URL}/access/api/v2/stages/$stage")
+                
+                if [ "$code" -eq 200 ] || [ "$code" -eq 204 ]; then
+                    echo "Stage '$stage' deleted successfully (HTTP $code)"
+                    ((deleted_count++))
+                elif [ "$code" -eq 404 ]; then
+                    echo "Stage '$stage' not found or already deleted (HTTP $code)"
+                    ((deleted_count++))
+                else
+                    echo "Failed to delete stage '$stage' (HTTP $code)"
+                    ((failed_count++))
+                fi
+            fi
+        done < "$TEMP_DIR/bookverse_stages.txt"
+    fi
+    
+    echo "Stage deletion summary: $deleted_count deleted, $failed_count failed"
+    
+    if [ "$failed_count" -gt 0 ]; then
+        return 1
+    fi
+    return 0
+}
+
+delete_lifecycle() {
+    local lifecycle_exists="$1"
+    
+    echo "Starting lifecycle configuration cleanup..."
+    
+    if [ "$lifecycle_exists" -eq 0 ]; then
+        echo "No lifecycle configuration to clean up"
+        return 0
+    fi
+    
+    echo "Clearing lifecycle promote stages for project: $PROJECT_KEY"
+    
+    # Clear the promote stages by setting empty array
+    local lifecycle_payload='{"promote_stages": []}'
+    
+    local code=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" --header "Content-Type: application/json" --write-out "%{http_code}" --output "$TEMP_DIR/delete_lifecycle.txt" -X PATCH -d "$lifecycle_payload" "${JFROG_URL}/access/api/v2/lifecycle/?project_key=$PROJECT_KEY")
+    
+    if [ "$code" -eq 200 ] || [ "$code" -eq 204 ]; then
+        echo "Lifecycle configuration cleared successfully (HTTP $code)"
+        return 0
+    elif [ "$code" -eq 404 ]; then
+        echo "Lifecycle configuration not found or already cleared (HTTP $code)"
+        return 0
+    else
+        echo "Failed to clear lifecycle configuration (HTTP $code)"
+        return 1
+    fi
+}
+
 delete_project() {
     local project_exists="$1"
     
@@ -260,28 +391,37 @@ delete_project() {
         return 0
     fi
     
-    echo "Deleting project: $PROJECT_KEY"
+    echo "Attempting to delete project: $PROJECT_KEY"
     
-    local code=$(jf rt curl -X DELETE "/api/access/api/v1/projects/$PROJECT_KEY" --write-out "%{http_code}" --output "$TEMP_DIR/delete_project.txt" --silent)
+    # Try both API methods for deletion
+    local code=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" --write-out "%{http_code}" --output "$TEMP_DIR/delete_project.txt" -X DELETE "${JFROG_URL}/access/api/v1/projects/$PROJECT_KEY")
     
     if [ "$code" -eq 200 ] || [ "$code" -eq 204 ]; then
         echo "Project '$PROJECT_KEY' deleted successfully (HTTP $code)"
         
-        # Verify deletion
+        # Verify deletion with both methods
         sleep 2
-        local verify_code=$(jf rt curl -X GET "/api/access/api/v1/projects/$PROJECT_KEY" --write-out "%{http_code}" --output /dev/null --silent)
-        if [ "$verify_code" -eq 404 ]; then
+        local verify_code1=$(jf rt curl -X GET "/access/api/v1/projects/$PROJECT_KEY" --write-out "%{http_code}" --output /dev/null --silent)
+        local verify_code2=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" --write-out "%{http_code}" --output /dev/null -X GET "${JFROG_URL}/access/api/v1/projects/$PROJECT_KEY")
+        
+        if [ "$verify_code1" -eq 404 ] && [ "$verify_code2" -eq 404 ]; then
             echo "Deletion confirmed - project no longer exists"
             return 0
         else
-            echo "Warning: Project may still exist (HTTP $verify_code)"
+            echo "Warning: Project may still exist (verify codes: $verify_code1, $verify_code2)"
+            echo "Project deletion FAILED - resources may still be blocking deletion"
             return 1
         fi
-    elif [ "$code" -eq 404 ] || [ "$code" -eq 405 ]; then
+    elif [ "$code" -eq 404 ]; then
         echo "Project '$PROJECT_KEY' not found or already deleted (HTTP $code)"
         return 0
+    elif [ "$code" -eq 400 ]; then
+        echo "Failed to delete project '$PROJECT_KEY' (HTTP $code) - likely contains resources"
+        echo "Response: $(cat "$TEMP_DIR/delete_project.txt" 2>/dev/null || echo 'No response body')"
+        return 1
     else
         echo "Failed to delete project '$PROJECT_KEY' (HTTP $code)"
+        echo "Response: $(cat "$TEMP_DIR/delete_project.txt" 2>/dev/null || echo 'No response body')"
         return 1
     fi
 }
@@ -294,7 +434,7 @@ delete_project() {
 if [ "$CI_ENVIRONMENT" != "true" ]; then
     echo "WARNING: This will DELETE ALL BookVerse resources!"
     echo "This action is IRREVERSIBLE!"
-    echo ""
+  echo ""
     read -p "Type 'DELETE' to confirm: " confirmation
     
     if [ "$confirmation" != "DELETE" ]; then
@@ -320,7 +460,19 @@ echo ""
 delete_users "$user_count" || FAILED=true
 echo ""
 
-# Step 3: Discover and delete project
+# Step 3: Discover and delete project stages
+stage_count=$(discover_stages)
+echo ""
+delete_stages "$stage_count" || FAILED=true
+echo ""
+
+# Step 4: Discover and clear lifecycle configuration
+lifecycle_exists=$(discover_lifecycle)
+echo ""
+delete_lifecycle "$lifecycle_exists" || FAILED=true
+echo ""
+
+# Step 5: Discover and delete project (after clearing resources)
 project_exists=$(discover_project)
 echo ""
 delete_project "$project_exists" || FAILED=true
@@ -331,7 +483,7 @@ echo ""
 # =============================================================================
 
 echo "FINAL VALIDATION - Verifying complete cleanup..."
-echo ""
+  echo ""
 
 echo "Checking for remaining repositories..."
 final_repo_count=$(discover_repositories)
@@ -353,6 +505,26 @@ else
 fi
 
 echo ""
+echo "Checking for remaining project stages..."
+final_stage_count=$(discover_stages)
+if [ "$final_stage_count" -gt 0 ]; then
+    echo "ERROR: Found $final_stage_count remaining project stages"
+    FAILED=true
+else
+    echo "SUCCESS: No project stages found"
+fi
+
+echo ""
+echo "Checking for remaining lifecycle configuration..."
+final_lifecycle_exists=$(discover_lifecycle)
+if [ "$final_lifecycle_exists" -gt 0 ]; then
+    echo "ERROR: Lifecycle configuration still exists"
+    FAILED=true
+else
+    echo "SUCCESS: No lifecycle configuration found"
+fi
+
+echo ""
 echo "Checking for remaining project..."
 final_project_exists=$(discover_project)
 if [ "$final_project_exists" -gt 0 ]; then
@@ -370,22 +542,49 @@ echo ""
 
 echo "Debug files saved in: $TEMP_DIR"
 
-if [ "$FAILED" = true ]; then
-    echo "CLEANUP INCOMPLETE!"
-    echo "Some resources may still exist in the JFrog platform"
+# Check if critical APIs were not accessible
+api_issues_found=false
+if grep -q "API not accessible" "$TEMP_DIR"/*.txt 2>/dev/null; then
+    api_issues_found=true
+fi
+
+if [ "$FAILED" = true ] || [ "$api_issues_found" = true ]; then
+    if [ "$FAILED" = true ]; then
+        echo "CLEANUP INCOMPLETE!"
+        echo "Some resources failed to be deleted"
+    else
+        echo "CLEANUP STATUS UNCERTAIN!"
+        echo "Critical APIs were not accessible - manual verification required"
+    fi
+    
     echo "Check the debug files for detailed information"
+    echo ""
+    echo "⚠️  MANUAL VERIFICATION REQUIRED:"
+    echo "   Please check the JFrog UI to verify all '$PROJECT_KEY' resources are deleted:"
+    echo "   1. Go to Administration → Repositories → Search for 'bookverse'"
+    echo "   2. Go to Administration → Security → Users → Search for 'bookverse.com'"
+    echo "   3. Go to Administration → Projects → Look for '$PROJECT_KEY' project"
+    echo "   4. If '$PROJECT_KEY' project exists:"
+    echo "      a. Check for any stages (DEV, QA, STAGING) under the project"
+    echo "      b. Check AppTrust Lifecycle configuration"
+    echo "      c. Delete stages and clear lifecycle first"
+    echo "      d. Then delete the project"
+    echo ""
+    echo "If any resources remain, they must be deleted manually through the UI."
+    
     exit 1
 else
     echo "CLEANUP COMPLETED SUCCESSFULLY!"
-    echo "All BookVerse resources have been completely removed"
-    echo "The JFrog platform has been restored to its pre-BookVerse state"
+    echo "All discoverable BookVerse resources have been removed via API"
     echo ""
     echo "Verified cleanup of:"
     echo "  - All repositories with '$PROJECT_KEY' prefix"
     echo "  - All users with '@bookverse.com' domain"
+    echo "  - All project stages with '$PROJECT_KEY-' prefix"
+    echo "  - Project lifecycle configuration"
     echo "  - Project '$PROJECT_KEY'"
     echo ""
-    echo "Final validation confirmed no remaining resources"
+    echo "Final validation confirmed no remaining resources via API"
 fi
 
 echo ""

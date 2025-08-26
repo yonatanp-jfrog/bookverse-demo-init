@@ -13,22 +13,41 @@ FAILED=false
 create_oidc_integration() {
   local integration_name="$1"
   local payload="$2"
-  
+
   echo "🔐 Creating OIDC integration: $integration_name"
-  
-  response=$(curl -s -o /dev/null -w "%{http_code}" \
+
+  # Idempotency: check if provider already exists
+  local get_code
+  get_code=$(curl -s -o /dev/null -w "%{http_code}" \
+    --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+    "${JFROG_URL}/access/api/v1/oidc/${integration_name}")
+  if [ "$get_code" -eq 200 ]; then
+    echo "⚠️  OIDC integration '$integration_name' already exists (HTTP $get_code)"
+    echo ""
+    return 0
+  fi
+
+  # Create provider
+  local temp_response
+  temp_response=$(mktemp)
+  local code
+  code=$(curl -s -w "%{http_code}" -o "$temp_response" \
     --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
     --header "Content-Type: application/json" \
     -X POST \
     -d "$payload" \
     "${JFROG_URL}/access/api/v1/oidc")
-  
-  if [ "$response" -eq 200 ] || [ "$response" -eq 201 ]; then
-    echo "✅ OIDC integration '$integration_name' created successfully (HTTP $response)"
-  elif [ "$response" -eq 409 ]; then
-    echo "⚠️  OIDC integration '$integration_name' already exists (HTTP $response)"
+  local body
+  body=$(cat "$temp_response")
+  rm -f "$temp_response"
+
+  if [ "$code" -eq 200 ] || [ "$code" -eq 201 ]; then
+    echo "✅ OIDC integration '$integration_name' created successfully (HTTP $code)"
+  elif [ "$code" -eq 409 ] || echo "$body" | grep -qi "already exist"; then
+    echo "⚠️  OIDC integration '$integration_name' already exists (HTTP $code)"
   else
-    echo "❌ Failed to create OIDC integration '$integration_name' (HTTP $response)"
+    echo "❌ Failed to create OIDC integration '$integration_name' (HTTP $code)"
+    echo "   Response: $body"
     FAILED=true
   fi
   echo ""
@@ -37,22 +56,40 @@ create_oidc_integration() {
 create_oidc_identity_mapping() {
   local integration_name="$1"
   local payload="$2"
-  
+
   echo "🗺️  Creating identity mapping for: $integration_name"
-  
-  response=$(curl -s -o /dev/null -w "%{http_code}" \
+
+  # Idempotency: list mappings and skip if name already present
+  local list_json
+  list_json=$(curl -s \
+    --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+    "${JFROG_URL}/access/api/v1/oidc/$integration_name/identity_mappings")
+  if echo "$list_json" | jq -e --arg n "$integration_name" '.mappings // .identity_mappings // . | map(select(.name==$n)) | length > 0' >/dev/null 2>&1; then
+    echo "⚠️  Identity mapping for '$integration_name' already exists"
+    echo ""
+    return 0
+  fi
+
+  local temp_response
+  temp_response=$(mktemp)
+  local code
+  code=$(curl -s -w "%{http_code}" -o "$temp_response" \
     --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
     --header "Content-Type: application/json" \
     -X POST \
     -d "$payload" \
     "${JFROG_URL}/access/api/v1/oidc/$integration_name/identity_mappings")
-  
-  if [ "$response" -eq 200 ] || [ "$response" -eq 201 ]; then
-    echo "✅ Identity mapping for '$integration_name' created successfully (HTTP $response)"
-  elif [ "$response" -eq 409 ]; then
-    echo "⚠️  Identity mapping for '$integration_name' already exists (HTTP $response)"
+  local body
+  body=$(cat "$temp_response")
+  rm -f "$temp_response"
+
+  if [ "$code" -eq 200 ] || [ "$code" -eq 201 ]; then
+    echo "✅ Identity mapping for '$integration_name' created successfully (HTTP $code)"
+  elif [ "$code" -eq 409 ] || echo "$body" | grep -qi "already exist"; then
+    echo "⚠️  Identity mapping for '$integration_name' already exists (HTTP $code)"
   else
-    echo "❌ Failed to create identity mapping for '$integration_name' (HTTP $response)"
+    echo "❌ Failed to create identity mapping for '$integration_name' (HTTP $code)"
+    echo "   Response: $body"
     FAILED=true
   fi
   echo ""

@@ -174,6 +174,34 @@ if [ "$VERBOSITY" -ge 1 ]; then
     fi
 }
 
+discover_applications() {
+    echo "Discovering applications with '$PROJECT_KEY-' prefix..." >&2
+    
+    # Try AppTrust applications API
+    local code=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" --write-out "%{http_code}" --output "$TEMP_DIR/all_applications.json" -X GET "${JFROG_URL}/apptrust/api/v1/applications")
+    
+    if [ "$code" -eq 200 ] && [ -s "$TEMP_DIR/all_applications.json" ]; then
+        # Extract application keys with bookverse prefix
+        jq -r --arg prefix "$PROJECT_KEY" '.[] | select(.application_key | startswith($prefix + "-")) | .application_key' "$TEMP_DIR/all_applications.json" > "$TEMP_DIR/bookverse_applications.txt" 2>/dev/null || true
+        
+        local count=$(wc -l < "$TEMP_DIR/bookverse_applications.txt" 2>/dev/null || echo "0")
+        echo "Found $count applications with '$PROJECT_KEY-' prefix" >&2
+        
+        if [ "$count" -gt 0 ]; then
+            echo "Application list saved to: $TEMP_DIR/bookverse_applications.txt" >&2
+            if [ "$VERBOSITY" -ge 1 ]; then
+                cat "$TEMP_DIR/bookverse_applications.txt" | sed 's/^/  - /' >&2
+            fi
+        fi
+        
+        echo "$count"
+    else
+        echo "AppTrust API not accessible (HTTP $code) - may need manual cleanup" >&2
+        echo "AppTrust API not accessible (HTTP $code)" > "$TEMP_DIR/apptrust_api_status.txt"
+        echo "0"
+    fi
+}
+
 discover_lifecycle() {
     echo "Checking project lifecycle configuration..." >&2
     
@@ -303,6 +331,48 @@ delete_users() {
     done < "$TEMP_DIR/bookverse_users.txt"
     
     echo "User deletion summary: $deleted_count deleted, $failed_count failed"
+    
+    if [ "$failed_count" -gt 0 ]; then
+        return 1
+    fi
+    return 0
+}
+
+delete_applications() {
+    local app_count="$1"
+    
+    echo "Starting applications deletion..."
+    
+    if [ "$app_count" -eq 0 ]; then
+        echo "No applications to delete"
+        return 0
+    fi
+    
+    local deleted_count=0
+    local failed_count=0
+    
+    if [ -f "$TEMP_DIR/bookverse_applications.txt" ]; then
+        while IFS= read -r app; do
+            if [ -n "$app" ]; then
+                echo "Deleting application: $app"
+                
+                local code=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" --write-out "%{http_code}" --output "$TEMP_DIR/delete_app_${app}.txt" -X DELETE "${JFROG_URL}/apptrust/api/v1/applications/$app")
+                
+                if [ "$code" -eq 200 ] || [ "$code" -eq 204 ]; then
+                    echo "Application '$app' deleted successfully (HTTP $code)"
+                    ((deleted_count++))
+                elif [ "$code" -eq 404 ]; then
+                    echo "Application '$app' not found or already deleted (HTTP $code)"
+                    ((deleted_count++))
+                else
+                    echo "Failed to delete application '$app' (HTTP $code)"
+                    ((failed_count++))
+                fi
+            fi
+        done < "$TEMP_DIR/bookverse_applications.txt"
+    fi
+    
+    echo "Application deletion summary: $deleted_count deleted, $failed_count failed"
     
     if [ "$failed_count" -gt 0 ]; then
         return 1
@@ -460,19 +530,25 @@ echo ""
 delete_users "$user_count" || FAILED=true
 echo ""
 
-# Step 3: Discover and delete project stages
+# Step 3: Discover and delete applications
+app_count=$(discover_applications)
+echo ""
+delete_applications "$app_count" || FAILED=true
+echo ""
+
+# Step 4: Discover and delete project stages
 stage_count=$(discover_stages)
 echo ""
 delete_stages "$stage_count" || FAILED=true
 echo ""
 
-# Step 4: Discover and clear lifecycle configuration
+# Step 5: Discover and clear lifecycle configuration
 lifecycle_exists=$(discover_lifecycle)
 echo ""
 delete_lifecycle "$lifecycle_exists" || FAILED=true
 echo ""
 
-# Step 5: Discover and delete project (after clearing resources)
+# Step 6: Discover and delete project (after clearing resources)
 project_exists=$(discover_project)
 echo ""
 delete_project "$project_exists" || FAILED=true
@@ -502,6 +578,16 @@ if [ "$final_user_count" -gt 0 ]; then
     FAILED=true
 else
     echo "SUCCESS: No users found"
+fi
+
+echo ""
+echo "Checking for remaining applications..."
+final_app_count=$(discover_applications)
+if [ "$final_app_count" -gt 0 ]; then
+    echo "ERROR: Found $final_app_count remaining applications"
+    FAILED=true
+else
+    echo "SUCCESS: No applications found"
 fi
 
 echo ""
@@ -563,11 +649,12 @@ if [ "$FAILED" = true ] || [ "$api_issues_found" = true ]; then
     echo "   Please check the JFrog UI to verify all '$PROJECT_KEY' resources are deleted:"
     echo "   1. Go to Administration → Repositories → Search for 'bookverse'"
     echo "   2. Go to Administration → Security → Users → Search for 'bookverse.com'"
-    echo "   3. Go to Administration → Projects → Look for '$PROJECT_KEY' project"
-    echo "   4. If '$PROJECT_KEY' project exists:"
-    echo "      a. Check for any stages (DEV, QA, STAGING) under the project"
-    echo "      b. Check AppTrust Lifecycle configuration"
-    echo "      c. Delete stages and clear lifecycle first"
+    echo "   3. Go to AppTrust → Applications → Search for 'bookverse'"
+    echo "   4. Go to Administration → Projects → Look for '$PROJECT_KEY' project"
+    echo "   5. If '$PROJECT_KEY' project exists:"
+    echo "      a. Delete all applications (bookverse-inventory, bookverse-recommendations, etc.)"
+    echo "      b. Delete any stages (DEV, QA, STAGING) under the project"
+    echo "      c. Clear AppTrust Lifecycle configuration"
     echo "      d. Then delete the project"
     echo ""
     echo "If any resources remain, they must be deleted manually through the UI."
@@ -580,6 +667,7 @@ else
     echo "Verified cleanup of:"
     echo "  - All repositories with '$PROJECT_KEY' prefix"
     echo "  - All users with '@bookverse.com' domain"
+    echo "  - All applications with '$PROJECT_KEY-' prefix"
     echo "  - All project stages with '$PROJECT_KEY-' prefix"
     echo "  - Project lifecycle configuration"
     echo "  - Project '$PROJECT_KEY'"

@@ -12,7 +12,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+
+      - name: Setup JFrog CLI
+        uses: jfrog/setup-jfrog-cli@v4
+        with:
+          version: latest
+
+      - name: Configure JFrog CLI for Admin
+        run: |
+          jfrog config add bookverse-admin --url=${{ vars.JFROG_URL }} --access-token=${{ secrets.JFROG_ADMIN_TOKEN }} --interactive=false
+          jfrog config use bookverse-admin
+
+      - name: Start Build Info Collection
+        run: |
+          echo "🔄 Starting build info collection for BookVerse Platform Cleanup"
+          jfrog rt build-start
 
       - name: Validate Confirmation
         run: |
@@ -28,6 +43,22 @@ jobs:
           JFROG_URL: ${{ vars.JFROG_URL }}
           JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
         run: ./.github/scripts/setup/cleanup.sh
+
+      - name: Publish Build Info
+        if: always()
+        run: |
+          echo "📊 Publishing build info for BookVerse Platform Cleanup"
+          jfrog rt build-publish
+          echo "✅ Build info published successfully"
+
+      - name: Build Info Summary
+        if: always()
+        run: |
+          echo "📋 BookVerse Platform Cleanup Complete"
+          echo "   Build Name: ${{ env.JFROG_CLI_BUILD_NAME }}"
+          echo "   Build Number: ${{ env.JFROG_CLI_BUILD_NUMBER }}"
+          echo "   Build URL: ${{ env.JFROG_CLI_BUILD_URL }}"
+          echo "   All cleanup actions have been captured in JFrog build info"
       
       # Note: This will completely remove the BookVerse project and all resources!
       # Use with caution - this action cannot be undone.

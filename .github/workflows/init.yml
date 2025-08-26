@@ -20,6 +20,11 @@ jobs:
           jfrog config add bookverse-admin --url=${{ vars.JFROG_URL }} --access-token=${{ secrets.JFROG_ADMIN_TOKEN }} --interactive=false
           jfrog config use bookverse-admin
 
+      - name: Start Build Info Collection
+        run: |
+          echo "🔄 Starting build info collection for BookVerse Platform Initialization"
+          jfrog rt build-start
+
       - name: Validate JFROG_ADMIN_TOKEN presence
         env:
           TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
@@ -81,3 +86,19 @@ jobs:
           JFROG_URL: ${{ vars.JFROG_URL }}
           JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
         run: ./.github/scripts/setup/create_oidc.sh
+
+      - name: Publish Build Info
+        if: always()
+        run: |
+          echo "📊 Publishing build info for BookVerse Platform Initialization"
+          jfrog rt build-publish
+          echo "✅ Build info published successfully"
+
+      - name: Build Info Summary
+        if: always()
+        run: |
+          echo "📋 BookVerse Platform Initialization Complete"
+          echo "   Build Name: ${{ env.JFROG_CLI_BUILD_NAME }}"
+          echo "   Build Number: ${{ env.JFROG_CLI_BUILD_NUMBER }}"
+          echo "   Build URL: ${{ env.JFROG_CLI_BUILD_URL }}"
+          echo "   All setup actions have been captured in JFrog build info"

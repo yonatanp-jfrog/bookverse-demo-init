@@ -38,16 +38,6 @@ jobs:
         run: |
           set -euo pipefail
           URL_NO_SLASH="${JFROG_URL%/}"
-
-          # TEST
-          curl 'https://evidencetrial.jfrog.io/access/api/v1/projects' \
-          -H 'Authorization: Bearer ${{ secrets.JFROG_ADMIN_TOKEN }}'
-          
-          curl 'https://evidencetrial.jfrog.io/access/api/v2/lifecycle/?project_key=bookverse' \
-           -H 'Authorization: Bearer ${{ secrets.JFROG_ADMIN_TOKEN }}'
-
-           # END TEST
-
           echo "JFROG_URL=${URL_NO_SLASH}"
           code_ping=$(curl -s -o /dev/null -w "%{http_code}" "${URL_NO_SLASH}/access/api/v1/system/ping"); echo "GET /access/api/v1/system/ping -> ${code_ping}"
           code_projects=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" "${URL_NO_SLASH}/access/api/v1/projects"); echo "GET /access/api/v1/projects -> ${code_projects}"

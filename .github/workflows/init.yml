@@ -20,6 +20,17 @@ jobs:
           jfrog config add bookverse-admin --url=${{ vars.JFROG_URL }} --access-token=${{ secrets.JFROG_ADMIN_TOKEN }} --interactive=false
           jfrog config use bookverse-admin
 
+      - name: Validate JFROG_ADMIN_TOKEN presence
+        env:
+          TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${TOKEN}" ]; then
+            echo "❌ JFROG_ADMIN_TOKEN is empty or not configured" >&2
+            exit 1
+          fi
+          echo "✅ JFROG_ADMIN_TOKEN present (length: ${#TOKEN})"
+
       - name: Preflight JFrog connectivity (HTTP codes)
         env:
           JFROG_URL: ${{ vars.JFROG_URL }}

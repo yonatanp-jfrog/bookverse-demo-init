@@ -175,17 +175,17 @@ if [ "$VERBOSITY" -ge 1 ]; then
 }
 
 discover_applications() {
-    echo "Discovering applications with '$PROJECT_KEY-' prefix..." >&2
+    echo "Discovering applications in project '$PROJECT_KEY'..." >&2
     
     # Try AppTrust applications API
     local code=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" --write-out "%{http_code}" --output "$TEMP_DIR/all_applications.json" -X GET "${JFROG_URL}/apptrust/api/v1/applications")
     
     if [ "$code" -eq 200 ] && [ -s "$TEMP_DIR/all_applications.json" ]; then
-        # Extract application keys with bookverse prefix
-        jq -r --arg prefix "$PROJECT_KEY" '.[] | select(.application_key | startswith($prefix + "-")) | .application_key' "$TEMP_DIR/all_applications.json" > "$TEMP_DIR/bookverse_applications.txt" 2>/dev/null || true
+        # Extract application keys by project_key (not by application_key prefix)
+        jq -r --arg project_key "$PROJECT_KEY" '.[] | select(.project_key == $project_key) | .application_key' "$TEMP_DIR/all_applications.json" > "$TEMP_DIR/bookverse_applications.txt" 2>/dev/null || true
         
         local count=$(wc -l < "$TEMP_DIR/bookverse_applications.txt" 2>/dev/null || echo "0")
-        echo "Found $count applications with '$PROJECT_KEY-' prefix" >&2
+        echo "Found $count applications in project '$PROJECT_KEY'" >&2
         
         if [ "$count" -gt 0 ]; then
             echo "Application list saved to: $TEMP_DIR/bookverse_applications.txt" >&2
@@ -584,10 +584,10 @@ echo ""
 echo "Checking for remaining applications..."
 final_app_count=$(discover_applications)
 if [ "$final_app_count" -gt 0 ]; then
-    echo "ERROR: Found $final_app_count remaining applications"
+    echo "ERROR: Found $final_app_count remaining applications in project"
     FAILED=true
 else
-    echo "SUCCESS: No applications found"
+    echo "SUCCESS: No applications found in project"
 fi
 
 echo ""
@@ -649,10 +649,10 @@ if [ "$FAILED" = true ] || [ "$api_issues_found" = true ]; then
     echo "   Please check the JFrog UI to verify all '$PROJECT_KEY' resources are deleted:"
     echo "   1. Go to Administration → Repositories → Search for 'bookverse'"
     echo "   2. Go to Administration → Security → Users → Search for 'bookverse.com'"
-    echo "   3. Go to AppTrust → Applications → Search for 'bookverse'"
+    echo "   3. Go to AppTrust → Applications → Filter by project '$PROJECT_KEY'"
     echo "   4. Go to Administration → Projects → Look for '$PROJECT_KEY' project"
     echo "   5. If '$PROJECT_KEY' project exists:"
-    echo "      a. Delete all applications (bookverse-inventory, bookverse-recommendations, etc.)"
+    echo "      a. Delete all applications in project '$PROJECT_KEY' (any application_key)"
     echo "      b. Delete any stages (DEV, QA, STAGING) under the project"
     echo "      c. Clear AppTrust Lifecycle configuration"
     echo "      d. Then delete the project"
@@ -667,7 +667,7 @@ else
     echo "Verified cleanup of:"
     echo "  - All repositories with '$PROJECT_KEY' prefix"
     echo "  - All users with '@bookverse.com' domain"
-    echo "  - All applications with '$PROJECT_KEY-' prefix"
+    echo "  - All applications in project '$PROJECT_KEY'"
     echo "  - All project stages with '$PROJECT_KEY-' prefix"
     echo "  - Project lifecycle configuration"
     echo "  - Project '$PROJECT_KEY'"

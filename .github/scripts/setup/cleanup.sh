@@ -3,6 +3,39 @@
 set -e
 
 # =============================================================================
+# ERROR HANDLING
+# =============================================================================
+
+# Function to handle script errors
+error_handler() {
+    local line_no=$1
+    local error_code=$2
+    echo ""
+    echo "❌ SCRIPT ERROR DETECTED!"
+    echo "   Line: $line_no"
+    echo "   Exit Code: $error_code"
+    echo "   Command: ${BASH_COMMAND}"
+    echo ""
+    echo "🔍 DEBUGGING INFORMATION:"
+    echo "   Environment: CI=${CI_ENVIRONMENT}, VERBOSITY=${VERBOSITY}"
+    echo "   Working Directory: $(pwd)"
+    echo "   Project: ${PROJECT_KEY:-'Not set'}"
+    echo "   JFrog URL: ${JFROG_URL:-'Not set'}"
+    echo ""
+    echo "💡 TROUBLESHOOTING TIPS:"
+    echo "   1. Check that JFROG_URL and JFROG_ADMIN_TOKEN are set correctly"
+    echo "   2. Verify network connectivity to JFrog platform"
+    echo "   3. Ensure the admin token has sufficient permissions"
+    echo "   4. Check if the project and resources exist"
+    echo "   5. Try running with VERBOSITY=2 for more detailed output"
+    echo ""
+    exit $error_code
+}
+
+# Set up error handling
+trap 'error_handler ${LINENO} $?' ERR
+
+# =============================================================================
 # VERBOSITY CONFIGURATION
 # =============================================================================
 # Set VERBOSITY level for output control:
@@ -11,13 +44,26 @@ set -e
 # 2 = Debug (show commands, confirmations, and full output)
 VERBOSITY="${VERBOSITY:-1}"
 
+# =============================================================================
+# CI ENVIRONMENT DETECTION
+# =============================================================================
+# Detect if we're running in a CI environment (GitHub Actions, etc.)
+# This helps us automatically skip interactive prompts
+CI_ENVIRONMENT="${CI:-false}"
+if [[ -n "${GITHUB_ACTIONS}" ]] || [[ -n "${CI}" ]] || [[ "$CI_ENVIRONMENT" == "true" ]]; then
+    export CI_ENVIRONMENT="true"
+    echo "🤖 CI Environment detected - interactive prompts will be skipped"
+else
+    export CI_ENVIRONMENT="false"
+fi
+
 # Function to run command with verbosity control
 run_verbose_command() {
     local description="$1"
     local command="$2"
     
-    if [ "$VERBOSITY" -ge 2 ]; then
-        # Debug mode - show command and ask for confirmation
+    if [ "$VERBOSITY" -ge 2 ] && [ "$CI_ENVIRONMENT" != "true" ]; then
+        # Debug mode - show command and ask for confirmation (only in non-CI environments)
         echo ""
         echo "🔍 DEBUG MODE: $description"
         echo "   Command to execute:"
@@ -37,6 +83,18 @@ run_verbose_command() {
         echo "   ✅ Command completed."
         echo ""
         read -p "   Press Enter to continue to next step: " continue_input
+    elif [ "$VERBOSITY" -ge 2 ] && [ "$CI_ENVIRONMENT" = "true" ]; then
+        # Debug mode in CI - show command but execute automatically
+        echo ""
+        echo "🔍 DEBUG MODE (CI): $description"
+        echo "   Command to execute:"
+        echo "   $command"
+        echo "   🚀 Executing automatically in CI environment..."
+        echo "   ========================================="
+        eval "$command"
+        echo "   ========================================="
+        echo "   ✅ Command completed."
+        echo ""
     elif [ "$VERBOSITY" -ge 1 ]; then
         # Feedback mode - show what's happening
         echo "   🔧 $description..."
@@ -79,6 +137,64 @@ show_verbosity_info() {
     echo ""
 }
 
+# =============================================================================
+# ERROR HANDLING AND API HELPERS
+# =============================================================================
+
+# Function to make API calls with better error reporting
+make_api_call() {
+    local method="$1"
+    local url="$2"
+    local description="$3"
+    local data="$4"
+    
+    local temp_response=$(mktemp)
+    local temp_headers=$(mktemp)
+    
+    if [ "$VERBOSITY" -ge 2 ]; then
+        echo "   🌐 API Call: $method $url"
+        if [ -n "$data" ]; then
+            echo "   📤 Payload: $data"
+        fi
+    fi
+    
+    local http_code
+    if [ -n "$data" ]; then
+        http_code=$(curl -s -w "%{http_code}" \
+            --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+            --header "Content-Type: application/json" \
+            -X "$method" \
+            -d "$data" \
+            -o "$temp_response" \
+            -D "$temp_headers" \
+            "$url")
+    else
+        http_code=$(curl -s -w "%{http_code}" \
+            --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+            --header "Content-Type: application/json" \
+            -X "$method" \
+            -o "$temp_response" \
+            -D "$temp_headers" \
+            "$url")
+    fi
+    
+    if [ "$VERBOSITY" -ge 2 ]; then
+        echo "   📥 Response Code: $http_code"
+        if [ -s "$temp_response" ]; then
+            echo "   📥 Response Body: $(cat "$temp_response")"
+        fi
+    fi
+    
+    # Store response for caller
+    export LAST_API_RESPONSE=$(cat "$temp_response")
+    export LAST_API_CODE="$http_code"
+    
+    # Cleanup
+    rm -f "$temp_response" "$temp_headers"
+    
+    echo "$http_code"
+}
+
 # Source global configuration
 source "$(dirname "$0")/config.sh"
 
@@ -112,8 +228,13 @@ echo ""
 echo "   This action is IRREVERSIBLE!"
 echo ""
 
-if [ "$VERBOSITY" -ge 2 ]; then
-    echo "🐛 DEBUG MODE: Skipping confirmation prompt for automated testing"
+if [ "$VERBOSITY" -ge 2 ] || [ "$CI_ENVIRONMENT" = "true" ]; then
+    if [ "$CI_ENVIRONMENT" = "true" ]; then
+        echo "🤖 CI ENVIRONMENT: Skipping confirmation prompt - proceeding automatically"
+        echo "   CI environments are assumed to have explicit approval through workflow triggers"
+    else
+        echo "🐛 DEBUG MODE: Skipping confirmation prompt for automated testing"
+    fi
     echo "   Proceeding with cleanup..."
 else
     read -p "Type 'DELETE' to confirm you want to proceed with cleanup: " confirmation
@@ -132,21 +253,7 @@ echo ""
 
 FAILED=false
 
-echo "🧹 Starting cleanup of BookVerse project and all resources..."
-echo "⚠️  WARNING: This will permanently delete ALL resources in the '${PROJECT_KEY}' project!"
-echo "⚠️  WARNING: This action cannot be undone!"
-echo ""
-
-# Ask for confirmation
-read -p "Are you sure you want to delete the entire '${PROJECT_KEY}' project? (type 'yes' to confirm): " confirmation
-
-if [[ "$confirmation" != "yes" ]]; then
-    echo "❌ Cleanup cancelled by user."
-    exit 0
-fi
-
-echo ""
-echo "🚨 Proceeding with cleanup of '${PROJECT_KEY}' project..."
+echo "🚨 Starting cleanup of '${PROJECT_KEY}' project and all resources..."
 echo ""
 
 # =============================================================================

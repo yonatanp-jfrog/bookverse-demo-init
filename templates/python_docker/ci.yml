@@ -1,10 +1,15 @@
 name: CI
 
+# NOTE: Manual trigger only during development phase
+# Will be changed to automatic triggers (push/PR) when demo is ready
 on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Reason for manual CI trigger'
+        required: false
+        default: 'Manual testing'
+        type: string
 
 jobs:
   build-test-publish:
@@ -16,6 +21,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Display manual trigger info
+        run: |
+          echo "🚀 Manual CI trigger initiated"
+          echo "📝 Reason: ${{ inputs.reason || 'Manual testing' }}"
+          echo "👤 Triggered by: ${{ github.actor }}"
+          echo "🕐 Timestamp: $(date -u)"
 
       - name: Setup JFrog CLI
         uses: jfrog/setup-jfrog-cli@v4

@@ -100,9 +100,10 @@ oidc_count=$(echo "$oidc_response" | jq -r ".[] | select(.name | startswith(\"gi
 echo "✅ Found $oidc_count OIDC integrations"
 echo ""
 
-# GitHub Repository Validation
+# GitHub Repository Validation (do not fail script on GH CLI hiccups)
 echo "🐙 Validating GitHub repositories..."
 echo ""
+set +e
 
 expected_repos=("inventory" "recommendations" "checkout" "platform" "web" "helm" "demo-assets")
 github_repos_ok=0
@@ -133,6 +134,7 @@ for service in "${expected_repos[@]}"; do
     fi
     echo ""
 done
+set -e
 
 # Smoke Tests
 echo "🧪 Running smoke tests..."

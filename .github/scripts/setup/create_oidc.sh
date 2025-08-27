@@ -158,7 +158,7 @@ create_oidc_identity_mapping() {
     echo "   🐛 DEBUG: List mappings response: $list_json"
   fi
   
-  if [ "$list_code" -eq 200 ] && echo "$list_json" | jq -e --arg n "$mapping_name" '.mappings // .identity_mappings // . | map(select(.name==$n)) | length > 0' >/dev/null 2>&1; then
+  if [ "$list_code" -eq 200 ] && echo "$list_json" | jq -e --arg n "$mapping_name" 'map(select(.name==$n)) | length > 0' >/dev/null 2>&1; then
     echo "⚠️  Identity mapping '$mapping_name' already exists"
     echo ""
     return 0

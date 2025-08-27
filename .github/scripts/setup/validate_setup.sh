@@ -31,15 +31,15 @@ validate_api_response() {
     
     case "$response_code" in
         200)
-            echo "✅ $description accessible (HTTP $response_code)"
+            echo "✅ $description accessible (HTTP $response_code)" >&2
             cat "$temp_response"
             ;;
         404)
-            echo "⚠️  $description not found (HTTP $response_code)"
+            echo "⚠️  $description not found (HTTP $response_code)" >&2
             echo "[]"
             ;;
         *)
-            echo "❌ $description failed (HTTP $response_code)"
+            echo "❌ $description failed (HTTP $response_code)" >&2
             echo "[]"
             ;;
     esac

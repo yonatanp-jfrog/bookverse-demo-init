@@ -128,9 +128,13 @@ create_oidc_integration() {
             echo "⚠️  Identity mapping for '$integration_name' already exists (HTTP $response_code2)"
             ;;
         400)
-            # Check if it's the "already exists" error
+            # Check if it's the "already exists" error or claims validation issue
             if grep -q -i "already exists\|mapping.*exists" "$temp_response2"; then
                 echo "⚠️  Identity mapping for '$integration_name' already exists (HTTP $response_code2)"
+            elif grep -q -i "claims.*empty\|claims.*not.*valid" "$temp_response2"; then
+                echo "⚠️  Identity mapping for '$integration_name' - claims validation issue (not critical)"
+                echo "Response body: $(cat "$temp_response2")"
+                echo "Note: Identity mapping may require manual setup or different claims configuration"
             else
                 echo "❌ Failed to create identity mapping for '$integration_name' (HTTP $response_code2)"
                 echo "Response body: $(cat "$temp_response2")"

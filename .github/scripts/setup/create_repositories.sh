@@ -25,29 +25,41 @@ create_repository() {
     
     local repo_key="${PROJECT_KEY}-${service}-${package_type}-${repo_type}-local"
     
-    # Get environments based on repo type
-    local environments
-    case "$repo_type" in
-        "internal") environments="\"${PROJECT_KEY}-DEV\", \"${PROJECT_KEY}-QA\", \"${PROJECT_KEY}-STAGING\"" ;;
-        "release") environments="\"${PROJECT_KEY}-PROD\"" ;;
-    esac
-    
-    # Build repository configuration
-    local repo_config=$(jq -n \
-        --arg key "$repo_key" \
-        --arg rclass "local" \
-        --arg packageType "$package_type" \
-        --arg description "Repository for $service $package_type packages ($repo_type)" \
-        --arg projectKey "$PROJECT_KEY" \
-        --argjson environments "[$environments]" \
-        '{
-            "key": $key,
-            "rclass": $rclass,
-            "packageType": $packageType,
-            "description": $description,
-            "projectKey": $projectKey,
-            "environments": $environments
-        }')
+    # Build repository configuration (release repos don't need environment restrictions)
+    if [[ "$repo_type" == "internal" ]]; then
+        # Internal repositories are restricted to specific environments
+        local environments="\"${PROJECT_KEY}-DEV\", \"${PROJECT_KEY}-QA\", \"${PROJECT_KEY}-STAGING\""
+        local repo_config=$(jq -n \
+            --arg key "$repo_key" \
+            --arg rclass "local" \
+            --arg packageType "$package_type" \
+            --arg description "Repository for $service $package_type packages ($repo_type)" \
+            --arg projectKey "$PROJECT_KEY" \
+            --argjson environments "[$environments]" \
+            '{
+                "key": $key,
+                "rclass": $rclass,
+                "packageType": $packageType,
+                "description": $description,
+                "projectKey": $projectKey,
+                "environments": $environments
+            }')
+    else
+        # Release repositories are for production use without environment restrictions
+        local repo_config=$(jq -n \
+            --arg key "$repo_key" \
+            --arg rclass "local" \
+            --arg packageType "$package_type" \
+            --arg description "Repository for $service $package_type packages ($repo_type)" \
+            --arg projectKey "$PROJECT_KEY" \
+            '{
+                "key": $key,
+                "rclass": $rclass,
+                "packageType": $packageType,
+                "description": $description,
+                "projectKey": $projectKey
+            }')
+    fi
     
     echo "Creating repository: $repo_key"
     

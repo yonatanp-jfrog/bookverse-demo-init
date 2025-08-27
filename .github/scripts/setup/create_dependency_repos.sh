@@ -25,21 +25,40 @@ create_remote_repository() {
     local url="$3"
     local description="$4"
     
-    local repo_config=$(jq -n \
-        --arg key "$repo_key" \
-        --arg rclass "remote" \
-        --arg packageType "$package_type" \
-        --arg url "$url" \
-        --arg description "$description" \
-        --arg projectKey "$PROJECT_KEY" \
-        '{
-            "key": $key,
-            "rclass": $rclass,
-            "packageType": $packageType,
-            "url": $url,
-            "description": $description,
-            "projectKey": $projectKey
-        }')
+    # Build remote repository config; PyPI uses pypiRegistryUrl instead of url
+    if [[ "$package_type" == "pypi" ]]; then
+        local repo_config=$(jq -n \
+            --arg key "$repo_key" \
+            --arg rclass "remote" \
+            --arg packageType "$package_type" \
+            --arg pypiRegistryUrl "$url" \
+            --arg description "$description" \
+            --arg projectKey "$PROJECT_KEY" \
+            '{
+                "key": $key,
+                "rclass": $rclass,
+                "packageType": $packageType,
+                "pypiRegistryUrl": $pypiRegistryUrl,
+                "description": $description,
+                "projectKey": $projectKey
+            }')
+    else
+        local repo_config=$(jq -n \
+            --arg key "$repo_key" \
+            --arg rclass "remote" \
+            --arg packageType "$package_type" \
+            --arg url "$url" \
+            --arg description "$description" \
+            --arg projectKey "$PROJECT_KEY" \
+            '{
+                "key": $key,
+                "rclass": $rclass,
+                "packageType": $packageType,
+                "url": $url,
+                "description": $description,
+                "projectKey": $projectKey
+            }')
+    fi
     
     echo "Creating remote repository: $repo_key"
     
@@ -60,6 +79,7 @@ create_remote_repository() {
             if grep -qi "already exists" "$temp_response"; then
                 echo "⚠️  Remote repository '$repo_key' already exists - attempting update"
                 # Remove projectKey for updates
+                # For PyPI, ensure pypiRegistryUrl is used on update
                 local update_config=$(echo "$repo_config" | jq 'del(.projectKey)')
                 local update_resp=$(mktemp)
                 local update_code=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \

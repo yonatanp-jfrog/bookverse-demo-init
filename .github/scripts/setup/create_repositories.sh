@@ -50,12 +50,13 @@ create_repository() {
     echo "Creating repository: $repo_key"
     
     # Create repository
+    local temp_response=$(mktemp)
     local response_code=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
         --header "Content-Type: application/json" \
         -X PUT \
         -d "$repo_config" \
         --write-out "%{http_code}" \
-        --output /dev/null \
+        --output "$temp_response" \
         "${JFROG_URL}/artifactory/api/repositories/${repo_key}")
     
     case "$response_code" in
@@ -67,9 +68,15 @@ create_repository() {
             ;;
         *)
             echo "❌ Failed to create repository '$repo_key' (HTTP $response_code)"
+            echo "Response body: $(cat "$temp_response")"
+            echo "Repository config sent:"
+            echo "$repo_config" | jq .
+            rm -f "$temp_response"
             return 1
             ;;
     esac
+    
+    rm -f "$temp_response"
 }
 
 # Services and their package types

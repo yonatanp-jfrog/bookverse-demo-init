@@ -57,8 +57,25 @@ create_remote_repository() {
             echo "✅ Remote repository '$repo_key' created successfully (HTTP $response_code)"
             ;;
         409|400)
-            if grep -q "already exists" "$temp_response"; then
-                echo "⚠️  Remote repository '$repo_key' already exists (HTTP $response_code)"
+            if grep -qi "already exists" "$temp_response"; then
+                echo "⚠️  Remote repository '$repo_key' already exists - attempting update"
+                # Remove projectKey for updates
+                local update_config=$(echo "$repo_config" | jq 'del(.projectKey)')
+                local update_resp=$(mktemp)
+                local update_code=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+                    --header "Content-Type: application/json" \
+                    -X PUT \
+                    -d "$update_config" \
+                    --write-out "%{http_code}" \
+                    --output "$update_resp" \
+                    "${JFROG_URL}/artifactory/api/repositories/${repo_key}")
+                if [[ "$update_code" == "200" ]]; then
+                    echo "✅ Remote repository '$repo_key' updated successfully (HTTP $update_code)"
+                else
+                    echo "⚠️  Update of remote repository '$repo_key' returned HTTP $update_code"
+                    echo "Response body: $(cat "$update_resp")"
+                fi
+                rm -f "$update_resp"
             else
                 echo "❌ Failed to create remote repository '$repo_key' (HTTP $response_code)"
                 echo "Response body: $(cat "$temp_response")"

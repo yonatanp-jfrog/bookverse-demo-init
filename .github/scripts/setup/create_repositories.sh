@@ -177,9 +177,8 @@ echo ""
 # Create repositories using batch API
 log_step "Creating repositories in batch"
 
-local temp_response
 temp_response=$(mktemp)
-local response_code
+response_code
 response_code=$(make_api_call PUT \
     "${JFROG_URL}/artifactory/api/v2/repositories/batch" \
     "$batch_payload" \

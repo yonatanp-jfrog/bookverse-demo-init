@@ -273,7 +273,7 @@ delete_resource() {
                 # Verify deletion with both methods
                 sleep 2
                 local verify_code1=$(jf rt curl -X GET "/access/api/v1/projects/$PROJECT_KEY" --write-out "%{http_code}" --output /dev/null --silent)
-                local verify_code2=$(make_api_call "GET" "access/api/v1/projects/$PROJECT_KEY" "/dev/null" "curl")
+                local verify_code2=$(make_api_call "GET" "/access/api/v1/projects/$PROJECT_KEY" "/dev/null" "curl")
                 
                 if [[ "$verify_code1" -eq $HTTP_NOT_FOUND ]] && [[ "$verify_code2" -eq $HTTP_NOT_FOUND ]]; then
                     echo "Deletion confirmed - project no longer exists"

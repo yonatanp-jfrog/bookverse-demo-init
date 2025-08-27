@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # =============================================================================
-# DEPENDENCY PRE-POPULATION SCRIPT
+# DEPENDENCY PRE-POPULATION SCRIPT (CORRECTED)
 # =============================================================================
 # Pre-populates critical dependencies used by BookVerse services
 # This ensures all CI/CD pipelines can run with dependencies from Artifactory
@@ -25,26 +25,15 @@ cache_python_package() {
     
     echo "📦 Caching Python package: $package${version:+ ($version)}"
     
-    # Configure pip to use Artifactory
-    local pip_config_dir="$HOME/.pip"
-    mkdir -p "$pip_config_dir"
-    
-    cat > "$pip_config_dir/pip.conf" << EOF
-[global]
-index-url = ${JFROG_URL}/artifactory/api/pypi/${PROJECT_KEY}-pypi-virtual/simple
-trusted-host = $(echo "$JFROG_URL" | sed 's|https://||' | sed 's|http://||')
-extra-index-url = https://pypi.org/simple
-
-[install]
-trusted-host = $(echo "$JFROG_URL" | sed 's|https://||' | sed 's|http://||')
-EOF
-    
-    # Use jf CLI to download package to cache repository
+    # Use 'pip download' which respects the config from 'jf pipc'
+    # This will download the package and its dependencies into Artifactory's cache
     if [[ "$version" == "latest" ]]; then
-        jf pip install "$package" --no-deps --download-only || echo "⚠️ Warning: Could not cache $package"
+        pip download "$package" --no-deps > /dev/null 2>&1 || echo "⚠️ Warning: Could not cache $package"
     else
-        jf pip install "$package==$version" --no-deps --download-only || echo "⚠️ Warning: Could not cache $package==$version"
+        pip download "$package==$version" --no-deps > /dev/null 2>&1 || echo "⚠️ Warning: Could not cache $package==$version"
     fi
+    # Clean up locally downloaded files
+    rm -f *.whl *.tar.gz
 }
 
 # Function to download and cache npm packages
@@ -54,13 +43,7 @@ cache_npm_package() {
     
     echo "📦 Caching npm package: $package${version:+ ($version)}"
     
-    # Configure npm to use Artifactory
-    npm config set registry "${JFROG_URL}/artifactory/api/npm/${PROJECT_KEY}-npm-virtual/"
-    npm config set always-auth true
-    npm config set email "pipeline@bookverse.com"
-    npm config set _auth "$(echo -n "pipeline:${JFROG_ADMIN_TOKEN}" | base64)"
-    
-    # Download package to cache
+    # Use 'npm pack' which respects the config from 'jf npmc'
     if [[ "$version" == "latest" ]]; then
         npm pack "$package" > /dev/null 2>&1 || echo "⚠️ Warning: Could not cache $package"
     else
@@ -78,27 +61,28 @@ cache_docker_image() {
     
     echo "🐳 Caching Docker image: $image:$tag"
     
-    # Configure Docker to use Artifactory
-    docker login -u "pipeline" -p "${JFROG_ADMIN_TOKEN}" "${JFROG_URL##*/}/artifactory/${PROJECT_KEY}-dockerhub-virtual" 2>/dev/null || {
+    local docker_registry_host=$(echo "$JFROG_URL" | sed 's|https://||' | sed 's|http://||')
+    local virtual_repo_path="${docker_registry_host}/${PROJECT_KEY}-dockerhub-virtual"
+
+    # Login to the virtual repository
+    docker login -u "pipeline" -p "${JFROG_ADMIN_TOKEN}" "${docker_registry_host}" > /dev/null 2>&1 || {
         echo "⚠️ Warning: Docker login failed, skipping image cache for $image:$tag"
         return
     }
     
     # Pull through Artifactory virtual repository
-    docker pull "${JFROG_URL##*/}/artifactory/${PROJECT_KEY}-dockerhub-virtual/$image:$tag" > /dev/null 2>&1 || \
+    docker pull "${virtual_repo_path}/$image:$tag" > /dev/null 2>&1 || \
         echo "⚠️ Warning: Could not cache Docker image $image:$tag"
 }
 
 echo "=== Configuring JFrog CLI for dependency management ==="
-
-# Configure JFrog CLI
-jf config add artifactory --interactive=false \
-    --url="${JFROG_URL}" \
-    --access-token="${JFROG_ADMIN_TOKEN}" \
-    --overwrite || echo "⚠️ JFrog CLI configuration may already exist"
+jf c use bookverse-admin
 
 echo ""
 echo "=== Pre-populating Python dependencies ==="
+
+# Configure pip to resolve from the virtual repository
+jf pipc --repo-resolve "${PROJECT_KEY}-pypi-virtual"
 
 # Core Python CI tools
 cache_python_package "pip" "24.2"
@@ -108,7 +92,7 @@ cache_python_package "pytest" "7.4.3"
 cache_python_package "pytest-cov" "4.1.0"
 cache_python_package "httpx" "0.25.2"
 
-# FastAPI ecosystem (for all Python services)
+# FastAPI ecosystem
 cache_python_package "fastapi" "0.111.0"
 cache_python_package "uvicorn" "0.30.0"
 cache_python_package "pydantic" "2.5.0"
@@ -124,6 +108,9 @@ cache_python_package "mypy" "1.5.1"
 
 echo ""
 echo "=== Pre-populating npm dependencies ==="
+
+# Configure npm to resolve from the virtual repository
+jf npmc --repo-resolve "${PROJECT_KEY}-npm-virtual"
 
 # Core npm tools
 cache_npm_package "npm" "10.8.2"

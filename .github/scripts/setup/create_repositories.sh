@@ -178,7 +178,6 @@ echo ""
 log_step "Creating repositories in batch"
 
 temp_response=$(mktemp)
-response_code
 response_code=$(make_api_call PUT \
     "${JFROG_URL}/artifactory/api/v2/repositories/batch" \
     "$batch_payload" \

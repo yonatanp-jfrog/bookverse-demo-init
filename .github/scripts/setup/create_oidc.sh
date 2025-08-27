@@ -1,24 +1,24 @@
 #!/usr/bin/env bash
 
 # =============================================================================
-# OPTIMIZED OIDC INTEGRATION SCRIPT
+# SIMPLIFIED OIDC INTEGRATION SCRIPT
 # =============================================================================
-# Creates OIDC integrations and identity mappings using shared utilities
-# Demonstrates 75% code reduction from original script
-# =============================================================================
-
-# Load shared utilities and configuration
-source "$(dirname "$0")/common.sh"
-
-# Initialize script with error handling and validation
-init_script "$(basename "$0")" "Creating OIDC integrations and identity mappings"
-
-# =============================================================================
-# OIDC CONFIGURATION DATA
+# Creates OIDC integrations without shared utility dependencies
 # =============================================================================
 
-# Define OIDC integrations with their corresponding users
-declare -a OIDC_CONFIGS=(
+set -e
+
+# Load configuration
+source "$(dirname "$0")/config.sh"
+
+echo ""
+echo "🚀 Creating OIDC integrations and identity mappings"
+echo "🔧 Project: $PROJECT_KEY"
+echo "🔧 JFrog URL: $JFROG_URL"
+echo ""
+
+# OIDC configuration definitions: service|username|display_name
+OIDC_CONFIGS=(
     "inventory|frank.inventory@bookverse.com|BookVerse Inventory"
     "recommendations|grace.ai@bookverse.com|BookVerse Recommendations" 
     "checkout|henry.checkout@bookverse.com|BookVerse Checkout"
@@ -26,122 +26,152 @@ declare -a OIDC_CONFIGS=(
     "web|alice.developer@bookverse.com|BookVerse Web"
 )
 
-# =============================================================================
-# OIDC PROCESSING FUNCTIONS
-# =============================================================================
-
-# Create OIDC integration
+# Function to create OIDC integration
 create_oidc_integration() {
     local service_name="$1"
-    local integration_name="github-${PROJECT_KEY}-${service_name}"
-    
-    log_info "Creating OIDC integration: $integration_name"
-    
-    # Check if integration already exists
-    if resource_exists "${JFROG_URL}/access/api/v1/oidc/${integration_name}"; then
-        log_warning "OIDC integration '$integration_name' already exists"
-        return 0
-    fi
-    
-    # Create integration payload
-    local payload
-    payload=$(build_oidc_integration_payload "$integration_name")
-    
-    # Create integration
-    local response_code
-    response_code=$(make_api_call POST \
-        "${JFROG_URL}/access/api/v1/oidc" \
-        "$payload")
-    
-    handle_api_response "$response_code" "OIDC integration '$integration_name'" "creation"
-}
-
-# Create OIDC identity mapping
-create_oidc_identity_mapping() {
-    local service_name="$1"
     local username="$2"
+    local display_name="$3"
     local integration_name="github-${PROJECT_KEY}-${service_name}"
-    local mapping_name="$integration_name"
     
-    log_info "Creating identity mapping for: $integration_name → $username"
+    echo "Creating OIDC integration: $integration_name"
+    echo "  Service: $service_name"
+    echo "  User: $username"
+    echo "  Display: $display_name"
     
-    # Check existing mappings
-    local temp_file
-    temp_file=$(mktemp)
-    local list_code
-    list_code=$(make_api_call GET \
-        "${JFROG_URL}/access/api/v1/oidc/${integration_name}/identity_mappings" \
-        "" "$temp_file")
+    # Build OIDC integration payload
+    local integration_payload=$(jq -n \
+        --arg name "$integration_name" \
+        --arg issuer_url "https://token.actions.githubusercontent.com" \
+        --arg provider_type "GitHub" \
+        '{
+            "name": $name,
+            "description": ("GitHub OIDC integration for " + $name),
+            "issuer_url": $issuer_url,
+            "provider_type": $provider_type,
+            "audience": "jfrog-github"
+        }')
     
-    if [[ "$list_code" -eq $HTTP_OK ]]; then
-        local exists
-        exists=$(jq -e --arg n "$mapping_name" 'map(select(.name==$n)) | length > 0' "$temp_file" 2>/dev/null)
-        if [[ "$exists" == "true" ]]; then
-            log_warning "Identity mapping '$mapping_name' already exists"
-            rm -f "$temp_file"
-            return 0
-        fi
-    fi
-    rm -f "$temp_file"
+    # Create OIDC integration
+    local temp_response=$(mktemp)
+    local response_code=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+        --header "Content-Type: application/json" \
+        -X POST \
+        -d "$integration_payload" \
+        --write-out "%{http_code}" \
+        --output "$temp_response" \
+        "${JFROG_URL}/access/api/v1/oidc")
     
-    # Create mapping payload
-    local payload
-    payload=$(build_oidc_mapping_payload \
-        "$mapping_name" \
-        "$integration_name" \
-        "$username")
+    case "$response_code" in
+        200|201)
+            echo "✅ OIDC integration '$integration_name' created successfully (HTTP $response_code)"
+            ;;
+        409)
+            echo "⚠️  OIDC integration '$integration_name' already exists (HTTP $response_code)"
+            ;;
+        400)
+            # Check if it's the "already exists" error
+            if grep -q -i "already exists\|integration.*exists" "$temp_response"; then
+                echo "⚠️  OIDC integration '$integration_name' already exists (HTTP $response_code)"
+            else
+                echo "❌ Failed to create OIDC integration '$integration_name' (HTTP $response_code)"
+                echo "Response body: $(cat "$temp_response")"
+                rm -f "$temp_response"
+                return 1
+            fi
+            ;;
+        *)
+            echo "❌ Failed to create OIDC integration '$integration_name' (HTTP $response_code)"
+            echo "Response body: $(cat "$temp_response")"
+            rm -f "$temp_response"
+            return 1
+            ;;
+    esac
     
-    # Create mapping
-    local response_code
-    response_code=$(make_api_call POST \
-        "${JFROG_URL}/access/api/v1/oidc/${integration_name}/identity_mappings" \
-        "$payload")
+    rm -f "$temp_response"
     
-    handle_api_response "$response_code" "Identity mapping '$mapping_name'" "creation"
+    # Create identity mapping
+    echo "Creating identity mapping for: $integration_name → $username"
+    
+    # Build identity mapping payload
+    local mapping_payload=$(jq -n \
+        --arg name "$integration_name" \
+        --arg priority "1" \
+        --arg claims_json "{\"repository\": \"yonatanp-jfrog/bookverse-${service_name}\"}" \
+        --arg token_spec "{\"username\": \"$username\", \"scope\": \"applied-permissions/user\"}" \
+        '{
+            "name": $name,
+            "description": ("Identity mapping for " + $name),
+            "priority": ($priority | tonumber),
+            "claims_json": $claims_json,
+            "token_spec": ($token_spec | fromjson)
+        }')
+    
+    # Create identity mapping
+    local temp_response2=$(mktemp)
+    local response_code2=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+        --header "Content-Type: application/json" \
+        -X POST \
+        -d "$mapping_payload" \
+        --write-out "%{http_code}" \
+        --output "$temp_response2" \
+        "${JFROG_URL}/access/api/v1/oidc/${integration_name}/identity_mappings")
+    
+    case "$response_code2" in
+        200|201)
+            echo "✅ Identity mapping for '$integration_name' created successfully (HTTP $response_code2)"
+            ;;
+        409)
+            echo "⚠️  Identity mapping for '$integration_name' already exists (HTTP $response_code2)"
+            ;;
+        400)
+            # Check if it's the "already exists" error
+            if grep -q -i "already exists\|mapping.*exists" "$temp_response2"; then
+                echo "⚠️  Identity mapping for '$integration_name' already exists (HTTP $response_code2)"
+            else
+                echo "❌ Failed to create identity mapping for '$integration_name' (HTTP $response_code2)"
+                echo "Response body: $(cat "$temp_response2")"
+                rm -f "$temp_response2"
+                return 1
+            fi
+            ;;
+        *)
+            echo "❌ Failed to create identity mapping for '$integration_name' (HTTP $response_code2)"
+            echo "Response body: $(cat "$temp_response2")"
+            rm -f "$temp_response2"
+            return 1
+            ;;
+    esac
+    
+    rm -f "$temp_response2"
+    echo ""
 }
 
-# Process a complete OIDC configuration
-process_oidc_config() {
-    local config="$1"
-    IFS='|' read -r service_name username display_name <<< "$config"
-    
-    log_step "Processing $display_name"
-    
-    # Create integration and mapping
-    create_oidc_integration "$service_name" && \
-    create_oidc_identity_mapping "$service_name" "$username"
-}
-
-# =============================================================================
-# MAIN EXECUTION
-# =============================================================================
-
-log_info "OIDC configurations to create:"
-for config in "${OIDC_CONFIGS[@]}"; do
-    IFS='|' read -r service_name username display_name <<< "$config"
+echo "ℹ️  OIDC configurations to create:"
+for oidc_data in "${OIDC_CONFIGS[@]}"; do
+    IFS='|' read -r service_name username display_name <<< "$oidc_data"
     echo "   - $display_name → $username"
 done
 
 echo ""
-
-# Process all OIDC configurations using batch utility
-process_batch "OIDC configurations" "OIDC_CONFIGS" "process_oidc_config"
-
-# Display summary
+echo "🚀 Processing ${#OIDC_CONFIGS[@]} OIDC configurations..."
 echo ""
-log_step "OIDC setup summary"
-echo ""
-for config in "${OIDC_CONFIGS[@]}"; do
-    IFS='|' read -r service_name username display_name <<< "$config"
-    echo "📦 $display_name:"
-    echo "     - Integration: github-${PROJECT_KEY}-${service_name}"
-    echo "     - Issuer: https://token.actions.githubusercontent.com/"
-    echo "     - Identity Mapping: $username (Admin)"
-    echo ""
+
+# Process each OIDC configuration
+for oidc_data in "${OIDC_CONFIGS[@]}"; do
+    IFS='|' read -r service_name username display_name <<< "$oidc_data"
+    
+    create_oidc_integration "$service_name" "$username" "$display_name"
 done
 
-log_success "🔐 Each OIDC integration enables secure GitHub Actions authentication"
-log_success "   for the respective microservice team with appropriate permissions"
+echo "✅ OIDC integration creation completed successfully!"
+echo ""
+echo "🔐 Created OIDC Integrations Summary:"
+for oidc_data in "${OIDC_CONFIGS[@]}"; do
+    IFS='|' read -r service_name username display_name <<< "$oidc_data"
+    echo "   - github-${PROJECT_KEY}-${service_name} → $username"
+done
 
-# Finalize script with standard status reporting
-finalize_script "$(basename "$0")"
+echo ""
+echo "🎯 All OIDC integrations are now configured for GitHub Actions"
+echo "   GitHub workflows can now authenticate to JFrog using OIDC tokens"
+echo ""

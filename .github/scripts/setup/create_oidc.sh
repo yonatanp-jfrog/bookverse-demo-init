@@ -69,9 +69,13 @@ create_oidc_integration() {
             echo "⚠️  OIDC integration '$integration_name' already exists (HTTP $response_code)"
             ;;
         400)
-            # Check if it's the "already exists" error
+            # Check if it's the "already exists" error or organization validation issue
             if grep -q -i "already exists\|integration.*exists" "$temp_response"; then
                 echo "⚠️  OIDC integration '$integration_name' already exists (HTTP $response_code)"
+            elif grep -q -i "organization.*not valid\|oidc_setting.*organization" "$temp_response"; then
+                echo "⚠️  OIDC integration '$integration_name' - organization validation issue (not critical)"
+                echo "Response body: $(cat "$temp_response")"
+                echo "Note: OIDC integration may require manual setup or different configuration"
             else
                 echo "❌ Failed to create OIDC integration '$integration_name' (HTTP $response_code)"
                 echo "Response body: $(cat "$temp_response")"
@@ -163,15 +167,16 @@ for oidc_data in "${OIDC_CONFIGS[@]}"; do
     create_oidc_integration "$service_name" "$username" "$display_name"
 done
 
-echo "✅ OIDC integration creation completed successfully!"
+echo "✅ OIDC integration process completed!"
 echo ""
-echo "🔐 Created OIDC Integrations Summary:"
+echo "🔐 OIDC Integrations Summary:"
 for oidc_data in "${OIDC_CONFIGS[@]}"; do
     IFS='|' read -r service_name username display_name <<< "$oidc_data"
     echo "   - github-${PROJECT_KEY}-${service_name} → $username"
 done
 
 echo ""
-echo "🎯 All OIDC integrations are now configured for GitHub Actions"
-echo "   GitHub workflows can now authenticate to JFrog using OIDC tokens"
+echo "🎯 OIDC integrations setup completed"
+echo "   Successfully created integrations are ready for GitHub Actions"
+echo "   Any integrations with validation issues may require manual setup"
 echo ""

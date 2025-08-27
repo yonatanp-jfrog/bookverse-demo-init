@@ -36,7 +36,7 @@ jobs:
 
       - name: Configure JFrog CLI
         run: |
-          jf c add --interactive=false --url "${{ vars.JFROG_URL }}" --access-token ""
+          jf c add --interactive=false --url "${{ vars.JFROG_URL }}" --access-token "${{ secrets.JFROG_ACCESS_TOKEN }}"
           jf c show
 
       - name: Set up Python
@@ -332,7 +332,7 @@ jobs:
 
       - name: Configure JFrog CLI
         run: |
-          jf c add --interactive=false --url "${{ vars.JFROG_URL }}" --access-token ""
+          jf c add --interactive=false --url "${{ vars.JFROG_URL }}" --access-token "${{ secrets.JFROG_ACCESS_TOKEN }}"
           jf c show
 
       - name: Set AppTrust variables and determine version

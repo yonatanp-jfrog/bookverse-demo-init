@@ -80,6 +80,19 @@ create_repository() {
         409)
             echo "⚠️  Repository '$repo_key' already exists (HTTP $response_code)"
             ;;
+        400)
+            # Check if it's the "already exists" error which should be treated as success
+            if grep -q "already exists" "$temp_response"; then
+                echo "⚠️  Repository '$repo_key' already exists (HTTP $response_code)"
+            else
+                echo "❌ Failed to create repository '$repo_key' (HTTP $response_code)"
+                echo "Response body: $(cat "$temp_response")"
+                echo "Repository config sent:"
+                echo "$repo_config" | jq .
+                rm -f "$temp_response"
+                return 1
+            fi
+            ;;
         *)
             echo "❌ Failed to create repository '$repo_key' (HTTP $response_code)"
             echo "Response body: $(cat "$temp_response")"

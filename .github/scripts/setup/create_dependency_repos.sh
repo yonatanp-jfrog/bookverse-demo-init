@@ -24,20 +24,25 @@ create_remote_repository() {
     local package_type="$2"
     local url="$3"
     local description="$4"
+    local registry_url="$5"
     
-    # Build remote repository config; PyPI uses pypiRegistryUrl instead of url
+    # Build remote repository config; for PyPI set both url (files host) and pypiRegistryUrl (index)
     if [[ "$package_type" == "pypi" ]]; then
+        # Default registry_url to https://pypi.org if not provided
+        local effective_registry_url=${registry_url:-"https://pypi.org"}
         local repo_config=$(jq -n \
             --arg key "$repo_key" \
             --arg rclass "remote" \
             --arg packageType "$package_type" \
-            --arg pypiRegistryUrl "$url" \
+            --arg url "$url" \
+            --arg pypiRegistryUrl "$effective_registry_url" \
             --arg description "$description" \
             --arg projectKey "$PROJECT_KEY" \
             '{
                 "key": $key,
                 "rclass": $rclass,
                 "packageType": $packageType,
+                "url": $url,
                 "pypiRegistryUrl": $pypiRegistryUrl,
                 "description": $description,
                 "projectKey": $projectKey
@@ -235,8 +240,9 @@ echo "=== Creating Python Dependency Repositories ==="
 create_remote_repository \
     "${PROJECT_KEY}-pypi-remote" \
     "pypi" \
-    "https://pypi.org" \
-    "Remote proxy for PyPI.org - Python packages"
+    "https://files.pythonhosted.org" \
+    "Remote proxy for PyPI.org - Python packages" \
+    "https://pypi.org"
 
 # Create Python local cache repository
 create_local_cache_repository \

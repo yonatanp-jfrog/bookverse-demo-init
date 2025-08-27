@@ -44,6 +44,7 @@ create_remote_repository() {
                 "packageType": $packageType,
                 "url": $url,
                 "pypiRegistryUrl": $pypiRegistryUrl,
+                "listRemoteFolderItems": true,
                 "description": $description,
                 "projectKey": $projectKey
             }')
@@ -60,6 +61,7 @@ create_remote_repository() {
                 "rclass": $rclass,
                 "packageType": $packageType,
                 "url": $url,
+                "listRemoteFolderItems": true,
                 "description": $description,
                 "projectKey": $projectKey
             }')

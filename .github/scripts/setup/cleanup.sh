@@ -315,8 +315,8 @@ delete_resource() {
                             if [[ "$resource_type" == "repositories" ]]; then
                                 sleep 1
                                 local verify_code=$(jf rt curl -X GET "/api/repositories/$item" --write-out "%{http_code}" --output /dev/null --silent)
-                                if [[ "$verify_code" -eq $HTTP_NOT_FOUND ]]; then
-                                    echo "Deletion confirmed - repository no longer exists"
+                                if [[ "$verify_code" -eq $HTTP_NOT_FOUND ]] || [[ "$verify_code" -eq $HTTP_BAD_REQUEST ]]; then
+                                    echo "Deletion confirmed - repository no longer exists (HTTP $verify_code)"
                                 else
                                     echo "Warning: Repository may still exist (HTTP $verify_code)"
                                 fi

@@ -33,11 +33,11 @@ jobs:
           fi
           echo "✅ Cleanup confirmed. Proceeding with BookVerse project cleanup..."
 
-      - name: Cleanup BookVerse Project (Robust)
+      - name: Cleanup BookVerse Project
         env:
           JFROG_URL: ${{ vars.JFROG_URL }}
           JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
-        run: ./.github/scripts/setup/cleanup_robust.sh
+        run: ./.github/scripts/setup/cleanup.sh
       
       # Note: This will completely remove the BookVerse project and all resources!
       # Use with caution - this action cannot be undone.

@@ -242,7 +242,7 @@ echo "=== Creating Python Dependency Repositories ==="
 create_remote_repository \
     "${PROJECT_KEY}-pypi-remote" \
     "pypi" \
-    "https://files.pythonhosted.org" \
+    "https://pypi.org" \
     "Remote proxy for PyPI.org - Python packages" \
     "https://pypi.org"
 

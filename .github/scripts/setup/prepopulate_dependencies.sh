@@ -118,8 +118,7 @@ cache_python_package "uvicorn" "0.30.0"
 cache_python_package "pydantic" "2.5.0"
 cache_python_package "sqlalchemy" "2.0.23"
 
-# Security and SBOM tools
-cache_python_package "cyclonedx-bom" "4.3.0"
+# Security tools
 cache_python_package "safety" "3.2.7"
 
 # Code quality tools
@@ -151,7 +150,6 @@ cache_npm_package "jsdom" "25.0.0"
 
 # Security tools
 cache_npm_package "audit-ci" "7.1.0"
-cache_npm_package "@cyclonedx/cyclonedx-npm" "1.19.3"
 
 echo ""
 echo "=== Pre-populating Docker base images ==="
@@ -170,9 +168,6 @@ cache_docker_image "nginx" "1.25-alpine"
 # Utility images for CI/CD
 cache_docker_image "alpine" "3.18"
 cache_docker_image "ubuntu" "22.04"
-
-# SBOM generation tools
-cache_docker_image "anchore/syft" "latest"
 
 echo ""
 echo "✅ Dependency pre-population completed successfully!"

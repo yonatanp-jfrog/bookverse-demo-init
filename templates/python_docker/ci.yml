@@ -44,97 +44,62 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Configure pip to use Artifactory
+      - name: Configure JFrog pip integration
         run: |
           SERVICE_NAME=$(echo ${{ github.event.repository.name }} | sed 's/bookverse-//')
-          
-          # Create pip configuration to use Artifactory virtual repository
-          mkdir -p ~/.pip
-          cat > ~/.pip/pip.conf << EOF
-          [global]
-          index-url = ${{ vars.JFROG_URL }}/artifactory/api/pypi/${{ vars.PROJECT_KEY }}-pypi-virtual/simple
-          trusted-host = $(echo "${{ vars.JFROG_URL }}" | sed 's|https://||' | sed 's|http://||')
-          extra-index-url = https://pypi.org/simple
-          
-          [install]
-          trusted-host = $(echo "${{ vars.JFROG_URL }}" | sed 's|https://||' | sed 's|http://||')
-          EOF
-          
-          echo "✅ Configured pip to use Artifactory repository: ${{ vars.PROJECT_KEY }}-pypi-virtual"
+          jf pipc --repo-resolve=${{ vars.PROJECT_KEY }}-pypi-virtual
+          echo "✅ Configured JFrog pip integration with repository: ${{ vars.PROJECT_KEY }}-pypi-virtual"
 
-      - name: Install build dependencies from Artifactory
+      - name: Install build dependencies via JFrog CLI
         run: |
           python -m pip install --upgrade pip
-          pip install build twine pytest pytest-cov httpx cyclonedx-bom
-          echo "✅ Installed build dependencies from Artifactory"
+          jf pip install build twine pytest pytest-cov httpx
+          echo "✅ Installed build dependencies via JFrog CLI"
 
-      - name: Install project dependencies from Artifactory
+      - name: Install project dependencies via JFrog CLI
         run: |
-          pip install -r requirements.txt
-          echo "✅ Installed project dependencies from Artifactory"
+          jf pip install -r requirements.txt
+          echo "✅ Installed project dependencies via JFrog CLI"
 
       - name: Run tests with coverage
         run: |
           python -m pytest tests/ -v --cov=app --cov-report=xml --cov-report=html
           
-      - name: Build Python packages
-        run: |
-          python -m build
-          ls -la dist/
-
-      - name: Generate Python SBOM
-        run: |
-          cyclonedx-py requirements -o sbom-python.json
-          ls -la *.json
-
-      - name: Build Docker image
+      - name: Set build variables
         run: |
           SERVICE_NAME=$(echo ${{ github.event.repository.name }} | sed 's/bookverse-//')
           IMAGE_TAG=$(echo $GITHUB_SHA | head -c7)
-          IMAGE_NAME="${{ vars.PROJECT_KEY }}-${SERVICE_NAME}-docker-internal-local/${SERVICE_NAME}:${IMAGE_TAG}"
-          docker build -t ${{ vars.DOCKER_REGISTRY }}/$IMAGE_NAME .
-          echo "IMAGE_NAME=$IMAGE_NAME" >> $GITHUB_ENV
+          REGISTRY_URL=$(echo "${{ vars.JFROG_URL }}" | sed 's|https://||' | sed 's|http://||')
+          IMAGE_NAME="$REGISTRY_URL/${{ vars.PROJECT_KEY }}-${SERVICE_NAME}-docker-internal-local/${SERVICE_NAME}:${IMAGE_TAG}"
           echo "SERVICE_NAME=$SERVICE_NAME" >> $GITHUB_ENV
           echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
+          echo "REGISTRY_URL=$REGISTRY_URL" >> $GITHUB_ENV
+          echo "IMAGE_NAME=$IMAGE_NAME" >> $GITHUB_ENV
+          echo "BUILD_NAME=$SERVICE_NAME" >> $GITHUB_ENV
+          echo "BUILD_NUMBER=$IMAGE_TAG" >> $GITHUB_ENV
 
-      - name: Generate Docker SBOM
+      - name: Build Python packages via JFrog CLI
         run: |
-          # Use Syft from Artifactory Docker virtual repository if available, fallback to Docker Hub
-          SYFT_IMAGE="${{ vars.DOCKER_REGISTRY }}/${{ vars.PROJECT_KEY }}-dockerhub-virtual/anchore/syft:latest"
-          docker pull $SYFT_IMAGE 2>/dev/null || SYFT_IMAGE="anchore/syft:latest"
-          
-          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
-            $SYFT_IMAGE ${{ vars.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }} -o cyclonedx-json=sbom-docker.json || \
-            echo '{"bomFormat": "CycloneDX", "specVersion": "1.4", "components": []}' > sbom-docker.json
-          
-          echo "✅ Generated Docker SBOM using image: $SYFT_IMAGE"
-
-      - name: Login to Docker registry
-        run: |
-          jf docker login "${{ vars.DOCKER_REGISTRY }}"
-
-      - name: Push Python packages
-        run: |
+          python -m build
           jf rt upload "dist/*.whl" "${{ vars.PROJECT_KEY }}-${{ env.SERVICE_NAME }}-python-internal-local/" \
-            --build-name="${{ env.SERVICE_NAME }}" --build-number="${{ env.IMAGE_TAG }}"
+            --build-name="${{ env.BUILD_NAME }}" --build-number="${{ env.BUILD_NUMBER }}"
           jf rt upload "dist/*.tar.gz" "${{ vars.PROJECT_KEY }}-${{ env.SERVICE_NAME }}-python-internal-local/" \
-            --build-name="${{ env.SERVICE_NAME }}" --build-number="${{ env.IMAGE_TAG }}"
+            --build-name="${{ env.BUILD_NAME }}" --build-number="${{ env.BUILD_NUMBER }}"
+          echo "✅ Built and uploaded Python packages via JFrog CLI"
 
-      - name: Push Docker image
+      - name: Build and push Docker image via JFrog CLI
         run: |
-          docker push ${{ vars.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}
+          jf docker build --pull -t ${{ env.IMAGE_NAME }} .
+          jf rt dp ${{ env.IMAGE_NAME }} ${{ vars.PROJECT_KEY }}-${{ env.SERVICE_NAME }}-docker-internal-local \
+            --build-name=${{ env.BUILD_NAME }} --build-number=${{ env.BUILD_NUMBER }}
+          echo "✅ Built and pushed Docker image via JFrog CLI"
 
-      - name: Upload SBOMs and test results
+      - name: Upload test results
         run: |
-          jf rt upload "sbom-*.json" "${{ vars.PROJECT_KEY }}-${{ env.SERVICE_NAME }}-generic-internal-local/sbom/" \
-            --build-name="${{ env.SERVICE_NAME }}" --build-number="${{ env.IMAGE_TAG }}"
           jf rt upload "coverage.xml" "${{ vars.PROJECT_KEY }}-${{ env.SERVICE_NAME }}-generic-internal-local/reports/" \
-            --build-name="${{ env.SERVICE_NAME }}" --build-number="${{ env.IMAGE_TAG }}" || echo "No coverage report found"
+            --build-name="${{ env.BUILD_NAME }}" --build-number="${{ env.BUILD_NUMBER }}" || echo "No coverage report found"
           jf rt upload "htmlcov/**" "${{ vars.PROJECT_KEY }}-${{ env.SERVICE_NAME }}-generic-internal-local/reports/coverage/" \
-            --build-name="${{ env.SERVICE_NAME }}" --build-number="${{ env.IMAGE_TAG }}" || echo "No HTML coverage found"
-
-      - name: Publish build info
-        run: |
-          jf rt build-publish "${{ env.SERVICE_NAME }}" "${{ env.IMAGE_TAG }}"
+            --build-name="${{ env.BUILD_NAME }}" --build-number="${{ env.BUILD_NUMBER }}" || echo "No HTML coverage found"
+          echo "✅ Uploaded test results via JFrog CLI"
 
 

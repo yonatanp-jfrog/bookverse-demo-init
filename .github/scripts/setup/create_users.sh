@@ -1,24 +1,24 @@
 #!/usr/bin/env bash
 
 # =============================================================================
-# OPTIMIZED USER CREATION SCRIPT
+# SIMPLIFIED USER CREATION SCRIPT
 # =============================================================================
-# Creates BookVerse users and assigns project roles using shared utilities
-# Demonstrates 80% code reduction from original script
-# =============================================================================
-
-# Load shared utilities and configuration
-source "$(dirname "$0")/common.sh"
-
-# Initialize script with error handling and validation
-init_script "$(basename "$0")" "Creating BookVerse users and assigning project roles"
-
-# =============================================================================
-# USER CONFIGURATION DATA
+# Creates BookVerse users and assigns project roles without shared utility dependencies
 # =============================================================================
 
-# Define users with their roles
-declare -a BOOKVERSE_USERS=(
+set -e
+
+# Load configuration
+source "$(dirname "$0")/config.sh"
+
+echo ""
+echo "🚀 Creating BookVerse users and assigning project roles"
+echo "🔧 Project: $PROJECT_KEY"
+echo "🔧 JFrog URL: $JFROG_URL"
+echo ""
+
+# User definitions: username|email|password|role
+BOOKVERSE_USERS=(
     "alice.developer@bookverse.com|alice.developer@bookverse.com|BookVerse2024!|Developer"
     "bob.release@bookverse.com|bob.release@bookverse.com|BookVerse2024!|Release Manager"
     "charlie.devops@bookverse.com|charlie.devops@bookverse.com|BookVerse2024!|Project Manager"
@@ -34,18 +34,14 @@ declare -a BOOKVERSE_USERS=(
 )
 
 # Platform owners get Project Admin privileges
-declare -a PLATFORM_OWNERS=(
+PLATFORM_OWNERS=(
     "diana.architect@bookverse.com"
     "edward.manager@bookverse.com"
     "charlie.devops@bookverse.com"
     "bob.release@bookverse.com"
 )
 
-# =============================================================================
-# USER PROCESSING FUNCTIONS
-# =============================================================================
-
-# Check if user is a platform owner
+# Function to check if user is a platform owner
 is_platform_owner() {
     local username="$1"
     for owner in "${PLATFORM_OWNERS[@]}"; do
@@ -54,66 +50,127 @@ is_platform_owner() {
     return 1
 }
 
-# Process a single user
-process_user() {
-    local user_data="$1"
-    IFS='|' read -r username email password role <<< "$user_data"
+# Function to create a user
+create_user() {
+    local username="$1"
+    local email="$2"
+    local password="$3"
+    local role="$4"
     
-    log_info "Processing user: $username ($role)"
+    echo "Creating user: $username ($role)"
     
-    # Build user payload
-    local user_payload
-    user_payload=$(build_user_payload "$username" "$email" "$password" "$role")
+    # Build user JSON payload
+    local user_payload=$(jq -n \
+        --arg name "$username" \
+        --arg email "$email" \
+        --arg password "$password" \
+        '{
+            "name": $name,
+            "email": $email,
+            "password": $password,
+            "admin": false,
+            "profileUpdatable": true,
+            "disableUIAccess": false,
+            "groups": ["readers"]
+        }')
     
     # Create user
-    local response_code
-    response_code=$(make_api_call POST \
-        "${JFROG_URL}/api/security/users" \
-        "$user_payload")
+    local temp_response=$(mktemp)
+    local response_code=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+        --header "Content-Type: application/json" \
+        -X PUT \
+        -d "$user_payload" \
+        --write-out "%{http_code}" \
+        --output "$temp_response" \
+        "${JFROG_URL}/artifactory/api/security/users/${username}")
     
-    if ! handle_api_response "$response_code" "User '$username'" "creation"; then
-        return 1
-    fi
+    case "$response_code" in
+        200|201)
+            echo "✅ User '$username' created successfully (HTTP $response_code)"
+            ;;
+        409)
+            echo "⚠️  User '$username' already exists (HTTP $response_code)"
+            ;;
+        400)
+            # Check if it's the "already exists" error
+            if grep -q -i "already exists\|user.*exists" "$temp_response"; then
+                echo "⚠️  User '$username' already exists (HTTP $response_code)"
+            else
+                echo "❌ Failed to create user '$username' (HTTP $response_code)"
+                echo "Response body: $(cat "$temp_response")"
+                rm -f "$temp_response"
+                return 1
+            fi
+            ;;
+        *)
+            echo "❌ Failed to create user '$username' (HTTP $response_code)"
+            echo "Response body: $(cat "$temp_response")"
+            rm -f "$temp_response"
+            return 1
+            ;;
+    esac
     
-    # Assign project role if platform owner
-    if is_platform_owner "$username"; then
-        assign_project_role "$username" "Project Admin"
-    fi
-    
-    return 0
+    rm -f "$temp_response"
 }
 
-# Assign project role to user
+# Function to assign project role
 assign_project_role() {
     local username="$1"
-    local role="$2"
+    local role_name="$2"
     
-    log_info "Assigning '$role' role to $username for project $PROJECT_KEY"
+    echo "Assigning '$role_name' role to $username for project $PROJECT_KEY"
     
-    local role_payload
-    role_payload=$(jq -n \
+    # Build role assignment payload
+    local role_payload=$(jq -n \
         --arg user "$username" \
-        --arg role "$role" \
+        --arg role "$role_name" \
         '{
             "member": $user,
             "roles": [$role]
         }')
     
-    local response_code
-    response_code=$(make_api_call PUT \
-        "${JFROG_URL}/access/api/v1/projects/${PROJECT_KEY}/users/${username}" \
-        "$role_payload")
+    # Assign role
+    local temp_response=$(mktemp)
+    local response_code=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+        --header "Content-Type: application/json" \
+        -X PUT \
+        -d "$role_payload" \
+        --write-out "%{http_code}" \
+        --output "$temp_response" \
+        "${JFROG_URL}/access/api/v1/projects/${PROJECT_KEY}/users/${username}")
     
-    handle_api_response "$response_code" "Project role for '$username'" "assignment"
+    case "$response_code" in
+        200|201)
+            echo "✅ Role '$role_name' assigned to '$username' successfully (HTTP $response_code)"
+            ;;
+        409)
+            echo "⚠️  Role '$role_name' already assigned to '$username' (HTTP $response_code)"
+            ;;
+        400)
+            # Check if it's the "already assigned" error
+            if grep -q -i "already.*assign\|role.*exists" "$temp_response"; then
+                echo "⚠️  Role '$role_name' already assigned to '$username' (HTTP $response_code)"
+            else
+                echo "❌ Failed to assign role '$role_name' to '$username' (HTTP $response_code)"
+                echo "Response body: $(cat "$temp_response")"
+                rm -f "$temp_response"
+                return 1
+            fi
+            ;;
+        *)
+            echo "❌ Failed to assign role '$role_name' to '$username' (HTTP $response_code)"
+            echo "Response body: $(cat "$temp_response")"
+            rm -f "$temp_response"
+            return 1
+            ;;
+    esac
+    
+    rm -f "$temp_response"
 }
 
-# =============================================================================
-# MAIN EXECUTION
-# =============================================================================
-
-log_info "Users to be created:"
+echo "ℹ️  Users to be created:"
 for user_data in "${BOOKVERSE_USERS[@]}"; do
-    IFS='|' read -r username _ _ role <<< "$user_data"
+    IFS='|' read -r username email password role <<< "$user_data"
     if is_platform_owner "$username"; then
         echo "   - $username ($role) → Project Admin"
     else
@@ -122,9 +179,24 @@ for user_data in "${BOOKVERSE_USERS[@]}"; do
 done
 
 echo ""
+echo "🚀 Processing ${#BOOKVERSE_USERS[@]} users..."
 
-# Process all users using batch utility
-process_batch "users" "BOOKVERSE_USERS" "process_user"
+# Process each user
+for user_data in "${BOOKVERSE_USERS[@]}"; do
+    IFS='|' read -r username email password role <<< "$user_data"
+    
+    echo ""
+    echo "Processing user: $username ($role)"
+    
+    # Create user
+    create_user "$username" "$email" "$password" "$role"
+    
+    # Assign project role if platform owner
+    if is_platform_owner "$username"; then
+        assign_project_role "$username" "Project Admin"
+    fi
+done
 
-# Finalize script with standard status reporting
-finalize_script "$(basename "$0")"
+echo ""
+echo "✅ User creation completed successfully!"
+echo ""

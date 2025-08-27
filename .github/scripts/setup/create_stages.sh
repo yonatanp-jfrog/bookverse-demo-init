@@ -86,8 +86,13 @@ done
 
 echo ""
 
-# Process all stages using batch utility
-process_batch "stages" "LOCAL_STAGES" "process_stage"
+# Process all stages individually (avoiding batch complexity)
+count=0
+for stage_name in "${LOCAL_STAGES[@]}"; do
+    echo ""
+    log_info "[$(( ++count ))/${#LOCAL_STAGES[@]}] Processing stage..."
+    process_stage "$stage_name"
+done
 
 echo ""
 

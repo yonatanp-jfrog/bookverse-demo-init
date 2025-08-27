@@ -35,12 +35,14 @@ create_repository() {
     # Build repository configuration
     local repo_config=$(jq -n \
         --arg key "$repo_key" \
+        --arg rclass "local" \
         --arg packageType "$package_type" \
         --arg description "Repository for $service $package_type packages ($repo_type)" \
         --arg projectKey "$PROJECT_KEY" \
         --argjson environments "[$environments]" \
         '{
             "key": $key,
+            "rclass": $rclass,
             "packageType": $packageType,
             "description": $description,
             "projectKey": $projectKey,

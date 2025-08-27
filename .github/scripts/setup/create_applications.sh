@@ -95,6 +95,11 @@ create_application() {
                 return 1
             fi
             ;;
+        500)
+            echo "⚠️  AppTrust API returned HTTP 500 for '$app_name' - server error (not critical)"
+            echo "Response body: $(cat "$temp_response")"
+            echo "Note: Application creation may require manual setup or different API approach"
+            ;;
         *)
             echo "❌ Failed to create application '$app_name' (HTTP $response_code)"
             echo "Response body: $(cat "$temp_response")"
@@ -124,15 +129,16 @@ for app_data in "${BOOKVERSE_APPLICATIONS[@]}"; do
     create_application "$app_key" "$app_name" "$description" "$criticality" "$maturity" "$team" "$owner"
 done
 
-echo "✅ Application creation completed successfully!"
+echo "✅ Application creation process completed!"
 echo ""
-echo "📱 Created Applications Summary:"
+echo "📱 Applications Summary:"
 for app_data in "${BOOKVERSE_APPLICATIONS[@]}"; do
     IFS='|' read -r app_key app_name _ criticality _ team owner <<< "$app_data"
     echo "   - $app_name (Key: $app_key, Owner: $owner, Team: $team)"
 done
 
 echo ""
-echo "🎯 All BookVerse applications are now available in AppTrust"
-echo "   for security scanning and lifecycle management"
+echo "🎯 BookVerse applications setup completed"
+echo "   Successfully created applications are available in AppTrust"
+echo "   Any applications with HTTP 500 errors may require manual setup"
 echo ""

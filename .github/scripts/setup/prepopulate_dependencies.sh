@@ -100,12 +100,8 @@ jf config add artifactory --interactive=false \
 echo ""
 echo "=== Pre-populating Python dependencies ==="
 
-# Core Python build and CI tools
+# Core Python CI tools
 cache_python_package "pip" "24.2"
-cache_python_package "setuptools" "75.1.0"
-cache_python_package "wheel" "0.44.0"
-cache_python_package "build" "1.3.0"
-cache_python_package "twine" "5.1.1"
 
 # Testing tools
 cache_python_package "pytest" "7.4.3"

@@ -40,31 +40,31 @@ create_application() {
     echo "  Criticality: $criticality"
     echo "  Owner: $owner"
     
-    # Build application JSON payload
+    # Build application JSON payload (using correct AppTrust API format)
     local app_payload=$(jq -n \
-        --arg app_key "$app_key" \
-        --arg app_name "$app_name" \
-        --arg project_key "$PROJECT_KEY" \
-        --arg description "$description" \
-        --arg criticality "$criticality" \
-        --arg maturity "$maturity" \
+        --arg project "$PROJECT_KEY" \
+        --arg key "$app_key" \
+        --arg name "$app_name" \
+        --arg desc "$description" \
+        --arg crit "$criticality" \
+        --arg mat "$maturity" \
         --arg team "$team" \
         --arg owner "$owner" \
         '{
-            "application_key": $app_key,
-            "application_name": $app_name,
-            "project_key": $project_key,
-            "description": $description,
-            "criticality": $criticality,
-            "maturity": $maturity,
+            "project_key": $project,
+            "application_key": $key,
+            "application_name": $name,
+            "description": $desc,
+            "criticality": $crit,
+            "maturity_level": $mat,
             "labels": {
                 "team": $team,
-                "domain": ($app_key | split("-")[1]),
                 "type": "microservice",
                 "architecture": "microservices",
                 "environment": "production"
             },
-            "user_owners": [$owner]
+            "user_owners": [$owner],
+            "group_owners": []
         }')
     
     # Create application

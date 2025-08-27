@@ -1,7 +1,12 @@
-name: 'Initialize JFrog Platform for BookVerse Demo'
+name: 'Initialize JFrog Platform for BookVerse Demo (Optimized)'
 
 on:
   workflow_dispatch:
+
+env:
+  # Centralized environment variables - reduces 30+ lines of repetition
+  JFROG_URL: ${{ vars.JFROG_URL }}
+  JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
 
 jobs:
   setup-platform:
@@ -15,69 +20,34 @@ jobs:
         with:
           version: latest
 
-      - name: Configure JFrog CLI for Admin
+      - name: Initialize JFrog Platform
         run: |
-          jfrog config add bookverse-admin --url=${{ vars.JFROG_URL }} --access-token=${{ secrets.JFROG_ADMIN_TOKEN }} --interactive=false
+          # Configure JFrog CLI for admin access
+          jfrog config add bookverse-admin --url="$JFROG_URL" --access-token="$JFROG_ADMIN_TOKEN" --interactive=false
           jfrog config use bookverse-admin
+          
+          # Validate environment and connectivity
+          ./.github/scripts/setup/validate_environment.sh
 
-      - name: Validate JFROG_ADMIN_TOKEN presence
-        env:
-          TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
+      - name: Create Core Infrastructure
         run: |
-          set -euo pipefail
-          if [ -z "${TOKEN}" ]; then
-            echo "❌ JFROG_ADMIN_TOKEN is empty or not configured" >&2
-            exit 1
-          fi
-          echo "✅ JFROG_ADMIN_TOKEN present (length: ${#TOKEN})"
+          # Execute core setup scripts in optimal order
+          ./.github/scripts/setup/create_project.sh
+          ./.github/scripts/setup/create_stages.sh
+          ./.github/scripts/setup/create_repositories.sh
 
-      - name: Preflight JFrog connectivity (HTTP codes)
-        env:
-          JFROG_URL: ${{ vars.JFROG_URL }}
-          JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
+      - name: Setup Users and Applications
         run: |
-          set -euo pipefail
-          URL_NO_SLASH="${JFROG_URL%/}"
-          echo "JFROG_URL=${URL_NO_SLASH}"
-          code_ping=$(curl -s -o /dev/null -w "%{http_code}" "${URL_NO_SLASH}/access/api/v1/system/ping"); echo "GET /access/api/v1/system/ping -> ${code_ping}"
-          code_projects=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" "${URL_NO_SLASH}/access/api/v1/projects"); echo "GET /access/api/v1/projects -> ${code_projects}"
-          code_lifecycle=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" "${URL_NO_SLASH}/access/api/v2/lifecycle/?project_key=bookverse"); echo "GET /access/api/v2/lifecycle -> ${code_lifecycle}"
-          if [ "${code_ping}" != "200" ]; then echo "❌ system/ping failed"; exit 1; fi
-          if [ "${code_projects}" != "200" ]; then echo "❌ projects API unauthorized/failed"; exit 1; fi
+          # Execute user and application setup
+          ./.github/scripts/setup/create_users.sh
+          ./.github/scripts/setup/create_applications.sh
 
-      - name: Create Project
-        env:
-          JFROG_URL: ${{ vars.JFROG_URL }}
-          JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
-        run: ./.github/scripts/setup/create_project.sh
+      - name: Configure Security Integration
+        run: |
+          # Configure OIDC integrations for GitHub Actions
+          ./.github/scripts/setup/create_oidc.sh
 
-      # Reordered: stages first, then repositories (repos require stage environments)
-      - name: Create AppTrust Stages
-        env:
-          JFROG_URL: ${{ vars.JFROG_URL }}
-          JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
-        run: ./.github/scripts/setup/create_stages.sh
-
-      - name: Create Repositories
-        env:
-          JFROG_URL: ${{ vars.JFROG_URL }}
-          JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
-        run: ./.github/scripts/setup/create_repositories.sh
-
-      - name: Create Users
-        env:
-          JFROG_URL: ${{ vars.JFROG_URL }}
-          JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
-        run: ./.github/scripts/setup/create_users.sh
-
-      - name: Create Applications
-        env:
-          JFROG_URL: ${{ vars.JFROG_URL }}
-          JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
-        run: ./.github/scripts/setup/create_applications.sh
-
-      - name: Create OIDC Integrations
-        env:
-          JFROG_URL: ${{ vars.JFROG_URL }}
-          JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
-        run: ./.github/scripts/setup/create_oidc.sh
+      - name: Validate Complete Setup
+        run: |
+          # Final validation of all created resources
+          ./.github/scripts/setup/validate_setup.sh

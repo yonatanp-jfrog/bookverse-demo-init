@@ -64,10 +64,10 @@ get_resource_config() {
     case "$resource_type" in
         "repositories") echo "api/repositories|key|prefix|jf|repositories|api/repositories/{item}" ;;
         "users") echo "api/security/users|name|email_domain|jf|users|api/security/users/{item}" ;;
-        "applications") echo "apptrust/api/v1/applications|application_key|project_key|curl|applications|apptrust/api/v1/applications/{item}" ;;
-        "stages") echo "access/api/v2/stages|name|prefix_dash|curl|project stages|access/api/v2/stages/{item}" ;;
-        "lifecycle") echo "access/api/v2/lifecycle/?project_key=$PROJECT_KEY|promote_stages|lifecycle|curl|lifecycle configuration|access/api/v2/lifecycle/?project_key=$PROJECT_KEY" ;;
-        "project") echo "access/api/v1/projects/$PROJECT_KEY|exists|single|curl|project|access/api/v1/projects/$PROJECT_KEY" ;;
+        "applications") echo "/apptrust/api/v1/applications?project=$PROJECT_KEY|application_key|project_key|curl|applications|/apptrust/api/v1/applications/{item}" ;;
+        "stages") echo "/access/api/v2/stages|name|prefix_dash|curl|project stages|/access/api/v2/stages/{item}" ;;
+        "lifecycle") echo "/access/api/v2/lifecycle/?project_key=$PROJECT_KEY|promote_stages|lifecycle|curl|lifecycle configuration|/access/api/v2/lifecycle/?project_key=$PROJECT_KEY" ;;
+        "project") echo "/access/api/v1/projects/$PROJECT_KEY|exists|single|curl|project|/access/api/v1/projects/$PROJECT_KEY" ;;
     esac
 }
 

@@ -12,8 +12,9 @@ set -euo pipefail
 # - Env: JFROG_URL, JFROG_ADMIN_TOKEN, GH_TOKEN
 # - Tools: openssl, gh, curl, jq
 
-ALIAS_DEFAULT="bookverse-ev-key"
+ALIAS_DEFAULT="BookVerse-Evidence-Key"
 KEY_ALIAS="${EVIDENCE_KEY_ALIAS:-$ALIAS_DEFAULT}"
+PREVIOUS_ALIAS="${PREVIOUS_EVIDENCE_KEY_ALIAS:-bookverse-ev-key}"
 
 # Service repositories to configure
 SERVICE_REPOS=(
@@ -27,6 +28,7 @@ SERVICE_REPOS=(
 
 echo "🔐 Evidence Keys Setup"
 echo "   🗝️  Alias: $KEY_ALIAS"
+echo "   🔁 Previous alias (if exists): $PREVIOUS_ALIAS"
 echo "   🐸 JFrog: ${JFROG_URL:-unset}"
 
 if [[ -z "${JFROG_URL:-}" || -z "${JFROG_ADMIN_TOKEN:-}" ]]; then
@@ -111,6 +113,25 @@ ENDPOINTS=(
   "$JFROG_URL/artifactory/api/security/keys/trusted"
 )
 
+# Attempt to delete a trusted key by alias (best-effort, ignore errors)
+attempt_delete_alias() {
+  local alias="$1"
+  local del_endpoint
+  local code
+  for base in "${ENDPOINTS[@]}"; do
+    del_endpoint="$base/$alias"
+    code=$(curl -sS -o /dev/null -w "%{http_code}" -X DELETE \
+      "$del_endpoint" \
+      -H "Authorization: Bearer $JFROG_ADMIN_TOKEN" \
+      -H "Content-Type: application/json") || code=000
+    echo "   → DELETE $del_endpoint (HTTP $code)"
+    if [[ "$code" == "200" || "$code" == "204" || "$code" == "404" ]]; then
+      return 0
+    fi
+  done
+  return 0
+}
+
 uploaded=false
 for ep in "${ENDPOINTS[@]}"; do
   if attempt_upload "$ep"; then
@@ -121,6 +142,12 @@ done
 
 if [[ "$uploaded" != true ]]; then
   echo "⚠️ Unable to upload trusted key to JFrog automatically. You can verify locally using --public-keys."
+else
+  # If the alias changed, try to remove the previous alias to avoid confusion
+  if [[ "$PREVIOUS_ALIAS" != "$KEY_ALIAS" && -n "$PREVIOUS_ALIAS" ]]; then
+    echo "🧹 Cleaning up previous trusted key alias: $PREVIOUS_ALIAS"
+    attempt_delete_alias "$PREVIOUS_ALIAS" || true
+  fi
 fi
 
 echo "🎉 Evidence keys setup completed"

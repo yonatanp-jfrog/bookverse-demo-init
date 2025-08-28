@@ -165,25 +165,21 @@ discover_resource() {
     local response_file="$TEMP_DIR/${resource_type}_response.json"
     local items_file="$TEMP_DIR/bookverse_${resource_type}.txt"
     
-    local code=$(make_api_call "GET" "$endpoint" "$response_file" "$client")
+    local code=$(make_api_call "GET" "$endpoint" "$response_file" "curl")
     
-    # Special handling for project resource (try both APIs)
-    if [[ "$resource_type" == "project" ]] && [[ "$code" -eq $HTTP_NOT_FOUND ]]; then
-        echo "Project '$PROJECT_KEY' not found via jf rt curl" >&2
-        # Try alternative API path with curl
-        local code2=$(make_api_call "GET" "$endpoint" "$TEMP_DIR/project_response_alt.txt" "curl")
-        
-        if [[ "$code2" -eq $HTTP_OK ]]; then
-            echo "Project '$PROJECT_KEY' found via direct API" >&2
+    # Special handling for project resource: use REST API only
+    if [[ "$resource_type" == "project" ]]; then
+        if [[ "$code" -eq $HTTP_OK ]]; then
+            echo "Project '$PROJECT_KEY' exists" >&2
             echo "1"
             return
-        elif [[ "$code2" -eq $HTTP_NOT_FOUND ]]; then
-            echo "Project '$PROJECT_KEY' not found via any API method" >&2
+        elif [[ "$code" -eq $HTTP_NOT_FOUND ]]; then
+            echo "Project '$PROJECT_KEY' not found via API" >&2
             echo "0"
             return
         else
-            echo "Project API not accessible (HTTP $code2) - project may exist but not accessible" >&2
-            echo "1"  # Assume exists if API not accessible
+            echo "Project API not accessible (HTTP $code) - assuming project exists for safety" >&2
+            echo "1"
             return
         fi
     fi
@@ -271,16 +267,14 @@ delete_resource() {
             if [[ "$code" -eq $HTTP_OK ]] || [[ "$code" -eq $HTTP_NO_CONTENT ]]; then
                 echo "Project '$PROJECT_KEY' deleted successfully (HTTP $code)"
                 
-                # Verify deletion with both methods
+                # Verify deletion via REST API only
                 sleep 2
-                local verify_code1=$(jf rt curl -X GET "/access/api/v1/projects/$PROJECT_KEY" --write-out "%{http_code}" --output /dev/null --silent)
-                local verify_code2=$(make_api_call "GET" "/access/api/v1/projects/$PROJECT_KEY" "/dev/null" "curl")
-                
-                if [[ "$verify_code1" -eq $HTTP_NOT_FOUND ]] && [[ "$verify_code2" -eq $HTTP_NOT_FOUND ]]; then
+                local verify_code=$(make_api_call "GET" "/access/api/v1/projects/$PROJECT_KEY" "/dev/null" "curl")
+                if [[ "$verify_code" -eq $HTTP_NOT_FOUND ]]; then
                     echo "Deletion confirmed - project no longer exists"
                     return 0
                 else
-                    echo "Warning: Project may still exist (verify codes: $verify_code1, $verify_code2)"
+                    echo "Warning: Project may still exist (verify code: $verify_code)"
                     echo "Project deletion FAILED - resources may still be blocking deletion"
                     return 1
                 fi

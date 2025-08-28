@@ -54,7 +54,7 @@ cache_npm_package() {
     rm -f *.tgz
 }
 
-# Function to pull and cache Docker images
+# Function to pull and cache Docker images (supports Docker Hub library namespace)
 cache_docker_image() {
     local image="$1"
     local tag="${2:-latest}"
@@ -64,9 +64,27 @@ cache_docker_image() {
     local docker_registry_host=$(echo "$JFROG_URL" | sed 's|https://||' | sed 's|http://||')
     local virtual_repo_path="${docker_registry_host}/${PROJECT_KEY}-dockerhub-virtual"
     
-    # Pull through Artifactory virtual repository
-    docker pull "${virtual_repo_path}/$image:$tag" > /dev/null 2>&1 || \
-        echo "⚠️ Warning: Could not cache Docker image $image:$tag"
+    # Official Docker Hub images require the 'library/' prefix when pulled via Artifactory
+    local image_path="$image"
+    if [[ "$image" != */* ]]; then
+        image_path="library/$image"
+    fi
+    
+    # Retry pulls to handle transient network/remote hiccups
+    local attempt
+    for attempt in 1 2 3; do
+        if docker pull "${virtual_repo_path}/${image_path}:$tag" > /dev/null 2>&1; then
+            return 0
+        fi
+        # Fallback: try without 'library/' if the first path failed
+        if [[ "$image_path" == library/* ]]; then
+            if docker pull "${virtual_repo_path}/${image}:$tag" > /dev/null 2>&1; then
+                return 0
+            fi
+        fi
+        sleep $((attempt * 2))
+    done
+    echo "⚠️ Warning: Could not cache Docker image $image:$tag"
 }
 
 echo "=== Configuring JFrog CLI for dependency management ==="
@@ -74,7 +92,7 @@ jf c use bookverse-admin
 
 # Ensure Docker is logged in to the JFrog registry for pulls via virtual repos
 if command -v jf >/dev/null 2>&1; then
-  jf rt docker-login >/dev/null 2>&1 || echo "⚠️ Warning: jf rt docker-login failed; Docker image caching may be skipped"
+  jf rt docker-login --server-id-resolve bookverse-admin >/dev/null 2>&1 || echo "⚠️ Warning: jf rt docker-login failed; Docker image caching may be skipped"
 fi
 
 echo ""

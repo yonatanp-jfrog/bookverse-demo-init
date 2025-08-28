@@ -308,6 +308,38 @@ delete_resource() {
                     if [[ -n "$item" ]]; then
                         echo "Deleting $display_name: $item"
                         
+                        # For applications, delete all versions first (AppTrust requires empty app before deletion)
+                        if [[ "$resource_type" == "applications" ]]; then
+                            echo "  → Discovering versions for application '$item'"
+                            local versions_file="$TEMP_DIR/${item}_versions.json"
+                            local code_versions
+                            code_versions=$(make_api_call "GET" "/apptrust/api/v1/applications/$item/versions?project=$PROJECT_KEY" "$versions_file" "curl")
+                            if [[ "$code_versions" -ge 200 && "$code_versions" -lt 300 ]] && [[ -s "$versions_file" ]]; then
+                                mapfile -t versions < <(jq -r '.versions[]?.version // empty' "$versions_file")
+                                if [[ ${#versions[@]} -gt 0 ]]; then
+                                    echo "  → Found ${#versions[@]} versions; deleting..."
+                                else
+                                    echo "  → No versions found"
+                                fi
+                                for ver in "${versions[@]}"; do
+                                    if [[ -n "$ver" ]]; then
+                                        echo "    - Deleting version $ver"
+                                        local del_ver_code
+                                        del_ver_code=$(make_api_call "DELETE" "/apptrust/api/v1/applications/$item/versions/$ver?project=$PROJECT_KEY" "$TEMP_DIR/delete_${item}_${ver}.txt" "curl")
+                                        if [[ "$del_ver_code" -eq $HTTP_OK ]] || [[ "$del_ver_code" -eq $HTTP_NO_CONTENT ]]; then
+                                            echo "      ✓ Version '$ver' deleted (HTTP $del_ver_code)"
+                                        elif [[ "$del_ver_code" -eq $HTTP_NOT_FOUND ]]; then
+                                            echo "      ⓘ Version '$ver' not found (HTTP $del_ver_code)"
+                                        else
+                                            echo "      ✗ Failed to delete version '$ver' (HTTP $del_ver_code)"
+                                        fi
+                                    fi
+                                done
+                            else
+                                echo "  → Unable to list versions for '$item' (HTTP $code_versions); continuing"
+                            fi
+                        fi
+
                         local delete_endpoint="${delete_pattern/\{item\}/$item}"
                         local code=$(make_api_call "DELETE" "$delete_endpoint" "$TEMP_DIR/delete_${item}.txt" "$client")
                         

@@ -68,8 +68,8 @@ echo ""
 get_resource_config() {
     local resource_type="$1"
     case "$resource_type" in
-        "repositories") echo "/artifactory/api/repositories|key|prefix|jf|repositories|/artifactory/api/repositories/{item}" ;;
-        "users") echo "/access/api/v1/users|username|email_domain|curl|users|/access/api/v1/users/{item}" ;;
+        "repositories") echo "/artifactory/api/repositories?project=$PROJECT_KEY|key|prefix|jf|repositories|/artifactory/api/repositories/{item}" ;;
+        "users") echo "/artifactory/api/security/users|name|email_domain|jf|users|/artifactory/api/security/users/{item}" ;;
         "applications") echo "/apptrust/api/v1/applications?project=$PROJECT_KEY|application_key|project_key|curl|applications|/apptrust/api/v1/applications/{item}" ;;
         "stages") echo "/access/api/v2/stages|name|prefix_dash|curl|project stages|/access/api/v2/stages/{item}" ;;
         "lifecycle") echo "/access/api/v2/lifecycle/?project_key=$PROJECT_KEY|promote_stages|lifecycle|curl|lifecycle configuration|/access/api/v2/lifecycle/?project_key=$PROJECT_KEY" ;;
@@ -144,17 +144,21 @@ make_api_call() {
     else
         # Use curl with proper URL construction (avoid double slashes)
         local base_url="${JFROG_URL%/}"
-        # Add appropriate headers based on endpoint
-        local headers="-H \"Authorization: Bearer ${JFROG_ADMIN_TOKEN}\""
+        # Build curl command with proper headers based on endpoint
         if [[ "$endpoint" == /artifactory/* ]]; then
-            headers="$headers -H \"X-JFrog-Project: ${PROJECT_KEY}\" -H \"Content-Type: application/json\""
-        elif [[ "$endpoint" == /access/* ]]; then
-            headers="$headers -H \"Content-Type: application/json\""
-        elif [[ "$endpoint" == /apptrust/* ]]; then
-            headers="$headers -H \"Content-Type: application/json\""
+            code=$(curl -s -S -L \
+                -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+                -H "X-JFrog-Project: ${PROJECT_KEY}" \
+                -H "Content-Type: application/json" \
+                -X "$method" "${base_url}${endpoint}" \
+                --write-out "%{http_code}" --output "$output_file" $extra_args)
+        else
+            code=$(curl -s -S -L \
+                -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+                -H "Content-Type: application/json" \
+                -X "$method" "${base_url}${endpoint}" \
+                --write-out "%{http_code}" --output "$output_file" $extra_args)
         fi
-        
-        code=$(eval "curl -s -S -L $headers -X \"$method\" \"${base_url}${endpoint}\" --write-out \"%{http_code}\" --output \"$output_file\" $extra_args")
         echo "[HTTP] curl $method ${base_url}${endpoint} (client=$client) -> $code" | tee -a "$HTTP_DEBUG_LOG" >/dev/null
         if [[ "$code" != 2* && -s "$output_file" ]]; then
             echo "[BODY] $(head -c 600 \"$output_file\" | tr '\n' ' ')" >> "$HTTP_DEBUG_LOG"
@@ -186,12 +190,7 @@ apply_filter() {
             fi
             ;;
         "email_domain")
-            # Handle Access API user response format - may be array or object with users array
-            if jq -e 'type == "array"' "$response_file" >/dev/null 2>&1; then
-                jq -r '.[] | select(.email // "" | contains("@bookverse.com")) | .username' "$response_file" > "$output_file"
-            else
-                jq -r '.users[]? // .[] | select(.email // "" | contains("@bookverse.com")) | .username' "$response_file" > "$output_file"
-            fi
+            jq -r '.[] | select(.name | contains("@bookverse.com")) | .name' "$response_file" > "$output_file"
             ;;
         "project_key")
             jq -r --arg project_key "$PROJECT_KEY" '.[] | select(.project_key == $project_key) | .application_key' "$response_file" > "$output_file"
@@ -248,10 +247,10 @@ discover_resource() {
         # Adjust messaging based on resource type
         case "$resource_type" in
             "repositories")
-                echo "Found $count repositories (filtered for '$PROJECT_KEY' prefix)" >&2
+                echo "Found $count repositories with '$PROJECT_KEY' prefix" >&2
                 ;;
             "users")
-                echo "Found $count users with '@bookverse.com' email domain" >&2
+                echo "Found $count users with '@bookverse.com' domain" >&2
                 ;;
             "applications")
                 echo "Found $count applications in project '$PROJECT_KEY'" >&2

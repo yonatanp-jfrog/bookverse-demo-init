@@ -26,7 +26,45 @@ OIDC_CONFIGS=(
     "web|alice.developer@bookverse.com|BookVerse Web"
 )
 
-# Function to create OIDC integration
+# Helper: check if an OIDC integration already exists (best-effort via list API)
+integration_exists() {
+    local name="$1"
+    local tmp=$(mktemp)
+    local code=$(curl -s \
+        --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+        --header "Accept: application/json" \
+        -w "%{http_code}" -o "$tmp" \
+        "${JFROG_URL}/access/api/v1/oidc")
+    if [[ "$code" -ge 200 && "$code" -lt 300 ]]; then
+        if grep -q '"name"\s*:\s*"'"$name"'"' "$tmp" 2>/dev/null; then
+            rm -f "$tmp"
+            return 0
+        fi
+    fi
+    rm -f "$tmp"
+    return 1
+}
+
+# Helper: check if identity mapping exists for an integration (best-effort)
+mapping_exists() {
+    local integration_name="$1"
+    local tmp=$(mktemp)
+    local code=$(curl -s \
+        --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+        --header "Accept: application/json" \
+        -w "%{http_code}" -o "$tmp" \
+        "${JFROG_URL}/access/api/v1/oidc/${integration_name}/identity_mappings")
+    if [[ "$code" -ge 200 && "$code" -lt 300 ]]; then
+        if grep -q '"name"\s*:\s*"'"$integration_name"'"' "$tmp" 2>/dev/null; then
+            rm -f "$tmp"
+            return 0
+        fi
+    fi
+    rm -f "$tmp"
+    return 1
+}
+
+# Function to create OIDC integration (idempotent + retries)
 create_oidc_integration() {
     local service_name="$1"
     local username="$2"
@@ -38,63 +76,76 @@ create_oidc_integration() {
     echo "  User: $username"
     echo "  Display: $display_name"
     
-    # Build OIDC integration payload
+    # Build MINIMAL OIDC integration payload (more compatible across versions)
     local org_name="${ORG:-yonatanp-jfrog}"
     local integration_payload=$(jq -n \
         --arg name "$integration_name" \
         --arg issuer_url "https://token.actions.githubusercontent.com" \
-        --arg provider_type "GitHub" \
-        --arg organization "$org_name" \
         '{
             "name": $name,
-            "description": ("GitHub OIDC integration for " + $name),
-            "issuer_url": $issuer_url,
-            "provider_type": $provider_type,
-            "audience": "jfrog-github",
-            "organization": $organization
+            "issuer_url": $issuer_url
         }')
     
-    # Create OIDC integration
-    local temp_response=$(mktemp)
-    local response_code=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
-        --header "Content-Type: application/json" \
-        -X POST \
-        -d "$integration_payload" \
-        --write-out "%{http_code}" \
-        --output "$temp_response" \
-        "${JFROG_URL}/access/api/v1/oidc")
-    
-    case "$response_code" in
-        200|201)
-            echo "✅ OIDC integration '$integration_name' created successfully (HTTP $response_code)"
-            ;;
-        409)
-            echo "⚠️  OIDC integration '$integration_name' already exists (HTTP $response_code)"
-            ;;
-        400)
-            # Check if it's the "already exists" error or organization validation issue
-            if grep -q -i "already exists\|integration.*exists" "$temp_response"; then
-                echo "⚠️  OIDC integration '$integration_name' already exists (HTTP $response_code)"
-            elif grep -q -i "organization.*not valid\|oidc_setting.*organization" "$temp_response"; then
-                echo "⚠️  OIDC integration '$integration_name' - organization validation issue (not critical)"
-                echo "Response body: $(cat "$temp_response")"
-                echo "Note: OIDC integration may require manual setup or different configuration"
-            else
-                echo "❌ Failed to create OIDC integration '$integration_name' (HTTP $response_code)"
-                echo "Response body: $(cat "$temp_response")"
-                rm -f "$temp_response"
-                return 1
-            fi
-            ;;
-        *)
-            echo "❌ Failed to create OIDC integration '$integration_name' (HTTP $response_code)"
-            echo "Response body: $(cat "$temp_response")"
-            rm -f "$temp_response"
-            return 1
-            ;;
-    esac
-    
-    rm -f "$temp_response"
+    # If integration appears to exist already, skip creation
+    if integration_exists "$integration_name"; then
+        echo "⚠️  OIDC integration '$integration_name' already exists (pre-check)"
+    else
+        # Create OIDC integration with retries on 5xx
+        local attempt
+        for attempt in 1 2 3; do
+            local temp_response=$(mktemp)
+            local response_code=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+                --header "Content-Type: application/json" \
+                -X POST \
+                -d "$integration_payload" \
+                --write-out "%{http_code}" \
+                --output "$temp_response" \
+                "${JFROG_URL}/access/api/v1/oidc")
+
+            case "$response_code" in
+                200|201)
+                    echo "✅ OIDC integration '$integration_name' created successfully (HTTP $response_code)"
+                    rm -f "$temp_response"
+                    break
+                    ;;
+                409)
+                    echo "⚠️  OIDC integration '$integration_name' already exists (HTTP $response_code)"
+                    rm -f "$temp_response"
+                    break
+                    ;;
+                500|502|503|504)
+                    echo "⚠️  Transient error creating '$integration_name' (HTTP $response_code)"
+                    echo "Response body: $(cat "$temp_response")"
+                    rm -f "$temp_response"
+                    # If the resource now exists, stop retrying
+                    if integration_exists "$integration_name"; then
+                        echo "ℹ️  Detected '$integration_name' present after error; continuing"
+                        break
+                    fi
+                    if [[ "$attempt" -lt 3 ]]; then
+                        sleep $((attempt * 3))
+                        continue
+                    else
+                        echo "❌ Failed to create OIDC integration '$integration_name' after retries"
+                        return 1
+                    fi
+                    ;;
+                400)
+                    # Bad request - show response for troubleshooting
+                    echo "❌ Failed to create OIDC integration '$integration_name' (HTTP $response_code)"
+                    echo "Response body: $(cat "$temp_response")"
+                    rm -f "$temp_response"
+                    return 1
+                    ;;
+                *)
+                    echo "❌ Failed to create OIDC integration '$integration_name' (HTTP $response_code)"
+                    echo "Response body: $(cat "$temp_response")"
+                    rm -f "$temp_response"
+                    return 1
+                    ;;
+            esac
+        done
+    fi
     
     # Create identity mapping
     echo "Creating identity mapping for: $integration_name → $username"
@@ -113,47 +164,63 @@ create_oidc_integration() {
             "token_spec": ($token_spec | fromjson)
         }')
     
-    # Create identity mapping
-    local temp_response2=$(mktemp)
-    local response_code2=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
-        --header "Content-Type: application/json" \
-        -X POST \
-        -d "$mapping_payload" \
-        --write-out "%{http_code}" \
-        --output "$temp_response2" \
-        "${JFROG_URL}/access/api/v1/oidc/${integration_name}/identity_mappings")
-    
-    case "$response_code2" in
-        200|201)
-            echo "✅ Identity mapping for '$integration_name' created successfully (HTTP $response_code2)"
-            ;;
-        409)
-            echo "⚠️  Identity mapping for '$integration_name' already exists (HTTP $response_code2)"
-            ;;
-        400)
-            # Check if it's the "already exists" error or claims validation issue
-            if grep -q -i "already exists\|mapping.*exists" "$temp_response2"; then
-                echo "⚠️  Identity mapping for '$integration_name' already exists (HTTP $response_code2)"
-            elif grep -q -i "claims.*empty\|claims.*not.*valid" "$temp_response2"; then
-                echo "⚠️  Identity mapping for '$integration_name' - claims validation issue (not critical)"
-                echo "Response body: $(cat "$temp_response2")"
-                echo "Note: Identity mapping may require manual setup or different claims configuration"
-            else
-                echo "❌ Failed to create identity mapping for '$integration_name' (HTTP $response_code2)"
-                echo "Response body: $(cat "$temp_response2")"
-                rm -f "$temp_response2"
-                return 1
-            fi
-            ;;
-        *)
-            echo "❌ Failed to create identity mapping for '$integration_name' (HTTP $response_code2)"
-            echo "Response body: $(cat "$temp_response2")"
-            rm -f "$temp_response2"
-            return 1
-            ;;
-    esac
-    
-    rm -f "$temp_response2"
+    # Create identity mapping (idempotent + retries)
+    if mapping_exists "$integration_name"; then
+        echo "⚠️  Identity mapping for '$integration_name' already exists (pre-check)"
+    else
+        local attempt2
+        for attempt2 in 1 2 3; do
+            local temp_response2=$(mktemp)
+            local response_code2=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+                --header "Content-Type: application/json" \
+                -X POST \
+                -d "$mapping_payload" \
+                --write-out "%{http_code}" \
+                --output "$temp_response2" \
+                "${JFROG_URL}/access/api/v1/oidc/${integration_name}/identity_mappings")
+
+            case "$response_code2" in
+                200|201)
+                    echo "✅ Identity mapping for '$integration_name' created successfully (HTTP $response_code2)"
+                    rm -f "$temp_response2"
+                    break
+                    ;;
+                409)
+                    echo "⚠️  Identity mapping for '$integration_name' already exists (HTTP $response_code2)"
+                    rm -f "$temp_response2"
+                    break
+                    ;;
+                500|502|503|504|404)
+                    echo "⚠️  Transient error creating identity mapping for '$integration_name' (HTTP $response_code2)"
+                    echo "Response body: $(cat "$temp_response2")"
+                    rm -f "$temp_response2"
+                    if mapping_exists "$integration_name"; then
+                        echo "ℹ️  Detected identity mapping present after error; continuing"
+                        break
+                    fi
+                    if [[ "$attempt2" -lt 3 ]]; then
+                        sleep $((attempt2 * 3))
+                        continue
+                    else
+                        echo "❌ Failed to create identity mapping for '$integration_name' after retries"
+                        return 1
+                    fi
+                    ;;
+                400)
+                    echo "❌ Failed to create identity mapping for '$integration_name' (HTTP $response_code2)"
+                    echo "Response body: $(cat "$temp_response2")"
+                    rm -f "$temp_response2"
+                    return 1
+                    ;;
+                *)
+                    echo "❌ Failed to create identity mapping for '$integration_name' (HTTP $response_code2)"
+                    echo "Response body: $(cat "$temp_response2")"
+                    rm -f "$temp_response2"
+                    return 1
+                    ;;
+            esac
+        done
+    fi
     echo ""
 }
 

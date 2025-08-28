@@ -84,7 +84,44 @@ cache_docker_image() {
         fi
         sleep $((attempt * 2))
     done
-    echo "⚠️ Warning: Could not cache Docker image $image:$tag"
+    echo "⚠️ docker pull failed for $image:$tag via ${virtual_repo_path}; attempting API prefetch"
+
+    # Fallback: Prefetch via Artifactory Docker API (manifest + blobs) using admin token
+    local base_api="${JFROG_URL%/}/artifactory/api/docker/${PROJECT_KEY}-dockerhub-virtual/v2"
+    local manifest_url="$base_api/${image_path}/manifests/$tag"
+    local mf=$(mktemp)
+    local code
+    code=$(curl -sS -L -o "$mf" -w "%{http_code}" \
+        -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+        -H "Accept: application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.manifest.v1+json" \
+        "$manifest_url" 2>/dev/null || echo 000)
+    if [[ "$code" -ge 200 && "$code" -lt 300 ]]; then
+        # Fetch config and layers to warm cache
+        local config_digest
+        config_digest=$(jq -r '.config.digest // empty' "$mf" 2>/dev/null || echo "")
+        if [[ -n "$config_digest" ]]; then
+            curl -sS -L -o /dev/null -w "%{http_code}" \
+                -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+                "$base_api/${image_path}/blobs/${config_digest}" >/dev/null 2>&1 || true
+        fi
+        local digests
+        digests=$(jq -r '.layers[]?.digest // empty' "$mf" 2>/dev/null || echo "")
+        if [[ -n "$digests" ]]; then
+            while IFS= read -r d; do
+                [[ -z "$d" ]] && continue
+                curl -sS -L -o /dev/null -w "%{http_code}" \
+                    -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+                    "$base_api/${image_path}/blobs/${d}" >/dev/null 2>&1 || true
+            done <<< "$digests"
+        fi
+        rm -f "$mf"
+        echo "✅ Prefetched $image:$tag via API"
+        return 0
+    else
+        echo "⚠️ Manifest prefetch failed for $image:$tag (HTTP $code)"
+        echo "⚠️ Warning: Could not cache Docker image $image:$tag"
+        rm -f "$mf"
+    fi
 }
 
 echo "=== Configuring JFrog CLI for dependency management ==="
@@ -96,8 +133,12 @@ if command -v jf >/dev/null 2>&1; then
     echo "⚠️ Warning: jf rt docker-login failed; attempting manual docker login"
     # Manual docker login fallback using admin token
     DOCKER_REG_HOST=$(echo "$JFROG_URL" | sed 's|https://||' | sed 's|http://||')
+    # Try with 'admin' first, then fallback to known user 'yonatan' (or JFROG_DOCKER_USER override)
     if ! echo "$JFROG_ADMIN_TOKEN" | docker login "$DOCKER_REG_HOST" -u admin --password-stdin 2>&1; then
-      echo "⚠️ Manual docker login failed; Docker image caching may be skipped"
+      DOCKER_USER_FALLBACK="${JFROG_DOCKER_USER:-yonatan}"
+      if ! echo "$JFROG_ADMIN_TOKEN" | docker login "$DOCKER_REG_HOST" -u "$DOCKER_USER_FALLBACK" --password-stdin 2>&1; then
+        echo "⚠️ Manual docker login failed; Docker image caching may be skipped"
+      fi
     fi
   fi
 fi

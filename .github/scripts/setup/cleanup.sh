@@ -138,7 +138,7 @@ make_api_call() {
         fi
         echo "[HTTP] $client $method $endpoint -> $code (project=${PROJECT_KEY})" | tee -a "$HTTP_DEBUG_LOG" >/dev/null
         if [[ "$code" != 2* && -s "$output_file" ]]; then
-            echo "[BODY] $(head -c 600 \"$output_file\" | tr '\n' ' ')" >> "$HTTP_DEBUG_LOG"
+            echo "[BODY] $(head -c 600 "$output_file" | tr '\n' ' ')" >> "$HTTP_DEBUG_LOG"
         fi
         echo "$code"
     else
@@ -161,7 +161,7 @@ make_api_call() {
         fi
         echo "[HTTP] curl $method ${base_url}${endpoint} (client=$client) -> $code" | tee -a "$HTTP_DEBUG_LOG" >/dev/null
         if [[ "$code" != 2* && -s "$output_file" ]]; then
-            echo "[BODY] $(head -c 600 \"$output_file\" | tr '\n' ' ')" >> "$HTTP_DEBUG_LOG"
+            echo "[BODY] $(head -c 600 "$output_file" | tr '\n' ' ')" >> "$HTTP_DEBUG_LOG"
         fi
         echo "$code"
     fi

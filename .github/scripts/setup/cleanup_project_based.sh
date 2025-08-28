@@ -3,14 +3,16 @@
 set -e
 
 # =============================================================================
-# PROJECT-BASED BOOKVERSE CLEANUP SCRIPT - SYSTEM STAGE HANDLING VERSION
+# PROJECT-BASED BOOKVERSE CLEANUP SCRIPT - PROJECT-LEVEL STAGE HANDLING
 # =============================================================================
-# 🚨 SYSTEM STAGE HANDLING: Smart handling of undeletable system stages
+# 🚨 CORRECTED STAGE HANDLING: Only target project-level stages, not global/system
 # 
-# SYSTEM STAGE IMPROVEMENTS:
-# - STAGE DELETION: Skip system stages (DEV, QA, PROD, INSTALLED) that can't be deleted
-# - PROJECT DELETION: Accept success even when system stages remain
-# - CLEANUP SUCCESS: Consider cleanup successful if only system resources remain
+# STAGE HANDLING CORRECTED:
+# - DISCOVERY: Only find project-level stages belonging to the target project
+# - DELETION: Only delete project-level stages (not global or system stages)
+# - SYSTEM STAGES: PROD, DEV cannot be deleted (expected)
+# - GLOBAL STAGES: Should NOT be deleted (system-wide, not project-specific)
+# - PROJECT STAGES: Only delete those belonging to bookverse project
 # 
 # API ENDPOINT FIXES:
 # - BUILD DELETION: Changed from REST API to JFrog CLI (jf rt build-delete)
@@ -289,23 +291,25 @@ discover_project_stages() {
     local stages_file="$TEMP_DIR/project_stages.json"
     local filtered_stages="$TEMP_DIR/project_stages.txt"
     
-    # Try multiple stage discovery methods
-    # Method 1: Try project-specific stages endpoint (v1)
-    local code=$(make_api_call "GET" "/access/api/v1/projects/$PROJECT_KEY/stages" "$stages_file" "curl" "" "project stages v1")
+    # PROJECT-LEVEL STAGE DISCOVERY: Only find stages that belong to THIS project
+    # Method 1: Try project-specific stages endpoint (v1) - these are project-level stages
+    local code=$(make_api_call "GET" "/access/api/v1/projects/$PROJECT_KEY/stages" "$stages_file" "curl" "" "project-level stages v1")
     
     if ! is_success "$code"; then
-        # Method 2: Try alternate stages endpoint (v2)
-        echo "Trying alternate stages endpoint..." >&2
-        code=$(make_api_call "GET" "/access/api/v2/stages?projectKey=$PROJECT_KEY" "$stages_file" "curl" "" "project stages v2")
+        # Method 2: Try alternate project-specific endpoint (v2)
+        echo "Trying alternate project-level stages endpoint..." >&2
+        code=$(make_api_call "GET" "/access/api/v2/projects/$PROJECT_KEY/stages" "$stages_file" "curl" "" "project-level stages v2")
         
         if ! is_success "$code"; then
-            # Method 3: Get all stages and filter by project
-            echo "Trying all stages with filtering..." >&2
+            # Method 3: Get all stages and filter ONLY for this project's stages (not global)
+            echo "Getting all stages and filtering for project-level only..." >&2
             code=$(make_api_call "GET" "/access/api/v2/stages" "$stages_file" "curl" "" "all stages")
             
             if is_success "$code" && [[ -s "$stages_file" ]]; then
-                # Filter stages by project key
-                jq --arg project "$PROJECT_KEY" '[.[] | select(.projectKey == $project)]' "$stages_file" > "${stages_file}.filtered" 2>/dev/null || echo "[]" > "${stages_file}.filtered"
+                # Filter for PROJECT-LEVEL stages belonging to this project (not global stages)
+                jq --arg project "$PROJECT_KEY" '[.[] | select(.projectKey == $project and .scope == "project")]' "$stages_file" > "${stages_file}.filtered" 2>/dev/null || 
+                jq --arg project "$PROJECT_KEY" '[.[] | select(.projectKey == $project)]' "$stages_file" > "${stages_file}.filtered" 2>/dev/null || 
+                echo "[]" > "${stages_file}.filtered"
                 mv "${stages_file}.filtered" "$stages_file"
             fi
         fi
@@ -563,64 +567,52 @@ delete_project_builds() {
 # Delete project stages
 delete_project_stages() {
     local count="$1"
-    echo "🗑️ Starting project stage deletion..."
+    echo "🗑️ Starting PROJECT-LEVEL stage deletion..."
+    echo "🔒 SAFETY: Only deleting project-level stages belonging to '$PROJECT_KEY'"
+    echo "⚠️ Skipping: System stages (PROD, DEV) and global stages"
     
     if [[ "$count" -eq 0 ]]; then
-        echo "No project stages to delete"
+        echo "No project-level stages to delete"
         return 0
     fi
     
     local stages_file="$TEMP_DIR/project_stages.txt"
     local deleted_count=0 failed_count=0
-    local skipped_count=0
     
-    # System stages that typically can't be deleted
-    local system_stages=("DEV" "QA" "PROD" "STAGING" "INSTALLED" "PRODUCTION")
-    
+    # Since discovery already filtered for project-level stages only,
+    # we can safely delete all stages found (they belong to this project)
     if [[ -f "$stages_file" ]]; then
         while IFS= read -r stage_name; do
             if [[ -n "$stage_name" ]]; then
-                # Check if this is a system stage
-                local is_system_stage=false
-                for sys_stage in "${system_stages[@]}"; do
-                    if [[ "$stage_name" == "$sys_stage" ]]; then
-                        is_system_stage=true
-                        break
-                    fi
-                done
+                echo "  → Deleting project-level stage: $stage_name"
                 
-                if [[ "$is_system_stage" == true ]]; then
-                    echo "  → Skipping system stage: $stage_name (typically can't be deleted)"
-                    ((skipped_count++))
+                # Delete project-level stage using the project-scoped endpoint
+                local code=$(make_api_call "DELETE" "/access/api/v1/projects/$PROJECT_KEY/stages/$stage_name" "$TEMP_DIR/delete_stage_${stage_name}.txt" "curl" "" "delete project stage $stage_name")
+                
+                if ! is_success "$code"; then
+                    # Fallback to v2 endpoint
+                    echo "    Trying alternate deletion endpoint..."
+                    code=$(make_api_call "DELETE" "/access/api/v2/stages/$stage_name?projectKey=$PROJECT_KEY" "$TEMP_DIR/delete_stage_${stage_name}_v2.txt" "curl" "" "delete project stage v2 $stage_name")
+                fi
+                
+                if is_success "$code"; then
+                    echo "    ✅ Project stage '$stage_name' deleted successfully (HTTP $code)"
+                    ((deleted_count++))
+                elif is_not_found "$code"; then
+                    echo "    ⚠️ Project stage '$stage_name' not found or already deleted (HTTP $code)"
+                    ((deleted_count++))
                 else
-                    echo "  → Deleting custom stage: $stage_name"
-                    
-                    local code=$(make_api_call "DELETE" "/access/api/v2/stages/$stage_name" "$TEMP_DIR/delete_stage_${stage_name}.txt" "curl" "" "delete stage $stage_name")
-                    
-                    if is_success "$code"; then
-                        echo "    ✅ Stage '$stage_name' deleted successfully (HTTP $code)"
-                        ((deleted_count++))
-                    elif is_not_found "$code"; then
-                        echo "    ⚠️ Stage '$stage_name' not found or already deleted (HTTP $code)"
-                        ((deleted_count++))
-                    else
-                        echo "    ❌ Failed to delete stage '$stage_name' (HTTP $code)"
-                        ((failed_count++))
-                    fi
+                    echo "    ❌ Failed to delete project stage '$stage_name' (HTTP $code)"
+                    ((failed_count++))
                 fi
             fi
         done < "$stages_file"
     fi
     
-    echo "🏷️ PROJECT STAGES deletion summary: $deleted_count deleted, $failed_count failed, $skipped_count skipped (system stages)"
+    echo "🏷️ PROJECT-LEVEL STAGES deletion summary: $deleted_count deleted, $failed_count failed"
+    echo "ℹ️ Note: System stages (PROD, DEV) and global stages were not targeted"
     
-    # Consider success if only system stages failed
-    if [[ "$failed_count" -eq 0 ]]; then
-        return 0
-    else
-        echo "⚠️ Note: Failed deletions may be due to system stages that can't be removed"
-        return 0  # Don't fail the entire cleanup for system stages
-    fi
+    return $([[ "$failed_count" -eq 0 ]] && echo 0 || echo 1)
 }
 
 # Delete project lifecycle (enhanced)
@@ -646,26 +638,8 @@ delete_project_lifecycle() {
 delete_project() {
     echo "🗑️ Attempting to delete project '$PROJECT_KEY'..."
     
-    # Try multiple deletion approaches
-    echo "Attempting force deletion..."
-    local code=$(make_api_call "DELETE" "/access/api/v1/projects/$PROJECT_KEY?force=true" "$TEMP_DIR/delete_project.txt" "curl" "" "delete project force")
-    
-    if ! is_success "$code" && [[ "$code" -eq $HTTP_BAD_REQUEST ]]; then
-        echo "Force deletion failed, trying with different parameters..."
-        
-        # Try without force flag
-        code=$(make_api_call "DELETE" "/access/api/v1/projects/$PROJECT_KEY" "$TEMP_DIR/delete_project2.txt" "curl" "" "delete project normal")
-        
-        if ! is_success "$code" && [[ "$code" -eq $HTTP_BAD_REQUEST ]]; then
-            echo "⚠️ Project contains system resources that can't be removed"
-            echo "This is expected for projects with system stages (DEV, QA, PROD, INSTALLED)"
-            echo "Response: $(cat "$TEMP_DIR/delete_project.txt" 2>/dev/null || echo 'No response body')"
-            
-            # For system stages, consider this a successful cleanup
-            echo "✅ Project cleanup completed successfully (system stages remain by design)"
-            return 0
-        fi
-    fi
+    # Try force deletion first
+    local code=$(make_api_call "DELETE" "/access/api/v1/projects/$PROJECT_KEY?force=true" "$TEMP_DIR/delete_project.txt" "curl" "" "delete project")
     
     if is_success "$code"; then
         echo "✅ Project '$PROJECT_KEY' deleted successfully (HTTP $code)"
@@ -673,6 +647,11 @@ delete_project() {
     elif is_not_found "$code"; then
         echo "⚠️ Project '$PROJECT_KEY' not found or already deleted (HTTP $code)"
         return 0
+    elif [[ "$code" -eq $HTTP_BAD_REQUEST ]]; then
+        echo "❌ Failed to delete project '$PROJECT_KEY' (HTTP $code) - contains resources"
+        echo "Response: $(cat "$TEMP_DIR/delete_project.txt" 2>/dev/null || echo 'No response body')"
+        echo "ℹ️ This may be due to remaining system resources or incomplete cleanup"
+        return 1
     else
         echo "❌ Failed to delete project '$PROJECT_KEY' (HTTP $code)"
         return 1

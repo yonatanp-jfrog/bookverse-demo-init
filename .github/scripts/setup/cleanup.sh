@@ -145,8 +145,8 @@ apply_filter() {
             jq -r --arg prefix "$PROJECT_KEY" '.[] | select(.name | startswith($prefix + "-")) | .name' "$response_file" > "$output_file"
             ;;
         "lifecycle")
-            # Write one line per promote stage (so wc -l reflects actual count). Empty file when none.
-            jq -r '.categories[]? | select(.category=="promote") | .stages[]? | .name // empty' "$response_file" > "$output_file"
+            # Write one line per promote stage excluding the mandatory 'prod' stage
+            jq -r '.categories[]? | select(.category=="promote") | .stages[]? | select(.name != "prod") | .name // empty' "$response_file" > "$output_file"
             ;;
         "single")
             echo "1" > "$output_file"  # If we got HTTP 200, resource exists

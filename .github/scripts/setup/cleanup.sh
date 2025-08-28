@@ -129,7 +129,11 @@ apply_filter() {
     
     case "$filter_type" in
         "prefix")
-            jq -r --arg prefix "$PROJECT_KEY" '.[] | select(.key | startswith($prefix)) | .key' "$response_file" > "$output_file"
+            # Exclude internal Artifactory system repos (e.g., *-release-bundles-v2) which cannot be deleted
+            jq -r --arg prefix "$PROJECT_KEY" '.[] 
+              | select(.key | startswith($prefix))
+              | select((.key | test("-release-bundles-v2$")) | not)
+              | .key' "$response_file" > "$output_file"
             ;;
         "email_domain")
             jq -r '.[] | select(.name | contains("@bookverse.com")) | .name' "$response_file" > "$output_file"

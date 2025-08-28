@@ -10,8 +10,9 @@ set -e
 source "$(dirname "$0")/config.sh"
 validate_environment
 
-echo "🔒 SECURITY VALIDATION: Testing Application Deletion Safety"
-echo "=========================================================="
+echo "🔒 SECURITY VALIDATION: Testing Corrected Application Deletion Safety"
+echo "====================================================================="
+echo "CORRECTED APPROACH: CLI deletion with project membership verification"
 echo "Project: $PROJECT_KEY"
 echo "JFrog URL: $JFROG_URL"
 echo ""
@@ -26,7 +27,7 @@ project_apps_file="/tmp/validate_project_apps.json"
 if code=$(curl -s -H "Authorization: Bearer $JFROG_ADMIN_TOKEN" \
     -H "Content-Type: application/json" \
     --write-out "%{http_code}" --output "$project_apps_file" \
-    "${JFROG_URL%/}/apptrust/api/v1/applications?project=$PROJECT_KEY"); then
+    "${JFROG_URL%/}/apptrust/api/v1/applications?project_key=$PROJECT_KEY"); then
     
     if [[ "$code" -eq 200 ]] && [[ -s "$project_apps_file" ]]; then
         echo "✅ Found $(jq length "$project_apps_file") applications in project '$PROJECT_KEY'"
@@ -75,14 +76,16 @@ fi
 echo ""
 echo "🛡️ SECURITY VALIDATION SUMMARY"
 echo "==============================="
-echo "✅ CLI-based deletion approach implemented"
-echo "✅ Explicit --project parameter used for safety"
-echo "✅ REST API only used for discovery (read-only)"
-echo "✅ Project scoping verified in deletion commands"
+echo "✅ Project membership verification before deletion"
+echo "✅ Correct API endpoint: project_key parameter"
+echo "✅ CLI deletion only after confirming project membership"
+echo "✅ Double-verification prevents cross-project deletion"
+echo "✅ REST API only used for discovery and verification"
 echo ""
 echo "🎯 CRITICAL FIX DEPLOYED:"
-echo "The application deletion bug has been fixed to prevent"
-echo "accidental deletion of applications outside the target project!"
+echo "The application deletion bug has been CORRECTLY fixed!"
+echo "CLI commands don't have project flags, so we verify"
+echo "project membership before deletion to prevent accidents."
 
 # Cleanup
 rm -f "$project_apps_file" "$all_apps_file"

@@ -3,20 +3,27 @@
 set -e
 
 # =============================================================================
-# PROJECT-BASED BOOKVERSE CLEANUP SCRIPT - SECURITY FIXED VERSION
+# PROJECT-BASED BOOKVERSE CLEANUP SCRIPT - CORRECTED SECURITY VERSION
 # =============================================================================
-# 🚨 CRITICAL SECURITY FIX: Application deletion now uses CLI with project scoping
+# 🚨 CRITICAL SECURITY FIX: Application deletion with proper verification
 # 
-# SECURITY ISSUE RESOLVED:
-# - PREVIOUS: REST API DELETE endpoints did not properly respect project parameter
-# - RISK: Could delete applications/versions across ALL projects with same name
-# - FIX: Use JFrog CLI commands with explicit --project parameter for safety
+# SECURITY APPROACH CORRECTED:
+# - DISCOVERY: Use GET /apptrust/api/v1/applications?project_key=<PROJECT_KEY>
+# - VERIFICATION: Double-check each app belongs to target project before deletion
+# - DELETION: Use CLI commands only after confirming project membership
+# - SAFETY: CLI commands (jf apptrust app-delete) don't have project flags,
+#           so we MUST verify project membership before deletion
+# 
+# CORRECT API USAGE:
+# - Application discovery: project_key parameter (not project)
+# - Version discovery: project_key parameter for version listing
+# - Pre-deletion verification: Confirm app is in target project list
 # 
 # Investigation Results:
 # - USERS: Project-based finds 4 correct admins vs 12 email-based users
 # - REPOSITORIES: Both approaches find 26, but project-based is correct
 # - BUILDS: Must use project-based filtering
-# - APPLICATIONS: NOW SAFELY SCOPED using CLI (prevents cross-project deletion)
+# - APPLICATIONS: SAFELY VERIFIED before deletion (prevents cross-project deletion)
 # - ALL RESOURCES: Look for project membership, not names containing 'bookverse'
 # =============================================================================
 
@@ -202,8 +209,8 @@ discover_project_applications() {
     local apps_file="$TEMP_DIR/project_applications.json"
     local filtered_apps="$TEMP_DIR/project_applications.txt"
     
-    # This was already correct - using project parameter
-    local code=$(make_api_call "GET" "/apptrust/api/v1/applications?project=$PROJECT_KEY" "$apps_file" "curl" "" "project applications")
+    # Use correct project_key parameter as specified in API documentation
+    local code=$(make_api_call "GET" "/apptrust/api/v1/applications?project_key=$PROJECT_KEY" "$apps_file" "curl" "" "project applications")
     
     if is_success "$code" && [[ -s "$apps_file" ]]; then
         jq -r '.[] | .application_key' "$apps_file" > "$filtered_apps" 2>/dev/null || touch "$filtered_apps"
@@ -365,11 +372,11 @@ delete_project_users() {
     return $([[ "$failed_count" -eq 0 ]] && echo 0 || echo 1)
 }
 
-# Delete project applications (SAFE PROJECT-SCOPED VERSION)
+# Delete project applications (VERIFIED PROJECT-MEMBERSHIP VERSION)
 delete_project_applications() {
     local count="$1"
-    echo "🗑️ Starting SAFE project application deletion..."
-    echo "⚠️ CRITICAL SAFETY: Using CLI with explicit project scoping"
+    echo "🗑️ Starting VERIFIED project application deletion..."
+    echo "⚠️ CRITICAL SAFETY: Verifying project membership before CLI deletion"
     echo "This prevents accidental deletion of applications in other projects"
     echo ""
     
@@ -392,37 +399,59 @@ delete_project_applications() {
             if [[ -n "$app_key" ]]; then
                 echo "  → Deleting application: $app_key"
                 
-                # SAFE PROJECT-SCOPED DELETION: Use JFrog CLI with project context
-                echo "    Deleting versions using CLI (project-scoped)..."
+                # CORRECTED SAFE DELETION: Verify app is in project before deletion
+                echo "    🔒 SAFETY: Confirming application belongs to project '$PROJECT_KEY'..."
                 
-                # Get versions using REST API (already project-scoped)
-                local versions_file="$TEMP_DIR/${app_key}_versions.json"
-                local code_versions=$(make_api_call "GET" "/apptrust/api/v1/applications/$app_key/versions?project=$PROJECT_KEY" "$versions_file" "curl" "" "get app versions")
+                # Double-check this app is actually in our target project
+                local app_verify_file="$TEMP_DIR/verify_${app_key}.json"
+                local verify_code=$(make_api_call "GET" "/apptrust/api/v1/applications?project_key=$PROJECT_KEY" "$app_verify_file" "curl" "" "verify app in project")
                 
-                if is_success "$code_versions" && [[ -s "$versions_file" ]]; then
-                    mapfile -t versions < <(jq -r '.versions[]?.version // empty' "$versions_file")
-                    for ver in "${versions[@]}"; do
-                        [[ -z "$ver" ]] && continue
-                        echo "      - Deleting version $ver (CLI project-scoped)"
-                        
-                        # Use JFrog CLI with project context - MUCH SAFER
-                        if jf apptrust version-delete "$app_key" "$ver" --project="$PROJECT_KEY" 2>/dev/null; then
-                            echo "        ✅ Version $ver deleted successfully"
-                        else
-                            echo "        ⚠️ Version $ver deletion failed or already deleted"
-                        fi
-                    done
+                local app_confirmed=false
+                if is_success "$verify_code" && [[ -s "$app_verify_file" ]]; then
+                    if jq -e --arg app_key "$app_key" '.[] | select(.application_key == $app_key)' "$app_verify_file" >/dev/null 2>&1; then
+                        app_confirmed=true
+                        echo "    ✅ Confirmed: '$app_key' belongs to project '$PROJECT_KEY'"
+                    else
+                        echo "    ❌ SAFETY ABORT: '$app_key' NOT found in project '$PROJECT_KEY' - skipping deletion"
+                    fi
+                else
+                    echo "    ❌ SAFETY ABORT: Cannot verify app project membership (HTTP $verify_code) - skipping deletion"
                 fi
                 
-                # Delete application using CLI (project-scoped)
-                echo "    Deleting application using CLI (project-scoped)..."
-                local code=200  # Default success for CLI approach
+                local code=404  # Default to not found
                 
-                if jf apptrust app-delete "$app_key" --project="$PROJECT_KEY" 2>/dev/null; then
-                    echo "    ✅ Application '$app_key' deleted via CLI (project-scoped)"
+                if [[ "$app_confirmed" == true ]]; then
+                    # Get and delete versions first
+                    echo "    Deleting versions for confirmed project application..."
+                    local versions_file="$TEMP_DIR/${app_key}_versions.json"
+                    local code_versions=$(make_api_call "GET" "/apptrust/api/v1/applications/$app_key/versions?project_key=$PROJECT_KEY" "$versions_file" "curl" "" "get app versions")
+                    
+                    if is_success "$code_versions" && [[ -s "$versions_file" ]]; then
+                        mapfile -t versions < <(jq -r '.versions[]?.version // empty' "$versions_file")
+                        for ver in "${versions[@]}"; do
+                            [[ -z "$ver" ]] && continue
+                            echo "      - Deleting version $ver (CLI - project-verified)"
+                            
+                            # CLI deletion (no project flag available, but we verified app belongs to project)
+                            if jf apptrust version-delete "$app_key" "$ver" 2>/dev/null; then
+                                echo "        ✅ Version $ver deleted successfully"
+                            else
+                                echo "        ⚠️ Version $ver deletion failed or already deleted"
+                            fi
+                        done
+                    fi
+                    
+                    # Delete application (CLI - project membership verified)
+                    echo "    Deleting application (CLI - project-verified)..."
+                    if jf apptrust app-delete "$app_key" 2>/dev/null; then
+                        echo "    ✅ Application '$app_key' deleted successfully"
+                        code=200
+                    else
+                        echo "    ⚠️ Application '$app_key' deletion failed or already deleted"
+                        code=404
+                    fi
                 else
-                    echo "    ⚠️ Application '$app_key' CLI deletion failed or already deleted"
-                    code=404  # Mark as not found for flow control
+                    echo "    🛡️ SAFETY: Skipped deletion due to project verification failure"
                 fi
                 
                 if is_success "$code"; then

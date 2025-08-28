@@ -120,6 +120,7 @@ attempt_upload() {
 ENDPOINTS=(
   "$JFROG_URL/access/api/v1/keys/trusted"
   "$JFROG_URL/artifactory/api/security/keys/trusted"
+  "$JFROG_URL/access/api/v1/projects/${PROJECT_KEY}/keys/trusted"
 )
 
 # Attempt to delete a trusted key by alias (best-effort, ignore errors)
@@ -148,6 +149,25 @@ for ep in "${ENDPOINTS[@]}"; do
     break
   fi
 done
+
+# Additional fallbacks: try query-parameter alias style for Artifactory API
+if [[ "$uploaded" != true ]]; then
+  ALT_EP="$JFROG_URL/artifactory/api/security/keys/trusted?alias=$KEY_ALIAS"
+  resp=$(mktemp)
+  code=$(curl -sS -L -o "$resp" -w "%{http_code}" -X PUT \
+    "$ALT_EP" \
+    -H "Authorization: Bearer $JFROG_ADMIN_TOKEN" \
+    -H "Content-Type: text/plain" \
+    --data-binary @"$WORKDIR/evidence_public.pem") || code=000
+  echo "   → $ALT_EP (HTTP $code)"
+  if [[ "$code" == "200" || "$code" == "201" || "$code" == "204" ]]; then
+    echo "   ✅ Uploaded trusted key"
+    uploaded=true
+  else
+    echo "   Body:"; cat "$resp" || true
+  fi
+  rm -f "$resp"
+fi
 
 if [[ "$uploaded" != true ]]; then
   echo "⚠️ Unable to upload trusted key to JFrog automatically. You can verify locally using --public-keys."

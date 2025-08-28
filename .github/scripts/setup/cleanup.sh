@@ -58,16 +58,22 @@ echo "JFrog URL: ${JFROG_URL}"
 echo "Temp Debug Dir: ${TEMP_DIR}"
 echo ""
 
+# HTTP debug log file
+HTTP_DEBUG_LOG="${TEMP_DIR}/http_calls.log"
+touch "$HTTP_DEBUG_LOG"
+echo "HTTP debug log: $HTTP_DEBUG_LOG"
+echo "" 
+
 # Resource configuration function - more portable than associative arrays
 get_resource_config() {
     local resource_type="$1"
     case "$resource_type" in
-        "repositories") echo "api/repositories|key|prefix|jf|repositories|api/repositories/{item}" ;;
-        "users") echo "api/security/users|name|email_domain|jf|users|api/security/users/{item}" ;;
+        "repositories") echo "/artifactory/api/repositories?project=$PROJECT_KEY|key|prefix|jf|repositories|/artifactory/api/repositories/{item}" ;;
+        "users") echo "/artifactory/api/security/users|name|email_domain|jf|users|/artifactory/api/security/users/{item}" ;;
         "applications") echo "/apptrust/api/v1/applications?project=$PROJECT_KEY|application_key|project_key|curl|applications|/apptrust/api/v1/applications/{item}" ;;
         "stages") echo "/access/api/v2/stages|name|prefix_dash|curl|project stages|/access/api/v2/stages/{item}" ;;
         "lifecycle") echo "/access/api/v2/lifecycle/?project_key=$PROJECT_KEY|promote_stages|lifecycle|curl|lifecycle configuration|/access/api/v2/lifecycle/?project_key=$PROJECT_KEY" ;;
-        "project") echo "/access/api/v1/projects/$PROJECT_KEY|exists|single|curl|project|/access/api/v1/projects/$PROJECT_KEY" ;;
+        "project") echo "/access/api/v1/projects/$PROJECT_KEY|exists|single|curl|project|/access/api/v1/projects/$PROJECT_KEY?force=true" ;;
     esac
 }
 
@@ -106,6 +112,14 @@ else
 fi
 echo ""
 
+# Basic connectivity diagnostics (non-fatal)
+echo "Connectivity diagnostics:"
+PING_ACCESS_CODE=$(curl -sS -L -o /dev/null -w "%{http_code}" "${JFROG_URL%/}/access/api/v1/system/ping" || echo 000)
+PING_ART_CODE=$(curl -sS -L -o /dev/null -w "%{http_code}" "${JFROG_URL%/}/artifactory/api/system/ping" || echo 000)
+echo "  access ping: HTTP $PING_ACCESS_CODE"
+echo "  artifactory ping: HTTP $PING_ART_CODE"
+echo ""
+
 # =============================================================================
 # UTILITY FUNCTIONS  
 # =============================================================================
@@ -116,10 +130,37 @@ make_api_call() {
     local extra_args="${5:-}"
     
     if [[ "$client" == "jf" ]]; then
-        jf rt curl -X "$method" "$endpoint" --write-out "%{http_code}" --output "$output_file" --silent $extra_args
+        # Add project header automatically for Artifactory endpoints
+        if [[ "$endpoint" == /artifactory/* ]]; then
+            code=$(jf rt curl -X "$method" -H "X-JFrog-Project: ${PROJECT_KEY}" "$endpoint" --write-out "%{http_code}" --output "$output_file" --silent $extra_args)
+        else
+            code=$(jf rt curl -X "$method" "$endpoint" --write-out "%{http_code}" --output "$output_file" --silent $extra_args)
+        fi
+        echo "[HTTP] $client $method $endpoint -> $code (project=${PROJECT_KEY})" | tee -a "$HTTP_DEBUG_LOG" >/dev/null
+        if [[ "$code" != 2* && -s "$output_file" ]]; then
+            echo "[BODY] $(head -c 600 \"$output_file\" | tr '\n' ' ')" >> "$HTTP_DEBUG_LOG"
+        fi
+        echo "$code"
     else
         # Use curl with proper URL construction (avoid double slashes)
-        curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" -X "$method" "${JFROG_URL}${endpoint}" --write-out "%{http_code}" --output "$output_file" $extra_args
+        local base_url="${JFROG_URL%/}"
+        if [[ "$endpoint" == /artifactory/* ]]; then
+          code=$(curl -s -S -L \
+            -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+            -H "X-JFrog-Project: ${PROJECT_KEY}" \
+            -X "$method" "${base_url}${endpoint}" \
+            --write-out "%{http_code}" --output "$output_file" $extra_args)
+        else
+          code=$(curl -s -S -L \
+            -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+            -X "$method" "${base_url}${endpoint}" \
+            --write-out "%{http_code}" --output "$output_file" $extra_args)
+        fi
+        echo "[HTTP] curl $method ${base_url}${endpoint} (client=$client) -> $code" | tee -a "$HTTP_DEBUG_LOG" >/dev/null
+        if [[ "$code" != 2* && -s "$output_file" ]]; then
+            echo "[BODY] $(head -c 600 \"$output_file\" | tr '\n' ' ')" >> "$HTTP_DEBUG_LOG"
+        fi
+        echo "$code"
     fi
 }
 
@@ -161,11 +202,12 @@ discover_resource() {
     IFS='|' read -r endpoint key_field filter_type client display_name delete_pattern <<< "$config"
     
     echo "Discovering $display_name with '$PROJECT_KEY' prefix..." >&2
+    echo "[DISCOVER] GET $endpoint (client=$client)" | tee -a "$HTTP_DEBUG_LOG" >/dev/null
     
     local response_file="$TEMP_DIR/${resource_type}_response.json"
     local items_file="$TEMP_DIR/bookverse_${resource_type}.txt"
     
-    local code=$(make_api_call "GET" "$endpoint" "$response_file" "curl")
+    local code=$(make_api_call "GET" "$endpoint" "$response_file" "$client")
     
     # Special handling for project resource: use REST API only
     if [[ "$resource_type" == "project" ]]; then
@@ -219,6 +261,7 @@ discover_resource() {
         echo "$count"
     else
         echo "$(echo "$display_name" | tr '[:lower:]' '[:upper:]') API not accessible (HTTP $code) - may need manual cleanup" >&2
+        echo "[ERROR] $display_name discovery failed: HTTP $code (endpoint=$endpoint, client=$client)" >> "$HTTP_DEBUG_LOG"
         echo "$(echo "$display_name" | tr '[:lower:]' '[:upper:]') API not accessible (HTTP $code)" > "$TEMP_DIR/${resource_type}_api_status.txt"
         echo "0"
     fi
@@ -372,6 +415,62 @@ delete_resource() {
 # MAIN EXECUTION  
 # =============================================================================
 
+# Delete all versions for each application (step 1)
+delete_all_application_versions() {
+    local apps_file="$TEMP_DIR/bookverse_applications.txt"
+    if [[ ! -f "$apps_file" ]]; then
+        echo "No applications list found; skipping versions deletion"
+        return 0
+    fi
+    echo "Deleting all versions for each application..."
+    while IFS= read -r app_key; do
+        [[ -z "$app_key" ]] && continue
+        echo "  → Discovering versions for application '$app_key'"
+        local versions_file="$TEMP_DIR/${app_key}_versions.json"
+        local code_versions
+        code_versions=$(make_api_call "GET" "/apptrust/api/v1/applications/$app_key/versions?project=$PROJECT_KEY" "$versions_file" "curl")
+        if [[ "$code_versions" -ge 200 && "$code_versions" -lt 300 ]] && [[ -s "$versions_file" ]]; then
+            mapfile -t versions < <(jq -r '.versions[]?.version // empty' "$versions_file")
+            if [[ ${#versions[@]} -gt 0 ]]; then
+                echo "  → Found ${#versions[@]} versions; deleting..."
+            else
+                echo "  → No versions found"
+            fi
+            for ver in "${versions[@]}"; do
+                [[ -z "$ver" ]] && continue
+                echo "    - Deleting version $ver"
+                local del_ver_code
+                del_ver_code=$(make_api_call "DELETE" "/apptrust/api/v1/applications/$app_key/versions/$ver?project=$PROJECT_KEY" "$TEMP_DIR/delete_${app_key}_${ver}.txt" "curl")
+                if [[ "$del_ver_code" -eq $HTTP_OK ]] || [[ "$del_ver_code" -eq $HTTP_NO_CONTENT ]]; then
+                    echo "      ✓ Version '$ver' deleted (HTTP $del_ver_code)"
+                elif [[ "$del_ver_code" -eq $HTTP_NOT_FOUND ]]; then
+                    echo "      ⓘ Version '$ver' not found (HTTP $del_ver_code)"
+                else
+                    echo "      ✗ Failed to delete version '$ver' (HTTP $del_ver_code)"
+                fi
+            done
+        else
+            echo "  → Unable to list versions for '$app_key' (HTTP $code_versions); continuing"
+        fi
+    done < "$apps_file"
+}
+
+# Delete all artifacts from each project repository (step 3)
+purge_repository_artifacts() {
+    local repos_file="$TEMP_DIR/bookverse_repositories.txt"
+    if [[ ! -f "$repos_file" ]]; then
+        echo "No repositories list found; skipping artifacts purge"
+        return 0
+    fi
+    echo "Deleting all artifacts from project repositories..."
+    while IFS= read -r repo_key; do
+        [[ -z "$repo_key" ]] && continue
+        echo "  → Purging artifacts from '$repo_key'"
+        # Best-effort deletion of all paths; ignore failures to keep cleanup progressing
+        jf rt del "${repo_key}/**" --quiet || true
+    done < "$repos_file"
+}
+
 # Confirmation
 if [ "$CI_ENVIRONMENT" != "true" ]; then
     echo "WARNING: This will DELETE ALL BookVerse resources!"
@@ -388,17 +487,51 @@ fi
 echo "Starting cleanup sequence..."
 echo ""
 
-# Define resource processing order (dependencies matter)
-RESOURCE_ORDER=("repositories" "users" "applications" "stages" "lifecycle" "project")
 FAILED=false
 
-# Discovery and deletion loop  
-for resource in "${RESOURCE_ORDER[@]}"; do
-    count=$(discover_resource "$resource")
-    echo ""
-    delete_resource "$resource" "$count" || FAILED=true
-    echo ""
-done
+# 1) For each application delete all the versions of that application
+apps_count=$(discover_resource "applications")
+echo ""
+delete_all_application_versions || FAILED=true
+echo ""
+
+# 2) Delete all applications
+delete_resource "applications" "$apps_count" || FAILED=true
+echo ""
+
+# 3) Delete all artifacts in project repositories
+repos_count=$(discover_resource "repositories")
+echo ""
+purge_repository_artifacts || FAILED=true
+echo ""
+
+# 4) Delete all project repositories
+delete_resource "repositories" "$repos_count" || FAILED=true
+echo ""
+
+# 5) Delete all users
+users_count=$(discover_resource "users")
+echo ""
+delete_resource "users" "$users_count" || FAILED=true
+echo ""
+
+# 6) Remove all project stages from the lifecycle
+lifecount=$(discover_resource "lifecycle")
+echo ""
+delete_resource "lifecycle" "$lifecount" || FAILED=true
+echo ""
+
+# 7) Delete all project stages
+stages_count=$(discover_resource "stages")
+echo ""
+delete_resource "stages" "$stages_count" || FAILED=true
+echo ""
+
+# 8) Delete the project
+proj_exists=$(discover_resource "project")
+echo ""
+delete_resource "project" "$proj_exists" || FAILED=true
+echo ""
 
 # =============================================================================
 # FINAL VALIDATION
@@ -409,7 +542,7 @@ echo ""
 
 all_resources_deleted=true
 
-for resource in "${RESOURCE_ORDER[@]}"; do
+for resource in repositories users applications stages lifecycle project; do
     echo "Checking for remaining $resource..."
     final_count=$(discover_resource "$resource")
     

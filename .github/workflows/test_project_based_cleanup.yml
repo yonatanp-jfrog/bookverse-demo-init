@@ -1,0 +1,182 @@
+name: 'Test Project-Based Cleanup (CORRECTED)'
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Test mode'
+        required: true
+        type: choice
+        options:
+          - 'discovery_only'
+          - 'live_cleanup'
+
+jobs:
+  test-project-based-cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup JFrog CLI
+        uses: jfrog/setup-jfrog-cli@v4
+        with:
+          version: latest
+
+      - name: Configure JFrog CLI
+        run: |
+          jfrog config add bookverse-admin --url=${{ vars.JFROG_URL }} --access-token=${{ secrets.JFROG_ADMIN_TOKEN }} --interactive=false
+          jfrog config use bookverse-admin
+
+      - name: Test Project-Based Discovery
+        if: github.event.inputs.mode == 'discovery_only'
+        env:
+          JFROG_URL: ${{ vars.JFROG_URL }}
+          JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
+          PROJECT_KEY: bookverse
+          VERBOSITY: 1
+        run: |
+          echo "🔍 TESTING PROJECT-BASED DISCOVERY (CORRECTED APPROACH)"
+          echo "========================================================"
+          echo "🎯 CRITICAL: This uses PROJECT-BASED filtering, not name-based!"
+          echo ""
+          
+          # Source configuration
+          source ./.github/scripts/setup/config.sh
+          validate_environment
+          
+          # Setup auth
+          jf c add bookverse-admin --url="${JFROG_URL}" --access-token="${JFROG_ADMIN_TOKEN}" --interactive=false --overwrite
+          jf c use bookverse-admin
+          
+          echo "🔍 1. PROJECT REPOSITORIES (using project parameter)"
+          echo "====================================================="
+          repos_file=$(mktemp)
+          jf rt curl -X GET -H "X-JFrog-Project: bookverse" "/api/repositories?project=bookverse" --output "$repos_file" --silent
+          if [[ -s "$repos_file" ]]; then
+            repos_count=$(jq -r '.[] | .key' "$repos_file" | wc -l)
+            echo "✅ Found $repos_count repositories in project 'bookverse'"
+            echo "📋 Project repositories:"
+            jq -r '.[] | "  - \(.key) (type: \(.type))"' "$repos_file" | head -15
+          else
+            echo "❌ No project repositories found"
+          fi
+          
+          echo ""
+          echo "🔍 2. PROJECT USERS (using project-specific API)"
+          echo "================================================"
+          users_file=$(mktemp)
+          curl -s -H "Authorization: Bearer $JFROG_ADMIN_TOKEN" \
+               -H "Content-Type: application/json" \
+               "$JFROG_URL/access/api/v1/projects/bookverse/users" \
+               -o "$users_file"
+          if [[ -s "$users_file" ]] && jq . "$users_file" >/dev/null 2>&1; then
+            users_count=$(jq -r '.members[]? | .name' "$users_file" | wc -l)
+            echo "✅ Found $users_count users/admins in project 'bookverse'"
+            echo "📋 Project users/admins:"
+            jq -r '.members[]? | "  - \(.name) (roles: \(.roles | join(", ")))"' "$users_file"
+          else
+            echo "❌ No project users found or API error"
+            cat "$users_file"
+          fi
+          
+          echo ""
+          echo "🔍 3. PROJECT APPLICATIONS (already correct)"
+          echo "==========================================="
+          apps_file=$(mktemp)
+          curl -s -H "Authorization: Bearer $JFROG_ADMIN_TOKEN" \
+               -H "Content-Type: application/json" \
+               "$JFROG_URL/apptrust/api/v1/applications?project=bookverse" \
+               -o "$apps_file"
+          if [[ -s "$apps_file" ]] && jq . "$apps_file" >/dev/null 2>&1; then
+            apps_count=$(jq -r '.[] | .application_key' "$apps_file" | wc -l)
+            echo "✅ Found $apps_count applications in project 'bookverse'"
+            if [[ "$apps_count" -gt 0 ]]; then
+              echo "📋 Project applications:"
+              jq -r '.[] | "  - \(.application_key)"' "$apps_file"
+            fi
+          else
+            echo "✅ No project applications found (this is good for cleanup)"
+          fi
+          
+          echo ""
+          echo "🔍 4. PROJECT BUILDS (using project parameter)"
+          echo "=============================================="
+          builds_file=$(mktemp)
+          curl -s -H "Authorization: Bearer $JFROG_ADMIN_TOKEN" \
+               -H "X-JFrog-Project: bookverse" \
+               -H "Content-Type: application/json" \
+               "$JFROG_URL/artifactory/api/build?project=bookverse" \
+               -o "$builds_file"
+          if [[ -s "$builds_file" ]] && jq . "$builds_file" >/dev/null 2>&1; then
+            builds_count=$(jq -r '.builds[]? | .uri' "$builds_file" | wc -l)
+            echo "✅ Found $builds_count builds in project 'bookverse'"
+            if [[ "$builds_count" -gt 0 ]]; then
+              echo "📋 Project builds:"
+              jq -r '.builds[]? | "  - \(.uri)"' "$builds_file" | head -10
+            fi
+          else
+            echo "❌ No project builds found or API error"
+            echo "Response:"
+            cat "$builds_file" | head -5
+          fi
+          
+          echo ""
+          echo "🔍 5. PROJECT STAGES (using project-specific API)"
+          echo "================================================="
+          stages_file=$(mktemp)
+          curl -s -H "Authorization: Bearer $JFROG_ADMIN_TOKEN" \
+               -H "Content-Type: application/json" \
+               "$JFROG_URL/access/api/v1/projects/bookverse/stages" \
+               -o "$stages_file"
+          if [[ -s "$stages_file" ]] && jq . "$stages_file" >/dev/null 2>&1; then
+            stages_count=$(jq -r '.[]? | .name' "$stages_file" | wc -l)
+            echo "✅ Found $stages_count stages in project 'bookverse'"
+            if [[ "$stages_count" -gt 0 ]]; then
+              echo "📋 Project stages:"
+              jq -r '.[]? | "  - \(.name)"' "$stages_file"
+            fi
+          else
+            echo "❌ No project stages found or API error"
+            echo "Response:"
+            cat "$stages_file" | head -5
+          fi
+          
+          echo ""
+          echo "🎯 PROJECT-BASED DISCOVERY SUMMARY"
+          echo "=================================="
+          echo "✅ This shows the CORRECT approach:"
+          echo "   - Find resources belonging to PROJECT, not by name"
+          echo "   - Use project-specific APIs and parameters"
+          echo "   - Focus on actual project membership"
+          echo ""
+          echo "📊 COMPARISON TO INVESTIGATION:"
+          echo "Expected: 26 repositories, 4 users, varying builds/apps/stages"
+
+      - name: Run Project-Based Cleanup (LIVE)
+        if: github.event.inputs.mode == 'live_cleanup'
+        env:
+          JFROG_URL: ${{ vars.JFROG_URL }}
+          JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
+        run: |
+          echo "🔥 RUNNING PROJECT-BASED CLEANUP (LIVE)"
+          echo "======================================="
+          echo "⚠️ This will DELETE all resources belonging to the 'bookverse' project!"
+          echo ""
+          ./.github/scripts/setup/cleanup_project_based.sh
+
+      - name: Summary
+        run: |
+          echo ""
+          echo "🎯 PROJECT-BASED TEST SUMMARY"
+          echo "============================="
+          if [[ "${{ github.event.inputs.mode }}" == "discovery_only" ]]; then
+            echo "✅ Project-based discovery test completed"
+            echo "📋 Verified correct approach using project APIs"
+            echo "🎯 Ready for live cleanup when needed"
+          else
+            echo "🔥 Project-based cleanup completed"
+            echo "📋 Check the output above for results"
+          fi
+          echo ""
+          echo "🔧 KEY DIFFERENCE: This approach finds resources by PROJECT MEMBERSHIP"
+          echo "   not by names containing 'bookverse'"

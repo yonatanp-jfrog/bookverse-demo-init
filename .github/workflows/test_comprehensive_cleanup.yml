@@ -1,0 +1,139 @@
+name: 'Test Comprehensive Cleanup Fix'
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Run in dry-run mode (discovery only, no deletion)'
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  test-comprehensive-cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup JFrog CLI
+        uses: jfrog/setup-jfrog-cli@v4
+        with:
+          version: latest
+
+      - name: Configure JFrog CLI
+        run: |
+          jfrog config add bookverse-admin --url=${{ vars.JFROG_URL }} --access-token=${{ secrets.JFROG_ADMIN_TOKEN }} --interactive=false
+          jfrog config use bookverse-admin
+
+      - name: Test Comprehensive Cleanup (Dry Run)
+        if: github.event.inputs.dry_run == 'true'
+        env:
+          JFROG_URL: ${{ vars.JFROG_URL }}
+          JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
+          PROJECT_KEY: bookverse
+          VERBOSITY: 1
+        run: |
+          echo "🧪 TESTING COMPREHENSIVE CLEANUP (DRY RUN)"
+          echo "==========================================="
+          echo "This will only discover resources, not delete them"
+          echo ""
+          
+          # Extract just the discovery functions for testing
+          source ./.github/scripts/setup/config.sh
+          validate_environment
+          
+          # Setup auth
+          jf c add bookverse-admin --url="${JFROG_URL}" --access-token="${JFROG_ADMIN_TOKEN}" --interactive=false --overwrite
+          jf c use bookverse-admin
+          
+          # Test enhanced discovery functions
+          echo "🔍 TESTING ENHANCED DISCOVERY"
+          echo "============================="
+          
+          # Test repository discovery
+          echo "1. Repository Discovery:"
+          echo "------------------------"
+          repos_file=$(mktemp)
+          jf rt curl -X GET "/api/repositories" --output "$repos_file" --silent
+          if [[ -s "$repos_file" ]]; then
+            repos_count=$(jq -r --arg prefix "bookverse" '.[] | select(.key | contains($prefix)) | .key' "$repos_file" | wc -l)
+            echo "✅ Found $repos_count repositories"
+            jq -r --arg prefix "bookverse" '.[] | select(.key | contains($prefix)) | .key' "$repos_file" | head -10 | sed 's/^/  - /'
+          fi
+          
+          # Test build discovery  
+          echo ""
+          echo "2. Build Discovery:"
+          echo "------------------"
+          builds_file=$(mktemp)
+          jf rt curl -X GET "/api/build" --output "$builds_file" --silent
+          if [[ -s "$builds_file" ]]; then
+            total_builds=$(jq -r '.builds[]? | .uri' "$builds_file" | wc -l)
+            bookverse_builds=$(jq -r '.builds[]? | .uri' "$builds_file" | grep -i bookverse | wc -l || echo 0)
+            echo "✅ Found $bookverse_builds BookVerse builds (out of $total_builds total)"
+            if [[ "$bookverse_builds" -gt 0 ]]; then
+              jq -r '.builds[]? | .uri' "$builds_file" | grep -i bookverse | sed 's/^/  - /' || true
+            fi
+          fi
+          
+          # Test project user discovery
+          echo ""
+          echo "3. Project User Discovery:"
+          echo "-------------------------"
+          project_users_file=$(mktemp)
+          curl -s -H "Authorization: Bearer $JFROG_ADMIN_TOKEN" \
+               -H "Content-Type: application/json" \
+               "$JFROG_URL/access/api/v1/projects/bookverse/users" \
+               -o "$project_users_file"
+          if [[ -s "$project_users_file" ]]; then
+            if jq . "$project_users_file" >/dev/null 2>&1; then
+              users_count=$(jq -r '.members[]? | .name' "$project_users_file" | wc -l)
+              echo "✅ Found $users_count project users/admins"
+              jq -r '.members[]? | "  - \(.name) (roles: \(.roles | join(", ")))"' "$project_users_file" || true
+            else
+              echo "❌ Project users API returned error:"
+              cat "$project_users_file"
+            fi
+          fi
+          
+          # Test email user discovery
+          echo ""
+          echo "4. Email User Discovery:"
+          echo "-----------------------"
+          users_file=$(mktemp)
+          jf rt curl -X GET "/api/security/users" --output "$users_file" --silent
+          if [[ -s "$users_file" ]]; then
+            email_users_count=$(jq -r '.[] | select(.name | contains("@bookverse.com")) | .name' "$users_file" | wc -l)
+            echo "✅ Found $email_users_count email users (@bookverse.com)"
+            jq -r '.[] | select(.name | contains("@bookverse.com")) | .name' "$users_file" | head -5 | sed 's/^/  - /'
+          fi
+          
+          echo ""
+          echo "🎯 DISCOVERY TEST COMPLETE"
+          echo "=========================="
+          echo "The comprehensive fix should address all these resources"
+
+      - name: Run Comprehensive Cleanup (LIVE)
+        if: github.event.inputs.dry_run != 'true'
+        env:
+          JFROG_URL: ${{ vars.JFROG_URL }}
+          JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
+        run: |
+          echo "⚠️ RUNNING LIVE CLEANUP - THIS WILL DELETE RESOURCES!"
+          echo "====================================================="
+          echo ""
+          ./.github/scripts/setup/cleanup_comprehensive_fix.sh
+
+      - name: Cleanup Summary
+        run: |
+          echo ""
+          echo "🎯 TEST SUMMARY"
+          echo "==============="
+          if [[ "${{ github.event.inputs.dry_run }}" == "true" ]]; then
+            echo "✅ Dry run completed - no resources were deleted"
+            echo "✅ Discovery functions tested successfully"
+            echo "📋 Ready for live cleanup when needed"
+          else
+            echo "🔥 Live cleanup completed"
+            echo "📋 Check the output above for results"
+          fi

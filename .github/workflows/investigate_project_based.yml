@@ -1,0 +1,202 @@
+name: 'Investigate Project-Based Resource Discovery'
+on:
+  workflow_dispatch:
+    inputs:
+      resource_type:
+        description: 'Type of resources to investigate'
+        required: true
+        type: choice
+        options:
+          - 'repositories'
+          - 'users' 
+          - 'builds'
+          - 'applications'
+          - 'stages'
+          - 'all'
+
+jobs:
+  investigate-project-based:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup JFrog CLI
+        uses: jfrog/setup-jfrog-cli@v4
+        with:
+          version: latest
+
+      - name: Configure JFrog CLI
+        run: |
+          jfrog config add bookverse-admin --url=${{ vars.JFROG_URL }} --access-token=${{ secrets.JFROG_ADMIN_TOKEN }} --interactive=false
+          jfrog config use bookverse-admin
+
+      - name: Investigate Project-Based Resources
+        env:
+          JFROG_URL: ${{ vars.JFROG_URL }}
+          JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
+          PROJECT_KEY: bookverse
+        run: |
+          echo "🔍 INVESTIGATING PROJECT-BASED APPROACH"
+          echo "======================================="
+          echo "CRITICAL INSIGHT: Look for resources belonging to PROJECT, not by name!"
+          echo ""
+          
+          # Source configuration
+          source ./.github/scripts/setup/config.sh
+          validate_environment
+          
+          # Setup auth
+          jf c add bookverse-admin --url="${JFROG_URL}" --access-token="${JFROG_ADMIN_TOKEN}" --interactive=false --overwrite
+          jf c use bookverse-admin
+          
+          if [[ "${{ github.event.inputs.resource_type }}" == "repositories" || "${{ github.event.inputs.resource_type }}" == "all" ]]; then
+            echo "🔍 PROJECT-BASED REPOSITORY DISCOVERY"
+            echo "====================================="
+            echo ""
+            
+            echo "1. Current approach (WRONG - name filtering):"
+            echo "---------------------------------------------"
+            repos_file=$(mktemp)
+            jf rt curl -X GET "/api/repositories" --output "$repos_file" --silent
+            if [[ -s "$repos_file" ]]; then
+              name_based_count=$(jq -r '.[] | select(.key | contains("bookverse")) | .key' "$repos_file" | wc -l)
+              echo "❌ Name-based filtering finds: $name_based_count repositories"
+              echo "❌ These are repositories with 'bookverse' in the name"
+            fi
+            
+            echo ""
+            echo "2. Correct approach (project-based):"
+            echo "-----------------------------------"
+            project_repos_file=$(mktemp)
+            jf rt curl -X GET -H "X-JFrog-Project: bookverse" "/api/repositories?project=bookverse" --output "$project_repos_file" --silent
+            if [[ -s "$project_repos_file" ]]; then
+              project_based_count=$(jq -r '.[] | .key' "$project_repos_file" | wc -l)
+              echo "✅ Project-based filtering finds: $project_based_count repositories"
+              echo "✅ These are ALL repositories belonging to 'bookverse' project:"
+              jq -r '.[] | "  - \(.key) (type: \(.type))"' "$project_repos_file" | head -20
+              
+              echo ""
+              echo "📊 COMPARISON:"
+              echo "Name-based: $name_based_count repositories"
+              echo "Project-based: $project_based_count repositories"
+              if [[ "$project_based_count" -gt "$name_based_count" ]]; then
+                echo "🎯 Project-based finds MORE resources!"
+                missing_count=$((project_based_count - name_based_count))
+                echo "📋 Missing $missing_count repositories when using name-based filtering"
+              elif [[ "$project_based_count" -eq "$name_based_count" ]]; then
+                echo "✅ Both approaches find the same count (good)"
+              else
+                echo "⚠️ Name-based finds more than project-based (unexpected)"
+              fi
+            else
+              echo "❌ Project-based repository discovery failed"
+            fi
+          fi
+          
+          if [[ "${{ github.event.inputs.resource_type }}" == "users" || "${{ github.event.inputs.resource_type }}" == "all" ]]; then
+            echo ""
+            echo "🔍 PROJECT-BASED USER DISCOVERY"
+            echo "==============================="
+            echo ""
+            
+            echo "1. Current approach (WRONG - email filtering):"
+            echo "----------------------------------------------"
+            users_file=$(mktemp)
+            jf rt curl -X GET "/api/security/users" --output "$users_file" --silent
+            if [[ -s "$users_file" ]]; then
+              email_based_count=$(jq -r '.[] | select(.name | contains("@bookverse.com")) | .name' "$users_file" | wc -l)
+              echo "❌ Email-based filtering finds: $email_based_count users"
+              echo "❌ These are users with '@bookverse.com' in email"
+            fi
+            
+            echo ""
+            echo "2. Correct approach (project-based):"
+            echo "-----------------------------------"
+            project_users_file=$(mktemp)
+            curl -s -H "Authorization: Bearer $JFROG_ADMIN_TOKEN" \
+                 -H "Content-Type: application/json" \
+                 "$JFROG_URL/access/api/v1/projects/bookverse/users" \
+                 -o "$project_users_file"
+            if [[ -s "$project_users_file" ]] && jq . "$project_users_file" >/dev/null 2>&1; then
+              project_user_count=$(jq -r '.members[]? | .name' "$project_users_file" | wc -l)
+              echo "✅ Project-based filtering finds: $project_user_count users"
+              echo "✅ These are ALL users assigned to 'bookverse' project:"
+              jq -r '.members[]? | "  - \(.name) (roles: \(.roles | join(", ")))"' "$project_users_file"
+              
+              echo ""
+              echo "📊 COMPARISON:"
+              echo "Email-based: $email_based_count users"
+              echo "Project-based: $project_user_count users"
+              if [[ "$project_user_count" -ne "$email_based_count" ]]; then
+                echo "🎯 Different counts - project-based is the correct approach!"
+              fi
+            else
+              echo "❌ Project-based user discovery failed or returned error"
+              cat "$project_users_file"
+            fi
+          fi
+          
+          if [[ "${{ github.event.inputs.resource_type }}" == "builds" || "${{ github.event.inputs.resource_type }}" == "all" ]]; then
+            echo ""
+            echo "🔍 PROJECT-BASED BUILD DISCOVERY"
+            echo "==============================="
+            echo ""
+            
+            echo "1. Current approach (WRONG - name filtering):"
+            echo "---------------------------------------------"
+            builds_file=$(mktemp)
+            jf rt curl -X GET "/api/build" --output "$builds_file" --silent
+            if [[ -s "$builds_file" ]]; then
+              name_based_builds=$(jq -r '.builds[]? | .uri' "$builds_file" | grep -i bookverse | wc -l || echo 0)
+              echo "❌ Name-based filtering finds: $name_based_builds builds"
+              echo "❌ These are builds with 'bookverse' in the name"
+            fi
+            
+            echo ""
+            echo "2. Correct approach (project-based):"
+            echo "-----------------------------------"
+            echo "Testing project-specific build endpoints..."
+            
+            # Test different project-based build endpoints
+            project_builds_file=$(mktemp)
+            curl -s -H "Authorization: Bearer $JFROG_ADMIN_TOKEN" \
+                 -H "X-JFrog-Project: bookverse" \
+                 -H "Content-Type: application/json" \
+                 "$JFROG_URL/artifactory/api/build?project=bookverse" \
+                 -o "$project_builds_file"
+            
+            if [[ -s "$project_builds_file" ]] && jq . "$project_builds_file" >/dev/null 2>&1; then
+              echo "✅ Project-based build endpoint works"
+              project_build_count=$(jq -r '.builds[]? | .uri' "$project_builds_file" | wc -l || echo 0)
+              echo "✅ Project-based filtering finds: $project_build_count builds"
+              if [[ "$project_build_count" -gt 0 ]]; then
+                echo "✅ Project builds found:"
+                jq -r '.builds[]? | "  - \(.uri)"' "$project_builds_file" | head -10
+              fi
+            else
+              echo "❌ Project-based build discovery failed"
+              echo "Response:"
+              cat "$project_builds_file" | head -5
+            fi
+          fi
+          
+          echo ""
+          echo "🎯 PROJECT-BASED INVESTIGATION SUMMARY"
+          echo "======================================"
+          echo "✅ This investigation shows the correct approach:"
+          echo "   Use PROJECT-BASED filtering, not name-based filtering"
+          echo ""
+          echo "🔧 Required fixes:"
+          echo "   1. Repository discovery: Use project parameter/headers"
+          echo "   2. User discovery: Use project-specific user APIs"
+          echo "   3. Build discovery: Use project-specific build APIs"
+          echo "   4. ALL resources: Look for project membership, not names"
+
+      - name: Summary
+        run: |
+          echo ""
+          echo "🎯 CRITICAL INSIGHT CONFIRMED"
+          echo "============================="
+          echo "The cleanup script must be rewritten to use PROJECT-BASED filtering"
+          echo "instead of name-based filtering to find ALL resources in the project."

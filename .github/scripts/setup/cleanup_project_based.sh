@@ -47,7 +47,7 @@ touch "$HTTP_DEBUG_LOG"
 
 log_api_call() {
     local method="$1" endpoint="$2" code="$3" description="$4"
-    echo "[API] $method $endpoint -> HTTP $code ($description)" | tee -a "$HTTP_DEBUG_LOG"
+    echo "[API] $method $endpoint -> HTTP $code ($description)" >> "$HTTP_DEBUG_LOG"
 }
 
 is_success() {

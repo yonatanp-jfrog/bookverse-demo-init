@@ -63,12 +63,6 @@ cache_docker_image() {
     
     local docker_registry_host=$(echo "$JFROG_URL" | sed 's|https://||' | sed 's|http://||')
     local virtual_repo_path="${docker_registry_host}/${PROJECT_KEY}-dockerhub-virtual"
-
-    # Login to the virtual repository
-    docker login -u "pipeline" -p "${JFROG_ADMIN_TOKEN}" "${docker_registry_host}" > /dev/null 2>&1 || {
-        echo "⚠️ Warning: Docker login failed, skipping image cache for $image:$tag"
-        return
-    }
     
     # Pull through Artifactory virtual repository
     docker pull "${virtual_repo_path}/$image:$tag" > /dev/null 2>&1 || \
@@ -77,6 +71,11 @@ cache_docker_image() {
 
 echo "=== Configuring JFrog CLI for dependency management ==="
 jf c use bookverse-admin
+
+# Ensure Docker is logged in to the JFrog registry for pulls via virtual repos
+if command -v jf >/dev/null 2>&1; then
+  jf rt docker-login >/dev/null 2>&1 || echo "⚠️ Warning: jf rt docker-login failed; Docker image caching may be skipped"
+fi
 
 echo ""
 echo "=== Pre-populating Python dependencies ==="

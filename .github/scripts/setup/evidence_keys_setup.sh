@@ -80,18 +80,27 @@ done
 # 3) Upload public key to JFrog trusted keys (best-effort)
 echo "📤 Uploading public key to JFrog trusted keys"
 PUB_ESC=$(awk '{printf "%s\\n", $0}' "$WORKDIR/evidence_public.pem" | sed 's/"/\\"/g')
-REQ_BODY="{\"alias\":\"$KEY_ALIAS\",\"public_key_pem\":\"$PUB_ESC\"}"
+REQ_BODY_JSON="{\"alias\":\"$KEY_ALIAS\",\"public_key_pem\":\"$PUB_ESC\"}"
 
 attempt_upload() {
   local endpoint="$1"
   local resp
   local code
   resp=$(mktemp)
-  code=$(curl -sS -L -o "$resp" -w "%{http_code}" -X POST \
-    "$endpoint" \
-    -H "Authorization: Bearer $JFROG_ADMIN_TOKEN" \
-    -H "Content-Type: application/json" \
-    -d "$REQ_BODY") || code=000
+  # If Artifactory security API, use text/plain body with alias path
+  if echo "$endpoint" | grep -q "/artifactory/api/security/keys/trusted$"; then
+    code=$(curl -sS -L -o "$resp" -w "%{http_code}" -X POST \
+      "$endpoint/$KEY_ALIAS" \
+      -H "Authorization: Bearer $JFROG_ADMIN_TOKEN" \
+      -H "Content-Type: text/plain" \
+      --data-binary @"$WORKDIR/evidence_public.pem") || code=000
+  else
+    code=$(curl -sS -L -o "$resp" -w "%{http_code}" -X POST \
+      "$endpoint" \
+      -H "Authorization: Bearer $JFROG_ADMIN_TOKEN" \
+      -H "Content-Type: application/json" \
+      -d "$REQ_BODY_JSON") || code=000
+  fi
   echo "   → $endpoint (HTTP $code)"
   if [[ "$code" == "200" || "$code" == "201" ]]; then
     echo "   ✅ Uploaded trusted key"

@@ -39,16 +39,19 @@ create_oidc_integration() {
     echo "  Display: $display_name"
     
     # Build OIDC integration payload
+    local org_name="${ORG:-yonatanp-jfrog}"
     local integration_payload=$(jq -n \
         --arg name "$integration_name" \
         --arg issuer_url "https://token.actions.githubusercontent.com" \
         --arg provider_type "GitHub" \
+        --arg organization "$org_name" \
         '{
             "name": $name,
             "description": ("GitHub OIDC integration for " + $name),
             "issuer_url": $issuer_url,
             "provider_type": $provider_type,
-            "audience": "jfrog-github"
+            "audience": "jfrog-github",
+            "organization": $organization
         }')
     
     # Create OIDC integration
@@ -100,13 +103,13 @@ create_oidc_integration() {
     local mapping_payload=$(jq -n \
         --arg name "$integration_name" \
         --arg priority "1" \
-        --arg claims_json "{\"repository\": \"yonatanp-jfrog/bookverse-${service_name}\"}" \
+        --arg repo "${org_name}/bookverse-${service_name}" \
         --arg token_spec "{\"username\": \"$username\", \"scope\": \"applied-permissions/user\"}" \
         '{
             "name": $name,
             "description": ("Identity mapping for " + $name),
             "priority": ($priority | tonumber),
-            "claims_json": $claims_json,
+            "claims_json": ({"repository": $repo} | tostring),
             "token_spec": ($token_spec | fromjson)
         }')
     

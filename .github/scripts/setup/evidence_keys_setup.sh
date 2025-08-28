@@ -87,9 +87,9 @@ attempt_upload() {
   local resp
   local code
   resp=$(mktemp)
-  # If Artifactory security API, use text/plain body with alias path
+  # If Artifactory security API, use PUT with text/plain body to alias path
   if echo "$endpoint" | grep -q "/artifactory/api/security/keys/trusted$"; then
-    code=$(curl -sS -L -o "$resp" -w "%{http_code}" -X POST \
+    code=$(curl -sS -L -o "$resp" -w "%{http_code}" -X PUT \
       "$endpoint/$KEY_ALIAS" \
       -H "Authorization: Bearer $JFROG_ADMIN_TOKEN" \
       -H "Content-Type: text/plain" \

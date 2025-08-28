@@ -3,9 +3,14 @@
 set -e
 
 # =============================================================================
-# PROJECT-BASED BOOKVERSE CLEANUP SCRIPT - LOGGING BUG FIXED VERSION
+# PROJECT-BASED BOOKVERSE CLEANUP SCRIPT - API ENDPOINTS FIXED VERSION
 # =============================================================================
-# 🚨 CRITICAL LOGGING BUG FIX: Discovery function output separation
+# 🚨 API ENDPOINTS FIXED: Build deletion and discovery endpoints corrected
+# 
+# API ENDPOINT FIXES:
+# - BUILD DELETION: Changed from REST API to JFrog CLI (jf rt build-delete)
+# - REPOSITORY DISCOVERY: Get all repos and filter by projectKey
+# - STAGE DISCOVERY: Multiple fallback methods (v1, v2, filtered all stages)
 # 
 # LOGGING BUG RESOLVED:
 # - PREVIOUS: Discovery functions mixed logging with return values in stdout
@@ -155,8 +160,15 @@ discover_project_repositories() {
     local repos_file="$TEMP_DIR/project_repositories.json"
     local filtered_repos="$TEMP_DIR/project_repositories.txt"
     
-    # Use project-specific repository endpoint with project parameter
-    local code=$(make_api_call "GET" "/artifactory/api/repositories?project=$PROJECT_KEY" "$repos_file" "jf" "" "project repositories")
+    # Try multiple repository discovery methods
+    # Method 1: Try project-specific endpoint
+    local code=$(make_api_call "GET" "/artifactory/api/repositories" "$repos_file" "jf" "" "all repositories")
+    
+    if is_success "$code" && [[ -s "$repos_file" ]]; then
+        # Filter repositories by project key
+        jq --arg project "$PROJECT_KEY" '[.[] | select(.projectKey == $project)]' "$repos_file" > "${repos_file}.filtered" 2>/dev/null || echo "[]" > "${repos_file}.filtered"
+        mv "${repos_file}.filtered" "$repos_file"
+    fi
     
     if is_success "$code" && [[ -s "$repos_file" ]]; then
         # Extract all repository keys from project (not filtering by name)
@@ -272,8 +284,27 @@ discover_project_stages() {
     local stages_file="$TEMP_DIR/project_stages.json"
     local filtered_stages="$TEMP_DIR/project_stages.txt"
     
-    # Use project-specific stage endpoint
-    local code=$(make_api_call "GET" "/access/api/v1/projects/$PROJECT_KEY/stages" "$stages_file" "curl" "" "project stages")
+    # Try multiple stage discovery methods
+    # Method 1: Try project-specific stages endpoint (v1)
+    local code=$(make_api_call "GET" "/access/api/v1/projects/$PROJECT_KEY/stages" "$stages_file" "curl" "" "project stages v1")
+    
+    if ! is_success "$code"; then
+        # Method 2: Try alternate stages endpoint (v2)
+        echo "Trying alternate stages endpoint..." >&2
+        code=$(make_api_call "GET" "/access/api/v2/stages?projectKey=$PROJECT_KEY" "$stages_file" "curl" "" "project stages v2")
+        
+        if ! is_success "$code"; then
+            # Method 3: Get all stages and filter by project
+            echo "Trying all stages with filtering..." >&2
+            code=$(make_api_call "GET" "/access/api/v2/stages" "$stages_file" "curl" "" "all stages")
+            
+            if is_success "$code" && [[ -s "$stages_file" ]]; then
+                # Filter stages by project key
+                jq --arg project "$PROJECT_KEY" '[.[] | select(.projectKey == $project)]' "$stages_file" > "${stages_file}.filtered" 2>/dev/null || echo "[]" > "${stages_file}.filtered"
+                mv "${stages_file}.filtered" "$stages_file"
+            fi
+        fi
+    fi
     
     if is_success "$code" && [[ -s "$stages_file" ]]; then
         jq -r '.[]? | .name' "$stages_file" > "$filtered_stages" 2>/dev/null || touch "$filtered_stages"
@@ -496,7 +527,15 @@ delete_project_builds() {
             if [[ -n "$build_name" ]]; then
                 echo "  → Deleting build: $build_name"
                 
-                local code=$(make_api_call "DELETE" "/artifactory/api/build/$build_name?deleteAll=1" "$TEMP_DIR/delete_build_${build_name}.txt" "jf" "" "delete build $build_name")
+                # Use JFrog CLI for build deletion - more reliable than REST API
+                local code=200  # Default success for CLI approach
+                
+                if jf rt build-delete "$build_name" --delete-all --quiet 2>/dev/null; then
+                    echo "    ✅ Build '$build_name' deleted successfully (CLI)"
+                else
+                    echo "    ⚠️ Build '$build_name' deletion failed via CLI"
+                    code=404  # Mark as not found for flow control
+                fi
                 
                 if is_success "$code"; then
                     echo "    ✅ Build '$build_name' deleted successfully (HTTP $code)"

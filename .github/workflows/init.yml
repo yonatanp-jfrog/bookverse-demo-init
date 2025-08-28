@@ -48,6 +48,12 @@ jobs:
           # Configure OIDC integrations for GitHub Actions
           ./.github/scripts/setup/create_oidc.sh
 
+      - name: Setup Evidence Keys
+        run: |
+          # Generate keys (if not provided), upload trusted key to JFrog, and
+          # distribute secrets/variables to service repos
+          ./.github/scripts/setup/evidence_keys_setup.sh
+
       - name: Validate Complete Setup
         run: |
           # Final validation of all created resources

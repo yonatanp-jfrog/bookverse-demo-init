@@ -3,16 +3,23 @@
 set -e
 
 # =============================================================================
-# PROJECT-BASED BOOKVERSE CLEANUP SCRIPT - REPOSITORY DISCOVERY FIXED
+# PROJECT-BASED BOOKVERSE CLEANUP SCRIPT - DISCOVERY LOGIC FIXED
 # =============================================================================
-# 🚨 REPOSITORY DISCOVERY FIX: Multi-method approach for reliable repo discovery
+# 🚨 DISCOVERY LOGIC FIX: Investigation revealed filtering issues
 # 
-# REPOSITORY DISCOVERY IMPROVEMENTS:
+# INVESTIGATION FINDINGS:
+# - REST API found 280 repositories (API works!)
+# - NO repositories have projectKey='bookverse' field
+# - Repositories DO contain 'bookverse' in their .key names
+# - Same issue affects builds and other resources
+#
+# DISCOVERY IMPROVEMENTS:
+# - REPOSITORIES: Filter by .key containing 'bookverse' (not projectKey)
+# - BUILDS: Filter by build names containing 'bookverse' or component names
 # - METHOD 1: JFrog CLI repo-list (most reliable)
 # - METHOD 2: REST API /artifactory/api/repositories  
 # - METHOD 3: Alternate endpoint /artifactory/api/repositories/list
 # - METHOD 4: CLI config fallback
-# - FILTERING: Multiple strategies (projectKey, prefix, contains)
 # 
 # STAGE HANDLING CORRECTED:
 # - DISCOVERY: Only find project-level stages belonging to the target project
@@ -209,19 +216,32 @@ discover_project_repositories() {
     if is_success "$code" && [[ -s "$repos_file" ]]; then
         echo "Filtering repositories for project '$PROJECT_KEY'..." >&2
         
-        # Try multiple filtering approaches
-        if jq --arg project "$PROJECT_KEY" '[.[] | select(.projectKey == $project)]' "$repos_file" > "${repos_file}.filtered" 2>/dev/null && [[ -s "${repos_file}.filtered" ]]; then
+        # INVESTIGATION FINDINGS: repositories don't have projectKey field, filter by name
+        # Primary strategy: Filter by repository key containing 'bookverse'
+        if jq --arg project "$PROJECT_KEY" '[.[] | select(.key | contains($project))]' "$repos_file" > "${repos_file}.filtered" 2>/dev/null && [[ -s "${repos_file}.filtered" ]]; then
             mv "${repos_file}.filtered" "$repos_file"
-            echo "Filtered by projectKey field" >&2
-        elif jq --arg project "$PROJECT_KEY" '[.[] | select(.key | startswith($project))]' "$repos_file" > "${repos_file}.filtered" 2>/dev/null && [[ -s "${repos_file}.filtered" ]]; then
-            mv "${repos_file}.filtered" "$repos_file"
-            echo "Filtered by repository key prefix" >&2
-        elif jq --arg project "$PROJECT_KEY" '[.[] | select(.key | contains($project))]' "$repos_file" > "${repos_file}.filtered" 2>/dev/null && [[ -s "${repos_file}.filtered" ]]; then
-            mv "${repos_file}.filtered" "$repos_file"
-            echo "Filtered by repository key containing project name" >&2
+            echo "✅ Filtered by repository key containing '$PROJECT_KEY'" >&2
+            
+            # Log found repositories for debugging
+            echo "📦 Found repositories:" >&2
+            jq -r '.[].key' "$repos_file" 2>/dev/null | head -10 | while read -r repo; do
+                echo "   - $repo" >&2
+            done
         else
-            echo "No project-specific repositories found after filtering" >&2
-            echo "[]" > "$repos_file"
+            # Fallback: Try prefix match
+            if jq --arg project "$PROJECT_KEY" '[.[] | select(.key | startswith($project))]' "$repos_file" > "${repos_file}.filtered" 2>/dev/null && [[ -s "${repos_file}.filtered" ]]; then
+                mv "${repos_file}.filtered" "$repos_file"
+                echo "✅ Filtered by repository key prefix '$PROJECT_KEY'" >&2
+            else
+                # Final fallback: Try projectKey field (original logic)
+                if jq --arg project "$PROJECT_KEY" '[.[] | select(.projectKey == $project)]' "$repos_file" > "${repos_file}.filtered" 2>/dev/null && [[ -s "${repos_file}.filtered" ]]; then
+                    mv "${repos_file}.filtered" "$repos_file"
+                    echo "✅ Filtered by projectKey field" >&2
+                else
+                    echo "❌ No repositories found matching '$PROJECT_KEY'" >&2
+                    echo "[]" > "$repos_file"
+                fi
+            fi
         fi
     fi
     
@@ -310,24 +330,48 @@ discover_project_builds() {
     local builds_file="$TEMP_DIR/project_builds.json"
     local filtered_builds="$TEMP_DIR/project_builds.txt"
     
-    # Use project-specific build endpoint
-    local code=$(make_api_call "GET" "/artifactory/api/build?project=$PROJECT_KEY" "$builds_file" "curl" "" "project builds")
+    # Try to get ALL builds first, then filter by name (investigation findings)
+    local code=$(make_api_call "GET" "/artifactory/api/build" "$builds_file" "curl" "" "all builds")
     
     if is_success "$code" && [[ -s "$builds_file" ]]; then
-        # Extract build names from project builds (not filtering by name)
-        jq -r '.builds[]? | .uri' "$builds_file" | sed 's/^\///' > "$filtered_builds" 2>/dev/null || touch "$filtered_builds"
+        echo "Filtering builds for project '$PROJECT_KEY'..." >&2
         
-        local count=$(wc -l < "$filtered_builds" 2>/dev/null || echo "0")
-        echo "🏗️ Found $count builds in project '$PROJECT_KEY'" >&2
-        
-        if [[ "$count" -gt 0 ]] && [[ "$VERBOSITY" -ge 1 ]]; then
-            echo "Project builds:" >&2
-            cat "$filtered_builds" | sed 's/^/  - /' >&2
+        # INVESTIGATION FINDINGS: Filter by build names containing 'bookverse'
+        # Extract and filter build names
+        if jq -r '.builds[].uri' "$builds_file" 2>/dev/null | sed 's|^/||' | grep -i "$PROJECT_KEY" > "$filtered_builds" 2>/dev/null; then
+            local count=$(wc -l < "$filtered_builds" 2>/dev/null || echo 0)
+            echo "🏗️ Found $count builds containing '$PROJECT_KEY'" >&2
+            
+            if [[ "$count" -gt 0 ]]; then
+                echo "Project builds:" >&2
+                while IFS= read -r build; do
+                    echo "   - $build" >&2
+                done < "$filtered_builds"
+            fi
+        else
+            # Try broader search for bookverse component names
+            echo "Trying broader build search patterns..." >&2
+            if jq -r '.builds[].uri' "$builds_file" 2>/dev/null | sed 's|^/||' | grep -E "(inventory|checkout|recommendations|web)" > "$filtered_builds" 2>/dev/null; then
+                local count=$(wc -l < "$filtered_builds" 2>/dev/null || echo 0)
+                echo "🏗️ Found $count builds with bookverse component names" >&2
+                
+                if [[ "$count" -gt 0 ]]; then
+                    echo "Project builds:" >&2
+                    while IFS= read -r build; do
+                        echo "   - $build" >&2
+                    done < "$filtered_builds"
+                fi
+            else
+                echo "❌ No builds found for project '$PROJECT_KEY'" >&2
+                touch "$filtered_builds"
+                count=0
+            fi
         fi
         
         echo "$count"
     else
-        echo "❌ Project build discovery failed (HTTP $code)" >&2
+        echo "❌ Failed to discover builds (HTTP $code)" >&2
+        touch "$filtered_builds"
         echo "0"
     fi
 }

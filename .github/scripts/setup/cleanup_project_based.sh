@@ -3,11 +3,16 @@
 set -e
 
 # =============================================================================
-# PROJECT-BASED BOOKVERSE CLEANUP SCRIPT - CORRECTED SECURITY VERSION
+# PROJECT-BASED BOOKVERSE CLEANUP SCRIPT - LOGGING BUG FIXED VERSION
 # =============================================================================
-# 🚨 CRITICAL SECURITY FIX: Application deletion with proper verification
+# 🚨 CRITICAL LOGGING BUG FIX: Discovery function output separation
 # 
-# SECURITY APPROACH CORRECTED:
+# LOGGING BUG RESOLVED:
+# - PREVIOUS: Discovery functions mixed logging with return values in stdout
+# - ISSUE: Variables captured ALL output causing syntax errors in conditionals
+# - FIX: Redirect logging to stderr (>&2), only return counts via stdout
+# 
+# SECURITY APPROACH (PREVIOUSLY CORRECTED):
 # - DISCOVERY: Use GET /apptrust/api/v1/applications?project_key=<PROJECT_KEY>
 # - VERIFICATION: Double-check each app belongs to target project before deletion
 # - DELETION: Use CLI commands only after confirming project membership
@@ -18,6 +23,7 @@ set -e
 # - Application discovery: project_key parameter (not project)
 # - Version discovery: project_key parameter for version listing
 # - Pre-deletion verification: Confirm app is in target project list
+# - Function output: Logging to stderr, counts to stdout for capture
 # 
 # Investigation Results:
 # - USERS: Project-based finds 4 correct admins vs 12 email-based users
@@ -144,7 +150,7 @@ echo ""
 
 # 1. PROJECT-BASED REPOSITORY DISCOVERY
 discover_project_repositories() {
-    echo "🔍 Discovering project repositories (PROJECT-BASED)..."
+    echo "🔍 Discovering project repositories (PROJECT-BASED)..." >&2
     
     local repos_file="$TEMP_DIR/project_repositories.json"
     local filtered_repos="$TEMP_DIR/project_repositories.txt"
@@ -157,23 +163,23 @@ discover_project_repositories() {
         jq -r '.[] | .key' "$repos_file" > "$filtered_repos"
         
         local count=$(wc -l < "$filtered_repos" 2>/dev/null || echo "0")
-        echo "📦 Found $count repositories in project '$PROJECT_KEY'"
+        echo "📦 Found $count repositories in project '$PROJECT_KEY'" >&2
         
         if [[ "$count" -gt 0 ]] && [[ "$VERBOSITY" -ge 1 ]]; then
-            echo "Project repositories:"
-            cat "$filtered_repos" | sed 's/^/  - /'
+            echo "Project repositories:" >&2
+            cat "$filtered_repos" | sed 's/^/  - /' >&2
         fi
         
         echo "$count"
     else
-        echo "❌ Project repository discovery failed (HTTP $code)"
+        echo "❌ Project repository discovery failed (HTTP $code)" >&2
         echo "0"
     fi
 }
 
 # 2. PROJECT-BASED USER DISCOVERY
 discover_project_users() {
-    echo "🔍 Discovering project users/admins (PROJECT-BASED)..."
+    echo "🔍 Discovering project users/admins (PROJECT-BASED)..." >&2
     
     local users_file="$TEMP_DIR/project_users.json"
     local filtered_users="$TEMP_DIR/project_users.txt"
@@ -186,25 +192,25 @@ discover_project_users() {
         jq -r '.members[]? | .name' "$users_file" > "$filtered_users" 2>/dev/null || touch "$filtered_users"
         
         local count=$(wc -l < "$filtered_users" 2>/dev/null || echo "0")
-        echo "👥 Found $count users/admins in project '$PROJECT_KEY'"
+        echo "👥 Found $count users/admins in project '$PROJECT_KEY'" >&2
         
         if [[ "$count" -gt 0 ]] && [[ "$VERBOSITY" -ge 1 ]]; then
-            echo "Project users/admins:"
-            cat "$filtered_users" | sed 's/^/  - /'
-            echo "Detailed roles:"
-            jq -r '.members[]? | "  - \(.name) (roles: \(.roles | join(", ")))"' "$users_file" 2>/dev/null || true
+            echo "Project users/admins:" >&2
+            cat "$filtered_users" | sed 's/^/  - /' >&2
+            echo "Detailed roles:" >&2
+            jq -r '.members[]? | "  - \(.name) (roles: \(.roles | join(", ")))"' "$users_file" 2>/dev/null || true >&2
         fi
         
         echo "$count"
     else
-        echo "❌ Project user discovery failed (HTTP $code)"
+        echo "❌ Project user discovery failed (HTTP $code)" >&2
         echo "0"
     fi
 }
 
-# 3. PROJECT-BASED APPLICATION DISCOVERY (already correct)
+# 3. PROJECT-BASED APPLICATION DISCOVERY
 discover_project_applications() {
-    echo "🔍 Discovering project applications (PROJECT-BASED)..."
+    echo "🔍 Discovering project applications (PROJECT-BASED)..." >&2
     
     local apps_file="$TEMP_DIR/project_applications.json"
     local filtered_apps="$TEMP_DIR/project_applications.txt"
@@ -216,23 +222,23 @@ discover_project_applications() {
         jq -r '.[] | .application_key' "$apps_file" > "$filtered_apps" 2>/dev/null || touch "$filtered_apps"
         
         local count=$(wc -l < "$filtered_apps" 2>/dev/null || echo "0")
-        echo "🚀 Found $count applications in project '$PROJECT_KEY'"
+        echo "🚀 Found $count applications in project '$PROJECT_KEY'" >&2
         
         if [[ "$count" -gt 0 ]] && [[ "$VERBOSITY" -ge 1 ]]; then
-            echo "Project applications:"
-            cat "$filtered_apps" | sed 's/^/  - /'
+            echo "Project applications:" >&2
+            cat "$filtered_apps" | sed 's/^/  - /' >&2
         fi
         
         echo "$count"
     else
-        echo "❌ Project application discovery failed (HTTP $code)"
+        echo "❌ Project application discovery failed (HTTP $code)" >&2
         echo "0"
     fi
 }
 
 # 4. PROJECT-BASED BUILD DISCOVERY
 discover_project_builds() {
-    echo "🔍 Discovering project builds (PROJECT-BASED)..."
+    echo "🔍 Discovering project builds (PROJECT-BASED)..." >&2
     
     local builds_file="$TEMP_DIR/project_builds.json"
     local filtered_builds="$TEMP_DIR/project_builds.txt"
@@ -245,23 +251,23 @@ discover_project_builds() {
         jq -r '.builds[]? | .uri' "$builds_file" | sed 's/^\///' > "$filtered_builds" 2>/dev/null || touch "$filtered_builds"
         
         local count=$(wc -l < "$filtered_builds" 2>/dev/null || echo "0")
-        echo "🏗️ Found $count builds in project '$PROJECT_KEY'"
+        echo "🏗️ Found $count builds in project '$PROJECT_KEY'" >&2
         
         if [[ "$count" -gt 0 ]] && [[ "$VERBOSITY" -ge 1 ]]; then
-            echo "Project builds:"
-            cat "$filtered_builds" | sed 's/^/  - /'
+            echo "Project builds:" >&2
+            cat "$filtered_builds" | sed 's/^/  - /' >&2
         fi
         
         echo "$count"
     else
-        echo "❌ Project build discovery failed (HTTP $code)"
+        echo "❌ Project build discovery failed (HTTP $code)" >&2
         echo "0"
     fi
 }
 
 # 5. PROJECT-BASED STAGE DISCOVERY
 discover_project_stages() {
-    echo "🔍 Discovering project stages (PROJECT-BASED)..."
+    echo "🔍 Discovering project stages (PROJECT-BASED)..." >&2
     
     local stages_file="$TEMP_DIR/project_stages.json"
     local filtered_stages="$TEMP_DIR/project_stages.txt"
@@ -273,16 +279,16 @@ discover_project_stages() {
         jq -r '.[]? | .name' "$stages_file" > "$filtered_stages" 2>/dev/null || touch "$filtered_stages"
         
         local count=$(wc -l < "$filtered_stages" 2>/dev/null || echo "0")
-        echo "🏷️ Found $count stages in project '$PROJECT_KEY'"
+        echo "🏷️ Found $count stages in project '$PROJECT_KEY'" >&2
         
         if [[ "$count" -gt 0 ]] && [[ "$VERBOSITY" -ge 1 ]]; then
-            echo "Project stages:"
-            cat "$filtered_stages" | sed 's/^/  - /'
+            echo "Project stages:" >&2
+            cat "$filtered_stages" | sed 's/^/  - /' >&2
         fi
         
         echo "$count"
     else
-        echo "❌ Project stage discovery failed (HTTP $code)"
+        echo "❌ Project stage discovery failed (HTTP $code)" >&2
         echo "0"
     fi
 }

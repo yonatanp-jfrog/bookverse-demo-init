@@ -3,9 +3,16 @@
 set -e
 
 # =============================================================================
-# PROJECT-BASED BOOKVERSE CLEANUP SCRIPT - PROJECT-LEVEL STAGE HANDLING
+# PROJECT-BASED BOOKVERSE CLEANUP SCRIPT - REPOSITORY DISCOVERY FIXED
 # =============================================================================
-# 🚨 CORRECTED STAGE HANDLING: Only target project-level stages, not global/system
+# 🚨 REPOSITORY DISCOVERY FIX: Multi-method approach for reliable repo discovery
+# 
+# REPOSITORY DISCOVERY IMPROVEMENTS:
+# - METHOD 1: JFrog CLI repo-list (most reliable)
+# - METHOD 2: REST API /artifactory/api/repositories  
+# - METHOD 3: Alternate endpoint /artifactory/api/repositories/list
+# - METHOD 4: CLI config fallback
+# - FILTERING: Multiple strategies (projectKey, prefix, contains)
 # 
 # STAGE HANDLING CORRECTED:
 # - DISCOVERY: Only find project-level stages belonging to the target project
@@ -167,14 +174,55 @@ discover_project_repositories() {
     local repos_file="$TEMP_DIR/project_repositories.json"
     local filtered_repos="$TEMP_DIR/project_repositories.txt"
     
-    # Try multiple repository discovery methods
-    # Method 1: Try project-specific endpoint
-    local code=$(make_api_call "GET" "/artifactory/api/repositories" "$repos_file" "jf" "" "all repositories")
+    # Try multiple repository discovery methods for project-based repositories
+    local code=404  # Default to not found
     
+    # Method 1: Try JFrog CLI to list repositories (most reliable)
+    echo "Trying JFrog CLI repository discovery..." >&2
+    if jf rt repo-list --json > "$repos_file" 2>/dev/null; then
+        code=200
+        echo "CLI repository discovery successful" >&2
+    else
+        echo "CLI repository discovery failed, trying REST API..." >&2
+        
+        # Method 2: Try REST API via curl
+        code=$(make_api_call "GET" "/artifactory/api/repositories" "$repos_file" "curl" "" "all repositories")
+        
+        if ! is_success "$code"; then
+            # Method 3: Try different API endpoint
+            echo "Trying alternate repository endpoint..." >&2
+            code=$(make_api_call "GET" "/artifactory/api/repositories/list" "$repos_file" "curl" "" "repository list")
+            
+            if ! is_success "$code"; then
+                # Method 4: Try JFrog CLI with different approach
+                echo "Trying CLI configuration list..." >&2
+                if jf rt config show --json > "$repos_file" 2>/dev/null; then
+                    code=200
+                else
+                    echo "All repository discovery methods failed" >&2
+                fi
+            fi
+        fi
+    fi
+    
+    # Filter repositories by project key if we got data
     if is_success "$code" && [[ -s "$repos_file" ]]; then
-        # Filter repositories by project key
-        jq --arg project "$PROJECT_KEY" '[.[] | select(.projectKey == $project)]' "$repos_file" > "${repos_file}.filtered" 2>/dev/null || echo "[]" > "${repos_file}.filtered"
-        mv "${repos_file}.filtered" "$repos_file"
+        echo "Filtering repositories for project '$PROJECT_KEY'..." >&2
+        
+        # Try multiple filtering approaches
+        if jq --arg project "$PROJECT_KEY" '[.[] | select(.projectKey == $project)]' "$repos_file" > "${repos_file}.filtered" 2>/dev/null && [[ -s "${repos_file}.filtered" ]]; then
+            mv "${repos_file}.filtered" "$repos_file"
+            echo "Filtered by projectKey field" >&2
+        elif jq --arg project "$PROJECT_KEY" '[.[] | select(.key | startswith($project))]' "$repos_file" > "${repos_file}.filtered" 2>/dev/null && [[ -s "${repos_file}.filtered" ]]; then
+            mv "${repos_file}.filtered" "$repos_file"
+            echo "Filtered by repository key prefix" >&2
+        elif jq --arg project "$PROJECT_KEY" '[.[] | select(.key | contains($project))]' "$repos_file" > "${repos_file}.filtered" 2>/dev/null && [[ -s "${repos_file}.filtered" ]]; then
+            mv "${repos_file}.filtered" "$repos_file"
+            echo "Filtered by repository key containing project name" >&2
+        else
+            echo "No project-specific repositories found after filtering" >&2
+            echo "[]" > "$repos_file"
+        fi
     fi
     
     if is_success "$code" && [[ -s "$repos_file" ]]; then

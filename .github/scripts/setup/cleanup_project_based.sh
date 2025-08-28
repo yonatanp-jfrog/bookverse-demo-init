@@ -3,10 +3,19 @@
 set -e
 
 # =============================================================================
-# PROJECT-BASED BOOKVERSE CLEANUP SCRIPT - REPOSITORY DELETION FIXED
+# PROJECT-BASED BOOKVERSE CLEANUP SCRIPT - BUILD API FIXES
 # =============================================================================
-# 🚨 REPOSITORY DELETION FIX: HTTP 405 error resolved
+# 🚨 BUILD DISCOVERY & DELETION API FIXES: User's correct approach implemented
 # 
+# BUILD DISCOVERY FIXES:
+# ✅ Use project-specific API: /artifactory/api/build?project=$PROJECT_KEY
+# ✅ Get builds that actually belong to the project (not name filtering)
+#
+# BUILD DELETION FIXES:
+# ✅ Use correct REST API: POST /artifactory/api/build/delete
+# ✅ Proper JSON payload with project, buildName, buildNumbers
+# ✅ URL decode build names for API calls
+#
 # LATEST DISCOVERY SUCCESS:
 # ✅ Found 1 build containing 'bookverse' (was 0)
 # ✅ Found 26 repositories containing 'bookverse' (was 0)
@@ -20,7 +29,7 @@ set -e
 #
 # DISCOVERY IMPROVEMENTS:
 # - REPOSITORIES: Filter by .key containing 'bookverse' (not projectKey)
-# - BUILDS: Filter by build names containing 'bookverse' or component names
+# - BUILDS: Use project-specific endpoint /artifactory/api/build?project=X
 # - METHOD 1: JFrog CLI repo-list (most reliable)
 # - METHOD 2: REST API /artifactory/api/repositories  
 # - METHOD 3: Alternate endpoint /artifactory/api/repositories/list
@@ -340,17 +349,16 @@ discover_project_builds() {
     local builds_file="$TEMP_DIR/project_builds.json"
     local filtered_builds="$TEMP_DIR/project_builds.txt"
     
-    # Try to get ALL builds first, then filter by name (investigation findings)
-    local code=$(make_api_call "GET" "/artifactory/api/build" "$builds_file" "curl" "" "all builds")
+    # Use project-specific build discovery API (user's correct approach)
+    local code=$(make_api_call "GET" "/artifactory/api/build?project=$PROJECT_KEY" "$builds_file" "curl" "" "project builds")
     
     if is_success "$code" && [[ -s "$builds_file" ]]; then
-        echo "Filtering builds for project '$PROJECT_KEY'..." >&2
+        echo "✅ Successfully discovered builds for project '$PROJECT_KEY'" >&2
         
-        # INVESTIGATION FINDINGS: Filter by build names containing 'bookverse'
-        # Extract and filter build names
-        if jq -r '.builds[].uri' "$builds_file" 2>/dev/null | sed 's|^/||' | grep -i "$PROJECT_KEY" > "$filtered_builds" 2>/dev/null; then
+        # Extract build names from project builds
+        if jq -r '.builds[]?.uri' "$builds_file" 2>/dev/null | sed 's|^/||' > "$filtered_builds" 2>/dev/null && [[ -s "$filtered_builds" ]]; then
             local count=$(wc -l < "$filtered_builds" 2>/dev/null || echo 0)
-            echo "🏗️ Found $count builds containing '$PROJECT_KEY'" >&2
+            echo "🏗️ Found $count builds in project '$PROJECT_KEY'" >&2
             
             if [[ "$count" -gt 0 ]]; then
                 echo "Project builds:" >&2
@@ -359,28 +367,14 @@ discover_project_builds() {
                 done < "$filtered_builds"
             fi
         else
-            # Try broader search for bookverse component names
-            echo "Trying broader build search patterns..." >&2
-            if jq -r '.builds[].uri' "$builds_file" 2>/dev/null | sed 's|^/||' | grep -E "(inventory|checkout|recommendations|web)" > "$filtered_builds" 2>/dev/null; then
-                local count=$(wc -l < "$filtered_builds" 2>/dev/null || echo 0)
-                echo "🏗️ Found $count builds with bookverse component names" >&2
-                
-                if [[ "$count" -gt 0 ]]; then
-                    echo "Project builds:" >&2
-                    while IFS= read -r build; do
-                        echo "   - $build" >&2
-                    done < "$filtered_builds"
-                fi
-            else
-                echo "❌ No builds found for project '$PROJECT_KEY'" >&2
-                touch "$filtered_builds"
-                count=0
-            fi
+            echo "🔍 No builds found in project '$PROJECT_KEY'" >&2
+            touch "$filtered_builds"
+            count=0
         fi
         
         echo "$count"
     else
-        echo "❌ Failed to discover builds (HTTP $code)" >&2
+        echo "❌ Failed to discover project builds (HTTP $code)" >&2
         touch "$filtered_builds"
         echo "0"
     fi
@@ -647,24 +641,58 @@ delete_project_builds() {
             if [[ -n "$build_name" ]]; then
                 echo "  → Deleting build: $build_name"
                 
-                # Use JFrog CLI for build deletion - more reliable than REST API
-                local code=200  # Default success for CLI approach
+                # Get build numbers for this build first
+                local build_details_file="$TEMP_DIR/build_${build_name}_details.json"
+                local build_numbers_file="$TEMP_DIR/build_${build_name}_numbers.txt"
                 
-                if jf rt build-delete "$build_name" --delete-all --quiet 2>/dev/null; then
-                    echo "    ✅ Build '$build_name' deleted successfully (CLI)"
-                else
-                    echo "    ⚠️ Build '$build_name' deletion failed via CLI"
-                    code=404  # Mark as not found for flow control
-                fi
+                # URL decode the build name for API calls
+                local decoded_build_name=$(printf '%b' "${build_name//%/\\x}")
                 
-                if is_success "$code"; then
-                    echo "    ✅ Build '$build_name' deleted successfully (HTTP $code)"
-                    ((deleted_count++))
-                elif is_not_found "$code"; then
-                    echo "    ⚠️ Build '$build_name' not found or already deleted (HTTP $code)"
-                    ((deleted_count++))
+                echo "    Getting build numbers for '$decoded_build_name'..."
+                local code=$(make_api_call "GET" "/artifactory/api/build/$decoded_build_name?project=$PROJECT_KEY" "$build_details_file" "curl" "" "get build numbers")
+                
+                if is_success "$code" && [[ -s "$build_details_file" ]]; then
+                    # Extract build numbers
+                    jq -r '.buildsNumbers[]?.uri' "$build_details_file" 2>/dev/null | sed 's|^/||' > "$build_numbers_file" 2>/dev/null
+                    
+                    if [[ -s "$build_numbers_file" ]]; then
+                        # Create array of build numbers
+                        local build_numbers_json
+                        build_numbers_json=$(jq -R -s 'split("\n") | map(select(length > 0))' "$build_numbers_file")
+                        
+                        # Prepare deletion payload (user's correct API approach)
+                        local delete_payload=$(jq -n \
+                            --arg project "$PROJECT_KEY" \
+                            --arg buildName "$decoded_build_name" \
+                            --argjson buildNumbers "$build_numbers_json" \
+                            '{
+                                project: $project,
+                                buildName: $buildName,
+                                buildNumbers: $buildNumbers,
+                                deleteArtifacts: true,
+                                deleteAll: false
+                            }')
+                        
+                        echo "    Deleting build via REST API..."
+                        local delete_response_file="$TEMP_DIR/delete_build_${decoded_build_name}.json"
+                        
+                        # Use correct build deletion API
+                        code=$(make_api_call "POST" "/artifactory/api/build/delete" "$delete_response_file" "curl" "$delete_payload" "delete build $decoded_build_name")
+                        
+                        if is_success "$code"; then
+                            echo "    ✅ Build '$decoded_build_name' deleted successfully (HTTP $code)"
+                            ((deleted_count++))
+                        else
+                            echo "    ❌ Failed to delete build '$decoded_build_name' (HTTP $code)"
+                            echo "    Response: $(cat "$delete_response_file" 2>/dev/null || echo 'No response')"
+                            ((failed_count++))
+                        fi
+                    else
+                        echo "    ⚠️ No build numbers found for '$decoded_build_name' - may already be deleted"
+                        ((deleted_count++))
+                    fi
                 else
-                    echo "    ❌ Failed to delete build '$build_name' (HTTP $code)"
+                    echo "    ❌ Failed to get build details for '$decoded_build_name' (HTTP $code)"
                     ((failed_count++))
                 fi
             fi

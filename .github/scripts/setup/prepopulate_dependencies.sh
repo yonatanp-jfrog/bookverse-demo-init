@@ -73,12 +73,12 @@ cache_docker_image() {
     # Retry pulls to handle transient network/remote hiccups
     local attempt
     for attempt in 1 2 3; do
-        if docker pull "${virtual_repo_path}/${image_path}:$tag" > /dev/null 2>&1; then
+        if docker pull "${virtual_repo_path}/${image_path}:$tag"; then
             return 0
         fi
         # Fallback: try without 'library/' if the first path failed
         if [[ "$image_path" == library/* ]]; then
-            if docker pull "${virtual_repo_path}/${image}:$tag" > /dev/null 2>&1; then
+            if docker pull "${virtual_repo_path}/${image}:$tag"; then
                 return 0
             fi
         fi
@@ -92,7 +92,14 @@ jf c use bookverse-admin
 
 # Ensure Docker is logged in to the JFrog registry for pulls via virtual repos
 if command -v jf >/dev/null 2>&1; then
-  jf rt docker-login --server-id-resolve bookverse-admin >/dev/null 2>&1 || echo "⚠️ Warning: jf rt docker-login failed; Docker image caching may be skipped"
+  if ! jf rt docker-login --server-id-resolve bookverse-admin >/dev/null 2>&1; then
+    echo "⚠️ Warning: jf rt docker-login failed; attempting manual docker login"
+    # Manual docker login fallback using admin token
+    DOCKER_REG_HOST=$(echo "$JFROG_URL" | sed 's|https://||' | sed 's|http://||')
+    if ! echo "$JFROG_ADMIN_TOKEN" | docker login "$DOCKER_REG_HOST" -u admin --password-stdin 2>&1; then
+      echo "⚠️ Manual docker login failed; Docker image caching may be skipped"
+    fi
+  fi
 fi
 
 echo ""

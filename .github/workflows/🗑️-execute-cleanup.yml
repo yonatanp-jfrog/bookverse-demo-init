@@ -51,7 +51,7 @@ jobs:
           PROJECT_KEY: 'bookverse'
           SKIP_PROTECTION: ${{ github.event.inputs.skip_protection }}
         run: |
-          bash ./.github/scripts/setup/cleanup_from_report.sh
+          bash ./.github/scripts/setup/cleanup_from_report.sh | tee /tmp/cleanup_execution.log
 
       - name: 📋 Execute Cleanup Summary
         if: always()
@@ -60,4 +60,43 @@ jobs:
           if [[ -f ".github/cleanup-report.json" ]]; then
             echo "Status: $(jq -r '.status' .github/cleanup-report.json)" >> $GITHUB_STEP_SUMMARY
             echo "Total items: $(jq -r '.metadata.total_items' .github/cleanup-report.json)" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔎 Detailed Items Deleted" >> $GITHUB_STEP_SUMMARY
+          exec_log="/tmp/cleanup_execution.log"
+          if [[ -f "$exec_log" ]]; then
+            repos=$(grep -E "✅ Repository '.*' deleted successfully" "$exec_log" | sed -E "s/.*Repository '([^']+)'.*/- \1/") || true
+            echo "#### 📦 Repositories" >> $GITHUB_STEP_SUMMARY
+            if [[ -n "$repos" ]]; then echo "$repos" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
+
+            users=$(grep -E "✅ User '.*' removed from project successfully" "$exec_log" | sed -E "s/.*User '([^']+)'.*/- \1/") || true
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "#### 👥 Users (removed from project)" >> $GITHUB_STEP_SUMMARY
+            if [[ -n "$users" ]]; then echo "$users" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
+
+            apps=$(grep -E "✅ Application '.*' deleted successfully" "$exec_log" | sed -E "s/.*Application '([^']+)'.*/- \1/") || true
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "#### 🚀 Applications" >> $GITHUB_STEP_SUMMARY
+            if [[ -n "$apps" ]]; then echo "$apps" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
+
+            stages=$(grep -E "→ Deleting project-level stage: " "$exec_log" | sed -E "s/.*stage: (.*)/- \1/") || true
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "#### 🏷️ Stages" >> $GITHUB_STEP_SUMMARY
+            if [[ -n "$stages" ]]; then echo "$stages" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
+
+            builds=$(grep -E "✅ Build '.*' deleted successfully" "$exec_log" | sed -E "s/.*Build '([^']+)'.*/- \1/") || true
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "#### 🔧 Builds" >> $GITHUB_STEP_SUMMARY
+            if [[ -n "$builds" ]]; then echo "$builds" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
+
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "<details>" >> $GITHUB_STEP_SUMMARY
+            echo "<summary>📄 Raw Execution Log (tail)</summary>" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            tail -200 "$exec_log" >> $GITHUB_STEP_SUMMARY || true
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "</details>" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- Execution log not found" >> $GITHUB_STEP_SUMMARY
           fi

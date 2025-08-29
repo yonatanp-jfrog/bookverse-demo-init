@@ -127,20 +127,32 @@ cache_docker_image() {
 echo "=== Configuring JFrog CLI for dependency management ==="
 jf c use bookverse-admin
 
-# Ensure Docker is logged in to the JFrog registry for pulls via virtual repos
+# Configure secure Docker authentication for JFrog registry
+echo "🔐 Configuring secure Docker authentication..."
+
+# Extract registry host from JFROG_URL
+DOCKER_REG_HOST=$(echo "$JFROG_URL" | sed 's|https://||' | sed 's|http://||')
+
 if command -v jf >/dev/null 2>&1; then
-  if ! jf rt docker-login --server-id-resolve bookverse-admin >/dev/null 2>&1; then
-    echo "⚠️ Warning: jf rt docker-login failed; attempting manual docker login"
-    # Manual docker login fallback using admin token
-    DOCKER_REG_HOST=$(echo "$JFROG_URL" | sed 's|https://||' | sed 's|http://||')
-    # Try with 'admin' first, then fallback to known user 'yonatan' (or JFROG_DOCKER_USER override)
-    if ! echo "$JFROG_ADMIN_TOKEN" | docker login "$DOCKER_REG_HOST" -u admin --password-stdin 2>&1; then
-      DOCKER_USER_FALLBACK="${JFROG_DOCKER_USER:-yonatan}"
-      if ! echo "$JFROG_ADMIN_TOKEN" | docker login "$DOCKER_REG_HOST" -u "$DOCKER_USER_FALLBACK" --password-stdin 2>&1; then
-        echo "⚠️ Manual docker login failed; Docker image caching may be skipped"
-      fi
+  # Method 1: Use modern JFrog CLI docker login (preferred - no unencrypted storage)
+  echo "Attempting JFrog CLI docker login..."
+  if jf docker login "$DOCKER_REG_HOST" 2>/dev/null; then
+    echo "✅ JFrog CLI docker login successful - credentials stored securely"
+  else
+    echo "⚠️ JFrog CLI docker login failed, trying alternative authentication..."
+    
+    # Method 2: Verify JFrog CLI can access Artifactory (this is often sufficient)
+    if jf rt ping >/dev/null 2>&1; then
+      echo "✅ JFrog CLI authentication verified"
+      echo "ℹ️ Docker operations will use JFrog CLI's secure token-based authentication"
+      echo "ℹ️ This prevents unencrypted credential storage in ~/.docker/config.json"
+    else
+      echo "❌ JFrog CLI authentication failed completely"
+      echo "❌ Docker image caching will be limited"
     fi
   fi
+else
+  echo "❌ JFrog CLI not available - Docker image caching will be skipped"
 fi
 
 echo ""

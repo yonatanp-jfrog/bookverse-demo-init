@@ -78,7 +78,9 @@ set -e
 # - ALL RESOURCES: Look for project membership, not names containing 'bookverse'
 # =============================================================================
 
-source "$(dirname "$0")/common.sh"
+# Resolve script directory robustly even when sourced
+_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${_SCRIPT_DIR}/common.sh"
 
 # 🔧 CRITICAL FIX: Initialize script to load PROJECT_KEY from config.sh
 # This was the root cause of the catastrophic filtering failure

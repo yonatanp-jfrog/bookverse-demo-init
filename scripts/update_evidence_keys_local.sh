@@ -1,0 +1,396 @@
+#!/bin/bash
+
+# =============================================================================
+# Local Evidence Key Update Script
+# =============================================================================
+# 
+# This script updates evidence keys across all BookVerse repositories using
+# your local GitHub CLI authentication. Run this script locally to update
+# repository secrets and variables with new evidence keys.
+#
+# Usage:
+#   ./update_evidence_keys_local.sh --private-key private.pem --public-key public.pem [options]
+#
+# Requirements:
+#   - GitHub CLI (gh) installed and authenticated
+#   - OpenSSL for key validation
+#   - Access to BookVerse repositories
+#
+# =============================================================================
+
+set -euo pipefail
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Logging functions
+log_info() { echo -e "${BLUE}ℹ️  $1${NC}"; }
+log_success() { echo -e "${GREEN}✅ $1${NC}"; }
+log_warning() { echo -e "${YELLOW}⚠️  $1${NC}"; }
+log_error() { echo -e "${RED}❌ $1${NC}"; }
+
+# Default values
+PRIVATE_KEY_FILE=""
+PUBLIC_KEY_FILE=""
+KEY_ALIAS="bookverse_evidence_key"
+GITHUB_ORG="yonatanp-jfrog"
+DRY_RUN=false
+VERBOSE=false
+
+# BookVerse repositories
+BOOKVERSE_REPOS=(
+    "bookverse-inventory"
+    "bookverse-recommendations" 
+    "bookverse-checkout"
+    "bookverse-platform"
+    "bookverse-web"
+    "bookverse-helm"
+    "bookverse-demo-assets"
+    "bookverse-demo-init"
+)
+
+# =============================================================================
+# HELPER FUNCTIONS
+# =============================================================================
+
+show_usage() {
+    cat << 'EOF'
+Local Evidence Key Update Script
+
+Updates evidence keys across all BookVerse repositories using your local
+GitHub CLI authentication.
+
+USAGE:
+    ./update_evidence_keys_local.sh --private-key <file> --public-key <file> [options]
+
+REQUIRED ARGUMENTS:
+    --private-key <file>    Path to private key PEM file
+    --public-key <file>     Path to public key PEM file
+
+OPTIONAL ARGUMENTS:
+    --alias <name>          Key alias (default: bookverse_evidence_key)
+    --org <name>            GitHub organization (default: yonatanp-jfrog)
+    --dry-run               Show what would be done without making changes
+    --verbose               Show detailed output
+    --help                  Show this help message
+
+EXAMPLES:
+    # Basic usage
+    ./update_evidence_keys_local.sh --private-key private.pem --public-key public.pem
+
+    # With custom alias
+    ./update_evidence_keys_local.sh --private-key private.pem --public-key public.pem --alias "my_evidence_key"
+
+    # Dry run to see what would be updated
+    ./update_evidence_keys_local.sh --private-key private.pem --public-key public.pem --dry-run
+
+PREREQUISITES:
+    1. Install GitHub CLI: https://cli.github.com/
+    2. Authenticate: gh auth login
+    3. Ensure access to BookVerse repositories
+
+EOF
+}
+
+parse_arguments() {
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --private-key)
+                PRIVATE_KEY_FILE="$2"
+                shift 2
+                ;;
+            --public-key)
+                PUBLIC_KEY_FILE="$2"
+                shift 2
+                ;;
+            --alias)
+                KEY_ALIAS="$2"
+                shift 2
+                ;;
+            --org)
+                GITHUB_ORG="$2"
+                shift 2
+                ;;
+            --dry-run)
+                DRY_RUN=true
+                shift
+                ;;
+            --verbose)
+                VERBOSE=true
+                shift
+                ;;
+            --help|-h)
+                show_usage
+                exit 0
+                ;;
+            *)
+                log_error "Unknown argument: $1"
+                echo ""
+                show_usage
+                exit 1
+                ;;
+        esac
+    done
+
+    # Validate required arguments
+    if [[ -z "$PRIVATE_KEY_FILE" ]]; then
+        log_error "Private key file is required. Use --private-key <file>"
+        exit 1
+    fi
+
+    if [[ -z "$PUBLIC_KEY_FILE" ]]; then
+        log_error "Public key file is required. Use --public-key <file>"
+        exit 1
+    fi
+}
+
+validate_environment() {
+    log_info "Validating environment..."
+
+    # Check if files exist
+    if [[ ! -f "$PRIVATE_KEY_FILE" ]]; then
+        log_error "Private key file not found: $PRIVATE_KEY_FILE"
+        exit 1
+    fi
+
+    if [[ ! -f "$PUBLIC_KEY_FILE" ]]; then
+        log_error "Public key file not found: $PUBLIC_KEY_FILE"
+        exit 1
+    fi
+
+    # Check if OpenSSL is available
+    if ! command -v openssl &> /dev/null; then
+        log_error "OpenSSL is required but not installed"
+        exit 1
+    fi
+
+    # Check if GitHub CLI is available and authenticated
+    if ! command -v gh &> /dev/null; then
+        log_error "GitHub CLI (gh) is not installed"
+        log_info "Install from: https://cli.github.com/"
+        exit 1
+    fi
+
+    if ! gh auth status &> /dev/null; then
+        log_error "GitHub CLI is not authenticated"
+        log_info "Run: gh auth login"
+        exit 1
+    fi
+
+    log_success "Environment validation successful"
+}
+
+validate_keys() {
+    log_info "Validating key files..."
+
+    # Validate private key
+    if ! openssl pkey -in "$PRIVATE_KEY_FILE" -check -noout 2>/dev/null; then
+        log_error "Invalid private key format: $PRIVATE_KEY_FILE"
+        exit 1
+    fi
+
+    # Validate public key
+    if ! openssl pkey -in "$PUBLIC_KEY_FILE" -pubin -check -noout 2>/dev/null; then
+        log_error "Invalid public key format: $PUBLIC_KEY_FILE"
+        exit 1
+    fi
+
+    # Verify key pair match
+    local private_pubkey
+    private_pubkey=$(openssl pkey -in "$PRIVATE_KEY_FILE" -pubout 2>/dev/null)
+    local public_key_content
+    public_key_content=$(cat "$PUBLIC_KEY_FILE")
+
+    if [[ "$private_pubkey" != "$public_key_content" ]]; then
+        log_error "Private and public keys do not match"
+        exit 1
+    fi
+
+    # Detect key type
+    local key_type
+    key_type=$(openssl pkey -in "$PRIVATE_KEY_FILE" -text -noout 2>/dev/null | head -1)
+    
+    log_success "Key validation successful"
+    log_info "Key type: $key_type"
+    log_info "Key alias: $KEY_ALIAS"
+}
+
+get_existing_repositories() {
+    log_info "Discovering existing BookVerse repositories..."
+
+    local existing_repos=()
+    for repo in "${BOOKVERSE_REPOS[@]}"; do
+        local full_repo="$GITHUB_ORG/$repo"
+        if gh repo view "$full_repo" > /dev/null 2>&1; then
+            existing_repos+=("$full_repo")
+        else
+            log_warning "Repository $full_repo not found - skipping"
+        fi
+    done
+
+    if [[ ${#existing_repos[@]} -eq 0 ]]; then
+        log_error "No BookVerse repositories found"
+        exit 1
+    fi
+
+    log_info "Found ${#existing_repos[@]} repositories"
+    printf '%s\n' "${existing_repos[@]}"
+}
+
+update_repository_secrets_and_variables() {
+    local repo="$1"
+    local private_key_content="$2"
+    local public_key_content="$3"
+    
+    log_info "Updating evidence keys in $repo..."
+    
+    if [[ "$DRY_RUN" == true ]]; then
+        log_info "  [DRY RUN] Would update EVIDENCE_PRIVATE_KEY secret"
+        log_info "  [DRY RUN] Would migrate EVIDENCE_PUBLIC_KEY from secret to variable"
+        log_info "  [DRY RUN] Would update EVIDENCE_KEY_ALIAS variable"
+        return 0
+    fi
+    
+    local success=true
+    
+    # Update private key secret
+    log_info "  → Updating EVIDENCE_PRIVATE_KEY secret..."
+    if printf "%s" "$private_key_content" | gh secret set EVIDENCE_PRIVATE_KEY --repo "$repo"; then
+        log_success "    ✅ EVIDENCE_PRIVATE_KEY secret updated"
+    else
+        log_error "    ❌ Failed to update EVIDENCE_PRIVATE_KEY secret"
+        success=false
+    fi
+    
+    # Migrate public key from secret to variable (delete secret first if it exists)
+    log_info "  → Migrating EVIDENCE_PUBLIC_KEY from secret to variable..."
+    # Try to delete existing secret (ignore failure if it doesn't exist)
+    gh secret delete EVIDENCE_PUBLIC_KEY --repo "$repo" 2>/dev/null || true
+    log_info "    → Setting EVIDENCE_PUBLIC_KEY variable..."
+    if gh variable set EVIDENCE_PUBLIC_KEY --body "$public_key_content" --repo "$repo"; then
+        log_success "    ✅ EVIDENCE_PUBLIC_KEY variable updated"
+    else
+        log_error "    ❌ Failed to update EVIDENCE_PUBLIC_KEY variable"
+        success=false
+    fi
+    
+    # Update key alias variable
+    log_info "  → Updating EVIDENCE_KEY_ALIAS variable..."
+    if gh variable set EVIDENCE_KEY_ALIAS --body "$KEY_ALIAS" --repo "$repo"; then
+        log_success "    ✅ EVIDENCE_KEY_ALIAS variable updated"
+    else
+        log_error "    ❌ Failed to update EVIDENCE_KEY_ALIAS variable"
+        success=false
+    fi
+    
+    if [[ "$success" == true ]]; then
+        log_success "✅ $repo updated successfully"
+    else
+        log_warning "⚠️  $repo partially updated (some operations failed)"
+    fi
+    
+    return 0
+}
+
+update_all_repositories() {
+    log_info "Updating evidence keys across all repositories..."
+    echo ""
+    
+    local repos
+    mapfile -t repos < <(get_existing_repositories)
+    
+    echo ""
+    log_info "Processing ${#repos[@]} repositories..."
+    echo ""
+    
+    # Read key content
+    local private_key_content
+    private_key_content=$(cat "$PRIVATE_KEY_FILE")
+    local public_key_content
+    public_key_content=$(cat "$PUBLIC_KEY_FILE")
+    
+    local success_count=0
+    local total_count=${#repos[@]}
+    
+    for repo in "${repos[@]}"; do
+        if update_repository_secrets_and_variables "$repo" "$private_key_content" "$public_key_content"; then
+            ((success_count++))
+        fi
+        echo ""
+    done
+    
+    log_info "Update Summary:"
+    log_info "  Repositories processed: $total_count"
+    log_info "  Successfully updated: $success_count"
+    
+    if [[ $success_count -eq $total_count ]]; then
+        log_success "All repositories updated successfully!"
+    else
+        log_warning "Some repositories had issues (check logs above)"
+    fi
+}
+
+# =============================================================================
+# MAIN EXECUTION
+# =============================================================================
+
+main() {
+    log_info "🔄 Local Evidence Key Update Script"
+    log_info "==================================="
+    echo ""
+    
+    # Parse command line arguments
+    parse_arguments "$@"
+    
+    if [[ "$DRY_RUN" == true ]]; then
+        log_warning "DRY RUN MODE - No changes will be made"
+        echo ""
+    fi
+    
+    log_info "Configuration:"
+    log_info "  Private key: $PRIVATE_KEY_FILE"
+    log_info "  Public key: $PUBLIC_KEY_FILE"
+    log_info "  Key alias: $KEY_ALIAS"
+    log_info "  Organization: $GITHUB_ORG"
+    echo ""
+    
+    # Validate environment and keys
+    validate_environment
+    echo ""
+    validate_keys
+    echo ""
+    
+    # Update repositories
+    update_all_repositories
+    echo ""
+    
+    # Summary
+    if [[ "$DRY_RUN" == true ]]; then
+        log_success "🎯 Dry run completed successfully!"
+        log_info "Run without --dry-run to apply changes"
+    else
+        log_success "🎯 Evidence Key Update Complete!"
+        log_success "====================================="
+        echo ""
+        log_success "✅ Updated in all BookVerse repositories:"
+        log_success "  - EVIDENCE_PRIVATE_KEY (secret)"
+        log_success "  - EVIDENCE_PUBLIC_KEY (variable)"
+        log_success "  - EVIDENCE_KEY_ALIAS (variable)"
+        echo ""
+        log_info "🔑 Key alias: $KEY_ALIAS"
+        echo ""
+        log_success "All repositories are now using the new evidence keys!"
+        echo ""
+        log_info "Next steps:"
+        log_info "1. Update JFrog Platform trusted keys (use workflow or manual)"
+        log_info "2. Test evidence signing with new keys"
+        log_info "3. Archive old private key securely"
+    fi
+}
+
+# Execute main function with all arguments
+main "$@"

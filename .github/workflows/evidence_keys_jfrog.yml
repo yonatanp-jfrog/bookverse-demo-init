@@ -1,0 +1,278 @@
+name: Evidence Keys Management
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        type: choice
+        options:
+          - 'generate-keys'
+          - 'update-jfrog-platform'
+        default: 'generate-keys'
+      key_algorithm:
+        description: 'Key algorithm for generation'
+        required: false
+        type: choice
+        options:
+          - 'rsa-2048'
+          - 'ec-secp256r1' 
+          - 'ed25519'
+        default: 'ed25519'
+      public_key_content:
+        description: 'Public Key Content (for JFrog platform update only)'
+        required: false
+        type: string
+      key_alias:
+        description: 'Key Alias'
+        required: false
+        default: 'bookverse_evidence_key'
+        type: string
+
+env:
+  KEY_ALIAS: ${{ inputs.key_alias || 'bookverse_evidence_key' }}
+
+jobs:
+  generate_keys:
+    if: inputs.action == 'generate-keys'
+    runs-on: ubuntu-latest
+    name: Generate Evidence Keys
+    
+    steps:
+      - name: Generate cryptographic keys
+        id: generate
+        run: |
+          echo "🔐 Generating ${{ inputs.key_algorithm }} key pair..."
+          
+          case "${{ inputs.key_algorithm }}" in
+            "rsa-2048")
+              openssl genrsa -out private.pem 2048
+              openssl rsa -in private.pem -pubout -out public.pem
+              KEY_TYPE="RSA 2048-bit"
+              ;;
+            "ec-secp256r1")
+              openssl ecparam -name secp256r1 -genkey -noout -out private.pem
+              openssl ec -in private.pem -pubout > public.pem
+              KEY_TYPE="EC secp256r1"
+              ;;
+            "ed25519")
+              openssl genpkey -algorithm ed25519 -out private.pem
+              openssl pkey -in private.pem -pubout -out public.pem
+              KEY_TYPE="ED25519"
+              ;;
+          esac
+          
+          echo "KEY_TYPE=$KEY_TYPE" >> $GITHUB_OUTPUT
+          
+          # Validate generated keys
+          echo "🔍 Validating generated keys..."
+          openssl pkey -in private.pem -check -noout
+          openssl pkey -in public.pem -pubin -check -noout
+          
+          # Verify key pair match
+          PRIVATE_PUBKEY=$(openssl pkey -in private.pem -pubout)
+          PUBLIC_KEY_CONTENT=$(cat public.pem)
+          
+          if [[ "$PRIVATE_PUBKEY" != "$PUBLIC_KEY_CONTENT" ]]; then
+            echo "❌ Generated keys do not match"
+            exit 1
+          fi
+          
+          echo "✅ Key generation and validation successful"
+          
+          # Get key sizes for summary
+          PRIVATE_SIZE=$(wc -c < private.pem)
+          PUBLIC_SIZE=$(wc -c < public.pem)
+          echo "PRIVATE_SIZE=$PRIVATE_SIZE" >> $GITHUB_OUTPUT
+          echo "PUBLIC_SIZE=$PUBLIC_SIZE" >> $GITHUB_OUTPUT
+
+      - name: Create secure key summary
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << 'EOF'
+          # 🔐 Evidence Keys Generated Successfully
+          
+          ## Key Information
+          - **Algorithm**: ${{ steps.generate.outputs.KEY_TYPE }}
+          - **Key Alias**: ${{ env.KEY_ALIAS }}
+          - **Private Key Size**: ${{ steps.generate.outputs.PRIVATE_SIZE }} bytes
+          - **Public Key Size**: ${{ steps.generate.outputs.PUBLIC_SIZE }} bytes
+          - **Generated**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          
+          ## 🔑 Private Key
+          ```
+          $(cat private.pem)
+          ```
+          
+          ## 🔑 Public Key
+          ```
+          $(cat public.pem)
+          ```
+          
+          ## ⚠️ Security Instructions
+          
+          1. **Save Private Key Securely**
+             - Copy the private key to a secure password manager
+             - Never store in version control or unsecured locations
+             - This key will not be stored anywhere after this workflow
+          
+          2. **Save Public Key**
+             - Copy the public key for repository and platform updates
+             - Public keys can be stored openly
+          
+          3. **Update Repositories**
+             - Use the local script: `./scripts/update_evidence_keys_local.sh`
+             - Or update manually in each repository's secrets/variables
+          
+          4. **Update JFrog Platform**
+             - Use the "Update JFrog Platform" action in this workflow
+             - Or upload manually to JFrog Platform trusted keys
+          
+          ## 📋 Next Steps
+          
+          1. Copy and save both keys securely
+          2. Run the local script to update repositories:
+             ```bash
+             ./scripts/update_evidence_keys_local.sh \
+               --private-key private.pem \
+               --public-key public.pem \
+               --alias "${{ env.KEY_ALIAS }}"
+             ```
+          3. Update JFrog Platform using this workflow's "Update JFrog Platform" option
+          
+          EOF
+
+      - name: Upload keys as artifacts (temporary)
+        uses: actions/upload-artifact@v4
+        with:
+          name: evidence-keys-${{ inputs.key_algorithm }}-${{ github.run_number }}
+          path: |
+            private.pem
+            public.pem
+          retention-days: 1
+
+  update_jfrog_platform:
+    if: inputs.action == 'update-jfrog-platform'
+    runs-on: ubuntu-latest
+    name: Update JFrog Platform Trusted Keys
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup JFrog CLI
+        uses: jfrog/setup-jfrog-cli@v4
+        env:
+          JF_URL: ${{ secrets.JFROG_URL }}
+          JF_ACCESS_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
+
+      - name: Validate public key input
+        run: |
+          echo "🔍 Validating public key input..."
+          
+          if [[ -z "${{ inputs.public_key_content }}" ]]; then
+            echo "❌ Public key content is required for JFrog platform update"
+            exit 1
+          fi
+          
+          # Create temporary public key file
+          echo '${{ inputs.public_key_content }}' > public.pem
+          
+          # Validate public key format
+          if ! openssl pkey -in public.pem -pubin -check -noout 2>/dev/null; then
+            echo "❌ Invalid public key format"
+            exit 1
+          fi
+          
+          echo "✅ Public key validation successful"
+          
+          # Get key information
+          KEY_INFO=$(openssl pkey -in public.pem -pubin -text -noout 2>/dev/null | head -1)
+          echo "🔑 Key type: $KEY_INFO"
+
+      - name: Upload public key to JFrog Platform
+        run: |
+          echo "📤 Uploading public key to JFrog Platform trusted keys..."
+          
+          # Prepare public key content (remove headers/footers and newlines)
+          PUBLIC_KEY_B64=$(grep -v "BEGIN\|END" public.pem | tr -d '\n')
+          
+          # Create JSON payload
+          cat > trusted_key_payload.json << EOF
+          {
+            "alias": "${{ env.KEY_ALIAS }}",
+            "public_key": "$PUBLIC_KEY_B64"
+          }
+          EOF
+          
+          # Upload to JFrog Platform
+          RESPONSE=$(curl -s -w "%{http_code}" \
+            -X POST \
+            -H "Authorization: Bearer ${{ secrets.JFROG_ADMIN_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d @trusted_key_payload.json \
+            "${{ secrets.JFROG_URL }}/artifactory/api/security/keys/trusted" \
+            -o response.json)
+          
+          HTTP_CODE="${RESPONSE: -3}"
+          
+          if [[ "$HTTP_CODE" == "200" ]] || [[ "$HTTP_CODE" == "201" ]]; then
+            echo "✅ Public key uploaded successfully to JFrog Platform"
+            echo "📋 Response:"
+            cat response.json | jq '.' 2>/dev/null || cat response.json
+          else
+            echo "❌ Failed to upload public key (HTTP $HTTP_CODE)"
+            echo "📋 Response:"
+            cat response.json
+            exit 1
+          fi
+
+      - name: Verify trusted key upload
+        run: |
+          echo "🔍 Verifying trusted key upload..."
+          
+          # List trusted keys to verify upload
+          RESPONSE=$(curl -s -w "%{http_code}" \
+            -X GET \
+            -H "Authorization: Bearer ${{ secrets.JFROG_ADMIN_TOKEN }}" \
+            "${{ secrets.JFROG_URL }}/artifactory/api/security/keys/trusted" \
+            -o trusted_keys.json)
+          
+          HTTP_CODE="${RESPONSE: -3}"
+          
+          if [[ "$HTTP_CODE" == "200" ]]; then
+            echo "📋 Current trusted keys:"
+            cat trusted_keys.json | jq '.' 2>/dev/null || cat trusted_keys.json
+            
+            # Check if our key is in the list
+            if cat trusted_keys.json | jq -r '.[].alias' | grep -q "${{ env.KEY_ALIAS }}"; then
+              echo "✅ Verified: Key '${{ env.KEY_ALIAS }}' found in trusted keys"
+            else
+              echo "⚠️  Warning: Key '${{ env.KEY_ALIAS }}' not found in trusted keys list"
+            fi
+          else
+            echo "⚠️  Could not verify trusted keys (HTTP $HTTP_CODE)"
+          fi
+
+      - name: Create JFrog update summary
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << 'EOF'
+          # 📤 JFrog Platform Update Complete
+          
+          ## Update Information
+          - **Key Alias**: ${{ env.KEY_ALIAS }}
+          - **JFrog Platform**: ${{ secrets.JFROG_URL }}
+          - **Updated**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          
+          ## ✅ Actions Completed
+          - Public key uploaded to JFrog Platform trusted keys
+          - Key validation successful
+          - Platform verification completed
+          
+          ## 📋 Next Steps
+          1. Verify evidence signing works with new key
+          2. Test artifact verification in your pipelines
+          3. Update any documentation with new key alias
+          4. Archive old keys securely if this was a rotation
+          
+          EOF

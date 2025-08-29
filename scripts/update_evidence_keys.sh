@@ -589,17 +589,6 @@ upload_public_key_to_jfrog() {
         return 1
     fi
 }
-    
-    if [[ "$verify_code" == "200" ]]; then
-        if cat "$verify_response" | jq -r '.[].alias' 2>/dev/null | grep -q "^$KEY_ALIAS$"; then
-            log_success "✅ Verified: Key '$KEY_ALIAS' found in JFrog Platform trusted keys"
-        else
-            log_warning "⚠️  Warning: Key '$KEY_ALIAS' not found in trusted keys list"
-        fi
-    else
-        log_warning "⚠️  Could not verify trusted keys (HTTP $verify_code)"
-    fi
-}
 
 # =============================================================================
 # MAIN EXECUTION

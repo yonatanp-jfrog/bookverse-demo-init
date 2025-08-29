@@ -28,6 +28,11 @@ env:
 jobs:
   replace_evidence_keys:
     runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      secrets: write
+      metadata: read
     name: Replace Evidence Keys Across BookVerse
     
     steps:

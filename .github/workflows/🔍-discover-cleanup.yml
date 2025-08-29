@@ -41,7 +41,7 @@ jobs:
           JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
           PROJECT_KEY: 'bookverse'
         run: |
-          set -e
+          # Do not use 'set -e' here; discovery functions handle errors internally
           cd .github/scripts/setup
           export SKIP_PROTECTION=true
           # Extract functions + discovery preview, stopping before PHASE 2 section

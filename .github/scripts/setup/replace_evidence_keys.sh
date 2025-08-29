@@ -125,7 +125,7 @@ update_repository_secrets_and_variables() {
     
     # Update private key secret
     log_info "  → Updating EVIDENCE_PRIVATE_KEY secret..."
-    if printf "%s" "$PRIVATE_KEY_CONTENT" | gh secret set EVIDENCE_PRIVATE_KEY --repo "$repo" 2>/dev/null; then
+    if printf "%s" "$PRIVATE_KEY_CONTENT" | gh secret set EVIDENCE_PRIVATE_KEY --repo "$repo"; then
         log_success "    ✅ EVIDENCE_PRIVATE_KEY secret updated"
     else
         log_error "    ❌ Failed to update EVIDENCE_PRIVATE_KEY secret"
@@ -137,7 +137,7 @@ update_repository_secrets_and_variables() {
     # Try to delete existing secret (ignore failure if it doesn't exist)
     gh secret delete EVIDENCE_PUBLIC_KEY --repo "$repo" 2>/dev/null || true
     log_info "    → Setting EVIDENCE_PUBLIC_KEY variable..."
-    if gh variable set EVIDENCE_PUBLIC_KEY --body "$PUBLIC_KEY_CONTENT" --repo "$repo" 2>/dev/null; then
+    if gh variable set EVIDENCE_PUBLIC_KEY --body "$PUBLIC_KEY_CONTENT" --repo "$repo"; then
         log_success "    ✅ EVIDENCE_PUBLIC_KEY variable updated"
     else
         log_error "    ❌ Failed to update EVIDENCE_PUBLIC_KEY variable"
@@ -146,7 +146,7 @@ update_repository_secrets_and_variables() {
     
     # Update key alias variable
     log_info "  → Updating EVIDENCE_KEY_ALIAS variable..."
-    if gh variable set EVIDENCE_KEY_ALIAS --body "$KEY_ALIAS" --repo "$repo" 2>/dev/null; then
+    if gh variable set EVIDENCE_KEY_ALIAS --body "$KEY_ALIAS" --repo "$repo"; then
         log_success "    ✅ EVIDENCE_KEY_ALIAS variable updated"
     else
         log_error "    ❌ Failed to update EVIDENCE_KEY_ALIAS variable"

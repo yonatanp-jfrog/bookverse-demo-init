@@ -1350,111 +1350,112 @@ get_user_approval() {
 }
 
 # =============================================================================
-# MAIN EXECUTION WITH SAFETY LAYER
+# MAIN EXECUTION WITH SAFETY LAYER (only when executed directly, not when sourced)
 # =============================================================================
-
-echo "🚀 Starting SAFE PROJECT-BASED cleanup sequence..."
-echo "Finding ALL resources belonging to project '$PROJECT_KEY'"
-echo ""
-
-# PHASE 1: DISCOVERY AND APPROVAL
-echo "🛡️ SAFETY PHASE: Discovery and Approval Required"
-echo "=================================================="
-run_discovery_preview
-total_items="$GLOBAL_TOTAL_ITEMS"
-preview_file="$GLOBAL_PREVIEW_FILE"
-
-if ! get_user_approval "$preview_file" "$total_items"; then
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+    echo "🚀 Starting SAFE PROJECT-BASED cleanup sequence..."
+    echo "Finding ALL resources belonging to project '$PROJECT_KEY'"
     echo ""
-    echo "❌ CLEANUP CANCELLED BY USER/SAFETY CHECK"
-    echo "No resources were deleted."
-    echo "Preview saved: $preview_file"
-    exit 0
-fi
 
-echo ""
-echo "✅ DELETION APPROVED - Proceeding with cleanup..."
-echo ""
+    # PHASE 1: DISCOVERY AND APPROVAL
+    echo "🛡️ SAFETY PHASE: Discovery and Approval Required"
+    echo "=================================================="
+    run_discovery_preview
+    total_items="$GLOBAL_TOTAL_ITEMS"
+    preview_file="$GLOBAL_PREVIEW_FILE"
 
-# PHASE 2: ACTUAL DELETION
-echo "🗑️ DELETION PHASE: Executing approved cleanup"
-echo "=============================================="
+    if ! get_user_approval "$preview_file" "$total_items"; then
+        echo ""
+        echo "❌ CLEANUP CANCELLED BY USER/SAFETY CHECK"
+        echo "No resources were deleted."
+        echo "Preview saved: $preview_file"
+        exit 0
+    fi
 
-FAILED=false
+    echo ""
+    echo "✅ DELETION APPROVED - Proceeding with cleanup..."
+    echo ""
 
-# 1) Project builds cleanup
-echo "🏗️ STEP 1: Project Build Cleanup"
-echo "================================="
-discover_project_builds
-builds_count=$GLOBAL_BUILD_COUNT
-echo ""
-delete_project_builds "$builds_count" || FAILED=true
-echo ""
+    # PHASE 2: ACTUAL DELETION
+    echo "🗑️ DELETION PHASE: Executing approved cleanup"
+    echo "=============================================="
 
-# 2) Project applications cleanup
-echo "🚀 STEP 2: Project Application Cleanup"
-echo "======================================="
-discover_project_applications
-apps_count=$GLOBAL_APP_COUNT
-echo ""
-delete_project_applications "$apps_count" || FAILED=true
-echo ""
+    FAILED=false
 
-# 3) Project repositories cleanup
-echo "📦 STEP 3: Project Repository Cleanup"
-echo "======================================"
-discover_project_repositories
-repos_count=$GLOBAL_REPO_COUNT
-echo ""
-delete_project_repositories "$repos_count" || FAILED=true
-echo ""
+    # 1) Project builds cleanup
+    echo "🏗️ STEP 1: Project Build Cleanup"
+    echo "================================="
+    discover_project_builds
+    builds_count=$GLOBAL_BUILD_COUNT
+    echo ""
+    delete_project_builds "$builds_count" || FAILED=true
+    echo ""
 
-# 4) Project users cleanup
-echo "👥 STEP 4: Project User Cleanup"
-echo "================================"
-discover_project_users
-users_count=$GLOBAL_USER_COUNT
-echo ""
-delete_project_users "$users_count" || FAILED=true
-echo ""
+    # 2) Project applications cleanup
+    echo "🚀 STEP 2: Project Application Cleanup"
+    echo "======================================="
+    discover_project_applications
+    apps_count=$GLOBAL_APP_COUNT
+    echo ""
+    delete_project_applications "$apps_count" || FAILED=true
+    echo ""
 
-# 5) Project stages cleanup
-echo "🏷️ STEP 5: Project Stage Cleanup"
-echo "================================="
-discover_project_stages
-stages_count=$GLOBAL_STAGE_COUNT
-echo ""
-delete_project_stages "$stages_count" || FAILED=true
-echo ""
+    # 3) Project repositories cleanup
+    echo "📦 STEP 3: Project Repository Cleanup"
+    echo "======================================"
+    discover_project_repositories
+    repos_count=$GLOBAL_REPO_COUNT
+    echo ""
+    delete_project_repositories "$repos_count" || FAILED=true
+    echo ""
 
-# 6) Project lifecycle cleanup
-echo "🔄 STEP 6: Project Lifecycle Cleanup"
-echo "====================================="
-delete_project_lifecycle || FAILED=true
-echo ""
+    # 4) Project users cleanup
+    echo "👥 STEP 4: Project User Cleanup"
+    echo "================================"
+    discover_project_users
+    users_count=$GLOBAL_USER_COUNT
+    echo ""
+    delete_project_users "$users_count" || FAILED=true
+    echo ""
 
-# 7) Project deletion
-echo "🎯 STEP 7: Project Deletion"
-echo "============================"
-delete_project || FAILED=true
-echo ""
+    # 5) Project stages cleanup
+    echo "🏷️ STEP 5: Project Stage Cleanup"
+    echo "================================="
+    discover_project_stages
+    stages_count=$GLOBAL_STAGE_COUNT
+    echo ""
+    delete_project_stages "$stages_count" || FAILED=true
+    echo ""
 
-# =============================================================================
-# FINAL SUMMARY
-# =============================================================================
+    # 6) Project lifecycle cleanup
+    echo "🔄 STEP 6: Project Lifecycle Cleanup"
+    echo "====================================="
+    delete_project_lifecycle || FAILED=true
+    echo ""
 
-echo "🎯 PROJECT-BASED CLEANUP SUMMARY"
-echo "================================="
-echo "Debug log: $HTTP_DEBUG_LOG"
-echo ""
+    # 7) Project deletion
+    echo "🎯 STEP 7: Project Deletion"
+    echo "============================"
+    delete_project || FAILED=true
+    echo ""
 
-if [[ "$FAILED" == true ]]; then
-    echo "❌ Some resources failed to be deleted"
-    echo "Check debug files in: $TEMP_DIR"
-    echo "Check debug log: $HTTP_DEBUG_LOG"
-    exit 1
-else
-    echo "✅ PROJECT-BASED cleanup completed successfully!"
-    echo "All resources belonging to project '$PROJECT_KEY' have been cleaned up"
-    exit 0
+    # =============================================================================
+    # FINAL SUMMARY
+    # =============================================================================
+
+    echo "🎯 PROJECT-BASED CLEANUP SUMMARY"
+    echo "================================="
+    echo "Debug log: $HTTP_DEBUG_LOG"
+    echo ""
+
+    if [[ "$FAILED" == true ]]; then
+        echo "❌ Some resources failed to be deleted"
+        echo "Check debug files in: $TEMP_DIR"
+        echo "Check debug log: $HTTP_DEBUG_LOG"
+        exit 1
+    else
+        echo "✅ PROJECT-BASED cleanup completed successfully!"
+        echo "All resources belonging to project '$PROJECT_KEY' have been cleaned up"
+        exit 0
+    fi
 fi

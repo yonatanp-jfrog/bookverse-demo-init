@@ -49,8 +49,9 @@ jobs:
           echo "This workflow ONLY discovers and reports - NO DELETION occurs"
           echo ""
           
-          # Create discovery-only script
-          cp ./.github/scripts/setup/cleanup_project_based.sh ./discovery_only.sh
+          # Create discovery-only script in the correct directory
+          cd .github/scripts/setup
+          cp cleanup_project_based.sh discovery_only.sh
           
           # Modify to stop after discovery (before get_user_approval)
           cat > discovery_patch.sh << 'EOF'
@@ -71,8 +72,9 @@ jobs:
           sed -i '/get_user_approval/,/^fi$/r discovery_patch.sh' ./discovery_only.sh
           sed -i '/get_user_approval/,/^fi$/d' ./discovery_only.sh
           
-          # Run discovery and capture the preview file location
+          # Run discovery from the correct directory
           bash ./discovery_only.sh
+          cd - # Return to root directory
           
           # Find the preview file and add it to job summary
           preview_file=$(find /tmp -name "deletion_preview.txt" 2>/dev/null | head -1)

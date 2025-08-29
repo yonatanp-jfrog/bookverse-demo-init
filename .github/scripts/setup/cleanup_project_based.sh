@@ -847,10 +847,14 @@ run_discovery_preview() {
     
     # 1. Discover builds
     echo "🏗️ Discovering builds..."
-    discover_project_builds > /dev/null 2>&1  # Run discovery without capturing output
-    local builds_count=0
-    if [[ -f "$TEMP_DIR/project_builds.txt" ]]; then
-        builds_count=$(wc -l < "$TEMP_DIR/project_builds.txt" | tr -d ' ')
+    if discover_project_builds; then
+        local builds_count=0
+        if [[ -f "$TEMP_DIR/project_builds.txt" ]]; then
+            builds_count=$(wc -l < "$TEMP_DIR/project_builds.txt" | tr -d ' ')
+        fi
+    else
+        echo "⚠️  Warning: Build discovery failed, treating as 0 builds"
+        local builds_count=0
     fi
     
     if [[ "$builds_count" -gt 0 ]]; then
@@ -870,10 +874,14 @@ run_discovery_preview() {
     
     # 2. Discover applications
     echo "🚀 Discovering applications..."
-    discover_project_applications > /dev/null 2>&1  # Run discovery without capturing output
-    local apps_count=0
-    if [[ -f "$TEMP_DIR/project_applications.txt" ]]; then
-        apps_count=$(wc -l < "$TEMP_DIR/project_applications.txt" | tr -d ' ')
+    if discover_project_applications; then
+        local apps_count=0
+        if [[ -f "$TEMP_DIR/project_applications.txt" ]]; then
+            apps_count=$(wc -l < "$TEMP_DIR/project_applications.txt" | tr -d ' ')
+        fi
+    else
+        echo "⚠️  Warning: Application discovery failed, treating as 0 applications"
+        local apps_count=0
     fi
     
     if [[ "$apps_count" -gt 0 ]]; then
@@ -893,10 +901,14 @@ run_discovery_preview() {
     
     # 3. Discover repositories
     echo "📦 Discovering repositories..."
-    discover_project_repositories > /dev/null 2>&1  # Run discovery without capturing output
-    local repos_count=0
-    if [[ -f "$TEMP_DIR/project_repositories.txt" ]]; then
-        repos_count=$(wc -l < "$TEMP_DIR/project_repositories.txt" | tr -d ' ')
+    if discover_project_repositories; then
+        local repos_count=0
+        if [[ -f "$TEMP_DIR/project_repositories.txt" ]]; then
+            repos_count=$(wc -l < "$TEMP_DIR/project_repositories.txt" | tr -d ' ')
+        fi
+    else
+        echo "⚠️  Warning: Repository discovery failed, treating as 0 repositories"
+        local repos_count=0
     fi
     
     if [[ "$repos_count" -gt 0 ]]; then
@@ -916,10 +928,14 @@ run_discovery_preview() {
     
     # 4. Discover users
     echo "👥 Discovering users..."
-    discover_project_users > /dev/null 2>&1  # Run discovery without capturing output
-    local users_count=0
-    if [[ -f "$TEMP_DIR/project_users.txt" ]]; then
-        users_count=$(wc -l < "$TEMP_DIR/project_users.txt" | tr -d ' ')
+    if discover_project_users; then
+        local users_count=0
+        if [[ -f "$TEMP_DIR/project_users.txt" ]]; then
+            users_count=$(wc -l < "$TEMP_DIR/project_users.txt" | tr -d ' ')
+        fi
+    else
+        echo "⚠️  Warning: User discovery failed, treating as 0 users"
+        local users_count=0
     fi
     
     if [[ "$users_count" -gt 0 ]]; then
@@ -939,10 +955,14 @@ run_discovery_preview() {
     
     # 5. Discover stages
     echo "🏷️ Discovering stages..."
-    discover_project_stages > /dev/null 2>&1  # Run discovery without capturing output
-    local stages_count=0
-    if [[ -f "$TEMP_DIR/project_stages.txt" ]]; then
-        stages_count=$(wc -l < "$TEMP_DIR/project_stages.txt" | tr -d ' ')
+    if discover_project_stages; then
+        local stages_count=0
+        if [[ -f "$TEMP_DIR/project_stages.txt" ]]; then
+            stages_count=$(wc -l < "$TEMP_DIR/project_stages.txt" | tr -d ' ')
+        fi
+    else
+        echo "⚠️  Warning: Stage discovery failed, treating as 0 stages"
+        local stages_count=0
     fi
     
     if [[ "$stages_count" -gt 0 ]]; then

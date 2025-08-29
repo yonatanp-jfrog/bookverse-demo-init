@@ -58,3 +58,46 @@ jobs:
         run: |
           # Final validation of all created resources
           ./.github/scripts/setup/validate_setup.sh
+
+      - name: 📋 Setup Platform Summary
+        if: always()
+        run: |
+          echo "## 🚀 Setup Platform Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [[ "${{ job.status }}" == "success" ]]; then
+            echo "✅ **Platform setup completed successfully**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "🎯 **BookVerse demo environment is ready**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 📋 What was created:" >> $GITHUB_STEP_SUMMARY
+            echo "- 🎯 **Project**: BookVerse project with full configuration" >> $GITHUB_STEP_SUMMARY
+            echo "- 🏷️ **Stages**: Development lifecycle stages (dev, qa, staging, prod)" >> $GITHUB_STEP_SUMMARY
+            echo "- 📦 **Repositories**: All required artifact repositories" >> $GITHUB_STEP_SUMMARY
+            echo "- 👥 **Users**: Project users and admin accounts" >> $GITHUB_STEP_SUMMARY
+            echo "- 🚀 **Applications**: AppTrust application definitions" >> $GITHUB_STEP_SUMMARY
+            echo "- 🔐 **Security**: OIDC integration and evidence keys" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 🎯 Next Steps:" >> $GITHUB_STEP_SUMMARY
+            echo "1. 🏗️ **Run service CI/CD workflows** to build and deploy applications" >> $GITHUB_STEP_SUMMARY
+            echo "2. 🧪 **Test the demo applications** using the provided endpoints" >> $GITHUB_STEP_SUMMARY
+            echo "3. 🔍 **Explore JFrog Platform** to see created resources" >> $GITHUB_STEP_SUMMARY
+            echo "4. 📖 **Check documentation** for detailed usage instructions" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Platform setup failed**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "🔍 **Check the logs above for error details**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 💡 Common causes:" >> $GITHUB_STEP_SUMMARY
+            echo "- 🔐 **Authentication issues** with JFrog platform" >> $GITHUB_STEP_SUMMARY
+            echo "- 🔒 **Insufficient permissions** for admin token" >> $GITHUB_STEP_SUMMARY
+            echo "- 🌐 **Network connectivity** problems" >> $GITHUB_STEP_SUMMARY
+            echo "- ⚠️ **Resource conflicts** (project/users already exist)" >> $GITHUB_STEP_SUMMARY
+            echo "- 🎯 **Missing prerequisites** (GitHub token, environment variables)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 🔧 Recommended actions:" >> $GITHUB_STEP_SUMMARY
+            echo "1. 🔍 **Review error logs** for specific failure points" >> $GITHUB_STEP_SUMMARY
+            echo "2. 🗑️ **Run Discover Cleanup workflow** to see existing resources" >> $GITHUB_STEP_SUMMARY
+            echo "3. 🧹 **Clean up conflicts** before retrying setup" >> $GITHUB_STEP_SUMMARY
+            echo "4. ✅ **Verify environment variables** and secrets are configured" >> $GITHUB_STEP_SUMMARY
+          fi

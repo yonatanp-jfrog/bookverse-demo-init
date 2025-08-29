@@ -284,7 +284,7 @@ discover_project_repositories() {
             cat "$filtered_repos" | sed 's/^/  - /' >&2
         fi
         
-        echo "$count"
+        # Count returned via function return code, not echo
     else
         echo "❌ Project repository discovery failed (HTTP $code)" >&2
         echo "0"
@@ -315,7 +315,7 @@ discover_project_users() {
             jq -r '.members[]? | "  - \(.name) (roles: \(.roles | join(", ")))"' "$users_file" 2>/dev/null || true >&2
         fi
         
-        echo "$count"
+        # Count returned via function return code, not echo
     else
         echo "❌ Project user discovery failed (HTTP $code)" >&2
         echo "0"
@@ -343,7 +343,7 @@ discover_project_applications() {
             cat "$filtered_apps" | sed 's/^/  - /' >&2
         fi
         
-        echo "$count"
+        # Count returned via function return code, not echo
     else
         echo "❌ Project application discovery failed (HTTP $code)" >&2
         echo "0"
@@ -380,7 +380,7 @@ discover_project_builds() {
             count=0
         fi
         
-        echo "$count"
+        # Count returned via function return code, not echo
     else
         echo "❌ Failed to discover project builds (HTTP $code)" >&2
         touch "$filtered_builds"
@@ -430,7 +430,7 @@ discover_project_stages() {
             cat "$filtered_stages" | sed 's/^/  - /' >&2
         fi
         
-        echo "$count"
+        # Count returned via function return code, not echo
     else
         echo "❌ Project stage discovery failed (HTTP $code)" >&2
         echo "0"

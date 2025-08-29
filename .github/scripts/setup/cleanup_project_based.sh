@@ -847,18 +847,21 @@ run_discovery_preview() {
     
     # 1. Discover builds
     echo "🏗️ Discovering builds..."
-    local builds_count=$(discover_project_builds)
+    discover_project_builds > /dev/null 2>&1  # Run discovery without capturing output
+    local builds_count=0
+    if [[ -f "$TEMP_DIR/project_builds.txt" ]]; then
+        builds_count=$(wc -l < "$TEMP_DIR/project_builds.txt" | tr -d ' ')
+    fi
+    
     if [[ "$builds_count" -gt 0 ]]; then
         echo "BUILDS TO DELETE ($builds_count items):" >> "$preview_file"
         echo "=======================================" >> "$preview_file"
-        if [[ -f "$TEMP_DIR/project_builds.txt" ]]; then
-            while IFS= read -r build; do
-                if [[ -n "$build" ]]; then
-                    echo "  ❌ Build: $build" >> "$preview_file"
-                    ((total_items++))
-                fi
-            done < "$TEMP_DIR/project_builds.txt"
-        fi
+        while IFS= read -r build; do
+            if [[ -n "$build" ]]; then
+                echo "  ❌ Build: $build" >> "$preview_file"
+                ((total_items++))
+            fi
+        done < "$TEMP_DIR/project_builds.txt"
         echo "" >> "$preview_file"
     else
         echo "BUILDS: None found" >> "$preview_file"
@@ -867,18 +870,21 @@ run_discovery_preview() {
     
     # 2. Discover applications
     echo "🚀 Discovering applications..."
-    local apps_count=$(discover_project_applications)
+    discover_project_applications > /dev/null 2>&1  # Run discovery without capturing output
+    local apps_count=0
+    if [[ -f "$TEMP_DIR/project_applications.txt" ]]; then
+        apps_count=$(wc -l < "$TEMP_DIR/project_applications.txt" | tr -d ' ')
+    fi
+    
     if [[ "$apps_count" -gt 0 ]]; then
         echo "APPLICATIONS TO DELETE ($apps_count items):" >> "$preview_file"
         echo "===========================================" >> "$preview_file"
-        if [[ -f "$TEMP_DIR/project_applications.txt" ]]; then
-            while IFS= read -r app; do
-                if [[ -n "$app" ]]; then
-                    echo "  ❌ Application: $app" >> "$preview_file"
-                    ((total_items++))
-                fi
-            done < "$TEMP_DIR/project_applications.txt"
-        fi
+        while IFS= read -r app; do
+            if [[ -n "$app" ]]; then
+                echo "  ❌ Application: $app" >> "$preview_file"
+                ((total_items++))
+            fi
+        done < "$TEMP_DIR/project_applications.txt"
         echo "" >> "$preview_file"
     else
         echo "APPLICATIONS: None found" >> "$preview_file"
@@ -887,18 +893,21 @@ run_discovery_preview() {
     
     # 3. Discover repositories
     echo "📦 Discovering repositories..."
-    local repos_count=$(discover_project_repositories)
+    discover_project_repositories > /dev/null 2>&1  # Run discovery without capturing output
+    local repos_count=0
+    if [[ -f "$TEMP_DIR/project_repositories.txt" ]]; then
+        repos_count=$(wc -l < "$TEMP_DIR/project_repositories.txt" | tr -d ' ')
+    fi
+    
     if [[ "$repos_count" -gt 0 ]]; then
         echo "REPOSITORIES TO DELETE ($repos_count items):" >> "$preview_file"
         echo "=============================================" >> "$preview_file"
-        if [[ -f "$TEMP_DIR/project_repositories.txt" ]]; then
-            while IFS= read -r repo; do
-                if [[ -n "$repo" ]]; then
-                    echo "  ❌ Repository: $repo" >> "$preview_file"
-                    ((total_items++))
-                fi
-            done < "$TEMP_DIR/project_repositories.txt"
-        fi
+        while IFS= read -r repo; do
+            if [[ -n "$repo" ]]; then
+                echo "  ❌ Repository: $repo" >> "$preview_file"
+                ((total_items++))
+            fi
+        done < "$TEMP_DIR/project_repositories.txt"
         echo "" >> "$preview_file"
     else
         echo "REPOSITORIES: None found" >> "$preview_file"
@@ -907,18 +916,21 @@ run_discovery_preview() {
     
     # 4. Discover users
     echo "👥 Discovering users..."
-    local users_count=$(discover_project_users)
+    discover_project_users > /dev/null 2>&1  # Run discovery without capturing output
+    local users_count=0
+    if [[ -f "$TEMP_DIR/project_users.txt" ]]; then
+        users_count=$(wc -l < "$TEMP_DIR/project_users.txt" | tr -d ' ')
+    fi
+    
     if [[ "$users_count" -gt 0 ]]; then
         echo "USERS TO DELETE ($users_count items):" >> "$preview_file"
         echo "======================================" >> "$preview_file"
-        if [[ -f "$TEMP_DIR/project_users.txt" ]]; then
-            while IFS= read -r user; do
-                if [[ -n "$user" ]]; then
-                    echo "  ❌ User: $user" >> "$preview_file"
-                    ((total_items++))
-                fi
-            done < "$TEMP_DIR/project_users.txt"
-        fi
+        while IFS= read -r user; do
+            if [[ -n "$user" ]]; then
+                echo "  ❌ User: $user" >> "$preview_file"
+                ((total_items++))
+            fi
+        done < "$TEMP_DIR/project_users.txt"
         echo "" >> "$preview_file"
     else
         echo "USERS: None found" >> "$preview_file"
@@ -927,18 +939,21 @@ run_discovery_preview() {
     
     # 5. Discover stages
     echo "🏷️ Discovering stages..."
-    local stages_count=$(discover_project_stages)
+    discover_project_stages > /dev/null 2>&1  # Run discovery without capturing output
+    local stages_count=0
+    if [[ -f "$TEMP_DIR/project_stages.txt" ]]; then
+        stages_count=$(wc -l < "$TEMP_DIR/project_stages.txt" | tr -d ' ')
+    fi
+    
     if [[ "$stages_count" -gt 0 ]]; then
         echo "STAGES TO DELETE ($stages_count items):" >> "$preview_file"
         echo "=======================================" >> "$preview_file"
-        if [[ -f "$TEMP_DIR/project_stages.txt" ]]; then
-            while IFS= read -r stage; do
-                if [[ -n "$stage" ]]; then
-                    echo "  ❌ Stage: $stage" >> "$preview_file"
-                    ((total_items++))
-                fi
-            done < "$TEMP_DIR/project_stages.txt"
-        fi
+        while IFS= read -r stage; do
+            if [[ -n "$stage" ]]; then
+                echo "  ❌ Stage: $stage" >> "$preview_file"
+                ((total_items++))
+            fi
+        done < "$TEMP_DIR/project_stages.txt"
         echo "" >> "$preview_file"
     else
         echo "STAGES: None found" >> "$preview_file"

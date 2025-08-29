@@ -979,6 +979,40 @@ run_discovery_preview() {
     echo "" >> "$preview_file"
     echo "⚠️ WARNING: This action cannot be undone!" >> "$preview_file"
     
+    # Save report to shared location for cleanup workflow
+    local shared_report_file=".github/cleanup-report.json"
+    local timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    
+    # Create structured report with metadata
+    jq -n \
+        --arg timestamp "$timestamp" \
+        --arg project_key "$PROJECT_KEY" \
+        --argjson total_items "$total_items" \
+        --argjson builds_count "$builds_count" \
+        --argjson apps_count "$apps_count" \
+        --argjson repos_count "$repos_count" \
+        --argjson users_count "$users_count" \
+        --argjson stages_count "$stages_count" \
+        --arg preview_content "$(cat "$preview_file")" \
+        '{
+            "metadata": {
+                "timestamp": $timestamp,
+                "project_key": $project_key,
+                "total_items": $total_items,
+                "discovery_counts": {
+                    "builds": $builds_count,
+                    "applications": $apps_count,
+                    "repositories": $repos_count,
+                    "users": $users_count,
+                    "stages": $stages_count
+                }
+            },
+            "deletion_plan": $preview_content,
+            "status": "ready_for_cleanup"
+        }' > "$shared_report_file"
+    
+    echo "📋 Shared report saved to: $shared_report_file" >&2
+    
     # Set global variables instead of using return codes
     GLOBAL_PREVIEW_FILE="$preview_file"
     GLOBAL_TOTAL_ITEMS="$total_items"

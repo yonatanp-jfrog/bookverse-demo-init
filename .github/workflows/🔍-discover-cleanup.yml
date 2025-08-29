@@ -77,6 +77,29 @@ jobs:
           bash ./discovery_only.sh
           cd - # Return to root directory
           
+          # Commit the shared report file to repository
+          if [[ -f ".github/cleanup-report.json" ]]; then
+            git config --global user.name "BookVerse Discovery Bot"
+            git config --global user.email "discovery@bookverse.demo"
+            git add .github/cleanup-report.json
+            if git diff --cached --quiet; then
+              echo "📋 No changes to commit for cleanup report"
+            else
+              git commit -m "chore: Update cleanup discovery report
+
+Generated at: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+Project: bookverse
+Status: Ready for cleanup execution
+
+This report contains the current state of BookVerse resources
+and is used by the cleanup workflow for safe deletion."
+              git push origin main
+              echo "📋 Cleanup report committed and pushed to repository"
+            fi
+          else
+            echo "⚠️ Warning: Cleanup report file not found"
+          fi
+          
           # Find the preview file and add it to job summary
           preview_file=$(find /tmp -name "deletion_preview.txt" 2>/dev/null | head -1)
           if [[ -f "$preview_file" ]]; then

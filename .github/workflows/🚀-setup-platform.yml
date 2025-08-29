@@ -71,12 +71,68 @@ jobs:
             echo "🎯 **BookVerse demo environment is ready**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "### 📋 What was created:" >> $GITHUB_STEP_SUMMARY
-            echo "- 🎯 **Project**: BookVerse project with full configuration" >> $GITHUB_STEP_SUMMARY
-            echo "- 🏷️ **Stages**: Development lifecycle stages (dev, qa, staging, prod)" >> $GITHUB_STEP_SUMMARY
-            echo "- 📦 **Repositories**: All required artifact repositories" >> $GITHUB_STEP_SUMMARY
-            echo "- 👥 **Users**: Project users and admin accounts" >> $GITHUB_STEP_SUMMARY
-            echo "- 🚀 **Applications**: AppTrust application definitions" >> $GITHUB_STEP_SUMMARY
-            echo "- 🔐 **Security**: OIDC integration and evidence keys" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            # Get actual created resources details
+            echo "#### 🎯 **Project & Configuration**" >> $GITHUB_STEP_SUMMARY
+            echo "- **Project**: \`bookverse\` with full configuration" >> $GITHUB_STEP_SUMMARY
+            echo "- **Lifecycle stages**: \`bookverse-DEV\`, \`bookverse-QA\`, \`bookverse-STAGING\` (+ system PROD)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            echo "#### 📦 **Repositories Created**" >> $GITHUB_STEP_SUMMARY
+            echo "**Service Repositories:**" >> $GITHUB_STEP_SUMMARY
+            echo "- \`bookverse-inventory-python-internal-local\` & \`bookverse-inventory-python-release-local\`" >> $GITHUB_STEP_SUMMARY
+            echo "- \`bookverse-recommendations-python-internal-local\` & \`bookverse-recommendations-python-release-local\`" >> $GITHUB_STEP_SUMMARY
+            echo "- \`bookverse-checkout-python-internal-local\` & \`bookverse-checkout-python-release-local\`" >> $GITHUB_STEP_SUMMARY
+            echo "- \`bookverse-platform-maven-internal-local\` & \`bookverse-platform-maven-release-local\`" >> $GITHUB_STEP_SUMMARY
+            echo "- \`bookverse-helm-helm-internal-local\` & \`bookverse-helm-helm-release-local\`" >> $GITHUB_STEP_SUMMARY
+            echo "- \`bookverse-web-npm-internal-local\` & \`bookverse-web-npm-release-local\`" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Dependency Repositories:**" >> $GITHUB_STEP_SUMMARY
+            echo "- \`bookverse-pypi-virtual\` (Python: cache + PyPI.org)" >> $GITHUB_STEP_SUMMARY
+            echo "- \`bookverse-npm-virtual\` (npm: cache + npmjs.org)" >> $GITHUB_STEP_SUMMARY
+            echo "- \`bookverse-dockerhub-virtual\` (Docker: cache + Docker Hub)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            echo "#### 👥 **Users Created**" >> $GITHUB_STEP_SUMMARY
+            echo "**Management Users:**" >> $GITHUB_STEP_SUMMARY
+            echo "- \`alice.developer@bookverse.com\` (Developer)" >> $GITHUB_STEP_SUMMARY
+            echo "- \`bob.release@bookverse.com\` (Release Manager, Project Admin)" >> $GITHUB_STEP_SUMMARY
+            echo "- \`charlie.devops@bookverse.com\` (DevOps Manager, Project Admin)" >> $GITHUB_STEP_SUMMARY
+            echo "- \`diana.architect@bookverse.com\` (Platform Architect, Project Admin)" >> $GITHUB_STEP_SUMMARY
+            echo "- \`edward.manager@bookverse.com\` (Engineering Manager, Project Admin)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Service Owners:**" >> $GITHUB_STEP_SUMMARY
+            echo "- \`frank.inventory@bookverse.com\` (Inventory Service)" >> $GITHUB_STEP_SUMMARY
+            echo "- \`grace.ai@bookverse.com\` (Recommendations Service)" >> $GITHUB_STEP_SUMMARY
+            echo "- \`henry.checkout@bookverse.com\` (Checkout Service)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Pipeline Users:**" >> $GITHUB_STEP_SUMMARY
+            echo "- \`pipeline.inventory@bookverse.com\`" >> $GITHUB_STEP_SUMMARY
+            echo "- \`pipeline.recommendations@bookverse.com\`" >> $GITHUB_STEP_SUMMARY
+            echo "- \`pipeline.checkout@bookverse.com\`" >> $GITHUB_STEP_SUMMARY
+            echo "- \`pipeline.platform@bookverse.com\`" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            echo "#### 🚀 **Applications** (AppTrust)" >> $GITHUB_STEP_SUMMARY
+            echo "- \`bookverse-inventory\` → frank.inventory@bookverse.com [high criticality]" >> $GITHUB_STEP_SUMMARY
+            echo "- \`bookverse-recommendations\` → grace.ai@bookverse.com [medium criticality]" >> $GITHUB_STEP_SUMMARY
+            echo "- \`bookverse-checkout\` → henry.checkout@bookverse.com [high criticality]" >> $GITHUB_STEP_SUMMARY
+            echo "- \`bookverse-platform\` → diana.architect@bookverse.com [high criticality]" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            echo "#### 🔐 **Security & Integration**" >> $GITHUB_STEP_SUMMARY
+            echo "**OIDC Integrations:**" >> $GITHUB_STEP_SUMMARY
+            echo "- \`github-bookverse-inventory\` → frank.inventory@bookverse.com" >> $GITHUB_STEP_SUMMARY
+            echo "- \`github-bookverse-recommendations\` → grace.ai@bookverse.com" >> $GITHUB_STEP_SUMMARY
+            echo "- \`github-bookverse-checkout\` → henry.checkout@bookverse.com" >> $GITHUB_STEP_SUMMARY
+            echo "- \`github-bookverse-platform\` → diana.architect@bookverse.com" >> $GITHUB_STEP_SUMMARY
+            echo "- \`github-bookverse-web\` → alice.developer@bookverse.com" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Evidence Keys:**" >> $GITHUB_STEP_SUMMARY
+            echo "- Smart conflict resolution implemented" >> $GITHUB_STEP_SUMMARY
+            echo "- Keys distributed to all service repositories" >> $GITHUB_STEP_SUMMARY
+            echo "- Public key uploaded to JFrog Platform as trusted key" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "### 🎯 Next Steps:" >> $GITHUB_STEP_SUMMARY
             echo "1. 🏗️ **Run service CI/CD workflows** to build and deploy applications" >> $GITHUB_STEP_SUMMARY

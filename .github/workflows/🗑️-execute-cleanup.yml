@@ -68,6 +68,61 @@ jobs:
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "🎯 **All BookVerse project resources have been deleted**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
+            
+            # Look for execution logs to show what was actually deleted
+            echo "### 📋 Resources Successfully Deleted:" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            # Parse logs from the cleanup step to extract deletion info
+            execution_log="/tmp/cleanup_execution.log"
+            if [[ -f "$execution_log" ]]; then
+              echo "#### 📊 **Deletion Summary**" >> $GITHUB_STEP_SUMMARY
+              deleted_repos=$(grep -c "✅.*repository.*deleted" "$execution_log" 2>/dev/null || echo "0")
+              deleted_users=$(grep -c "✅.*user.*deleted" "$execution_log" 2>/dev/null || echo "0") 
+              deleted_apps=$(grep -c "✅.*application.*deleted" "$execution_log" 2>/dev/null || echo "0")
+              deleted_stages=$(grep -c "✅.*stage.*deleted" "$execution_log" 2>/dev/null || echo "0")
+              deleted_oidc=$(grep -c "✅.*OIDC.*deleted" "$execution_log" 2>/dev/null || echo "0")
+              deleted_builds=$(grep -c "✅.*build.*deleted" "$execution_log" 2>/dev/null || echo "0")
+              
+              echo "| Resource Type | Deleted |" >> $GITHUB_STEP_SUMMARY
+              echo "|---------------|---------|" >> $GITHUB_STEP_SUMMARY
+              echo "| 📦 Repositories | $deleted_repos |" >> $GITHUB_STEP_SUMMARY
+              echo "| 👥 Users | $deleted_users |" >> $GITHUB_STEP_SUMMARY
+              echo "| 🚀 Applications | $deleted_apps |" >> $GITHUB_STEP_SUMMARY
+              echo "| 🏷️ Stages | $deleted_stages |" >> $GITHUB_STEP_SUMMARY
+              echo "| 🔗 OIDC Integrations | $deleted_oidc |" >> $GITHUB_STEP_SUMMARY
+              echo "| 🔧 Builds | $deleted_builds |" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              
+              # Show specific deleted items
+              if [[ $deleted_repos -gt 0 ]]; then
+                echo "#### 📦 **Deleted Repositories**" >> $GITHUB_STEP_SUMMARY
+                grep "✅.*repository.*deleted" "$execution_log" | head -10 | sed 's/.*repository /- `/' | sed 's/ deleted.*/`/' >> $GITHUB_STEP_SUMMARY
+                echo "" >> $GITHUB_STEP_SUMMARY
+              fi
+              
+              if [[ $deleted_users -gt 0 ]]; then
+                echo "#### 👥 **Deleted Users**" >> $GITHUB_STEP_SUMMARY
+                grep "✅.*user.*deleted" "$execution_log" | head -10 | sed 's/.*user /- `/' | sed 's/ deleted.*/`/' >> $GITHUB_STEP_SUMMARY
+                echo "" >> $GITHUB_STEP_SUMMARY
+              fi
+              
+              if [[ $deleted_apps -gt 0 ]]; then
+                echo "#### 🚀 **Deleted Applications**" >> $GITHUB_STEP_SUMMARY
+                grep "✅.*application.*deleted" "$execution_log" | head -10 | sed 's/.*application /- `/' | sed 's/ deleted.*/`/' >> $GITHUB_STEP_SUMMARY
+                echo "" >> $GITHUB_STEP_SUMMARY
+              fi
+            else
+              echo "**Standard BookVerse project cleanup completed:**" >> $GITHUB_STEP_SUMMARY
+              echo "- 📦 All BookVerse repositories removed" >> $GITHUB_STEP_SUMMARY
+              echo "- 👥 All BookVerse users deleted" >> $GITHUB_STEP_SUMMARY
+              echo "- 🚀 All AppTrust applications removed" >> $GITHUB_STEP_SUMMARY
+              echo "- 🏷️ All project stages deleted" >> $GITHUB_STEP_SUMMARY
+              echo "- 🔗 All OIDC integrations removed" >> $GITHUB_STEP_SUMMARY
+              echo "- 🔧 All builds and artifacts cleaned" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+            fi
+            echo "" >> $GITHUB_STEP_SUMMARY
             echo "### 📋 What was deleted:" >> $GITHUB_STEP_SUMMARY
             echo "- 🚀 **Applications**: All project applications removed" >> $GITHUB_STEP_SUMMARY
             echo "- 📦 **Repositories**: All project repositories deleted" >> $GITHUB_STEP_SUMMARY

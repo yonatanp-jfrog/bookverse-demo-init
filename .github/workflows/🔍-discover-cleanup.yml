@@ -161,6 +161,12 @@ jobs:
             cat "$preview_file" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
             echo "</details>" >> $GITHUB_STEP_SUMMARY
+
+            # Link to committed report in repository
+            report_url="https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_REF_NAME}/.github/cleanup-report.json"
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 🔗 Report File" >> $GITHUB_STEP_SUMMARY
+            echo "[View cleanup-report.json]($report_url)" >> $GITHUB_STEP_SUMMARY
           else
             echo "No report generated" >> $GITHUB_STEP_SUMMARY
           fi

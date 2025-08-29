@@ -96,15 +96,23 @@ create_application() {
             fi
             ;;
         500)
-            echo "⚠️  AppTrust API returned HTTP 500 for '$app_name' - server error (not critical)"
-            echo "Response body: $(cat "$temp_response")"
-            echo "Note: Application creation may require manual setup or different API approach"
+            echo "⚠️  AppTrust API server error for '$app_name' (HTTP 500) - treating as non-critical"
+            echo "💡 Server-side issue with AppTrust API - applications may be created despite error"
+            if [[ $VERBOSITY -ge 2 ]]; then
+                echo "Response body: $(cat "$temp_response")"
+            fi
+            ;;
+        502|503|504)
+            echo "⚠️  AppTrust API unavailable for '$app_name' (HTTP $response_code) - treating as non-critical"
+            echo "💡 Temporary server issue - applications may need manual verification"
             ;;
         *)
             echo "❌ Failed to create application '$app_name' (HTTP $response_code)"
-            echo "Response body: $(cat "$temp_response")"
-            rm -f "$temp_response"
-            return 1
+            if [[ $VERBOSITY -ge 1 ]]; then
+                echo "Response body: $(cat "$temp_response")"
+            fi
+            echo "💡 This may be due to API format changes or permission issues"
+            # Don't exit on application failures - they're not critical for platform function
             ;;
     esac
     

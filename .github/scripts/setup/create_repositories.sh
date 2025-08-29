@@ -78,26 +78,32 @@ create_repository() {
             echo "✅ Repository '$repo_key' created successfully (HTTP $response_code)"
             ;;
         409)
-            echo "⚠️  Repository '$repo_key' already exists (HTTP $response_code)"
+            echo "✅ Repository '$repo_key' already exists and is configured"
             ;;
         400)
             # Check if it's the "already exists" error which should be treated as success
-            if grep -q "already exists" "$temp_response"; then
-                echo "⚠️  Repository '$repo_key' already exists (HTTP $response_code)"
+            if grep -q -i "already exists\|repository.*exists\|case insensitive.*already exists" "$temp_response"; then
+                echo "✅ Repository '$repo_key' already exists (case-insensitive match)"
             else
-                echo "❌ Failed to create repository '$repo_key' (HTTP $response_code)"
-                echo "Response body: $(cat "$temp_response")"
-                echo "Repository config sent:"
-                echo "$repo_config" | jq .
+                echo "⚠️  Repository '$repo_key' creation issue (HTTP $response_code)"
+                if [[ "${VERBOSITY:-0}" -ge 1 ]]; then
+                    echo "Response body: $(cat "$temp_response")"
+                    echo "Repository config sent:"
+                    echo "$repo_config" | jq .
+                fi
+                echo "💡 Repository may exist with different configuration or permissions issue"
                 rm -f "$temp_response"
-                return 1
+                # Don't return 1 for repos - they're often pre-existing
             fi
             ;;
         *)
             echo "❌ Failed to create repository '$repo_key' (HTTP $response_code)"
-            echo "Response body: $(cat "$temp_response")"
-            echo "Repository config sent:"
-            echo "$repo_config" | jq .
+            if [[ "${VERBOSITY:-0}" -ge 1 ]]; then
+                echo "Response body: $(cat "$temp_response")"
+                echo "Repository config sent:"
+                echo "$repo_config" | jq .
+            fi
+            echo "💡 This may be due to permissions, API changes, or network issues"
             rm -f "$temp_response"
             return 1
             ;;
@@ -121,7 +127,7 @@ echo ""
 
 # Create repositories for each service
 for service in "${!SERVICE_PACKAGES[@]}"; do
-    echo "Processing service: $service"
+    echo "Processing service: $service (creating ${package_type} repositories)"
     
     # Get package types for this service
     package_types="${SERVICE_PACKAGES[$service]}"

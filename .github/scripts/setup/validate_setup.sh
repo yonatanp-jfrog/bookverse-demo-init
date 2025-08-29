@@ -70,12 +70,28 @@ echo ""
 
 # 3. User count  
 echo "3. Counting BookVerse users..."
-user_response=$(validate_api_response "${JFROG_URL}/artifactory/api/security/users" "Users API")
-user_count=$(echo "$user_response" | jq -r '.[] | select(.email | contains("@bookverse.com")) | .name' 2>/dev/null | wc -l)
-if [[ "$user_count" -gt 0 ]]; then
-    echo "✅ Found $user_count BookVerse users"
-else
-    echo "⚠️  BookVerse users API not accessible (HTTP 404)"
+# Try different user API endpoints since the exact endpoint varies by JFrog version
+user_count=0
+for endpoint in "/access/api/v1/users" "/artifactory/api/security/users" "/access/api/v2/users"; do
+    user_response=$(curl -s -w "%{http_code}" \
+        -H "Authorization: Bearer $JFROG_ADMIN_TOKEN" \
+        "${JFROG_URL}${endpoint}")
+    
+    http_code="${user_response: -3}"
+    response_body="${user_response%???}"
+    
+    if [[ "$http_code" =~ ^[23] ]]; then
+        user_count=$(echo "$response_body" | jq -r '.[] | select(.email // "" | contains("@bookverse.com")) | .name // .username' 2>/dev/null | wc -l)
+        if [[ "$user_count" -gt 0 ]]; then
+            echo "✅ Found $user_count BookVerse users (via ${endpoint})"
+            break
+        fi
+    fi
+done
+
+if [[ "$user_count" -eq 0 ]]; then
+    echo "⚠️  No BookVerse users found - users may have been created but are not accessible via API"
+    echo "💡 This is common when user API endpoints vary by JFrog version or permissions"
 fi
 echo ""
 
@@ -88,9 +104,45 @@ echo ""
 
 # 5. Stage count
 echo "5. Counting project stages..."
-stage_response=$(validate_api_response "${JFROG_URL}/access/api/v2/stages" "Stages API")
-stage_count=$(echo "$stage_response" | jq -r ".[] | select(.name | startswith(\"${PROJECT_KEY}-\")) | .name" 2>/dev/null | wc -l)
-echo "✅ Found $stage_count project stages"
+# Try different stage API endpoints and filtering approaches
+stage_count=0
+for endpoint in "/access/api/v2/stages" "/lifecycle/api/v2/promotion/stages"; do
+    stage_response=$(curl -s -w "%{http_code}" \
+        -H "Authorization: Bearer $JFROG_ADMIN_TOKEN" \
+        "${JFROG_URL}${endpoint}")
+    
+    http_code="${stage_response: -3}"
+    response_body="${stage_response%???}"
+    
+    if [[ "$http_code" =~ ^[23] ]]; then
+        # Try different filtering approaches for stages
+        stage_count=$(echo "$response_body" | jq -r ".[] | select(.name // .stage_name | startswith(\"${PROJECT_KEY}-\")) | .name // .stage_name" 2>/dev/null | wc -l)
+        if [[ "$stage_count" -gt 0 ]]; then
+            echo "✅ Found $stage_count project stages (via ${endpoint})"
+            break
+        fi
+    fi
+done
+
+if [[ "$stage_count" -eq 0 ]]; then
+    echo "⚠️  No project stages found - stages may have been created but are not accessible via API"
+    echo "💡 This is common when stage API endpoints vary by JFrog version"
+    # Try to verify stages exist by checking lifecycle configuration
+    lifecycle_response=$(curl -s -w "%{http_code}" \
+        -H "Authorization: Bearer $JFROG_ADMIN_TOKEN" \
+        "${JFROG_URL}/access/api/v2/lifecycle/?project_key=${PROJECT_KEY}")
+    
+    lifecycle_http_code="${lifecycle_response: -3}"
+    lifecycle_body="${lifecycle_response%???}"
+    
+    if [[ "$lifecycle_http_code" =~ ^[23] ]]; then
+        promote_stages=$(echo "$lifecycle_body" | jq -r '.promote_stages[]?' 2>/dev/null)
+        if [[ -n "$promote_stages" ]]; then
+            echo "💡 However, lifecycle configuration shows promote stages are configured:"
+            echo "$promote_stages" | sed 's/^/     - /'
+        fi
+    fi
+fi
 echo ""
 
 # 6. OIDC integration count

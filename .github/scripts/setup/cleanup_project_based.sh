@@ -1205,6 +1205,7 @@ run_discovery_preview() {
     local timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
     
     # Create structured report with metadata
+    # Pretty-print JSON for easier debugging/validation
     jq -n \
         --arg timestamp "$timestamp" \
         --arg project_key "$PROJECT_KEY" \
@@ -1230,7 +1231,7 @@ run_discovery_preview() {
             },
             "deletion_plan": $preview_content,
             "status": "ready_for_cleanup"
-        }' > "$shared_report_file"
+        }' | jq '.' > "$shared_report_file"
     
     echo "📋 Shared report saved to: $shared_report_file" >&2
     

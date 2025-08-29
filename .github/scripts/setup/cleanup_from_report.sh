@@ -48,6 +48,11 @@ source "$(dirname "$0")/cleanup_project_based.sh"
 
 # Execute the deletion phase only (skip discovery)
 FAILED=false
+# Enforce protection layer: this script assumes discovery produced the report
+if [[ ! -f ".github/cleanup-report.json" ]]; then
+    log_error "❌ Cleanup report missing. Run discovery first."
+    exit 1
+fi
 
 # Parse deletion plan and execute deletions for ONLY the items in the report
 # Extract resource lists from the report for targeted deletion

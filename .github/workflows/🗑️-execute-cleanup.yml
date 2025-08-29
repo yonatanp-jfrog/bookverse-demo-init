@@ -7,11 +7,6 @@ on:
         description: 'Type "DELETE" to confirm cleanup (this action cannot be undone)'
         required: true
         type: string
-      skip_protection:
-        description: 'Skip protection layer (NOT RECOMMENDED)'
-        required: false
-        default: false
-        type: boolean
 
 permissions:
   contents: write
@@ -49,7 +44,6 @@ jobs:
           JFROG_URL: ${{ vars.JFROG_URL }}
           JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
           PROJECT_KEY: 'bookverse'
-          SKIP_PROTECTION: ${{ github.event.inputs.skip_protection }}
         run: |
           bash ./.github/scripts/setup/cleanup_from_report.sh | tee /tmp/cleanup_execution.log
 

@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "timestamp": "2025-08-29T23:54:29Z",
+    "timestamp": "2025-08-29T23:54:52Z",
     "project_key": "bookverse",
     "total_items": 3,
     "discovery_counts": {
@@ -31,6 +31,6 @@
     ],
     "builds": []
   },
-  "deletion_preview": "🛡️ SAFETY: Discovering what would be deleted...\nProject: bookverse\nDate: Fri Aug 29 23:54:28 UTC 2025\n\nBUILDS: None found\n\nAPPLICATIONS: None found\n\nREPOSITORIES: None found\n\nUSERS: None found\n\nSTAGES TO DELETE (3 items):\n=======================================\n  ❌ Stage: bookverse-DEV\n  ❌ Stage: bookverse-QA\n  ❌ Stage: bookverse-STAGING\n\nSUMMARY:\n========\nTotal items to delete: 3\nProject to delete: bookverse\n\n⚠️ WARNING: This action cannot be undone!",
+  "deletion_preview": "🛡️ SAFETY: Discovering what would be deleted...\nProject: bookverse\nDate: Fri Aug 29 23:54:51 UTC 2025\n\nBUILDS: None found\n\nAPPLICATIONS: None found\n\nREPOSITORIES: None found\n\nUSERS: None found\n\nSTAGES TO DELETE (3 items):\n=======================================\n  ❌ Stage: bookverse-DEV\n  ❌ Stage: bookverse-QA\n  ❌ Stage: bookverse-STAGING\n\nSUMMARY:\n========\nTotal items to delete: 3\nProject to delete: bookverse\n\n⚠️ WARNING: This action cannot be undone!",
   "status": "ready_for_cleanup"
 }

@@ -53,18 +53,23 @@ jobs:
           cp ./.github/scripts/setup/cleanup_project_based.sh ./discovery_only.sh
           
           # Modify to stop after discovery (before get_user_approval)
-          sed -i '/get_user_approval/,/^fi$/c\
-echo ""\
-echo "🛡️ DISCOVERY COMPLETE - NO DELETION PERFORMED"\
-echo "=============================================="\
-echo ""\
-echo "📋 To execute the deletion:"\
-echo "  1. Review the preview above carefully"\
-echo "  2. Run the '\''Cleanup Execution'\'' workflow"\
-echo "  3. Or set SKIP_PROTECTION=true for automated deletion"\
-echo ""\
-echo "💾 Preview saved to: $preview_file"\
-exit 0' ./discovery_only.sh
+          cat > discovery_patch.sh << 'EOF'
+          echo ""
+          echo "🛡️ DISCOVERY COMPLETE - NO DELETION PERFORMED"
+          echo "=============================================="
+          echo ""
+          echo "📋 To execute the deletion:"
+          echo "  1. Review the preview above carefully"
+          echo "  2. Run the main cleanup workflow"
+          echo "  3. Set SKIP_PROTECTION=true for automated deletion"
+          echo ""
+          echo "💾 Preview saved to: $preview_file"
+          exit 0
+          EOF
+          
+          # Replace the get_user_approval section with discovery completion
+          sed -i '/get_user_approval/,/^fi$/r discovery_patch.sh' ./discovery_only.sh
+          sed -i '/get_user_approval/,/^fi$/d' ./discovery_only.sh
           
           # Run discovery and capture the preview file location
           bash ./discovery_only.sh

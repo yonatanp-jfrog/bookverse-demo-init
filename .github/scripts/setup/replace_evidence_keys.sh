@@ -223,7 +223,7 @@ main() {
     echo ""
     echo "🔑 Key alias: $KEY_ALIAS"
     echo ""
-    log_success "All repositories are now using the new evidence keys!"
+    echo "All repositories are now using the new evidence keys!" >&2
 }
 
 # Execute main function

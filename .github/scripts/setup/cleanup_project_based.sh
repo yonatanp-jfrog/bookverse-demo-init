@@ -1090,7 +1090,8 @@ FAILED=false
 # 1) Project builds cleanup
 echo "🏗️ STEP 1: Project Build Cleanup"
 echo "================================="
-builds_count=$(discover_project_builds)
+discover_project_builds
+builds_count=$?
 echo ""
 delete_project_builds "$builds_count" || FAILED=true
 echo ""
@@ -1098,7 +1099,8 @@ echo ""
 # 2) Project applications cleanup
 echo "🚀 STEP 2: Project Application Cleanup"
 echo "======================================="
-apps_count=$(discover_project_applications)
+discover_project_applications
+apps_count=$?
 echo ""
 delete_project_applications "$apps_count" || FAILED=true
 echo ""
@@ -1106,7 +1108,8 @@ echo ""
 # 3) Project repositories cleanup
 echo "📦 STEP 3: Project Repository Cleanup"
 echo "======================================"
-repos_count=$(discover_project_repositories)
+discover_project_repositories
+repos_count=$?
 echo ""
 delete_project_repositories "$repos_count" || FAILED=true
 echo ""
@@ -1114,7 +1117,8 @@ echo ""
 # 4) Project users cleanup
 echo "👥 STEP 4: Project User Cleanup"
 echo "================================"
-users_count=$(discover_project_users)
+discover_project_users
+users_count=$?
 echo ""
 delete_project_users "$users_count" || FAILED=true
 echo ""
@@ -1122,7 +1126,8 @@ echo ""
 # 5) Project stages cleanup
 echo "🏷️ STEP 5: Project Stage Cleanup"
 echo "================================="
-stages_count=$(discover_project_stages)
+discover_project_stages
+stages_count=$?
 echo ""
 delete_project_stages "$stages_count" || FAILED=true
 echo ""

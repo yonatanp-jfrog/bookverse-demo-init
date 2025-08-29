@@ -196,35 +196,35 @@ replace_keys_in_all_repositories() {
 # =============================================================================
 
 main() {
-    echo "🔄 Evidence Key Replacement" >&2
-    echo "===========================" >&2
-    echo "" >&2
-    echo "This script will replace evidence keys across all BookVerse repositories." >&2
-    echo "" >&2
-    echo "🔑 Key alias: $KEY_ALIAS" >&2
-    echo "📋 GitHub organization: $GITHUB_ORG" >&2
-    echo "" >&2
+    log_info "🔄 Evidence Key Replacement"
+    log_info "==========================="
+    echo ""
+    log_info "This script will replace evidence keys across all BookVerse repositories."
+    echo ""
+    log_info "🔑 Key alias: $KEY_ALIAS"
+    log_info "📋 GitHub organization: $GITHUB_ORG"
+    echo ""
     
     # Step 1: Validate environment
     validate_environment
-    echo "" >&2
+    echo ""
     
     # Step 2: Replace keys in all repositories
     replace_keys_in_all_repositories
     echo ""
     
     # Summary
-    echo "🎯 Evidence Key Replacement Complete!"
-    echo "====================================="
+    log_success "🎯 Evidence Key Replacement Complete!"
+    log_success "====================================="
     echo ""
-    echo "✅ Updated in all BookVerse repositories:"
-    echo "  - EVIDENCE_PRIVATE_KEY (secret)"
-    echo "  - EVIDENCE_PUBLIC_KEY (variable)"  
-    echo "  - EVIDENCE_KEY_ALIAS (variable)"
+    log_success "✅ Updated in all BookVerse repositories:"
+    log_success "  - EVIDENCE_PRIVATE_KEY (secret)"
+    log_success "  - EVIDENCE_PUBLIC_KEY (variable)"  
+    log_success "  - EVIDENCE_KEY_ALIAS (variable)"
     echo ""
-    echo "🔑 Key alias: $KEY_ALIAS"
+    log_info "🔑 Key alias: $KEY_ALIAS"
     echo ""
-    echo "All repositories are now using the new evidence keys!" >&2
+    log_success "All repositories are now using the new evidence keys!"
 }
 
 # Execute main function

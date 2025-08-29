@@ -43,7 +43,7 @@ create_lifecycle_configuration() {
     local project_stages=()
     
     # Build array of project-prefixed stage names
-    for stage_name in "${LOCAL_STAGES[@]}"; do
+    for stage_name in "${NON_PROD_STAGES[@]}"; do
         project_stages+=("${PROJECT_KEY}-${stage_name}")
     done
     
@@ -75,12 +75,12 @@ create_lifecycle_configuration() {
 # =============================================================================
 
 log_config "Project: ${PROJECT_KEY}"
-log_config "Local stages to create: ${LOCAL_STAGES[*]}"
+log_config "Local stages to create: ${NON_PROD_STAGES[*]}"
 log_config "Production stage: ${PROD_STAGE} (system-managed)"
 echo ""
 
 log_info "Stages to be created:"
-for stage_name in "${LOCAL_STAGES[@]}"; do
+for stage_name in "${NON_PROD_STAGES[@]}"; do
     echo "   - ${PROJECT_KEY}-${stage_name}"
 done
 
@@ -88,9 +88,9 @@ echo ""
 
 # Process all stages individually (avoiding batch complexity)
 count=0
-for stage_name in "${LOCAL_STAGES[@]}"; do
+for stage_name in "${NON_PROD_STAGES[@]}"; do
     echo ""
-    log_info "[$(( ++count ))/${#LOCAL_STAGES[@]}] Processing stage..."
+    log_info "[$(( ++count ))/${#NON_PROD_STAGES[@]}] Processing stage..."
     process_stage "$stage_name"
 done
 
@@ -104,13 +104,13 @@ echo ""
 log_step "Stages creation summary"
 echo ""
 log_config "📋 Created Stages:"
-for stage_name in "${LOCAL_STAGES[@]}"; do
+for stage_name in "${NON_PROD_STAGES[@]}"; do
     echo "   • ${PROJECT_KEY}-${stage_name} (promote)"
 done
 
 echo ""
 log_config "🔄 Lifecycle Configuration:"
-echo "   • Promote stages: ${LOCAL_STAGES[*]}"
+echo "   • Promote stages: ${NON_PROD_STAGES[*]}"
 echo "   • Production stage: ${PROD_STAGE} (always last, system-managed)"
 
 echo ""

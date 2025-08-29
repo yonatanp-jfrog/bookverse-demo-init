@@ -279,7 +279,7 @@ discover_project_repositories() {
         local count=$(wc -l < "$filtered_repos" 2>/dev/null || echo "0")
         echo "📦 Found $count repositories in project '$PROJECT_KEY'" >&2
         
-        if [[ "$count" -gt 0 ]] && [[ "$VERBOSITY" -ge 1 ]]; then
+        if [[ "$count" -gt 0 ]]; then
             echo "Project repositories:" >&2
             cat "$filtered_repos" | sed 's/^/  - /' >&2
         fi
@@ -312,7 +312,7 @@ discover_project_users() {
         local count=$(wc -l < "$filtered_users" 2>/dev/null || echo "0")
         echo "👥 Found $count users/admins in project '$PROJECT_KEY'" >&2
         
-        if [[ "$count" -gt 0 ]] && [[ "$VERBOSITY" -ge 1 ]]; then
+        if [[ "$count" -gt 0 ]]; then
             echo "Project users/admins:" >&2
             cat "$filtered_users" | sed 's/^/  - /' >&2
             echo "Detailed roles:" >&2
@@ -346,7 +346,7 @@ discover_project_applications() {
         local count=$(wc -l < "$filtered_apps" 2>/dev/null || echo "0")
         echo "🚀 Found $count applications in project '$PROJECT_KEY'" >&2
         
-        if [[ "$count" -gt 0 ]] && [[ "$VERBOSITY" -ge 1 ]]; then
+        if [[ "$count" -gt 0 ]]; then
             echo "Project applications:" >&2
             cat "$filtered_apps" | sed 's/^/  - /' >&2
         fi
@@ -408,23 +408,22 @@ discover_project_builds() {
 discover_project_stages() {
     echo "🔍 Discovering project stages (PROJECT-BASED)..." >&2
     
-    local lifecycle_file="$TEMP_DIR/project_lifecycle.json"
+    local stages_file="$TEMP_DIR/project_stages.json"
     local filtered_stages="$TEMP_DIR/project_stages.txt"
     
-    # PROJECT-LEVEL STAGE DISCOVERY: Find stages from lifecycle configuration
-    # Method 1: Get lifecycle configuration - this contains project-specific stages
-    echo "Getting project lifecycle configuration..." >&2
-    local code=$(jfrog_api_call "GET" "/access/api/v2/lifecycle/?project_key=$PROJECT_KEY" "$lifecycle_file" "curl" "" "project lifecycle")
+    # PROJECT-LEVEL STAGE DISCOVERY: Use proper API with query parameters
+    echo "Getting project promote stages..." >&2
+    local code=$(jfrog_api_call "GET" "/access/api/v2/stages/?project_key=$PROJECT_KEY&scope=project&category=promote" "$stages_file" "curl" "" "project promote stages")
     
-    if is_success "$code" && [[ -s "$lifecycle_file" ]]; then
-        # Extract stage names from lifecycle configuration
-        jq -r '.categories[]?.stages[]? | select(.scope == "project") | .name' "$lifecycle_file" > "$filtered_stages" 2>/dev/null || touch "$filtered_stages"
+    if is_success "$code" && [[ -s "$stages_file" ]]; then
+        # Extract stage names from response
+        jq -r '.[] | .name' "$stages_file" > "$filtered_stages" 2>/dev/null || touch "$filtered_stages"
         
         local count=$(wc -l < "$filtered_stages" 2>/dev/null || echo "0")
-        echo "🏷️ Found $count project lifecycle stages in '$PROJECT_KEY'" >&2
+        echo "🏷️ Found $count project promote stages in '$PROJECT_KEY'" >&2
         
-        if [[ "$count" -gt 0 ]] && [[ "$VERBOSITY" -ge 1 ]]; then
-            echo "Project lifecycle stages:" >&2
+        if [[ "$count" -gt 0 ]]; then
+            echo "Project promote stages:" >&2
             cat "$filtered_stages" | sed 's/^/  - /' >&2
         fi
         
@@ -432,32 +431,9 @@ discover_project_stages() {
         GLOBAL_STAGE_COUNT=$count
         return 0
     else
-        echo "⚠️ Project lifecycle not found, trying fallback methods..." >&2
-        
-        # Fallback: Try project-specific stages endpoints
-        code=$(jfrog_api_call "GET" "/access/api/v1/projects/$PROJECT_KEY/stages" "$lifecycle_file" "curl" "" "project-level stages v1")
-        
-        if ! is_success "$code"; then
-            # Final fallback: Filter global stages for project-specific ones
-            echo "Trying global stages with project filtering..." >&2
-            code=$(jfrog_api_call "GET" "/access/api/v2/stages" "$lifecycle_file" "curl" "" "all stages")
-            
-            if is_success "$code" && [[ -s "$lifecycle_file" ]]; then
-                # Filter for stages starting with project prefix
-                jq --arg project "$PROJECT_KEY" -r '.[] | select(.name | startswith($project + "-")) | .name' "$lifecycle_file" > "$filtered_stages" 2>/dev/null || touch "$filtered_stages"
-            fi
-        fi
-        
-        local count=$(wc -l < "$filtered_stages" 2>/dev/null || echo "0")
-        echo "🏷️ Found $count fallback stages in project '$PROJECT_KEY'" >&2
-        
-        if [[ "$count" -gt 0 ]] && [[ "$VERBOSITY" -ge 1 ]]; then
-            echo "Fallback stages:" >&2
-            cat "$filtered_stages" | sed 's/^/  - /' >&2
-        fi
-        
+        echo "❌ Project stage discovery failed (HTTP $code)" >&2
         # Count returned via global variable, function always returns 0 (success)
-        GLOBAL_STAGE_COUNT=$count
+        GLOBAL_STAGE_COUNT=0
         return 0
     fi
 }
@@ -492,7 +468,7 @@ discover_project_oidc() {
         local count=$(wc -l < "$filtered_oidc" 2>/dev/null || echo "0")
         echo "🔗 Found $count OIDC integrations related to project '$PROJECT_KEY'" >&2
         
-        if [[ "$count" -gt 0 ]] && [[ "$VERBOSITY" -ge 1 ]]; then
+        if [[ "$count" -gt 0 ]]; then
             echo "Project OIDC integrations:" >&2
             cat "$filtered_oidc" | sed 's/^/  - /' >&2
         fi
@@ -744,10 +720,8 @@ delete_project_builds() {
                 local decoded_build_name=$(printf '%b' "${build_name//%/\\x}")
                 
                 # Debug output
-                if [[ "$VERBOSITY" -ge 2 ]]; then
-                    echo "    [DEBUG] Original build name: '$build_name'"
-                    echo "    [DEBUG] Decoded build name: '$decoded_build_name'"
-                fi
+                echo "    [DEBUG] Original build name: '$build_name'"
+                echo "    [DEBUG] Decoded build name: '$decoded_build_name'"
                 
                 echo "    Getting build numbers for '$decoded_build_name'..."
                 local code=$(jfrog_api_call "GET" "/artifactory/api/build/$decoded_build_name?project=$PROJECT_KEY" "$build_details_file" "curl" "" "get build numbers")

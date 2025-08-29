@@ -2,16 +2,6 @@ name: '🔍 Discover Cleanup'
 
 on:
   workflow_dispatch:
-    inputs:
-      verbosity_level:
-        description: 'Verbosity level (0=quiet, 1=normal, 2=verbose)'
-        required: false
-        default: '1'
-        type: choice
-        options:
-        - '0'
-        - '1'
-        - '2'
 
 permissions:
   contents: read
@@ -101,7 +91,7 @@ jobs:
           echo "## 🔍 Cleanup Discovery Report" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "✅ **Discovery completed successfully**" >> $GITHUB_STEP_SUMMARY
-          echo "🔧 **Verbosity Level**: ${{ github.event.inputs.verbosity_level }}" >> $GITHUB_STEP_SUMMARY
+          echo "🔧 **Discovery Mode**: Detailed output (shows all discovered resources)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
           # Find and include the detailed preview file content

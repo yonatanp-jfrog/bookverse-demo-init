@@ -332,7 +332,7 @@ validate_keys() {
 }
 
 get_existing_repositories() {
-    log_info "Discovering existing BookVerse repositories..."
+    log_info "Discovering existing BookVerse repositories..." >&2
 
     local existing_repos=()
     for repo in "${BOOKVERSE_REPOS[@]}"; do
@@ -340,16 +340,16 @@ get_existing_repositories() {
         if gh repo view "$full_repo" > /dev/null 2>&1; then
             existing_repos+=("$full_repo")
         else
-            log_warning "Repository $full_repo not found - skipping"
+            log_warning "Repository $full_repo not found - skipping" >&2
         fi
     done
 
     if [[ ${#existing_repos[@]} -eq 0 ]]; then
-        log_error "No BookVerse repositories found"
+        log_error "No BookVerse repositories found" >&2
         exit 1
     fi
 
-    log_info "Found ${#existing_repos[@]} repositories"
+    log_info "Found ${#existing_repos[@]} repositories" >&2
     printf '%s\n' "${existing_repos[@]}"
 }
 
@@ -412,11 +412,15 @@ update_all_repositories() {
     log_info "Updating evidence keys across all repositories..."
     echo ""
     
-    local repos
-    mapfile -t repos < <(get_existing_repositories)
+    # Get repositories using portable method (no mapfile dependency)
+    local repos_temp="$TEMP_DIR/repos_list.txt"
+    get_existing_repositories > "$repos_temp"
+    
+    # Count repositories
+    local repo_count=$(wc -l < "$repos_temp" | tr -d ' ')
     
     echo ""
-    log_info "Processing ${#repos[@]} repositories..."
+    log_info "Processing $repo_count repositories..."
     echo ""
     
     # Read key content
@@ -426,14 +430,15 @@ update_all_repositories() {
     public_key_content=$(cat "$PUBLIC_KEY_FILE")
     
     local success_count=0
-    local total_count=${#repos[@]}
+    local total_count="$repo_count"
     
-    for repo in "${repos[@]}"; do
+    while IFS= read -r repo || [[ -n "$repo" ]]; do
+        [[ -z "$repo" ]] && continue
         if update_repository_secrets_and_variables "$repo" "$private_key_content" "$public_key_content"; then
             ((success_count++))
         fi
         echo ""
-    done
+    done < "$repos_temp"
     
     log_info "Update Summary:"
     log_info "  Repositories processed: $total_count"

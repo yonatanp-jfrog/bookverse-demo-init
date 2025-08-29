@@ -125,6 +125,11 @@ jfrog_api_call() {
     local data_payload="${5:-}"
     local description="${6:-}"
     
+    # When no output file is provided, discard body to /dev/null
+    if [[ -z "$output_file" ]]; then
+        output_file="/dev/null"
+    fi
+
     local code
     if [[ "$client" == "jf" ]]; then
         if [[ "$endpoint" == /artifactory/* ]]; then

@@ -90,7 +90,7 @@ validate_environment() {
 }
 
 get_existing_repositories() {
-    log_info "Discovering existing BookVerse repositories..."
+    echo "Discovering existing BookVerse repositories..." >&2
     
     local existing_repos=()
     for repo in "${BOOKVERSE_REPOS[@]}"; do
@@ -98,16 +98,16 @@ get_existing_repositories() {
         if gh repo view "$full_repo" > /dev/null 2>&1; then
             existing_repos+=("$full_repo")
         else
-            log_warning "Repository $full_repo not found - skipping"
+            echo "Repository $full_repo not found - skipping" >&2
         fi
     done
     
     if [[ ${#existing_repos[@]} -eq 0 ]]; then
-        log_error "No BookVerse repositories found"
+        echo "No BookVerse repositories found" >&2
         exit 1
     fi
     
-    log_info "Found ${#existing_repos[@]} repositories"
+    echo "Found ${#existing_repos[@]} repositories" >&2
     printf '%s\n' "${existing_repos[@]}"
 }
 
@@ -118,56 +118,56 @@ get_existing_repositories() {
 update_repository_secrets_and_variables() {
     local repo="$1"
     
-    log_info "Updating evidence keys in $repo..."
+    echo "Updating evidence keys in $repo..." >&2
     
     local success=true
     
     # Update private key secret
-    log_info "  → Updating EVIDENCE_PRIVATE_KEY secret..."
-    if printf "%s" "$PRIVATE_KEY_CONTENT" | gh secret set EVIDENCE_PRIVATE_KEY --repo "$repo"; then
-        log_success "    ✅ EVIDENCE_PRIVATE_KEY secret updated"
+    echo "  → Updating EVIDENCE_PRIVATE_KEY secret..." >&2
+    if printf "%s" "$PRIVATE_KEY_CONTENT" | gh secret set EVIDENCE_PRIVATE_KEY --repo "$repo" 2>/dev/null; then
+        echo "    ✅ EVIDENCE_PRIVATE_KEY secret updated" >&2
     else
-        log_error "    ❌ Failed to update EVIDENCE_PRIVATE_KEY secret"
+        echo "    ❌ Failed to update EVIDENCE_PRIVATE_KEY secret" >&2
         success=false
     fi
     
     # Update public key variable
-    log_info "  → Updating EVIDENCE_PUBLIC_KEY variable..."
-    if gh variable set EVIDENCE_PUBLIC_KEY --body "$PUBLIC_KEY_CONTENT" --repo "$repo"; then
-        log_success "    ✅ EVIDENCE_PUBLIC_KEY variable updated"
+    echo "  → Updating EVIDENCE_PUBLIC_KEY variable..." >&2
+    if gh variable set EVIDENCE_PUBLIC_KEY --body "$PUBLIC_KEY_CONTENT" --repo "$repo" 2>/dev/null; then
+        echo "    ✅ EVIDENCE_PUBLIC_KEY variable updated" >&2
     else
-        log_error "    ❌ Failed to update EVIDENCE_PUBLIC_KEY variable"
+        echo "    ❌ Failed to update EVIDENCE_PUBLIC_KEY variable" >&2
         success=false
     fi
     
     # Update key alias variable
-    log_info "  → Updating EVIDENCE_KEY_ALIAS variable..."
-    if gh variable set EVIDENCE_KEY_ALIAS --body "$KEY_ALIAS" --repo "$repo"; then
-        log_success "    ✅ EVIDENCE_KEY_ALIAS variable updated"
+    echo "  → Updating EVIDENCE_KEY_ALIAS variable..." >&2
+    if gh variable set EVIDENCE_KEY_ALIAS --body "$KEY_ALIAS" --repo "$repo" 2>/dev/null; then
+        echo "    ✅ EVIDENCE_KEY_ALIAS variable updated" >&2
     else
-        log_error "    ❌ Failed to update EVIDENCE_KEY_ALIAS variable"
+        echo "    ❌ Failed to update EVIDENCE_KEY_ALIAS variable" >&2
         success=false
     fi
     
     if [[ "$success" == true ]]; then
-        log_success "✅ $repo updated successfully"
+        echo "✅ $repo updated successfully" >&2
     else
-        log_warning "⚠️  $repo partially updated (some operations failed)"
+        echo "⚠️  $repo partially updated (some operations failed)" >&2
     fi
     
     return 0
 }
 
 replace_keys_in_all_repositories() {
-    log_info "Replacing evidence keys across all repositories..."
-    echo ""
+    echo "Replacing evidence keys across all repositories..." >&2
+    echo "" >&2
     
     local repos
     mapfile -t repos < <(get_existing_repositories)
     
-    echo ""
-    log_info "Updating evidence keys in ${#repos[@]} repositories..."
-    echo ""
+    echo "" >&2
+    echo "Updating evidence keys in ${#repos[@]} repositories..." >&2
+    echo "" >&2
     
     local success_count=0
     local total_count=${#repos[@]}
@@ -176,17 +176,17 @@ replace_keys_in_all_repositories() {
         if update_repository_secrets_and_variables "$repo"; then
             ((success_count++))
         fi
-        echo ""
+        echo "" >&2
     done
     
-    log_info "Replacement Summary:"
-    log_info "  Repositories processed: $total_count"
-    log_info "  Successfully updated: $success_count"
+    echo "Replacement Summary:" >&2
+    echo "  Repositories processed: $total_count" >&2
+    echo "  Successfully updated: $success_count" >&2
     
     if [[ $success_count -eq $total_count ]]; then
-        log_success "All repositories updated successfully!"
+        echo "All repositories updated successfully!" >&2
     else
-        log_warning "Some repositories had issues (check logs above)"
+        echo "Some repositories had issues (check logs above)" >&2
     fi
 }
 

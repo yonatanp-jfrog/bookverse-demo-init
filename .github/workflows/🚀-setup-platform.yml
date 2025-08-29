@@ -1,4 +1,4 @@
-name: 'Initialize JFrog Platform for BookVerse Demo (Optimized)'
+name: '🚀 Setup Platform'
 
 on:
   workflow_dispatch:

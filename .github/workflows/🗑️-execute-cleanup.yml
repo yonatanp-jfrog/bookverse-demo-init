@@ -1,4 +1,4 @@
-name: 'Cleanup JFrog Platform for BookVerse Demo'
+name: '🗑️ Execute Cleanup'
 on:
   workflow_dispatch:
     inputs:

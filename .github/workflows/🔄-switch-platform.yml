@@ -1,4 +1,4 @@
-name: 🔄 Switch JFrog Platform Deployment (JPD)
+name: '🔄 Switch Platform'
 
 on:
   workflow_dispatch:

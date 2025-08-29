@@ -1,4 +1,4 @@
-name: 🔍 Cleanup Discovery - Find Resources to Delete
+name: '🔍 Discover Cleanup'
 
 on:
   workflow_dispatch:

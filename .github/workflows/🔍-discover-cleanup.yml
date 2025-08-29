@@ -44,7 +44,8 @@ jobs:
           set -e
           cd .github/scripts/setup
           export SKIP_PROTECTION=true
-          awk '/# PHASE 2:/{exit} {print}' cleanup_project_based.sh > discovery_only.sh
+          # Extract functions + discovery preview, stopping before PHASE 2 section
+          awk '1;/# PHASE 2: ACTUAL DELETION/{exit}' cleanup_project_based.sh > discovery_only.sh
           chmod +x discovery_only.sh
           bash ./discovery_only.sh || true
           cd -

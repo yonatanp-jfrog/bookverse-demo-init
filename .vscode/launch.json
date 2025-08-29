@@ -1,0 +1,22 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug Cleanup Script",
+            "type": "bashdb",
+            "request": "launch",
+            "program": "${workspaceFolder}/.github/scripts/setup/cleanup_project_based.sh",
+            "cwd": "${workspaceFolder}",
+            "args": [],
+            "env": {
+                "VERBOSITY": "3",
+                "DRY_RUN": "true",
+                "JFROG_URL": "${env:JFROG_URL}",
+                "JFROG_ADMIN_TOKEN": "${env:JFROG_ADMIN_TOKEN}",
+                "PROJECT_KEY": "bookverse"
+            },
+            "terminalKind": "integrated",
+            "showDebugOutput": true
+        }
+    ]
+}

@@ -1,0 +1,63 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Debug Cleanup Workflow",
+            "type": "shell",
+            "command": "act",
+            "args": [
+                "workflow_dispatch",
+                "-W", ".github/workflows/cleanup_debug.yml",
+                "--verbose",
+                "--dry-run"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "new"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Debug Cleanup Script Only",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-x",
+                "./.github/scripts/setup/cleanup_project_based.sh"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "new"
+            },
+            "problemMatcher": [],
+            "options": {
+                "env": {
+                    "VERBOSITY": "3",
+                    "DRY_RUN": "true"
+                }
+            }
+        },
+        {
+            "label": "Test JFrog Connection",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-c",
+                "jfrog config add test --url=$JFROG_URL --access-token=$JFROG_ADMIN_TOKEN --interactive=false && jfrog rt ping"
+            ],
+            "group": "test",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "new"
+            }
+        }
+    ]
+}

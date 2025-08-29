@@ -127,31 +127,58 @@ is_not_found() {
 # Enhanced API call with better debugging
 make_api_call() {
     local method="$1" endpoint="$2" output_file="$3" client="$4"
-    local extra_args="${5:-}"
+    local data_payload="${5:-}"
     local description="${6:-}"
     
     local code
     if [[ "$client" == "jf" ]]; then
         if [[ "$endpoint" == /artifactory/* ]]; then
-            code=$(jf rt curl -X "$method" -H "X-JFrog-Project: ${PROJECT_KEY}" "$endpoint" --write-out "%{http_code}" --output "$output_file" --silent $extra_args)
+            if [[ -n "$data_payload" ]]; then
+                code=$(echo "$data_payload" | jf rt curl -X "$method" -H "X-JFrog-Project: ${PROJECT_KEY}" "$endpoint" --write-out "%{http_code}" --output "$output_file" --silent --data @-)
+            else
+                code=$(jf rt curl -X "$method" -H "X-JFrog-Project: ${PROJECT_KEY}" "$endpoint" --write-out "%{http_code}" --output "$output_file" --silent)
+            fi
         else
-            code=$(jf rt curl -X "$method" "$endpoint" --write-out "%{http_code}" --output "$output_file" --silent $extra_args)
+            if [[ -n "$data_payload" ]]; then
+                code=$(echo "$data_payload" | jf rt curl -X "$method" "$endpoint" --write-out "%{http_code}" --output "$output_file" --silent --data @-)
+            else
+                code=$(jf rt curl -X "$method" "$endpoint" --write-out "%{http_code}" --output "$output_file" --silent)
+            fi
         fi
     else
         local base_url="${JFROG_URL%/}"
         if [[ "$endpoint" == /artifactory/* ]]; then
-            code=$(curl -s -S -L \
-                -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
-                -H "X-JFrog-Project: ${PROJECT_KEY}" \
-                -H "Content-Type: application/json" \
-                -X "$method" "${base_url}${endpoint}" \
-                --write-out "%{http_code}" --output "$output_file" $extra_args)
+            if [[ -n "$data_payload" ]]; then
+                code=$(curl -s -S -L \
+                    -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+                    -H "X-JFrog-Project: ${PROJECT_KEY}" \
+                    -H "Content-Type: application/json" \
+                    -X "$method" "${base_url}${endpoint}" \
+                    --data "$data_payload" \
+                    --write-out "%{http_code}" --output "$output_file")
+            else
+                code=$(curl -s -S -L \
+                    -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+                    -H "X-JFrog-Project: ${PROJECT_KEY}" \
+                    -H "Content-Type: application/json" \
+                    -X "$method" "${base_url}${endpoint}" \
+                    --write-out "%{http_code}" --output "$output_file")
+            fi
         else
-            code=$(curl -s -S -L \
-                -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
-                -H "Content-Type: application/json" \
-                -X "$method" "${base_url}${endpoint}" \
-                --write-out "%{http_code}" --output "$output_file" $extra_args)
+            if [[ -n "$data_payload" ]]; then
+                code=$(curl -s -S -L \
+                    -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+                    -H "Content-Type: application/json" \
+                    -X "$method" "${base_url}${endpoint}" \
+                    --data "$data_payload" \
+                    --write-out "%{http_code}" --output "$output_file")
+            else
+                code=$(curl -s -S -L \
+                    -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+                    -H "Content-Type: application/json" \
+                    -X "$method" "${base_url}${endpoint}" \
+                    --write-out "%{http_code}" --output "$output_file")
+            fi
         fi
     fi
     
@@ -578,28 +605,32 @@ delete_project_applications() {
                     local code_versions=$(make_api_call "GET" "/apptrust/api/v1/applications/$app_key/versions?project_key=$PROJECT_KEY" "$versions_file" "curl" "" "get app versions")
                     
                     if is_success "$code_versions" && [[ -s "$versions_file" ]]; then
-                        mapfile -t versions < <(jq -r '.versions[]?.version // empty' "$versions_file")
-                        for ver in "${versions[@]}"; do
+                        # Extract versions using portable method (no mapfile dependency)
+                        local versions_temp="$TEMP_DIR/versions_temp.txt"
+                        jq -r '.versions[]?.version // empty' "$versions_file" > "$versions_temp" 2>/dev/null
+                        while IFS= read -r ver || [[ -n "$ver" ]]; do
                             [[ -z "$ver" ]] && continue
                             echo "      - Deleting version $ver (CLI - project-verified)"
                             
-                            # CLI deletion (no project flag available, but we verified app belongs to project)
-                            if jf apptrust version-delete "$app_key" "$ver" 2>/dev/null; then
+                            # API deletion (CLI commands don't exist)
+                            local version_delete_file="$TEMP_DIR/delete_version_${app_key}_${ver}.json"
+                            local ver_code=$(make_api_call "DELETE" "/apptrust/api/v1/applications/$app_key/versions/$ver?project_key=$PROJECT_KEY" "$version_delete_file" "curl" "" "delete version $ver")
+                            if is_success "$ver_code"; then
                                 echo "        ✅ Version $ver deleted successfully"
                             else
-                                echo "        ⚠️ Version $ver deletion failed or already deleted"
+                                echo "        ⚠️ Version $ver deletion failed or already deleted (HTTP $ver_code)"
                             fi
-                        done
+                        done < "$versions_temp"
                     fi
                     
-                    # Delete application (CLI - project membership verified)
-                    echo "    Deleting application (CLI - project-verified)..."
-                    if jf apptrust app-delete "$app_key" 2>/dev/null; then
-                        echo "    ✅ Application '$app_key' deleted successfully"
-                        code=200
+                    # Delete application via API (CLI commands don't exist)
+                    echo "    Deleting application via API (project-verified)..."
+                    local app_delete_file="$TEMP_DIR/delete_app_${app_key}.json"
+                    code=$(make_api_call "DELETE" "/apptrust/api/v1/applications/$app_key?project_key=$PROJECT_KEY" "$app_delete_file" "curl" "" "delete application $app_key")
+                    if is_success "$code"; then
+                        echo "    ✅ Application '$app_key' deleted successfully (HTTP $code)"
                     else
-                        echo "    ⚠️ Application '$app_key' deletion failed or already deleted"
-                        code=404
+                        echo "    ⚠️ Application '$app_key' deletion failed (HTTP $code)"
                     fi
                 else
                     echo "    🛡️ SAFETY: Skipped deletion due to project verification failure"
@@ -647,6 +678,12 @@ delete_project_builds() {
                 
                 # URL decode the build name for API calls
                 local decoded_build_name=$(printf '%b' "${build_name//%/\\x}")
+                
+                # Debug output
+                if [[ "$VERBOSITY" -ge 2 ]]; then
+                    echo "    [DEBUG] Original build name: '$build_name'"
+                    echo "    [DEBUG] Decoded build name: '$decoded_build_name'"
+                fi
                 
                 echo "    Getting build numbers for '$decoded_build_name'..."
                 local code=$(make_api_call "GET" "/artifactory/api/build/$decoded_build_name?project=$PROJECT_KEY" "$build_details_file" "curl" "" "get build numbers")

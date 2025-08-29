@@ -1,0 +1,6 @@
+# act configuration for BookVerse debugging
+-P ubuntu-latest=ghcr.io/catthehacker/ubuntu:act-latest
+-s JFROG_URL=$JFROG_URL
+-s JFROG_ADMIN_TOKEN=$JFROG_ADMIN_TOKEN
+--container-daemon-socket -
+--verbose

@@ -49,13 +49,40 @@ jobs:
             echo "💡 Consider using 🔍 Discover Cleanup workflow first for safer operation"
           fi
 
-      - name: Cleanup BookVerse Project (PROJECT-BASED) with Safety Layer
+      - name: 🛡️ Validate Cleanup Report
         env:
           JFROG_URL: ${{ vars.JFROG_URL }}
           JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
-          VERBOSITY: 1
+          PROJECT_KEY: 'bookverse'
+        run: |
+          # Run cleanup report validation
+          bash ./.github/scripts/setup/validate_cleanup_report.sh
+
+      - name: 🗑️ Execute Cleanup from Report
+        env:
+          JFROG_URL: ${{ vars.JFROG_URL }}
+          JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
+          PROJECT_KEY: 'bookverse'
           SKIP_PROTECTION: ${{ github.event.inputs.skip_protection }}
-        run: ./.github/scripts/setup/cleanup_project_based.sh
+        run: |
+          # Run cleanup from shared report instead of discovering again
+          echo "📋 Executing cleanup from shared discovery report..."
+          bash ./.github/scripts/setup/cleanup_from_report.sh
+          
+          # Clear and commit the cleanup report after successful execution
+          git config --global user.name "BookVerse Cleanup Bot"
+          git config --global user.email "cleanup@bookverse.demo"
+          git add .github/cleanup-report.json
+          git commit -m "chore: Clear cleanup report after successful execution
+
+Cleanup completed at: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+Project: bookverse
+Status: Cleanup completed, new discovery required
+
+This report has been cleared to prevent accidental re-execution.
+Run 🔍 Discover Cleanup workflow to generate a new report."
+          git push origin main
+          echo "📋 Cleanup report cleared and committed"
 
       - name: 📋 Execute Cleanup Summary
         if: always()

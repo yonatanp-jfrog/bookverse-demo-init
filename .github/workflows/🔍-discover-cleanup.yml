@@ -106,7 +106,7 @@ jobs:
             user_count=$(grep -c "❌ User:" "$preview_file" 2>/dev/null || echo "0") 
             app_count=$(grep -c "❌ Application:" "$preview_file" 2>/dev/null || echo "0")
             stage_count=$(grep -c "❌ Stage:" "$preview_file" 2>/dev/null || echo "0")
-            oidc_count=$(grep -c "❌ OIDC:" "$preview_file" 2>/dev/null || echo "0")
+
             build_count=$(grep -c "❌ Build:" "$preview_file" 2>/dev/null || echo "0")
             
             echo "| Resource Type | Count |" >> $GITHUB_STEP_SUMMARY
@@ -115,7 +115,7 @@ jobs:
             echo "| 👥 Users | $user_count |" >> $GITHUB_STEP_SUMMARY
             echo "| 🚀 Applications | $app_count |" >> $GITHUB_STEP_SUMMARY
             echo "| 🏷️ Stages | $stage_count |" >> $GITHUB_STEP_SUMMARY
-            echo "| 🔗 OIDC Integrations | $oidc_count |" >> $GITHUB_STEP_SUMMARY
+
             echo "| 🔧 Builds | $build_count |" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             

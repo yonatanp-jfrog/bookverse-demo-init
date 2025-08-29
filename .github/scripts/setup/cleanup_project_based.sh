@@ -438,51 +438,7 @@ discover_project_stages() {
     fi
 }
 
-# 6. PROJECT-BASED OIDC INTEGRATION DISCOVERY
-discover_project_oidc() {
-    echo "🔍 Discovering project OIDC integrations (PROJECT-BASED)..." >&2
-    
-    local oidc_file="$TEMP_DIR/project_oidc.json"
-    local filtered_oidc="$TEMP_DIR/project_oidc.txt"
-    
-    # METHOD: Get all access tokens and filter for project-related ones
-    # OIDC integrations appear as access tokens with specific patterns
-    local code=$(jfrog_api_call "GET" "/access/api/v1/tokens" "$oidc_file" "curl" "" "access tokens")
-    
-    if is_success "$code" && [[ -s "$oidc_file" ]]; then
-        # Filter for tokens that appear to be OIDC integrations related to this project:
-        # 1. Project-scoped tokens
-        # 2. Tokens with project name + github/oidc in description
-        # 3. Tokens with specific OIDC patterns 
-        jq --arg project "$PROJECT_KEY" -r '
-        .[] | select(
-            (.project_key? == $project) or
-            (.description? | test("(?i)github.*" + $project)) or
-            (.description? | test("(?i)" + $project + ".*github")) or
-            (.description? | test("(?i)oidc.*" + $project)) or
-            (.description? | test("(?i)" + $project + ".*oidc")) or
-            ((.description? // "") | test("(?i)(github|oidc).*(integration|token)") and contains($project))
-        ) | .token_id + " | " + (.description // "No description") + " | " + (.project_key // "global")
-        ' "$oidc_file" > "$filtered_oidc" 2>/dev/null || touch "$filtered_oidc"
-        
-        local count=$(wc -l < "$filtered_oidc" 2>/dev/null || echo "0")
-        echo "🔗 Found $count OIDC integrations related to project '$PROJECT_KEY'" >&2
-        
-        if [[ "$count" -gt 0 ]]; then
-            echo "Project OIDC integrations:" >&2
-            cat "$filtered_oidc" | sed 's/^/  - /' >&2
-        fi
-        
-        # Count returned via global variable, function always returns 0 (success)
-        GLOBAL_OIDC_COUNT=$count
-        return 0
-    else
-        echo "❌ Project OIDC discovery failed (HTTP $code)" >&2
-        # Count returned via global variable, function always returns 0 (success)
-        GLOBAL_OIDC_COUNT=0
-        return 0
-    fi
-}
+
 
 # =============================================================================
 # PROJECT-BASED DELETION FUNCTIONS
@@ -891,7 +847,6 @@ run_discovery_preview() {
     local repos_count=0
     local users_count=0
     local stages_count=0
-    local oidc_count=0
     
     echo "🛡️ SAFETY: Discovering what would be deleted..." > "$preview_file"
     echo "Project: $PROJECT_KEY" >> "$preview_file"
@@ -1013,31 +968,8 @@ run_discovery_preview() {
         echo "" >> "$preview_file"
     fi
     
-    # 6. Discover OIDC integrations
-    echo "🔗 Discovering OIDC integrations..."
-    if discover_project_oidc; then
-        oidc_count=$GLOBAL_OIDC_COUNT
-    else
-        echo "⚠️  Warning: OIDC discovery failed, treating as 0 integrations"
-        oidc_count=0
-    fi
-    
-    if [[ "$oidc_count" -gt 0 ]]; then
-        echo "OIDC INTEGRATIONS TO DELETE ($oidc_count items):" >> "$preview_file"
-        echo "================================================" >> "$preview_file"
-        while IFS= read -r oidc; do
-            if [[ -n "$oidc" ]]; then
-                echo "  ❌ OIDC: $oidc" >> "$preview_file"
-            fi
-        done < "$TEMP_DIR/project_oidc.txt"
-        echo "" >> "$preview_file"
-    else
-        echo "OIDC INTEGRATIONS: None found" >> "$preview_file"
-        echo "" >> "$preview_file"
-    fi
-    
     # Calculate total items from all discoveries
-    total_items=$((builds_count + apps_count + repos_count + users_count + stages_count + oidc_count))
+    total_items=$((builds_count + apps_count + repos_count + users_count + stages_count))
     
     # Summary
     echo "SUMMARY:" >> "$preview_file"

@@ -271,6 +271,9 @@ discover_project_repositories() {
     
     if is_success "$code" && [[ -s "$repos_file" ]]; then
         # Extract all repository keys from project (not filtering by name)
+        echo "🚨 DEBUG: Repositories discovered for deletion:" >&2
+        jq -r '.[] | .key' "$repos_file" | head -20 | while read -r repo; do echo "    - $repo" >&2; done
+        echo "    (showing first 20 of $(jq length "$repos_file") total)" >&2
         jq -r '.[] | .key' "$repos_file" > "$filtered_repos"
         
         local count=$(wc -l < "$filtered_repos" 2>/dev/null || echo "0")
@@ -438,10 +441,29 @@ discover_project_stages() {
 # PROJECT-BASED DELETION FUNCTIONS
 # =============================================================================
 
+# 🚨 EMERGENCY SAFETY CHECK: Verify repository belongs to project
+verify_repository_project_membership() {
+    local repo_key="$1"
+    echo "🛡️ SAFETY: Verifying repository '$repo_key' belongs to project '$PROJECT_KEY'"...
+    
+    # CRITICAL: Only delete repositories that contain the project key
+    if [[ "$repo_key" == *"$PROJECT_KEY"* ]]; then
+        echo "    ✅ SAFE: Repository contains '$PROJECT_KEY'"
+        return 0
+    else
+        echo "    🚨 BLOCKED: Repository does NOT contain '$PROJECT_KEY' - REFUSING DELETION"
+        return 1
+    fi
+}
 # Delete project repositories
 delete_project_repositories() {
     local count="$1"
     echo "🗑️ Starting project repository deletion..."
+    echo "🚨 EMERGENCY SAFETY CHECK: About to delete repositories"
+    echo "Project: $PROJECT_KEY"
+    echo "Count: $count repositories"
+    echo ""
+    echo "⚠️ This action will delete repositories. Proceeding..."
     
     if [[ "$count" -eq 0 ]]; then
         echo "No project repositories to delete"
@@ -453,7 +475,7 @@ delete_project_repositories() {
     
     if [[ -f "$repos_file" ]]; then
         while IFS= read -r repo_key; do
-            if [[ -n "$repo_key" ]]; then
+            if [[ -n "$repo_key" ]] && verify_repository_project_membership "$repo_key"; then
                 echo "  → Deleting repository: $repo_key"
                 
                 # Purge artifacts first

@@ -982,6 +982,9 @@ run_discovery_preview() {
         echo "" >> "$preview_file"
     fi
     
+    # Calculate total items from all discoveries
+    total_items=$((builds_count + apps_count + repos_count + users_count + stages_count))
+    
     # Summary
     echo "SUMMARY:" >> "$preview_file"
     echo "========" >> "$preview_file"

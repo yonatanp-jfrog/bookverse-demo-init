@@ -112,12 +112,12 @@ jobs:
             
             # Parse and format the preview file for better readability
             echo "#### 📊 **Quick Summary**" >> $GITHUB_STEP_SUMMARY
-            repo_count=$(grep -c "📦.*:" "$preview_file" 2>/dev/null || echo "0")
-            user_count=$(grep -c "👥.*:" "$preview_file" 2>/dev/null || echo "0") 
-            app_count=$(grep -c "🚀.*:" "$preview_file" 2>/dev/null || echo "0")
-            stage_count=$(grep -c "🏷️.*:" "$preview_file" 2>/dev/null || echo "0")
-            oidc_count=$(grep -c "🔗.*:" "$preview_file" 2>/dev/null || echo "0")
-            build_count=$(grep -c "🔧.*:" "$preview_file" 2>/dev/null || echo "0")
+            repo_count=$(grep -c "❌ Repository:" "$preview_file" 2>/dev/null || echo "0")
+            user_count=$(grep -c "❌ User:" "$preview_file" 2>/dev/null || echo "0") 
+            app_count=$(grep -c "❌ Application:" "$preview_file" 2>/dev/null || echo "0")
+            stage_count=$(grep -c "❌ Stage:" "$preview_file" 2>/dev/null || echo "0")
+            oidc_count=$(grep -c "❌ OIDC:" "$preview_file" 2>/dev/null || echo "0")
+            build_count=$(grep -c "❌ Build:" "$preview_file" 2>/dev/null || echo "0")
             
             echo "| Resource Type | Count |" >> $GITHUB_STEP_SUMMARY
             echo "|---------------|-------|" >> $GITHUB_STEP_SUMMARY
@@ -130,33 +130,33 @@ jobs:
             echo "" >> $GITHUB_STEP_SUMMARY
             
             # Extract detailed lists for each category
-            if grep -q "📦" "$preview_file"; then
+            if grep -q "REPOSITORIES TO DELETE" "$preview_file"; then
               echo "#### 📦 **Repositories**" >> $GITHUB_STEP_SUMMARY
-              grep -A 50 "📦" "$preview_file" | grep "^  •" | head -20 | sed 's/^  • /- `/' | sed 's/$/`/' >> $GITHUB_STEP_SUMMARY
+              grep "❌ Repository:" "$preview_file" | head -20 | sed 's/.*❌ Repository: /- `/' | sed 's/$/`/' >> $GITHUB_STEP_SUMMARY
               echo "" >> $GITHUB_STEP_SUMMARY
             fi
             
-            if grep -q "👥" "$preview_file"; then
+            if grep -q "USERS TO DELETE" "$preview_file"; then
               echo "#### 👥 **Users**" >> $GITHUB_STEP_SUMMARY
-              grep -A 30 "👥" "$preview_file" | grep "^  •" | head -15 | sed 's/^  • /- `/' | sed 's/$/`/' >> $GITHUB_STEP_SUMMARY
+              grep "❌ User:" "$preview_file" | head -15 | sed 's/.*❌ User: /- `/' | sed 's/$/`/' >> $GITHUB_STEP_SUMMARY
               echo "" >> $GITHUB_STEP_SUMMARY
             fi
             
-            if grep -q "🚀" "$preview_file"; then
+            if grep -q "APPLICATIONS TO DELETE" "$preview_file"; then
               echo "#### 🚀 **Applications**" >> $GITHUB_STEP_SUMMARY
-              grep -A 20 "🚀" "$preview_file" | grep "^  •" | head -10 | sed 's/^  • /- `/' | sed 's/$/`/' >> $GITHUB_STEP_SUMMARY
+              grep "❌ Application:" "$preview_file" | head -10 | sed 's/.*❌ Application: /- `/' | sed 's/$/`/' >> $GITHUB_STEP_SUMMARY
               echo "" >> $GITHUB_STEP_SUMMARY
             fi
             
-            if grep -q "🏷️" "$preview_file"; then
+            if grep -q "STAGES TO DELETE" "$preview_file"; then
               echo "#### 🏷️ **Stages**" >> $GITHUB_STEP_SUMMARY
-              grep -A 10 "🏷️" "$preview_file" | grep "^  •" | head -5 | sed 's/^  • /- `/' | sed 's/$/`/' >> $GITHUB_STEP_SUMMARY
+              grep "❌ Stage:" "$preview_file" | head -5 | sed 's/.*❌ Stage: /- `/' | sed 's/$/`/' >> $GITHUB_STEP_SUMMARY
               echo "" >> $GITHUB_STEP_SUMMARY
             fi
             
-            if grep -q "🔗" "$preview_file"; then
-              echo "#### 🔗 **OIDC Integrations**" >> $GITHUB_STEP_SUMMARY
-              grep -A 15 "🔗" "$preview_file" | grep "^  •" | head -10 | sed 's/^  • /- `/' | sed 's/$/`/' >> $GITHUB_STEP_SUMMARY
+            if grep -q "BUILDS TO DELETE" "$preview_file"; then
+              echo "#### 🔧 **Builds**" >> $GITHUB_STEP_SUMMARY
+              grep "❌ Build:" "$preview_file" | head -10 | sed 's/.*❌ Build: /- `/' | sed 's/$/`/' >> $GITHUB_STEP_SUMMARY
               echo "" >> $GITHUB_STEP_SUMMARY
             fi
             

@@ -69,9 +69,7 @@ jobs:
           # Create temporary files with proper handling
           if [[ "$PRIVATE_HAS_NEWLINES" -gt 1 ]]; then
             echo "✅ Private key already has proper formatting"
-            cat << 'EOF' > private.pem
-${{ inputs.private_key_content }}
-EOF
+            printf '%s\n' '${{ inputs.private_key_content }}' > private.pem
           else
             echo "🔧 Normalizing private key format..."
             # Normalize private key: replace spaces between header/content/footer with newlines
@@ -87,9 +85,7 @@ EOF
           
           if [[ "$PUBLIC_HAS_NEWLINES" -gt 1 ]]; then
             echo "✅ Public key already has proper formatting"
-            cat << 'EOF' > public.pem
-${{ inputs.public_key_content }}
-EOF
+            printf '%s\n' '${{ inputs.public_key_content }}' > public.pem
           else
             echo "🔧 Normalizing public key format..."
             # Normalize public key: replace spaces between header/content/footer with newlines  

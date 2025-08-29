@@ -246,13 +246,13 @@ If needed, reset the entire environment:
 cd bookverse-demo-init
 
 # Clean everything
-gh workflow run cleanup.yml -f confirm_cleanup=DELETE
+gh workflow run 🗑️-execute-cleanup.yml -f confirm_cleanup=DELETE
 
 # Wait for cleanup completion
 sleep 60
 
 # Rebuild everything  
-gh workflow run init.yml
+gh workflow run 🚀-setup-platform.yml
 
 # Verify setup
 ./.github/scripts/setup/validate_setup.sh

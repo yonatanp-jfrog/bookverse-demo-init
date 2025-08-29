@@ -40,12 +40,12 @@ bash scripts/set_actions_vars.sh
 This will set `PROJECT_KEY`, `JFROG_URL`, and `DOCKER_REGISTRY` as Actions variables in:
 `bookverse-inventory`, `bookverse-recommendations`, `bookverse-checkout`, `bookverse-platform`, `bookverse-demo-assets`.
 
-### 🔄 Switch JFrog Platform Deployment (JPD)
+### 🔄 Switch Platform
 
 To switch to a different JFrog Platform instance:
 
 #### Option 1: GitHub Actions Workflow (Recommended)
-1. Go to Actions → "🔄 Switch JFrog Platform Deployment (JPD)"
+1. Go to Actions → "🔄 Switch Platform"
 2. Provide new platform URL and admin token
 3. Type `SWITCH` to confirm
 4. All repositories updated automatically

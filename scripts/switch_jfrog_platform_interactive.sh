@@ -146,7 +146,7 @@ test_connectivity_and_auth() {
     
     # Test basic connectivity
     if ! curl -s --fail --max-time 10 "$host" > /dev/null; then
-        log_error "Cannot reach JPD platform: $host"
+        log_error "Cannot reach JFrog platform: $host"
         exit 1
     fi
     
@@ -304,7 +304,7 @@ update_all_repositories() {
 # =============================================================================
 
 main() {
-    echo "🔄 Interactive JPD Platform Switch"
+    echo "🔄 Interactive Platform Switch"
     echo "==================================="
     echo ""
     echo "This script will help you switch to a new JFrog Platform Deployment"
@@ -315,7 +315,7 @@ main() {
     validate_prerequisites
     echo ""
     
-    # Step 2: Get JPD host
+    # Step 2: Get JFrog platform host
     local jpd_host
     jpd_host=$(prompt_for_jpd_host)
     
@@ -348,7 +348,7 @@ main() {
     local docker_registry
     docker_registry=$(echo "$jpd_host" | sed 's|https://||')
     
-    echo "🎯 JPD Platform Switch Complete!"
+    echo "🎯 Platform Switch Complete!"
     echo "================================="
     echo "New Configuration:"
     echo "  JFROG_URL: $jpd_host"
@@ -356,7 +356,7 @@ main() {
     echo ""
     echo "✅ All BookVerse repositories have been updated!"
     echo ""
-    log_info "You can now run workflows on the new JPD platform"
+    log_info "You can now run workflows on the new JFrog platform"
 }
 
 # Execute main function

@@ -1,4 +1,4 @@
-# Switch JFrog Platform Deployment
+# Switch Platform
 
 ## Overview
 
@@ -16,7 +16,7 @@ The BookVerse demo provides tools to easily switch between different JFrog Platf
 Use the automated GitHub Actions workflow for a seamless switch:
 
 1. **Navigate to Actions**: Go to the `bookverse-demo-init` repository → Actions tab
-2. **Select Workflow**: Choose "🔄 Switch JFrog Platform"
+2. **Select Workflow**: Choose "🔄 Switch Platform"
 3. **Run Workflow**: Click "Run workflow" and provide:
    - **Platform Host**: Your new platform URL (e.g., `https://mycompany.jfrog.io`)
    - **Admin Token**: Admin token for the new platform
@@ -97,13 +97,13 @@ Both methods perform comprehensive validation:
 ### For GitHub Actions Method
 - GitHub repository access with Actions enabled
 - `GH_TOKEN` secret configured in `bookverse-demo-init`
-- Admin privileges on target JPD platform
+- Admin privileges on target JFrog platform
 
 ### For Interactive Script Method
 - GitHub CLI (`gh`) installed and authenticated
 - `curl` and `jq` utilities available
-- Admin privileges on target JPD platform
-- Network access to both old and new JPD platforms
+- Admin privileges on target JFrog platform
+- Network access to both old and new JFrog platforms
 
 ## Example Usage
 
@@ -144,13 +144,13 @@ TO: https://acme-eu.jfrog.io
 
 #### "Authentication failed (HTTP 401)"
 - **Cause**: Invalid or expired admin token
-- **Solution**: Generate new admin token from JPD platform
+- **Solution**: Generate new admin token from JFrog platform
 
 #### "Authentication failed (HTTP 403)"  
 - **Cause**: Token lacks admin privileges
 - **Solution**: Ensure token has admin/platform scope
 
-#### "Cannot reach JPD platform"
+#### "Cannot reach JFrog platform"
 - **Cause**: Network connectivity or DNS issues
 - **Solution**: Verify hostname and network access
 
@@ -170,7 +170,7 @@ gh variable list --repo yonatanp-jfrog/bookverse-inventory
 
 ### 2. Test CI/CD Pipeline
 - Trigger a workflow in any BookVerse repository
-- Verify it connects to the new JPD platform
+- Verify it connects to the new JFrog platform
 - Check artifact uploads and downloads
 
 ### 3. Validate Platform Integration
@@ -210,7 +210,7 @@ If needed, manually revert by running the switch process with the original platf
 
 ### Support
 - Check GitHub Actions logs for detailed error messages
-- Verify JPD platform status and accessibility
+- Verify JFrog platform status and accessibility
 - Ensure GitHub CLI authentication is current
 - Validate admin token permissions on target platform
 

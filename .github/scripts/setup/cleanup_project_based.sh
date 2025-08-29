@@ -1204,7 +1204,37 @@ run_discovery_preview() {
     local shared_report_file="$repo_root/.github/cleanup-report.json"
     local timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
     
-    # Create structured report with metadata
+    # Build structured plan arrays for readability and safety
+    local repos_json apps_json users_json stages_json builds_json
+    if [[ -f "$TEMP_DIR/project_repositories.txt" ]]; then
+        repos_json=$(jq -R -s 'split("\n")|map(select(length>0))|map({key:.})' "$TEMP_DIR/project_repositories.txt" 2>/dev/null || echo '[]')
+    else
+        repos_json='[]'
+    fi
+    if [[ -f "$TEMP_DIR/project_applications.txt" ]]; then
+        apps_json=$(jq -R -s 'split("\n")|map(select(length>0))|map({key:.})' "$TEMP_DIR/project_applications.txt" 2>/dev/null || echo '[]')
+    else
+        apps_json='[]'
+    fi
+    if [[ -s "$TEMP_DIR/project_users.json" ]]; then
+        users_json=$(jq '[.members[]? | {name: .name, roles: (.roles // [])}]' "$TEMP_DIR/project_users.json" 2>/dev/null || echo '[]')
+    elif [[ -f "$TEMP_DIR/project_users.txt" ]]; then
+        users_json=$(jq -R -s 'split("\n")|map(select(length>0))|map({name:.})' "$TEMP_DIR/project_users.txt" 2>/dev/null || echo '[]')
+    else
+        users_json='[]'
+    fi
+    if [[ -f "$TEMP_DIR/project_stages.txt" ]]; then
+        stages_json=$(jq -R -s 'split("\n")|map(select(length>0))|map({name:.})' "$TEMP_DIR/project_stages.txt" 2>/dev/null || echo '[]')
+    else
+        stages_json='[]'
+    fi
+    if [[ -f "$TEMP_DIR/project_builds.txt" ]]; then
+        builds_json=$(jq -R -s 'split("\n")|map(select(length>0))|map({name:.})' "$TEMP_DIR/project_builds.txt" 2>/dev/null || echo '[]')
+    else
+        builds_json='[]'
+    fi
+
+    # Create structured report with metadata and structured plan
     # Pretty-print JSON for easier debugging/validation
     jq -n \
         --arg timestamp "$timestamp" \
@@ -1216,6 +1246,11 @@ run_discovery_preview() {
         --argjson users_count "$users_count" \
         --argjson stages_count "$stages_count" \
         --arg preview_content "$(cat "$preview_file")" \
+        --argjson plan_repos "$repos_json" \
+        --argjson plan_apps "$apps_json" \
+        --argjson plan_users "$users_json" \
+        --argjson plan_stages "$stages_json" \
+        --argjson plan_builds "$builds_json" \
         '{
             "metadata": {
                 "timestamp": $timestamp,
@@ -1229,7 +1264,14 @@ run_discovery_preview() {
                     "stages": $stages_count
                 }
             },
-            "deletion_plan": $preview_content,
+            "plan": {
+                "repositories": $plan_repos,
+                "applications": $plan_apps,
+                "users": $plan_users,
+                "stages": $plan_stages,
+                "builds": $plan_builds
+            },
+            "deletion_preview": $preview_content,
             "status": "ready_for_cleanup"
         }' | jq '.' > "$shared_report_file"
     

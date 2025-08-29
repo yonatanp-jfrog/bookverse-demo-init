@@ -40,6 +40,23 @@ bash scripts/set_actions_vars.sh
 This will set `PROJECT_KEY`, `JFROG_URL`, and `DOCKER_REGISTRY` as Actions variables in:
 `bookverse-inventory`, `bookverse-recommendations`, `bookverse-checkout`, `bookverse-platform`, `bookverse-demo-assets`.
 
+### 🔄 Switch JFrog Platform Deployment (JPD)
+
+To switch to a different JFrog Platform instance:
+
+#### Option 1: GitHub Actions Workflow (Recommended)
+1. Go to Actions → "🔄 Switch JFrog Platform Deployment (JPD)"
+2. Provide new platform URL and admin token
+3. Type `SWITCH` to confirm
+4. All repositories updated automatically
+
+#### Option 2: Interactive Script
+```bash
+./scripts/switch_jpd_interactive.sh
+```
+
+See [SWITCH_JPD_PLATFORM.md](docs/SWITCH_JPD_PLATFORM.md) for detailed instructions.
+
 ### Easy Verbosity Control with Wrapper Scripts
 
 For convenience, we've created wrapper scripts that automatically set the correct verbosity level:

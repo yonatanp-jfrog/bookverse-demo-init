@@ -4,8 +4,8 @@ set -euo pipefail
 
 # Evidence keys and secrets setup
 # - Generates an ed25519 keypair (if not already provided)
-# - Stores private/public keys as GitHub secrets across BookVerse service repos
-# - Stores key alias as GitHub variable across repos
+# - Stores private key as GitHub secret across BookVerse service repos
+# - Stores public key and alias as GitHub variables across repos
 # - Uploads public key to JFrog Platform trusted keys (for evidence verification)
 
 # Requirements:
@@ -71,10 +71,10 @@ openssl pkey -in "$WORKDIR/evidence_private.pem" -pubout 2>/dev/null | openssl s
 
 # 2) Distribute keys to GitHub repositories as secrets/variables
 for repo in "${SERVICE_REPOS[@]}"; do
-  echo "📦 Configuring secrets for $repo"
-  printf "%s" "$PRIVATE_KEY_CONTENT" | gh secret set EVIDENCE_PRIVATE_KEY --repo "$repo" >/dev/null && echo "   ✅ EVIDENCE_PRIVATE_KEY"
-  printf "%s" "$PUBLIC_KEY_CONTENT"  | gh secret set EVIDENCE_PUBLIC_KEY  --repo "$repo" >/dev/null && echo "   ✅ EVIDENCE_PUBLIC_KEY"
-  gh variable set EVIDENCE_KEY_ALIAS --body "$KEY_ALIAS" --repo "$repo" >/dev/null && echo "   ✅ EVIDENCE_KEY_ALIAS"
+  echo "📦 Configuring secrets and variables for $repo"
+  printf "%s" "$PRIVATE_KEY_CONTENT" | gh secret set EVIDENCE_PRIVATE_KEY --repo "$repo" >/dev/null && echo "   ✅ EVIDENCE_PRIVATE_KEY (secret)"
+  gh variable set EVIDENCE_PUBLIC_KEY --body "$PUBLIC_KEY_CONTENT" --repo "$repo" >/dev/null && echo "   ✅ EVIDENCE_PUBLIC_KEY (variable)"
+  gh variable set EVIDENCE_KEY_ALIAS --body "$KEY_ALIAS" --repo "$repo" >/dev/null && echo "   ✅ EVIDENCE_KEY_ALIAS (variable)"
 done
 
 # 3) Upload public key to JFrog trusted keys (best-effort)

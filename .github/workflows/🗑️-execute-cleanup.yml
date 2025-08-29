@@ -46,7 +46,7 @@ jobs:
             echo "🚨 WARNING: Protection layer will be bypassed"
           else
             echo "🛡️ Protection layer active - will fail if interactive approval needed"
-            echo "💡 Consider using Discovery workflow first for safer operation"
+            echo "💡 Consider using 🔍 Discover Cleanup workflow first for safer operation"
           fi
 
       - name: Cleanup BookVerse Project (PROJECT-BASED) with Safety Layer
@@ -57,10 +57,10 @@ jobs:
           SKIP_PROTECTION: ${{ github.event.inputs.skip_protection }}
         run: ./.github/scripts/setup/cleanup_project_based.sh
 
-      - name: 📋 Cleanup Execution Summary
+      - name: 📋 Execute Cleanup Summary
         if: always()
         run: |
-          echo "## 🗑️ Cleanup Execution Report" >> $GITHUB_STEP_SUMMARY
+          echo "## 🗑️ Execute Cleanup Report" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
           if [[ "${{ job.status }}" == "success" ]]; then
@@ -81,7 +81,7 @@ jobs:
             echo "🛡️ **The protection layer blocked execution**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "### 💡 To proceed with deletion:" >> $GITHUB_STEP_SUMMARY
-            echo "1. 🔍 **Run Discovery workflow first** to see what will be deleted" >> $GITHUB_STEP_SUMMARY
+            echo "1. 🔍 **Run Discover Cleanup workflow first** to see what will be deleted" >> $GITHUB_STEP_SUMMARY
             echo "2. 🗑️ **Re-run this workflow** with skip_protection=true" >> $GITHUB_STEP_SUMMARY
             echo "3. ⚠️ **Type 'DELETE' to confirm** the destructive operation" >> $GITHUB_STEP_SUMMARY
           else

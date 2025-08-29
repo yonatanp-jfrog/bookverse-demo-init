@@ -61,7 +61,7 @@ jobs:
           echo ""
           echo "📋 To execute the deletion:"
           echo "  1. Review the preview above carefully"
-          echo "  2. Run the main cleanup workflow"
+          echo "  2. Run 🗑️ Execute Cleanup workflow"
           echo "  3. Set SKIP_PROTECTION=true for automated deletion"
           echo ""
           echo "💾 Preview saved to: $preview_file"
@@ -108,10 +108,10 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 📋 Next Steps:" >> $GITHUB_STEP_SUMMARY
           echo "1. 👀 **Review the discovery report above** carefully" >> $GITHUB_STEP_SUMMARY
-          echo "2. 🗑️ **Run 'Cleanup JFrog Platform for BookVerse Demo' workflow** to execute deletion" >> $GITHUB_STEP_SUMMARY
+          echo "2. 🗑️ **Run Execute Cleanup workflow** to execute deletion" >> $GITHUB_STEP_SUMMARY
           echo "3. ⚠️ **Type 'DELETE' and optionally set skip_protection=true** for execution" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### ⚠️ Important:" >> $GITHUB_STEP_SUMMARY
-          echo "- This discovery workflow **DOES NOT DELETE** anything" >> $GITHUB_STEP_SUMMARY
+          echo "- **🔍 Discover Cleanup** workflow **DOES NOT DELETE** anything" >> $GITHUB_STEP_SUMMARY
           echo "- Resources are only **discovered and reported**" >> $GITHUB_STEP_SUMMARY
-          echo "- Use the main cleanup workflow for actual deletion" >> $GITHUB_STEP_SUMMARY
+          echo "- Use **🗑️ Execute Cleanup** workflow for actual deletion" >> $GITHUB_STEP_SUMMARY

@@ -617,13 +617,20 @@ delete_specific_stages() {
     
     echo "🏷️ Deleting specific stages from report..." >&2
     
+    # Ensure lifecycle is cleared first (idempotent)
+    delete_project_lifecycle >/dev/null 2>&1 || true
+
     while IFS= read -r stage_name; do
         if [[ -n "$stage_name" ]]; then
             echo "  → Deleting stage: $stage_name"
-            
-            local code=$(jfrog_api_call "DELETE" "/access/api/v2/stages/$stage_name" "" "curl" "" "delete stage $stage_name")
-            
-            if is_success "$code"; then
+            # Try project-scoped v1 first
+            local code=$(jfrog_api_call "DELETE" "/access/api/v1/projects/$PROJECT_KEY/stages/$stage_name" "" "curl" "" "delete project stage $stage_name")
+            if ! is_success "$code"; then
+                # Fallback to v2 with explicit project key
+                code=$(jfrog_api_call "DELETE" "/access/api/v2/stages/$stage_name?projectKey=$PROJECT_KEY" "" "curl" "" "delete project stage v2 $stage_name")
+            fi
+
+            if is_success "$code" || is_not_found "$code"; then
                 echo "    ✅ Stage '$stage_name' deleted successfully"
             else
                 echo "    ❌ Failed to delete stage '$stage_name' (HTTP $code)"
@@ -1423,19 +1430,19 @@ if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
     delete_project_users "$users_count" || FAILED=true
     echo ""
 
-    # 5) Project stages cleanup
-    echo "🏷️ STEP 5: Project Stage Cleanup"
+    # 5) Project lifecycle cleanup (must remove stages from lifecycle first)
+    echo "🔄 STEP 5: Project Lifecycle Cleanup"
+    echo "====================================="
+    delete_project_lifecycle || FAILED=true
+    echo ""
+
+    # 6) Project stages cleanup (after lifecycle cleared)
+    echo "🏷️ STEP 6: Project Stage Cleanup"
     echo "================================="
     discover_project_stages
     stages_count=$GLOBAL_STAGE_COUNT
     echo ""
     delete_project_stages "$stages_count" || FAILED=true
-    echo ""
-
-    # 6) Project lifecycle cleanup
-    echo "🔄 STEP 6: Project Lifecycle Cleanup"
-    echo "====================================="
-    delete_project_lifecycle || FAILED=true
     echo ""
 
     # 7) Project deletion

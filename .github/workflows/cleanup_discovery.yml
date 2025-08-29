@@ -66,28 +66,45 @@ echo ""\
 echo "💾 Preview saved to: $preview_file"\
 exit 0' ./discovery_only.sh
           
-          # Run discovery
+          # Run discovery and capture the preview file location
           bash ./discovery_only.sh
+          
+          # Find the preview file and add it to job summary
+          preview_file=$(find /tmp -name "deletion_preview.txt" 2>/dev/null | head -1)
+          if [[ -f "$preview_file" ]]; then
+            echo "📋 Preview file found: $preview_file"
+          else
+            echo "⚠️ Preview file not found, will extract from temp directory"
+            preview_file="/tmp/bookverse_cleanup_*/deletion_preview.txt"
+          fi
 
-      - name: 📤 Upload Discovery Report
-        uses: actions/upload-artifact@v4
-        with:
-          name: cleanup-discovery-report
-          path: /tmp/bookverse_cleanup_*/deletion_preview.txt
-          retention-days: 7
-
-      - name: 📋 Summary
+      - name: 📋 Discovery Report Summary
         run: |
-          echo "## 🔍 Cleanup Discovery Complete" >> $GITHUB_STEP_SUMMARY
+          echo "## 🔍 Cleanup Discovery Report" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "✅ **Discovery completed successfully**" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Find and include the preview file content
+          preview_file=$(find /tmp -name "deletion_preview.txt" 2>/dev/null | head -1)
+          if [[ -f "$preview_file" ]]; then
+            echo "### 📋 Resources Found for Deletion:" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat "$preview_file" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ⚠️ No preview file generated" >> $GITHUB_STEP_SUMMARY
+            echo "Check the logs above for discovery details." >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 📋 Next Steps:" >> $GITHUB_STEP_SUMMARY
-          echo "1. 👀 **Review the logs above** to see what would be deleted" >> $GITHUB_STEP_SUMMARY
-          echo "2. 📥 **Download the discovery report** from the artifacts" >> $GITHUB_STEP_SUMMARY
-          echo "3. 🗑️ **Run 'Cleanup Execution' workflow** to perform the actual deletion" >> $GITHUB_STEP_SUMMARY
+          echo "1. 👀 **Review the discovery report above** carefully" >> $GITHUB_STEP_SUMMARY
+          echo "2. 🗑️ **Run 'Cleanup JFrog Platform for BookVerse Demo' workflow** to execute deletion" >> $GITHUB_STEP_SUMMARY
+          echo "3. ⚠️ **Type 'DELETE' and optionally set skip_protection=true** for execution" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### ⚠️ Important:" >> $GITHUB_STEP_SUMMARY
           echo "- This discovery workflow **DOES NOT DELETE** anything" >> $GITHUB_STEP_SUMMARY
           echo "- Resources are only **discovered and reported**" >> $GITHUB_STEP_SUMMARY
-          echo "- Use the execution workflow for actual deletion" >> $GITHUB_STEP_SUMMARY
+          echo "- Use the main cleanup workflow for actual deletion" >> $GITHUB_STEP_SUMMARY

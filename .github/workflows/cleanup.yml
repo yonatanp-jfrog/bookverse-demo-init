@@ -56,6 +56,45 @@ jobs:
           VERBOSITY: 1
           SKIP_PROTECTION: ${{ github.event.inputs.skip_protection }}
         run: ./.github/scripts/setup/cleanup_project_based.sh
+
+      - name: 📋 Cleanup Execution Summary
+        if: always()
+        run: |
+          echo "## 🗑️ Cleanup Execution Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [[ "${{ job.status }}" == "success" ]]; then
+            echo "✅ **Cleanup completed successfully**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "🎯 **All BookVerse project resources have been deleted**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 📋 What was deleted:" >> $GITHUB_STEP_SUMMARY
+            echo "- 🚀 **Applications**: All project applications removed" >> $GITHUB_STEP_SUMMARY
+            echo "- 📦 **Repositories**: All project repositories deleted" >> $GITHUB_STEP_SUMMARY
+            echo "- 👥 **Users**: Project users/admins removed" >> $GITHUB_STEP_SUMMARY
+            echo "- 🏷️ **Stages**: Project-level stages deleted" >> $GITHUB_STEP_SUMMARY
+            echo "- 🔄 **Lifecycle**: Project lifecycle configuration cleared" >> $GITHUB_STEP_SUMMARY
+            echo "- 🎯 **Project**: BookVerse project completely removed" >> $GITHUB_STEP_SUMMARY
+          elif [[ "${{ github.event.inputs.skip_protection }}" != "true" ]]; then
+            echo "❌ **Cleanup failed - Protection layer active**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "🛡️ **The protection layer blocked execution**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 💡 To proceed with deletion:" >> $GITHUB_STEP_SUMMARY
+            echo "1. 🔍 **Run Discovery workflow first** to see what will be deleted" >> $GITHUB_STEP_SUMMARY
+            echo "2. 🗑️ **Re-run this workflow** with skip_protection=true" >> $GITHUB_STEP_SUMMARY
+            echo "3. ⚠️ **Type 'DELETE' to confirm** the destructive operation" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Cleanup execution failed**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "🔍 **Check the logs above for error details**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 💡 Common causes:" >> $GITHUB_STEP_SUMMARY
+            echo "- 🔐 **Authentication issues** with JFrog platform" >> $GITHUB_STEP_SUMMARY
+            echo "- 🔒 **Resources locked** by other processes" >> $GITHUB_STEP_SUMMARY
+            echo "- 🌐 **Network connectivity** problems" >> $GITHUB_STEP_SUMMARY
+            echo "- ⚠️ **Resource dependencies** preventing deletion" >> $GITHUB_STEP_SUMMARY
+          fi
       
       # Note: This will completely remove the BookVerse project and all resources!
       # Use with caution - this action cannot be undone.

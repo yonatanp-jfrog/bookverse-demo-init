@@ -421,15 +421,22 @@ discover_project_stages() {
         code=$(jfrog_api_call "GET" "/access/api/v2/projects/$PROJECT_KEY/stages" "$stages_file" "curl" "" "project-level stages v2")
         
         if ! is_success "$code"; then
-            # Method 3: Get all stages and filter ONLY for this project's stages (not global)
+            # Method 3: Get all stages and filter for BookVerse-related stages
             echo "Getting all stages and filtering for project-level only..." >&2
             code=$(jfrog_api_call "GET" "/access/api/v2/stages" "$stages_file" "curl" "" "all stages")
             
             if is_success "$code" && [[ -s "$stages_file" ]]; then
-                # Filter for PROJECT-LEVEL stages belonging to this project (not global stages)
-                jq --arg project "$PROJECT_KEY" '[.[] | select(.projectKey == $project and .scope == "project")]' "$stages_file" > "${stages_file}.filtered" 2>/dev/null || 
-                jq --arg project "$PROJECT_KEY" '[.[] | select(.projectKey == $project)]' "$stages_file" > "${stages_file}.filtered" 2>/dev/null || 
-                echo "[]" > "${stages_file}.filtered"
+                # Filter for stages related to this project:
+                # 1. Stages used in project lifecycle
+                # 2. Stages containing project repositories
+                # 3. Stages with project in scope (if scope field exists)
+                jq --arg project "$PROJECT_KEY" '
+                [.[] | select(
+                    (.used_in_lifecycles[]? == $project) or
+                    (.repositories[]? | contains($project)) or
+                    (.projectKey == $project) or
+                    (.scope == $project)
+                )]' "$stages_file" > "${stages_file}.filtered" 2>/dev/null || echo "[]" > "${stages_file}.filtered"
                 mv "${stages_file}.filtered" "$stages_file"
             fi
         fi
@@ -453,6 +460,51 @@ discover_project_stages() {
         echo "❌ Project stage discovery failed (HTTP $code)" >&2
         # Count returned via global variable, function always returns 0 (success)
         GLOBAL_STAGE_COUNT=0
+        return 0
+    fi
+}
+
+# 6. PROJECT-BASED OIDC INTEGRATION DISCOVERY
+discover_project_oidc() {
+    echo "🔍 Discovering project OIDC integrations (PROJECT-BASED)..." >&2
+    
+    local oidc_file="$TEMP_DIR/project_oidc.json"
+    local filtered_oidc="$TEMP_DIR/project_oidc.txt"
+    
+    # METHOD: Get all access tokens and filter for project-related ones
+    # OIDC integrations appear as access tokens with specific patterns
+    local code=$(jfrog_api_call "GET" "/access/api/v1/tokens" "$oidc_file" "curl" "" "access tokens")
+    
+    if is_success "$code" && [[ -s "$oidc_file" ]]; then
+        # Filter for tokens that appear to be OIDC integrations related to this project:
+        # 1. Tokens with project name in description
+        # 2. Tokens scoped to this project
+        # 3. Tokens with GitHub/OIDC-related descriptions
+        jq --arg project "$PROJECT_KEY" -r '
+        .[] | select(
+            (.description? | contains($project)) or
+            (.project_key? == $project) or
+            (.description? | test("(?i)(github|oidc|integration).*" + $project)) or
+            (.description? | test("(?i)" + $project + ".*(github|oidc|integration)")) or
+            (.subject? | contains($project))
+        ) | .token_id + " | " + (.description // "No description") + " | " + (.project_key // "global")
+        ' "$oidc_file" > "$filtered_oidc" 2>/dev/null || touch "$filtered_oidc"
+        
+        local count=$(wc -l < "$filtered_oidc" 2>/dev/null || echo "0")
+        echo "🔗 Found $count OIDC integrations related to project '$PROJECT_KEY'" >&2
+        
+        if [[ "$count" -gt 0 ]] && [[ "$VERBOSITY" -ge 1 ]]; then
+            echo "Project OIDC integrations:" >&2
+            cat "$filtered_oidc" | sed 's/^/  - /' >&2
+        fi
+        
+        # Count returned via global variable, function always returns 0 (success)
+        GLOBAL_OIDC_COUNT=$count
+        return 0
+    else
+        echo "❌ Project OIDC discovery failed (HTTP $code)" >&2
+        # Count returned via global variable, function always returns 0 (success)
+        GLOBAL_OIDC_COUNT=0
         return 0
     fi
 }
@@ -866,6 +918,7 @@ run_discovery_preview() {
     local repos_count=0
     local users_count=0
     local stages_count=0
+    local oidc_count=0
     
     echo "🛡️ SAFETY: Discovering what would be deleted..." > "$preview_file"
     echo "Project: $PROJECT_KEY" >> "$preview_file"
@@ -987,8 +1040,31 @@ run_discovery_preview() {
         echo "" >> "$preview_file"
     fi
     
+    # 6. Discover OIDC integrations
+    echo "🔗 Discovering OIDC integrations..."
+    if discover_project_oidc; then
+        oidc_count=$GLOBAL_OIDC_COUNT
+    else
+        echo "⚠️  Warning: OIDC discovery failed, treating as 0 integrations"
+        oidc_count=0
+    fi
+    
+    if [[ "$oidc_count" -gt 0 ]]; then
+        echo "OIDC INTEGRATIONS TO DELETE ($oidc_count items):" >> "$preview_file"
+        echo "================================================" >> "$preview_file"
+        while IFS= read -r oidc; do
+            if [[ -n "$oidc" ]]; then
+                echo "  ❌ OIDC: $oidc" >> "$preview_file"
+            fi
+        done < "$TEMP_DIR/project_oidc.txt"
+        echo "" >> "$preview_file"
+    else
+        echo "OIDC INTEGRATIONS: None found" >> "$preview_file"
+        echo "" >> "$preview_file"
+    fi
+    
     # Calculate total items from all discoveries
-    total_items=$((builds_count + apps_count + repos_count + users_count + stages_count))
+    total_items=$((builds_count + apps_count + repos_count + users_count + stages_count + oidc_count))
     
     # Summary
     echo "SUMMARY:" >> "$preview_file"

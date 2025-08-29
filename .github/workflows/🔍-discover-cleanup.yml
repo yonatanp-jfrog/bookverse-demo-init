@@ -1,4 +1,4 @@
-name: 🔍 Discover Cleanup
+name: '🔍 Discover Cleanup'
 
 on:
   workflow_dispatch:

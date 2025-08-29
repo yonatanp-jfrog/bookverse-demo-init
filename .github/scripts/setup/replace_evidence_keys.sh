@@ -57,21 +57,21 @@ fi
 # =============================================================================
 
 validate_environment() {
-    log_info "Validating environment..."
+    echo "Validating environment..." >&2
     
     # Check required environment variables
     if [[ -z "${PRIVATE_KEY_CONTENT:-}" ]]; then
-        log_error "PRIVATE_KEY_CONTENT environment variable is required"
+        echo "PRIVATE_KEY_CONTENT environment variable is required" >&2
         exit 1
     fi
     
     if [[ -z "${PUBLIC_KEY_CONTENT:-}" ]]; then
-        log_error "PUBLIC_KEY_CONTENT environment variable is required"
+        echo "PUBLIC_KEY_CONTENT environment variable is required" >&2
         exit 1
     fi
     
     if [[ -z "${KEY_ALIAS:-}" ]]; then
-        log_error "KEY_ALIAS environment variable is required"
+        echo "KEY_ALIAS environment variable is required" >&2
         exit 1
     fi
     

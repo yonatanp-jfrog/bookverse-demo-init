@@ -132,8 +132,11 @@ update_repository_secrets_and_variables() {
         success=false
     fi
     
-    # Update public key variable
-    log_info "  → Updating EVIDENCE_PUBLIC_KEY variable..."
+    # Migrate public key from secret to variable (delete secret first if it exists)
+    log_info "  → Migrating EVIDENCE_PUBLIC_KEY from secret to variable..."
+    # Try to delete existing secret (ignore failure if it doesn't exist)
+    gh secret delete EVIDENCE_PUBLIC_KEY --repo "$repo" 2>/dev/null || true
+    log_info "    → Setting EVIDENCE_PUBLIC_KEY variable..."
     if gh variable set EVIDENCE_PUBLIC_KEY --body "$PUBLIC_KEY_CONTENT" --repo "$repo" 2>/dev/null; then
         log_success "    ✅ EVIDENCE_PUBLIC_KEY variable updated"
     else

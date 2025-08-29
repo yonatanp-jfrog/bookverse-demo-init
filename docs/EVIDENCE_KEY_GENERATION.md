@@ -12,15 +12,26 @@ Evidence keys are used to cryptographically sign and verify build artifacts and 
 
 ## Key Generation Methods
 
-### Option 1: Use Workflow Key Generation (Recommended)
+### Option 1: Use Local Script (Recommended)
 
-The easiest way to generate keys is using our GitHub Actions workflow:
+The easiest way to generate and deploy keys is using our local script:
 
-1. Go to **Actions** → **Generate Evidence Keys**
-2. Select your preferred key algorithm
-3. Run the workflow
-4. Download the generated keys from the job summary
-5. Save the keys securely on your local machine
+```bash
+# Generate ED25519 keys and update all repositories
+./scripts/update_evidence_keys.sh --generate
+
+# Generate RSA keys and update all repositories
+./scripts/update_evidence_keys.sh --generate --key-type rsa
+
+# Generate EC keys and update all repositories  
+./scripts/update_evidence_keys.sh --generate --key-type ec
+```
+
+This automatically:
+- Generates the key pair
+- Updates all BookVerse repositories
+- Shows you the keys to save securely
+- Cleans up temporary files
 
 ### Option 2: Generate Keys Locally with OpenSSL
 

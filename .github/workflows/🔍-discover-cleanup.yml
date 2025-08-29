@@ -57,10 +57,16 @@ jobs:
           if [[ -n "$report_path" ]]; then
             echo "Found report at: $report_path"
             mkdir -p .github
-            cp "$report_path" .github/cleanup-report.json
+            dest_path=".github/cleanup-report.json"
+            # Copy only if paths differ
+            if [[ "$report_path" != "$GITHUB_WORKSPACE/$dest_path" ]]; then
+              cp "$report_path" "$dest_path"
+            else
+              echo "Report already at $dest_path"
+            fi
             git config --global user.name "BookVerse Discovery Bot"
             git config --global user.email "discovery@bookverse.demo"
-            git add .github/cleanup-report.json
+            git add "$dest_path"
             if git diff --cached --quiet; then
               echo "📋 No changes to commit for cleanup report"
             else

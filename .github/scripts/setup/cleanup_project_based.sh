@@ -1207,29 +1207,29 @@ run_discovery_preview() {
     # Build structured plan arrays for readability and safety
     local repos_json apps_json users_json stages_json builds_json
     if [[ -f "$TEMP_DIR/project_repositories.txt" ]]; then
-        repos_json=$(jq -R -s 'split("\n")|map(select(length>0))|map({key:.})' "$TEMP_DIR/project_repositories.txt" 2>/dev/null || echo '[]')
+        repos_json=$(jq -R -s --arg project "$PROJECT_KEY" 'split("\n")|map(select(length>0))|map({key:., project:$project})' "$TEMP_DIR/project_repositories.txt" 2>/dev/null || echo '[]')
     else
         repos_json='[]'
     fi
     if [[ -f "$TEMP_DIR/project_applications.txt" ]]; then
-        apps_json=$(jq -R -s 'split("\n")|map(select(length>0))|map({key:.})' "$TEMP_DIR/project_applications.txt" 2>/dev/null || echo '[]')
+        apps_json=$(jq -R -s --arg project "$PROJECT_KEY" 'split("\n")|map(select(length>0))|map({key:., project:$project})' "$TEMP_DIR/project_applications.txt" 2>/dev/null || echo '[]')
     else
         apps_json='[]'
     fi
     if [[ -s "$TEMP_DIR/project_users.json" ]]; then
-        users_json=$(jq '[.members[]? | {name: .name, roles: (.roles // [])}]' "$TEMP_DIR/project_users.json" 2>/dev/null || echo '[]')
+        users_json=$(jq --arg project "$PROJECT_KEY" '[.members[]? | {name: .name, roles: (.roles // []), project: $project}]' "$TEMP_DIR/project_users.json" 2>/dev/null || echo '[]')
     elif [[ -f "$TEMP_DIR/project_users.txt" ]]; then
-        users_json=$(jq -R -s 'split("\n")|map(select(length>0))|map({name:.})' "$TEMP_DIR/project_users.txt" 2>/dev/null || echo '[]')
+        users_json=$(jq -R -s --arg project "$PROJECT_KEY" 'split("\n")|map(select(length>0))|map({name:., project:$project})' "$TEMP_DIR/project_users.txt" 2>/dev/null || echo '[]')
     else
         users_json='[]'
     fi
     if [[ -f "$TEMP_DIR/project_stages.txt" ]]; then
-        stages_json=$(jq -R -s 'split("\n")|map(select(length>0))|map({name:.})' "$TEMP_DIR/project_stages.txt" 2>/dev/null || echo '[]')
+        stages_json=$(jq -R -s --arg project "$PROJECT_KEY" 'split("\n")|map(select(length>0))|map({name:., project:$project})' "$TEMP_DIR/project_stages.txt" 2>/dev/null || echo '[]')
     else
         stages_json='[]'
     fi
     if [[ -f "$TEMP_DIR/project_builds.txt" ]]; then
-        builds_json=$(jq -R -s 'split("\n")|map(select(length>0))|map({name:.})' "$TEMP_DIR/project_builds.txt" 2>/dev/null || echo '[]')
+        builds_json=$(jq -R -s --arg project "$PROJECT_KEY" 'split("\n")|map(select(length>0))|map({name:., project:$project})' "$TEMP_DIR/project_builds.txt" 2>/dev/null || echo '[]')
     else
         builds_json='[]'
     fi

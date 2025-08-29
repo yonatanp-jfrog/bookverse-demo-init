@@ -23,11 +23,11 @@ BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
-# Logging functions
-log_info() { echo -e "${BLUE}ℹ️  $1${NC}"; }
-log_success() { echo -e "${GREEN}✅ $1${NC}"; }
-log_warning() { echo -e "${YELLOW}⚠️  $1${NC}"; }
-log_error() { echo -e "${RED}❌ $1${NC}"; }
+# Logging functions - ALL output to stderr to avoid contaminating stdout
+log_info() { echo -e "${BLUE}ℹ️  $1${NC}" >&2; }
+log_success() { echo -e "${GREEN}✅ $1${NC}" >&2; }
+log_warning() { echo -e "${YELLOW}⚠️  $1${NC}" >&2; }
+log_error() { echo -e "${RED}❌ $1${NC}" >&2; }
 
 # =============================================================================
 # CONFIGURATION
@@ -57,40 +57,40 @@ fi
 # =============================================================================
 
 validate_environment() {
-    echo "Validating environment..." >&2
+    log_info "Validating environment..."
     
     # Check required environment variables
     if [[ -z "${PRIVATE_KEY_CONTENT:-}" ]]; then
-        echo "PRIVATE_KEY_CONTENT environment variable is required" >&2
+        log_error "PRIVATE_KEY_CONTENT environment variable is required"
         exit 1
     fi
     
     if [[ -z "${PUBLIC_KEY_CONTENT:-}" ]]; then
-        echo "PUBLIC_KEY_CONTENT environment variable is required" >&2
+        log_error "PUBLIC_KEY_CONTENT environment variable is required"
         exit 1
     fi
     
     if [[ -z "${KEY_ALIAS:-}" ]]; then
-        echo "KEY_ALIAS environment variable is required" >&2
+        log_error "KEY_ALIAS environment variable is required"
         exit 1
     fi
     
     # Check if gh CLI is available and authenticated
     if ! command -v gh &> /dev/null; then
-        echo "GitHub CLI (gh) is not installed" >&2
+        log_error "GitHub CLI (gh) is not installed"
         exit 1
     fi
     
     if ! gh auth status &> /dev/null; then
-        echo "GitHub CLI is not authenticated" >&2
+        log_error "GitHub CLI is not authenticated"
         exit 1
     fi
     
-    echo "Environment validation successful" >&2
+    log_success "Environment validation successful"
 }
 
 get_existing_repositories() {
-    echo "Discovering existing BookVerse repositories..." >&2
+    log_info "Discovering existing BookVerse repositories..."
     
     local existing_repos=()
     for repo in "${BOOKVERSE_REPOS[@]}"; do
@@ -98,16 +98,17 @@ get_existing_repositories() {
         if gh repo view "$full_repo" > /dev/null 2>&1; then
             existing_repos+=("$full_repo")
         else
-            echo "Repository $full_repo not found - skipping" >&2
+            log_warning "Repository $full_repo not found - skipping"
         fi
     done
     
     if [[ ${#existing_repos[@]} -eq 0 ]]; then
-        echo "No BookVerse repositories found" >&2
+        log_error "No BookVerse repositories found"
         exit 1
     fi
     
-    echo "Found ${#existing_repos[@]} repositories" >&2
+    log_info "Found ${#existing_repos[@]} repositories"
+    # Output repository list to stdout (clean for GitHub CLI)
     printf '%s\n' "${existing_repos[@]}"
 }
 
@@ -118,56 +119,56 @@ get_existing_repositories() {
 update_repository_secrets_and_variables() {
     local repo="$1"
     
-    echo "Updating evidence keys in $repo..." >&2
+    log_info "Updating evidence keys in $repo..."
     
     local success=true
     
     # Update private key secret
-    echo "  → Updating EVIDENCE_PRIVATE_KEY secret..." >&2
+    log_info "  → Updating EVIDENCE_PRIVATE_KEY secret..."
     if printf "%s" "$PRIVATE_KEY_CONTENT" | gh secret set EVIDENCE_PRIVATE_KEY --repo "$repo" 2>/dev/null; then
-        echo "    ✅ EVIDENCE_PRIVATE_KEY secret updated" >&2
+        log_success "    ✅ EVIDENCE_PRIVATE_KEY secret updated"
     else
-        echo "    ❌ Failed to update EVIDENCE_PRIVATE_KEY secret" >&2
+        log_error "    ❌ Failed to update EVIDENCE_PRIVATE_KEY secret"
         success=false
     fi
     
     # Update public key variable
-    echo "  → Updating EVIDENCE_PUBLIC_KEY variable..." >&2
+    log_info "  → Updating EVIDENCE_PUBLIC_KEY variable..."
     if gh variable set EVIDENCE_PUBLIC_KEY --body "$PUBLIC_KEY_CONTENT" --repo "$repo" 2>/dev/null; then
-        echo "    ✅ EVIDENCE_PUBLIC_KEY variable updated" >&2
+        log_success "    ✅ EVIDENCE_PUBLIC_KEY variable updated"
     else
-        echo "    ❌ Failed to update EVIDENCE_PUBLIC_KEY variable" >&2
+        log_error "    ❌ Failed to update EVIDENCE_PUBLIC_KEY variable"
         success=false
     fi
     
     # Update key alias variable
-    echo "  → Updating EVIDENCE_KEY_ALIAS variable..." >&2
+    log_info "  → Updating EVIDENCE_KEY_ALIAS variable..."
     if gh variable set EVIDENCE_KEY_ALIAS --body "$KEY_ALIAS" --repo "$repo" 2>/dev/null; then
-        echo "    ✅ EVIDENCE_KEY_ALIAS variable updated" >&2
+        log_success "    ✅ EVIDENCE_KEY_ALIAS variable updated"
     else
-        echo "    ❌ Failed to update EVIDENCE_KEY_ALIAS variable" >&2
+        log_error "    ❌ Failed to update EVIDENCE_KEY_ALIAS variable"
         success=false
     fi
     
     if [[ "$success" == true ]]; then
-        echo "✅ $repo updated successfully" >&2
+        log_success "✅ $repo updated successfully"
     else
-        echo "⚠️  $repo partially updated (some operations failed)" >&2
+        log_warning "⚠️  $repo partially updated (some operations failed)"
     fi
     
     return 0
 }
 
 replace_keys_in_all_repositories() {
-    echo "Replacing evidence keys across all repositories..." >&2
-    echo "" >&2
+    log_info "Replacing evidence keys across all repositories..."
+    echo ""
     
     local repos
     mapfile -t repos < <(get_existing_repositories)
     
-    echo "" >&2
-    echo "Updating evidence keys in ${#repos[@]} repositories..." >&2
-    echo "" >&2
+    echo ""
+    log_info "Updating evidence keys in ${#repos[@]} repositories..."
+    echo ""
     
     local success_count=0
     local total_count=${#repos[@]}
@@ -176,17 +177,17 @@ replace_keys_in_all_repositories() {
         if update_repository_secrets_and_variables "$repo"; then
             ((success_count++))
         fi
-        echo "" >&2
+        echo ""
     done
     
-    echo "Replacement Summary:" >&2
-    echo "  Repositories processed: $total_count" >&2
-    echo "  Successfully updated: $success_count" >&2
+    log_info "Replacement Summary:"
+    log_info "  Repositories processed: $total_count"
+    log_info "  Successfully updated: $success_count"
     
     if [[ $success_count -eq $total_count ]]; then
-        echo "All repositories updated successfully!" >&2
+        log_success "All repositories updated successfully!"
     else
-        echo "Some repositories had issues (check logs above)" >&2
+        log_warning "Some repositories had issues (check logs above)"
     fi
 }
 

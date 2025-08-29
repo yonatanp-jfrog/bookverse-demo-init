@@ -125,6 +125,27 @@ jobs:
             build_list=$(jq -r '.plan.builds[]?.name' .github/cleanup-report.json 2>/dev/null || true)
             if [[ -n "$build_list" ]]; then echo "$build_list" | sed 's/^/- /' >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
 
+            # Safety checks: ensure all items belong to the expected project
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 🛡️ Safety Checks" >> $GITHUB_STEP_SUMMARY
+            rpt_project=$(jq -r '.metadata.project_key' .github/cleanup-report.json)
+            echo "- Expected project: $rpt_project" >> $GITHUB_STEP_SUMMARY
+            repos_oop=$(jq -r --arg p "$rpt_project" '[.plan.repositories[]? | select(.project != $p)] | length' .github/cleanup-report.json)
+            apps_oop=$(jq -r --arg p "$rpt_project" '[.plan.applications[]? | select(.project != $p)] | length' .github/cleanup-report.json)
+            users_oop=$(jq -r --arg p "$rpt_project" '[.plan.users[]? | select(.project != $p)] | length' .github/cleanup-report.json)
+            stages_oop=$(jq -r --arg p "$rpt_project" '[.plan.stages[]? | select(.project != $p)] | length' .github/cleanup-report.json)
+            builds_oop=$(jq -r --arg p "$rpt_project" '[.plan.builds[]? | select(.project != $p)] | length' .github/cleanup-report.json)
+            if [[ "$repos_oop" == "0" && "$apps_oop" == "0" && "$users_oop" == "0" && "$stages_oop" == "0" && "$builds_oop" == "0" ]]; then
+              echo "- All items belong to project '$rpt_project'" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "- Out-of-project items detected:" >> $GITHUB_STEP_SUMMARY
+              echo "  • Repositories: $repos_oop" >> $GITHUB_STEP_SUMMARY
+              echo "  • Applications: $apps_oop" >> $GITHUB_STEP_SUMMARY
+              echo "  • Users: $users_oop" >> $GITHUB_STEP_SUMMARY
+              echo "  • Stages: $stages_oop" >> $GITHUB_STEP_SUMMARY
+              echo "  • Builds: $builds_oop" >> $GITHUB_STEP_SUMMARY
+            fi
+
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "<details>" >> $GITHUB_STEP_SUMMARY
             echo "<summary>📄 Raw Discovery Preview</summary>" >> $GITHUB_STEP_SUMMARY

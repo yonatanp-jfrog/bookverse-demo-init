@@ -57,46 +57,89 @@ jobs:
           fi
           
           # Normalize and create temporary files for validation
-          echo "🔧 Normalizing key formats..."
+          echo "🔧 Processing key formats..."
           
-          # Normalize private key: replace spaces between header/content/footer with newlines
-          PRIVATE_KEY_NORMALIZED=$(echo '${{ inputs.private_key_content }}' | \
-            sed 's/-----BEGIN PRIVATE KEY----- /-----BEGIN PRIVATE KEY-----\n/g' | \
-            sed 's/ -----END PRIVATE KEY-----/\n-----END PRIVATE KEY-----/g' | \
-            sed 's/-----BEGIN RSA PRIVATE KEY----- /-----BEGIN RSA PRIVATE KEY-----\n/g' | \
-            sed 's/ -----END RSA PRIVATE KEY-----/\n-----END RSA PRIVATE KEY-----/g' | \
-            sed 's/-----BEGIN EC PRIVATE KEY----- /-----BEGIN EC PRIVATE KEY-----\n/g' | \
-            sed 's/ -----END EC PRIVATE KEY-----/\n-----END EC PRIVATE KEY-----/g' | \
-            sed 's/\([A-Za-z0-9+/=]\{64\}\) /\1\n/g')
+          # First, detect if keys already have proper line breaks
+          PRIVATE_HAS_NEWLINES=$(echo '${{ inputs.private_key_content }}' | grep -c $'\n' || echo "0")
+          PUBLIC_HAS_NEWLINES=$(echo '${{ inputs.public_key_content }}' | grep -c $'\n' || echo "0")
           
-          # Normalize public key: replace spaces between header/content/footer with newlines  
-          PUBLIC_KEY_NORMALIZED=$(echo '${{ inputs.public_key_content }}' | \
-            sed 's/-----BEGIN PUBLIC KEY----- /-----BEGIN PUBLIC KEY-----\n/g' | \
-            sed 's/ -----END PUBLIC KEY-----/\n-----END PUBLIC KEY-----/g' | \
-            sed 's/-----BEGIN RSA PUBLIC KEY----- /-----BEGIN RSA PUBLIC KEY-----\n/g' | \
-            sed 's/ -----END RSA PUBLIC KEY-----/\n-----END RSA PUBLIC KEY-----/g' | \
-            sed 's/\([A-Za-z0-9+/=]\{64\}\) /\1\n/g')
+          echo "🔍 Private key has $PRIVATE_HAS_NEWLINES line breaks"
+          echo "🔍 Public key has $PUBLIC_HAS_NEWLINES line breaks"
           
-          # Write normalized keys to files
-          printf "%s\n" "$PRIVATE_KEY_NORMALIZED" > private.pem
-          printf "%s\n" "$PUBLIC_KEY_NORMALIZED" > public.pem
+          # Create temporary files with proper handling
+          if [[ "$PRIVATE_HAS_NEWLINES" -gt 1 ]]; then
+            echo "✅ Private key already has proper formatting"
+            cat << 'EOF' > private.pem
+${{ inputs.private_key_content }}
+EOF
+          else
+            echo "🔧 Normalizing private key format..."
+            # Normalize private key: replace spaces between header/content/footer with newlines
+            echo '${{ inputs.private_key_content }}' | \
+              sed 's/-----BEGIN PRIVATE KEY----- /-----BEGIN PRIVATE KEY-----\n/g' | \
+              sed 's/ -----END PRIVATE KEY-----/\n-----END PRIVATE KEY-----/g' | \
+              sed 's/-----BEGIN RSA PRIVATE KEY----- /-----BEGIN RSA PRIVATE KEY-----\n/g' | \
+              sed 's/ -----END RSA PRIVATE KEY-----/\n-----END RSA PRIVATE KEY-----/g' | \
+              sed 's/-----BEGIN EC PRIVATE KEY----- /-----BEGIN EC PRIVATE KEY-----\n/g' | \
+              sed 's/ -----END EC PRIVATE KEY-----/\n-----END EC PRIVATE KEY-----/g' | \
+              sed 's/\([A-Za-z0-9+/=]\{64\}\) /\1\n/g' > private.pem
+          fi
           
-          echo "📋 Private key preview (first 2 lines):"
-          head -2 private.pem
-          echo "📋 Public key preview (first 2 lines):"
-          head -2 public.pem
+          if [[ "$PUBLIC_HAS_NEWLINES" -gt 1 ]]; then
+            echo "✅ Public key already has proper formatting"
+            cat << 'EOF' > public.pem
+${{ inputs.public_key_content }}
+EOF
+          else
+            echo "🔧 Normalizing public key format..."
+            # Normalize public key: replace spaces between header/content/footer with newlines  
+            echo '${{ inputs.public_key_content }}' | \
+              sed 's/-----BEGIN PUBLIC KEY----- /-----BEGIN PUBLIC KEY-----\n/g' | \
+              sed 's/ -----END PUBLIC KEY-----/\n-----END PUBLIC KEY-----/g' | \
+              sed 's/-----BEGIN RSA PUBLIC KEY----- /-----BEGIN RSA PUBLIC KEY-----\n/g' | \
+              sed 's/ -----END RSA PUBLIC KEY-----/\n-----END RSA PUBLIC KEY-----/g' | \
+              sed 's/\([A-Za-z0-9+/=]\{64\}\) /\1\n/g' > public.pem
+          fi
           
-          # Validate private key format
-          if ! openssl pkey -in private.pem -check -noout 2>/dev/null; then
+          echo "📋 Private key preview (first 3 lines):"
+          head -3 private.pem
+          echo "📋 Private key preview (last 3 lines):"
+          tail -3 private.pem
+          echo ""
+          echo "📋 Public key preview (first 3 lines):"
+          head -3 public.pem
+          echo "📋 Public key preview (last 3 lines):"
+          tail -3 public.pem
+          echo ""
+          echo "🔍 File sizes:"
+          echo "Private key: $(wc -c < private.pem) bytes, $(wc -l < private.pem) lines"
+          echo "Public key: $(wc -c < public.pem) bytes, $(wc -l < public.pem) lines"
+          
+          # Validate private key format with detailed error reporting
+          echo "🔍 Validating private key format..."
+          if ! openssl pkey -in private.pem -check -noout 2>private_error.log; then
             echo "❌ Invalid private key format"
+            echo "🐛 OpenSSL error details:"
+            cat private_error.log
+            echo ""
+            echo "🔍 Raw private key file content (first 200 chars):"
+            head -c 200 private.pem | cat -A
             exit 1
           fi
+          echo "✅ Private key format is valid"
           
-          # Validate public key format
-          if ! openssl pkey -in public.pem -pubin -check -noout 2>/dev/null; then
+          # Validate public key format with detailed error reporting
+          echo "🔍 Validating public key format..."
+          if ! openssl pkey -in public.pem -pubin -check -noout 2>public_error.log; then
             echo "❌ Invalid public key format"
+            echo "🐛 OpenSSL error details:"
+            cat public_error.log
+            echo ""
+            echo "🔍 Raw public key file content (first 200 chars):"
+            head -c 200 public.pem | cat -A
             exit 1
           fi
+          echo "✅ Public key format is valid"
           
           # Verify key pair match
           private_pubkey=$(openssl pkey -in private.pem -pubout 2>/dev/null)

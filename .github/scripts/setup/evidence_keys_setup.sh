@@ -180,5 +180,3 @@ else
 fi
 
 echo "🎉 Evidence keys setup completed"
-
-

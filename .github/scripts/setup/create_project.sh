@@ -25,7 +25,7 @@ log_config "Admin Privileges: Full management enabled"
 log_config "Storage Quota: Unlimited (-1)"
 
 # Create project using standardized API call
-response_code=$(make_api_call POST \
+response_code=$(jfrog_api_call POST \
     "${JFROG_URL}/access/api/v1/projects" \
     "$project_payload")
 

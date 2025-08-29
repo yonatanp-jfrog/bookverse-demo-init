@@ -30,7 +30,7 @@ process_stage() {
     
     # Create stage using standardized API call
     local response_code
-    response_code=$(make_api_call POST \
+    response_code=$(jfrog_api_call POST \
         "${JFROG_URL}/access/api/v2/stages/" \
         "$stage_payload")
     
@@ -62,7 +62,7 @@ create_lifecycle_configuration() {
     
     # Update lifecycle configuration
     local response_code
-    response_code=$(make_api_call PATCH \
+    response_code=$(jfrog_api_call PATCH \
         "${JFROG_URL}/access/api/v2/lifecycle/?project_key=${PROJECT_KEY}" \
         "$lifecycle_payload")
     

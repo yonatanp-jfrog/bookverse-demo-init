@@ -52,7 +52,7 @@ for test in "${API_TESTS[@]}"; do
     IFS='|' read -r method endpoint description <<< "$test"
     
     log_info "Testing $description..."
-    response_code=$(make_api_call "$method" "${JFROG_URL}${endpoint}")
+    response_code=$(jfrog_api_call "$method" "${JFROG_URL}${endpoint}")
     
     # Accept 200 or 404 (for endpoints that require specific resources)
     if [[ "$response_code" -eq $HTTP_OK ]] || [[ "$response_code" -eq $HTTP_NOT_FOUND ]]; then

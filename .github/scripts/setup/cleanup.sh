@@ -124,7 +124,7 @@ echo ""
 # =============================================================================
 
 # Generic API call with consistent error handling
-make_api_call() {
+jfrog_api_call() {
     local method="$1" endpoint="$2" output_file="$3" client="$4"
     local extra_args="${5:-}"
     
@@ -219,7 +219,7 @@ discover_resource() {
     local response_file="$TEMP_DIR/${resource_type}_response.json"
     local items_file="$TEMP_DIR/bookverse_${resource_type}.txt"
     
-    local code=$(make_api_call "GET" "$endpoint" "$response_file" "$client")
+    local code=$(jfrog_api_call "GET" "$endpoint" "$response_file" "$client")
     
     # Special handling for project resource: use REST API only
     if [[ "$resource_type" == "project" ]]; then
@@ -317,14 +317,14 @@ delete_resource() {
         "project")
             # Special case: project has verification logic
             echo "Attempting to delete project: $PROJECT_KEY"
-            local code=$(make_api_call "DELETE" "$delete_pattern" "$TEMP_DIR/delete_project.txt" "$client")
+            local code=$(jfrog_api_call "DELETE" "$delete_pattern" "$TEMP_DIR/delete_project.txt" "$client")
             
             if [[ "$code" -eq $HTTP_OK ]] || [[ "$code" -eq $HTTP_NO_CONTENT ]]; then
                 echo "Project '$PROJECT_KEY' deleted successfully (HTTP $code)"
                 
                 # Verify deletion via REST API only
                 sleep 2
-                local verify_code=$(make_api_call "GET" "/access/api/v1/projects/$PROJECT_KEY" "/dev/null" "curl")
+                local verify_code=$(jfrog_api_call "GET" "/access/api/v1/projects/$PROJECT_KEY" "/dev/null" "curl")
                 if [[ "$verify_code" -eq $HTTP_NOT_FOUND ]]; then
                     echo "Deletion confirmed - project no longer exists"
                     return 0
@@ -359,7 +359,7 @@ delete_resource() {
                             echo "  → Discovering versions for application '$item'"
                             local versions_file="$TEMP_DIR/${item}_versions.json"
                             local code_versions
-                            code_versions=$(make_api_call "GET" "/apptrust/api/v1/applications/$item/versions?project=$PROJECT_KEY" "$versions_file" "curl")
+                            code_versions=$(jfrog_api_call "GET" "/apptrust/api/v1/applications/$item/versions?project=$PROJECT_KEY" "$versions_file" "curl")
                             if [[ "$code_versions" -ge 200 && "$code_versions" -lt 300 ]] && [[ -s "$versions_file" ]]; then
                                 mapfile -t versions < <(jq -r '.versions[]?.version // empty' "$versions_file")
                                 if [[ ${#versions[@]} -gt 0 ]]; then
@@ -371,7 +371,7 @@ delete_resource() {
                                     if [[ -n "$ver" ]]; then
                                         echo "    - Deleting version $ver"
                                         local del_ver_code
-                                        del_ver_code=$(make_api_call "DELETE" "/apptrust/api/v1/applications/$item/versions/$ver?project=$PROJECT_KEY" "$TEMP_DIR/delete_${item}_${ver}.txt" "curl")
+                                        del_ver_code=$(jfrog_api_call "DELETE" "/apptrust/api/v1/applications/$item/versions/$ver?project=$PROJECT_KEY" "$TEMP_DIR/delete_${item}_${ver}.txt" "curl")
                                         if [[ "$del_ver_code" -eq $HTTP_OK ]] || [[ "$del_ver_code" -eq $HTTP_NO_CONTENT ]]; then
                                             echo "      ✓ Version '$ver' deleted (HTTP $del_ver_code)"
                                         elif [[ "$del_ver_code" -eq $HTTP_NOT_FOUND ]]; then
@@ -387,7 +387,7 @@ delete_resource() {
                         fi
 
                         local delete_endpoint="${delete_pattern/\{item\}/$item}"
-                        local code=$(make_api_call "DELETE" "$delete_endpoint" "$TEMP_DIR/delete_${item}.txt" "$client")
+                        local code=$(jfrog_api_call "DELETE" "$delete_endpoint" "$TEMP_DIR/delete_${item}.txt" "$client")
                         
                         if [[ "$code" -eq $HTTP_OK ]] || [[ "$code" -eq $HTTP_NO_CONTENT ]]; then
                             echo "$(echo "$display_name" | sed 's/s$//' | sed 's/repositorie/repository/' | tr '[:lower:]' '[:upper:]') '$item' deleted successfully (HTTP $code)"
@@ -440,7 +440,7 @@ delete_all_application_versions() {
         echo "  → Discovering versions for application '$app_key'"
         local versions_file="$TEMP_DIR/${app_key}_versions.json"
         local code_versions
-        code_versions=$(make_api_call "GET" "/apptrust/api/v1/applications/$app_key/versions?project=$PROJECT_KEY" "$versions_file" "curl")
+        code_versions=$(jfrog_api_call "GET" "/apptrust/api/v1/applications/$app_key/versions?project=$PROJECT_KEY" "$versions_file" "curl")
         if [[ "$code_versions" -ge 200 && "$code_versions" -lt 300 ]] && [[ -s "$versions_file" ]]; then
             mapfile -t versions < <(jq -r '.versions[]?.version // empty' "$versions_file")
             if [[ ${#versions[@]} -gt 0 ]]; then
@@ -452,7 +452,7 @@ delete_all_application_versions() {
                 [[ -z "$ver" ]] && continue
                 echo "    - Deleting version $ver"
                 local del_ver_code
-                del_ver_code=$(make_api_call "DELETE" "/apptrust/api/v1/applications/$app_key/versions/$ver?project=$PROJECT_KEY" "$TEMP_DIR/delete_${app_key}_${ver}.txt" "curl")
+                del_ver_code=$(jfrog_api_call "DELETE" "/apptrust/api/v1/applications/$app_key/versions/$ver?project=$PROJECT_KEY" "$TEMP_DIR/delete_${app_key}_${ver}.txt" "curl")
                 if [[ "$del_ver_code" -eq $HTTP_OK ]] || [[ "$del_ver_code" -eq $HTTP_NO_CONTENT ]]; then
                     echo "      ✓ Version '$ver' deleted (HTTP $del_ver_code)"
                 elif [[ "$del_ver_code" -eq $HTTP_NOT_FOUND ]]; then

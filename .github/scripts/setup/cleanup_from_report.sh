@@ -27,7 +27,6 @@ fi
 report_timestamp=$(jq -r '.metadata.timestamp' "$SHARED_REPORT_FILE")
 project_key=$(jq -r '.metadata.project_key' "$SHARED_REPORT_FILE")
 total_items=$(jq -r '.metadata.total_items' "$SHARED_REPORT_FILE")
-deletion_plan=$(jq -r '.deletion_plan' "$SHARED_REPORT_FILE")
 
 log_info "📋 Executing cleanup from report"
 log_config "   • Report generated: $report_timestamp"
@@ -35,9 +34,18 @@ log_config "   • Project: $project_key"
 log_config "   • Total items to delete: $total_items"
 echo ""
 
-# Create temporary deletion plan file from report
-temp_deletion_file="/tmp/deletion_plan_from_report.txt"
-echo "$deletion_plan" > "$temp_deletion_file"
+# Materialize structured plan files from report (filter by expected project for safety)
+repos_file="/tmp/repos_to_delete.txt"
+apps_file="/tmp/apps_to_delete.txt"
+users_file="/tmp/users_to_delete.txt"
+stages_file="/tmp/stages_to_delete.txt"
+builds_file="/tmp/builds_to_delete.txt"
+
+jq -r --arg p "$project_key" '.plan.repositories[]? | select(.project==$p) | .key' "$SHARED_REPORT_FILE" > "$repos_file" 2>/dev/null || true
+jq -r --arg p "$project_key" '.plan.applications[]? | select(.project==$p) | .key' "$SHARED_REPORT_FILE" > "$apps_file" 2>/dev/null || true
+jq -r --arg p "$project_key" '.plan.users[]? | select(.project==$p) | .name' "$SHARED_REPORT_FILE" > "$users_file" 2>/dev/null || true
+jq -r --arg p "$project_key" '.plan.stages[]? | select(.project==$p) | .name' "$SHARED_REPORT_FILE" > "$stages_file" 2>/dev/null || true
+jq -r --arg p "$project_key" '.plan.builds[]? | select(.project==$p) | .name' "$SHARED_REPORT_FILE" > "$builds_file" 2>/dev/null || true
 
 # Run the actual cleanup logic from the main script
 log_info "🗑️ Starting deletion process..."
@@ -57,74 +65,53 @@ fi
 # Parse deletion plan and execute deletions for ONLY the items in the report
 # Extract resource lists from the report for targeted deletion
 
-# 1) Extract and delete builds (if any)
-builds_to_delete=$(grep "❌ Build:" "$temp_deletion_file" 2>/dev/null | sed 's/.*❌ Build: //' || true)
-if [[ -n "$builds_to_delete" && -n "$(echo "$builds_to_delete" | tr -d '[:space:]')" ]]; then
-    builds_count=$(echo "$builds_to_delete" | wc -l)
+# 1) Delete builds from structured plan
+if [[ -s "$builds_file" ]]; then
+    builds_count=$(wc -l < "$builds_file")
     log_info "🔧 Deleting $builds_count builds from report..."
-    
-    # Create temporary file with builds to delete
-    echo "$builds_to_delete" > "/tmp/builds_to_delete.txt"
-    delete_specific_builds "/tmp/builds_to_delete.txt" || FAILED=true
+    delete_specific_builds "$builds_file" || FAILED=true
 else
     log_info "🔧 No builds found in report to delete"
 fi
 
-# 2) Extract and delete applications
-apps_to_delete=$(grep "❌ Application:" "$temp_deletion_file" 2>/dev/null | sed 's/.*❌ Application: //' || true)
-if [[ -n "$apps_to_delete" && -n "$(echo "$apps_to_delete" | tr -d '[:space:]')" ]]; then
-    apps_count=$(echo "$apps_to_delete" | wc -l)
+# 2) Delete applications from structured plan
+if [[ -s "$apps_file" ]]; then
+    apps_count=$(wc -l < "$apps_file")
     log_info "🚀 Deleting $apps_count applications from report..."
-    
-    # Create temporary file with applications to delete
-    echo "$apps_to_delete" > "/tmp/apps_to_delete.txt"
-    delete_specific_applications "/tmp/apps_to_delete.txt" || FAILED=true
+    delete_specific_applications "$apps_file" || FAILED=true
 else
     log_info "🚀 No applications found in report to delete"
 fi
 
-# 3) Extract and delete repositories
-repos_to_delete=$(grep "❌ Repository:" "$temp_deletion_file" 2>/dev/null | sed 's/.*❌ Repository: //' || true)
-if [[ -n "$repos_to_delete" && -n "$(echo "$repos_to_delete" | tr -d '[:space:]')" ]]; then
-    repos_count=$(echo "$repos_to_delete" | wc -l)
+# 3) Delete repositories from structured plan
+if [[ -s "$repos_file" ]]; then
+    repos_count=$(wc -l < "$repos_file")
     log_info "📦 Deleting $repos_count repositories from report..."
-    
-    # Create temporary file with repositories to delete
-    echo "$repos_to_delete" > "/tmp/repos_to_delete.txt"
-    delete_specific_repositories "/tmp/repos_to_delete.txt" || FAILED=true
+    delete_specific_repositories "$repos_file" || FAILED=true
 else
     log_info "📦 No repositories found in report to delete"
 fi
 
-# 4) Extract and delete users
-users_to_delete=$(grep "❌ User:" "$temp_deletion_file" 2>/dev/null | sed 's/.*❌ User: //' || true)
-if [[ -n "$users_to_delete" && -n "$(echo "$users_to_delete" | tr -d '[:space:]')" ]]; then
-    users_count=$(echo "$users_to_delete" | wc -l)
+# 4) Delete users from structured plan
+if [[ -s "$users_file" ]]; then
+    users_count=$(wc -l < "$users_file")
     log_info "👥 Deleting $users_count users from report..."
-    
-    # Create temporary file with users to delete
-    echo "$users_to_delete" > "/tmp/users_to_delete.txt"
-    delete_specific_users "/tmp/users_to_delete.txt" || FAILED=true
+    delete_specific_users "$users_file" || FAILED=true
 else
     log_info "👥 No users found in report to delete"
 fi
 
-# 5) Extract and delete stages
-stages_to_delete=$(grep "❌ Stage:" "$temp_deletion_file" 2>/dev/null | sed 's/.*❌ Stage: //' || true)
-if [[ -n "$stages_to_delete" && -n "$(echo "$stages_to_delete" | tr -d '[:space:]')" ]]; then
-    stages_count=$(echo "$stages_to_delete" | wc -l)
+# 5) Delete stages from structured plan
+if [[ -s "$stages_file" ]]; then
+    stages_count=$(wc -l < "$stages_file")
     log_info "🏷️ Deleting $stages_count stages from report..."
-    
-    # Create temporary file with stages to delete
-    echo "$stages_to_delete" > "/tmp/stages_to_delete.txt"
-    delete_specific_stages "/tmp/stages_to_delete.txt" || FAILED=true
+    delete_specific_stages "$stages_file" || FAILED=true
 else
     log_info "🏷️ No stages found in report to delete"
 fi
 
 # Clean up temporary files
-rm -f "$temp_deletion_file"
-rm -f /tmp/builds_to_delete.txt /tmp/apps_to_delete.txt /tmp/repos_to_delete.txt /tmp/users_to_delete.txt /tmp/stages_to_delete.txt
+rm -f "$repos_file" "$apps_file" "$users_file" "$stages_file" "$builds_file"
 
 # Check if there were any failures during deletion
 if [[ "$FAILED" == "true" ]]; then

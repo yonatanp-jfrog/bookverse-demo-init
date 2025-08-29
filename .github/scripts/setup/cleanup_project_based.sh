@@ -869,7 +869,6 @@ run_discovery_preview() {
         while IFS= read -r build; do
             if [[ -n "$build" ]]; then
                 echo "  ❌ Build: $build" >> "$preview_file"
-                ((total_items++))
             fi
         done < "$TEMP_DIR/project_builds.txt"
         echo "" >> "$preview_file"
@@ -895,7 +894,6 @@ run_discovery_preview() {
         while IFS= read -r app; do
             if [[ -n "$app" ]]; then
                 echo "  ❌ Application: $app" >> "$preview_file"
-                ((total_items++))
             fi
         done < "$TEMP_DIR/project_applications.txt"
         echo "" >> "$preview_file"
@@ -921,7 +919,6 @@ run_discovery_preview() {
         while IFS= read -r repo; do
             if [[ -n "$repo" ]]; then
                 echo "  ❌ Repository: $repo" >> "$preview_file"
-                ((total_items++))
             fi
         done < "$TEMP_DIR/project_repositories.txt"
         echo "" >> "$preview_file"
@@ -947,7 +944,6 @@ run_discovery_preview() {
         while IFS= read -r user; do
             if [[ -n "$user" ]]; then
                 echo "  ❌ User: $user" >> "$preview_file"
-                ((total_items++))
             fi
         done < "$TEMP_DIR/project_users.txt"
         echo "" >> "$preview_file"
@@ -973,7 +969,6 @@ run_discovery_preview() {
         while IFS= read -r stage; do
             if [[ -n "$stage" ]]; then
                 echo "  ❌ Stage: $stage" >> "$preview_file"
-                ((total_items++))
             fi
         done < "$TEMP_DIR/project_stages.txt"
         echo "" >> "$preview_file"

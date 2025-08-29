@@ -1,0 +1,207 @@
+name: Replace Evidence Keys
+
+on:
+  workflow_dispatch:
+    inputs:
+      private_key_content:
+        description: 'Private Key Content (paste entire private.pem content)'
+        required: true
+        type: string
+      public_key_content:
+        description: 'Public Key Content (paste entire public.pem content)'
+        required: true
+        type: string
+      key_alias:
+        description: 'Key Alias (default: bookverse_evidence_key)'
+        required: false
+        default: 'bookverse_evidence_key'
+        type: string
+      update_jfrog_platform:
+        description: 'Update JFrog Platform trusted keys'
+        required: false
+        default: true
+        type: boolean
+
+env:
+  KEY_ALIAS: ${{ inputs.key_alias || 'bookverse_evidence_key' }}
+
+jobs:
+  replace_evidence_keys:
+    runs-on: ubuntu-latest
+    name: Replace Evidence Keys Across BookVerse
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Setup JFrog CLI
+        if: ${{ inputs.update_jfrog_platform }}
+        uses: jfrog/setup-jfrog-cli@v4
+        env:
+          JF_URL: ${{ vars.JFROG_URL }}
+          JF_ACCESS_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
+
+      - name: Validate key inputs
+        run: |
+          echo "🔍 Validating evidence key inputs..."
+          
+          # Check if inputs are provided
+          if [[ -z "${{ inputs.private_key_content }}" ]]; then
+            echo "❌ Private key content is required"
+            exit 1
+          fi
+          
+          if [[ -z "${{ inputs.public_key_content }}" ]]; then
+            echo "❌ Public key content is required"
+            exit 1
+          fi
+          
+          # Create temporary files for validation
+          echo '${{ inputs.private_key_content }}' > private.pem
+          echo '${{ inputs.public_key_content }}' > public.pem
+          
+          # Validate private key format
+          if ! openssl pkey -in private.pem -check -noout 2>/dev/null; then
+            echo "❌ Invalid private key format"
+            exit 1
+          fi
+          
+          # Validate public key format
+          if ! openssl pkey -in public.pem -pubin -check -noout 2>/dev/null; then
+            echo "❌ Invalid public key format"
+            exit 1
+          fi
+          
+          # Verify key pair match
+          private_pubkey=$(openssl pkey -in private.pem -pubout 2>/dev/null)
+          public_key_content=$(cat public.pem)
+          
+          if [[ "$private_pubkey" != "$public_key_content" ]]; then
+            echo "❌ Private and public keys do not match"
+            exit 1
+          fi
+          
+          echo "✅ Key validation successful"
+          echo "🔑 Key type: $(openssl pkey -in private.pem -text -noout 2>/dev/null | head -1)"
+          echo "🏷️  Key alias: $KEY_ALIAS"
+
+      - name: Replace evidence keys in repositories
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PRIVATE_KEY_CONTENT: ${{ inputs.private_key_content }}
+          PUBLIC_KEY_CONTENT: ${{ inputs.public_key_content }}
+        run: |
+          ./.github/scripts/setup/replace_evidence_keys.sh
+
+      - name: Update JFrog Platform trusted keys
+        if: ${{ inputs.update_jfrog_platform }}
+        env:
+          JFROG_CLI_LOG_LEVEL: INFO
+          PUBLIC_KEY_CONTENT: ${{ inputs.public_key_content }}
+        run: |
+          echo "📤 Updating JFrog Platform trusted keys..."
+          
+          # Prepare public key content for JSON (escape newlines and quotes)
+          PUBLIC_KEY_JSON=$(echo "$PUBLIC_KEY_CONTENT" | sed 's/"/\\"/g' | awk '{printf "%s\\n", $0}' | sed 's/\\n$//')
+          
+          # Create JSON payload
+          JSON_PAYLOAD=$(cat << EOF
+          {
+            "alias": "$KEY_ALIAS",
+            "public_key": "$PUBLIC_KEY_JSON"
+          }
+          EOF
+          )
+          
+          echo "🔍 Uploading public key with alias: $KEY_ALIAS"
+          
+          # Upload to JFrog Platform
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            -X POST \
+            -H "Authorization: Bearer ${{ secrets.JFROG_ADMIN_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            --data-binary "$JSON_PAYLOAD" \
+            "${{ vars.JFROG_URL }}/artifactory/api/security/keys/trusted")
+          
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          RESPONSE_BODY=$(echo "$RESPONSE" | head -n -1)
+          
+          if [[ "$HTTP_CODE" == "200" ]] || [[ "$HTTP_CODE" == "201" ]]; then
+            echo "✅ Successfully uploaded public key to JFrog Platform"
+            echo "📋 Response: $RESPONSE_BODY"
+            
+            # Parse and display key information
+            if command -v jq >/dev/null 2>&1; then
+              echo "🔑 Key fingerprint: $(echo "$RESPONSE_BODY" | jq -r '.fingerprint // "N/A"')"
+              echo "🆔 Key ID: $(echo "$RESPONSE_BODY" | jq -r '.kid // "N/A"')"
+            fi
+          else
+            echo "❌ Failed to upload public key to JFrog Platform"
+            echo "📋 HTTP Code: $HTTP_CODE"
+            echo "📋 Response: $RESPONSE_BODY"
+            exit 1
+          fi
+
+      - name: Verify evidence key deployment
+        run: |
+          echo "🔍 Verifying evidence key deployment..."
+          
+          # Check GitHub secrets and variables
+          echo "📋 Checking GitHub repository configurations..."
+          
+          REPOS=(
+            "bookverse-inventory"
+            "bookverse-recommendations" 
+            "bookverse-checkout"
+            "bookverse-platform"
+            "bookverse-web"
+            "bookverse-helm"
+            "bookverse-demo-assets"
+            "bookverse-demo-init"
+          )
+          
+          for repo in "${REPOS[@]}"; do
+            echo "  📦 Checking $repo..."
+            
+            # Check if private key secret exists
+            if gh secret list --repo "yonatanp-jfrog/$repo" | grep -q "EVIDENCE_PRIVATE_KEY"; then
+              echo "    ✅ EVIDENCE_PRIVATE_KEY secret exists"
+            else
+              echo "    ❌ EVIDENCE_PRIVATE_KEY secret missing"
+            fi
+            
+            # Check if public key variable exists
+            if gh variable list --repo "yonatanp-jfrog/$repo" | grep -q "EVIDENCE_PUBLIC_KEY"; then
+              echo "    ✅ EVIDENCE_PUBLIC_KEY variable exists"
+            else
+              echo "    ❌ EVIDENCE_PUBLIC_KEY variable missing"
+            fi
+            
+            # Check if alias variable exists
+            if gh variable list --repo "yonatanp-jfrog/$repo" | grep -q "EVIDENCE_KEY_ALIAS"; then
+              echo "    ✅ EVIDENCE_KEY_ALIAS variable exists"
+            else
+              echo "    ❌ EVIDENCE_KEY_ALIAS variable missing"
+            fi
+          done
+
+      - name: Generate summary
+        run: |
+          echo "🎉 Evidence Key Replacement Complete!"
+          echo "====================================="
+          echo ""
+          echo "✅ What was updated:"
+          echo "  • EVIDENCE_PRIVATE_KEY secrets in all 8 repositories"
+          echo "  • EVIDENCE_PUBLIC_KEY variables in all 8 repositories"
+          echo "  • EVIDENCE_KEY_ALIAS variables in all 8 repositories"
+          if [[ "${{ inputs.update_jfrog_platform }}" == "true" ]]; then
+            echo "  • JFrog Platform trusted keys registry"
+          fi
+          echo ""
+          echo "🔑 Key alias: $KEY_ALIAS"
+          echo "📋 Repositories updated: 8 BookVerse repositories"
+          echo ""
+          echo "🎯 Next steps:"
+          echo "  • Evidence signing will now use the new keys"
+          echo "  • Run workflows to test evidence generation"
+          echo "  • Verify evidence verification works correctly"

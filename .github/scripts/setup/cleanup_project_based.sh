@@ -988,9 +988,10 @@ run_discovery_preview() {
     echo "" >> "$preview_file"
     echo "⚠️ WARNING: This action cannot be undone!" >> "$preview_file"
     
-    # Set global variable instead of echoing
+    # Set global variables instead of using return codes
     GLOBAL_PREVIEW_FILE="$preview_file"
-    return $total_items
+    GLOBAL_TOTAL_ITEMS="$total_items"
+    return 0  # Always return success
 }
 
 # User approval function
@@ -1065,7 +1066,7 @@ echo ""
 echo "🛡️ SAFETY PHASE: Discovery and Approval Required"
 echo "=================================================="
 run_discovery_preview
-total_items=$?
+total_items="$GLOBAL_TOTAL_ITEMS"
 preview_file="$GLOBAL_PREVIEW_FILE"
 
 if ! get_user_approval "$preview_file" "$total_items"; then

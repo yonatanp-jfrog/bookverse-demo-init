@@ -12,6 +12,7 @@ Complete evidence key management script that can generate keys and/or update the
 - Can generate new key pairs or use existing ones
 - Supports RSA, EC, and ED25519 key algorithms  
 - Updates all repositories with a single command
+- Uploads public key to JFrog Platform automatically
 - Uses your GitHub CLI authentication (full permissions)
 - Validates key formats and matching before updates
 - Migrates `EVIDENCE_PUBLIC_KEY` from secret to variable automatically
@@ -28,6 +29,10 @@ sudo apt install gh  # Ubuntu
 
 # Authenticate
 gh auth login
+
+# Set JFrog environment variables
+export JFROG_URL="https://your-instance.jfrog.io"
+export JFROG_ADMIN_TOKEN="your-admin-token"
 ```
 
 **Usage:**
@@ -71,6 +76,7 @@ gh auth login
 - `--public-key <file>` - Path to public key PEM file (when not generating)
 - `--alias <name>` - Key alias (default: bookverse_evidence_key)
 - `--org <name>` - GitHub organization (default: yonatanp-jfrog)
+- `--no-jfrog` - Skip JFrog Platform update
 - `--dry-run` - Show what would be done without making changes
 - `--verbose` - Show detailed output
 - `--help` - Show usage information
@@ -89,6 +95,7 @@ gh auth login
 - `EVIDENCE_PRIVATE_KEY` (secret) - Private key for signing
 - `EVIDENCE_PUBLIC_KEY` (variable) - Public key for verification
 - `EVIDENCE_KEY_ALIAS` (variable) - Key identifier
+- JFrog Platform trusted keys - Public key uploaded for evidence verification
 
 ## Other Scripts
 

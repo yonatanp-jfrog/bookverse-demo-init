@@ -46,6 +46,9 @@ VERBOSE=false
 GENERATE_KEYS=false
 KEY_TYPE="ed25519"
 TEMP_DIR=""
+UPDATE_JFROG=true
+JFROG_URL="${JFROG_URL:-}"
+JFROG_ADMIN_TOKEN="${JFROG_ADMIN_TOKEN:-}"
 
 # BookVerse repositories
 BOOKVERSE_REPOS=(
@@ -88,6 +91,7 @@ EXISTING KEYS:
 OPTIONAL ARGUMENTS:
     --alias <name>          Key alias (default: bookverse_evidence_key)
     --org <name>            GitHub organization (default: yonatanp-jfrog)
+    --no-jfrog              Skip JFrog Platform update
     --dry-run               Show what would be done without making changes
     --verbose               Show detailed output
     --help                  Show this help message
@@ -148,6 +152,10 @@ parse_arguments() {
             --org)
                 GITHUB_ORG="$2"
                 shift 2
+                ;;
+            --no-jfrog)
+                UPDATE_JFROG=false
+                shift
                 ;;
             --dry-run)
                 DRY_RUN=true
@@ -222,6 +230,19 @@ validate_environment() {
         log_error "GitHub CLI is not authenticated"
         log_info "Run: gh auth login"
         exit 1
+    fi
+
+    # Check JFrog environment (if updating JFrog Platform)
+    if [[ "$UPDATE_JFROG" == true ]]; then
+        if [[ -z "$JFROG_URL" ]]; then
+            log_error "JFROG_URL environment variable is required for JFrog Platform updates"
+            exit 1
+        fi
+
+        if [[ -z "$JFROG_ADMIN_TOKEN" ]]; then
+            log_error "JFROG_ADMIN_TOKEN environment variable is required for JFrog Platform updates"
+            exit 1
+        fi
     fi
 
     # Check if files exist (only when not generating)
@@ -425,6 +446,89 @@ update_all_repositories() {
     fi
 }
 
+upload_public_key_to_jfrog() {
+    if [[ "$UPDATE_JFROG" == false ]]; then
+        return 0
+    fi
+
+    log_info "Uploading public key to JFrog Platform..."
+    
+    if [[ "$DRY_RUN" == true ]]; then
+        log_info "  [DRY RUN] Would upload public key to $JFROG_URL"
+        log_info "  [DRY RUN] Key alias: $KEY_ALIAS"
+        return 0
+    fi
+
+    # Ensure we have a temporary directory for responses
+    if [[ -z "$TEMP_DIR" ]]; then
+        TEMP_DIR=$(mktemp -d)
+    fi
+
+    # Read public key content
+    local public_key_content
+    public_key_content=$(cat "$PUBLIC_KEY_FILE")
+    
+    # Prepare public key content (remove headers/footers and newlines for JSON)
+    local public_key_b64
+    public_key_b64=$(echo "$public_key_content" | grep -v "BEGIN\|END" | tr -d '\n')
+    
+    # Create JSON payload
+    local payload
+    payload=$(cat << EOF
+{
+  "alias": "$KEY_ALIAS",
+  "public_key": "$public_key_b64"
+}
+EOF
+)
+    
+    # Upload to JFrog Platform
+    local response_file="$TEMP_DIR/jfrog_response.json"
+    local http_code
+    http_code=$(curl -s -w "%{http_code}" \
+        -X POST \
+        -H "Authorization: Bearer $JFROG_ADMIN_TOKEN" \
+        -H "Content-Type: application/json" \
+        -d "$payload" \
+        "$JFROG_URL/artifactory/api/security/keys/trusted" \
+        -o "$response_file")
+    
+    if [[ "$http_code" == "200" ]] || [[ "$http_code" == "201" ]]; then
+        log_success "✅ Public key uploaded to JFrog Platform"
+        if [[ "$VERBOSE" == true ]]; then
+            log_info "Response:"
+            cat "$response_file" | jq '.' 2>/dev/null || cat "$response_file"
+        fi
+    else
+        log_error "❌ Failed to upload public key to JFrog Platform (HTTP $http_code)"
+        if [[ -f "$response_file" ]]; then
+            log_error "Response:"
+            cat "$response_file"
+        fi
+        return 1
+    fi
+    
+    # Verify upload by listing trusted keys
+    log_info "Verifying key upload..."
+    local verify_response="$TEMP_DIR/verify_response.json"
+    local verify_code
+    verify_code=$(curl -s -w "%{http_code}" \
+        -X GET \
+        -H "Authorization: Bearer $JFROG_ADMIN_TOKEN" \
+        "$JFROG_URL/artifactory/api/security/keys/trusted" \
+        -o "$verify_response")
+    
+    if [[ "$verify_code" == "200" ]]; then
+        if cat "$verify_response" | jq -r '.[].alias' 2>/dev/null | grep -q "^$KEY_ALIAS$"; then
+            log_success "✅ Verified: Key '$KEY_ALIAS' found in JFrog Platform trusted keys"
+        else
+            log_warning "⚠️  Warning: Key '$KEY_ALIAS' not found in trusted keys list"
+        fi
+    else
+        log_warning "⚠️  Could not verify trusted keys (HTTP $verify_code)"
+    fi
+}
+
 # =============================================================================
 # MAIN EXECUTION
 # =============================================================================
@@ -483,6 +587,12 @@ main() {
     update_all_repositories
     echo ""
     
+    # Upload to JFrog Platform
+    if [[ "$UPDATE_JFROG" == true ]]; then
+        upload_public_key_to_jfrog
+        echo ""
+    fi
+    
     # Show generated keys if created
     if [[ "$GENERATE_KEYS" == true ]] && [[ "$DRY_RUN" == false ]]; then
         echo ""
@@ -520,12 +630,21 @@ main() {
         log_success "All repositories are now using the evidence keys!"
         echo ""
         log_info "Next steps:"
-        log_info "1. Upload public key to JFrog Platform (use workflow)"
-        log_info "2. Test evidence signing with new keys"
-        if [[ "$GENERATE_KEYS" == true ]]; then
-            log_info "3. Save the private key shown above securely"
+        if [[ "$UPDATE_JFROG" == true ]]; then
+            log_info "1. Test evidence signing with new keys"
+            if [[ "$GENERATE_KEYS" == true ]]; then
+                log_info "2. Save the private key shown above securely"
+            else
+                log_info "2. Archive old private key securely (if replacing)"
+            fi
         else
-            log_info "3. Archive old private key securely (if replacing)"
+            log_info "1. Upload public key to JFrog Platform manually"
+            log_info "2. Test evidence signing with new keys"
+            if [[ "$GENERATE_KEYS" == true ]]; then
+                log_info "3. Save the private key shown above securely"
+            else
+                log_info "3. Archive old private key securely (if replacing)"
+            fi
         fi
     fi
 }

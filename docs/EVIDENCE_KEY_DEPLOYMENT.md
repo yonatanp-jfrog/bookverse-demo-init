@@ -33,6 +33,7 @@ After generating evidence keys, you need to update:
 - ✅ Can generate keys or use existing ones
 - ✅ Uses your GitHub credentials (full permissions)
 - ✅ Updates all repositories at once
+- ✅ Uploads to JFrog Platform automatically
 - ✅ Handles secret-to-variable migration automatically
 - ✅ Includes dry-run mode for testing
 - ✅ Shows generated keys for secure storage
@@ -61,12 +62,7 @@ Update each repository individually:
 
 ### Option 3: JFrog Platform Update
 
-Use the simplified GitHub Actions workflow:
-
-1. Go to **Actions** → **Upload Evidence Key to JFrog Platform**
-2. Paste your public key content (PEM format)
-3. Set key alias (optional, defaults to `bookverse_evidence_key`)
-4. Run workflow
+The local script automatically uploads the public key to JFrog Platform as part of the process. No separate workflow needed!
 
 ## Local Script Usage
 
@@ -116,9 +112,11 @@ gh auth login
 
 ### Script Features
 
+- ✅ **Key Generation**: Can generate new key pairs or use existing ones
 - ✅ **Key Validation**: Verifies PEM format and key pair matching
 - ✅ **Repository Discovery**: Automatically finds accessible repositories
 - ✅ **Secret Migration**: Migrates `EVIDENCE_PUBLIC_KEY` from secret to variable
+- ✅ **JFrog Platform Upload**: Automatically uploads public key to trusted keys
 - ✅ **Error Handling**: Clear error messages and recovery suggestions
 - ✅ **Dry Run Mode**: Test without making changes
 - ✅ **Progress Tracking**: Shows status for each repository

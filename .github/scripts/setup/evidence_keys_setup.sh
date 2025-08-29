@@ -3,20 +3,18 @@
 set -euo pipefail
 
 # Evidence keys and secrets setup
-# - Generates an ed25519 keypair (if not already provided)
-# - Stores private key as GitHub secret across BookVerse service repos
-# - Stores public key and alias as GitHub variables across repos
-# - Uploads public key to JFrog Platform trusted keys (for evidence verification)
+# - Checks if evidence keys exist in repositories
+# - If found, uploads public key to JFrog Platform trusted keys
+# - If not found, warns user to run the key replacement script
 
 # Requirements:
 # - Env: JFROG_URL, JFROG_ADMIN_TOKEN, GH_TOKEN
-# - Tools: openssl, gh, curl, jq
+# - Tools: gh, curl, jq
 
 ALIAS_DEFAULT="BookVerse-Evidence-Key"
 KEY_ALIAS="${EVIDENCE_KEY_ALIAS:-$ALIAS_DEFAULT}"
-PREVIOUS_ALIAS="${PREVIOUS_EVIDENCE_KEY_ALIAS:-bookverse-ev-key}"
 
-# Service repositories to configure
+# Service repositories to check
 SERVICE_REPOS=(
   "yonatanp-jfrog/bookverse-inventory"
   "yonatanp-jfrog/bookverse-recommendations"
@@ -28,7 +26,6 @@ SERVICE_REPOS=(
 
 echo "🔐 Evidence Keys Setup"
 echo "   🗝️  Alias: $KEY_ALIAS"
-echo "   🔁 Previous alias (if exists): $PREVIOUS_ALIAS"
 echo "   🐸 JFrog: ${JFROG_URL:-unset}"
 
 if [[ -z "${JFROG_URL:-}" || -z "${JFROG_ADMIN_TOKEN:-}" ]]; then
@@ -41,142 +38,137 @@ if ! command -v gh >/dev/null 2>&1; then
   exit 1
 fi
 
-if ! command -v openssl >/dev/null 2>&1; then
-  echo "❌ openssl not found" >&2
-  exit 1
-fi
-
-# 1) Generate keypair (unless provided through env)
-WORKDIR=$(mktemp -d)
-trap 'rm -rf "$WORKDIR"' EXIT
-
-if [[ -n "${EVIDENCE_PRIVATE_KEY:-}" && -n "${EVIDENCE_PUBLIC_KEY:-}" ]]; then
-  echo "✅ Using evidence keys provided via environment"
-  printf "%s" "$EVIDENCE_PRIVATE_KEY" > "$WORKDIR/evidence_private.pem"
-  printf "%s" "$EVIDENCE_PUBLIC_KEY" > "$WORKDIR/evidence_public.pem"
-else
-  echo "🔧 Generating new ed25519 keypair"
-  openssl genpkey -algorithm ED25519 -out "$WORKDIR/evidence_private.pem" >/dev/null 2>&1
-  openssl pkey -in "$WORKDIR/evidence_private.pem" -pubout -out "$WORKDIR/evidence_public.pem" >/dev/null 2>&1
-fi
-
-chmod 600 "$WORKDIR/evidence_private.pem"
-chmod 644 "$WORKDIR/evidence_public.pem"
-
-PRIVATE_KEY_CONTENT=$(cat "$WORKDIR/evidence_private.pem")
-PUBLIC_KEY_CONTENT=$(cat "$WORKDIR/evidence_public.pem")
-
-echo "🧪 Key fingerprints:"
-openssl pkey -in "$WORKDIR/evidence_private.pem" -pubout 2>/dev/null | openssl sha256 || true
-
-# 2) Distribute keys to GitHub repositories as secrets/variables
-for repo in "${SERVICE_REPOS[@]}"; do
-  echo "📦 Configuring secrets and variables for $repo"
-  printf "%s" "$PRIVATE_KEY_CONTENT" | gh secret set EVIDENCE_PRIVATE_KEY --repo "$repo" >/dev/null && echo "   ✅ EVIDENCE_PRIVATE_KEY (secret)"
-  gh variable set EVIDENCE_PUBLIC_KEY --body "$PUBLIC_KEY_CONTENT" --repo "$repo" >/dev/null && echo "   ✅ EVIDENCE_PUBLIC_KEY (variable)"
-  gh variable set EVIDENCE_KEY_ALIAS --body "$KEY_ALIAS" --repo "$repo" >/dev/null && echo "   ✅ EVIDENCE_KEY_ALIAS (variable)"
-done
-
-# 3) Upload public key to JFrog trusted keys (best-effort)
-echo "📤 Uploading public key to JFrog trusted keys"
-PUB_ESC=$(awk '{printf "%s\\n", $0}' "$WORKDIR/evidence_public.pem" | sed 's/"/\\"/g')
-REQ_BODY_JSON="{\"alias\":\"$KEY_ALIAS\",\"public_key_pem\":\"$PUB_ESC\"}"
-
-attempt_upload() {
-  local endpoint="$1"
-  local resp
-  local code
-  resp=$(mktemp)
-  # If Artifactory security API, use PUT with text/plain body to alias path
-  if echo "$endpoint" | grep -q "/artifactory/api/security/keys/trusted$"; then
-    code=$(curl -sS -L -o "$resp" -w "%{http_code}" -X PUT \
-      "$endpoint/$KEY_ALIAS" \
-      -H "Authorization: Bearer $JFROG_ADMIN_TOKEN" \
-      -H "Content-Type: text/plain" \
-      --data-binary @"$WORKDIR/evidence_public.pem") || code=000
+# Function to check if keys exist in a repository
+check_repo_keys() {
+  local repo="$1"
+  echo "🔍 Checking for existing keys in $repo..."
+  
+  # Check if both public key and alias variables exist
+  local public_key_exists=false
+  local alias_exists=false
+  
+  if gh variable list --repo "$repo" | grep -q "EVIDENCE_PUBLIC_KEY"; then
+    public_key_exists=true
+  fi
+  
+  if gh variable list --repo "$repo" | grep -q "EVIDENCE_KEY_ALIAS"; then
+    alias_exists=true
+  fi
+  
+  if [[ "$public_key_exists" == true && "$alias_exists" == true ]]; then
+    return 0  # Keys exist
   else
-    code=$(curl -sS -L -o "$resp" -w "%{http_code}" -X POST \
-      "$endpoint" \
-      -H "Authorization: Bearer $JFROG_ADMIN_TOKEN" \
-      -H "Content-Type: application/json" \
-      -d "$REQ_BODY_JSON") || code=000
+    return 1  # Keys missing
   fi
-  echo "   → $endpoint (HTTP $code)"
-  if [[ "$code" == "200" || "$code" == "201" ]]; then
-    echo "   ✅ Uploaded trusted key"
-    rm -f "$resp"
-    return 0
-  fi
-  if [[ "$code" == "409" ]]; then
-    echo "   ⚠️ Key already exists (alias=$KEY_ALIAS)"
-    rm -f "$resp"
-    return 0
-  fi
-  echo "   Body:"; cat "$resp" || true
-  rm -f "$resp"
-  return 1
 }
 
-ENDPOINTS=(
-  "$JFROG_URL/access/api/v1/keys/trusted"
-  "$JFROG_URL/artifactory/api/security/keys/trusted"
-  "$JFROG_URL/access/api/v1/projects/${PROJECT_KEY}/keys/trusted"
-)
-
-# Attempt to delete a trusted key by alias (best-effort, ignore errors)
-attempt_delete_alias() {
-  local alias="$1"
-  local del_endpoint
-  local code
-  for base in "${ENDPOINTS[@]}"; do
-    del_endpoint="$base/$alias"
-    code=$(curl -sS -o /dev/null -w "%{http_code}" -X DELETE \
-      "$del_endpoint" \
-      -H "Authorization: Bearer $JFROG_ADMIN_TOKEN" \
-      -H "Content-Type: application/json") || code=000
-    echo "   → DELETE $del_endpoint (HTTP $code)"
-    if [[ "$code" == "200" || "$code" == "204" || "$code" == "404" ]]; then
-      return 0
-    fi
-  done
+# Function to get keys from repository
+get_repo_keys() {
+  local repo="$1"
+  local temp_dir="$2"
+  
+  echo "📥 Retrieving keys from $repo..."
+  
+  # Get public key and alias from repository variables
+  local public_key_content
+  local key_alias
+  
+  public_key_content=$(gh variable get EVIDENCE_PUBLIC_KEY --repo "$repo")
+  key_alias=$(gh variable get EVIDENCE_KEY_ALIAS --repo "$repo")
+  
+  if [[ -z "$public_key_content" || -z "$key_alias" ]]; then
+    echo "❌ Failed to retrieve keys from $repo" >&2
+    return 1
+  fi
+  
+  # Save to temporary files
+  printf "%s" "$public_key_content" > "$temp_dir/evidence_public.pem"
+  
+  # Update global variables
+  KEY_ALIAS="$key_alias"
+  
+  echo "✅ Retrieved keys from $repo (alias: $key_alias)"
   return 0
 }
 
-uploaded=false
-for ep in "${ENDPOINTS[@]}"; do
-  if attempt_upload "$ep"; then
-    uploaded=true
-    break
-  fi
-done
-
-# Additional fallbacks: try query-parameter alias style for Artifactory API
-if [[ "$uploaded" != true ]]; then
-  ALT_EP="$JFROG_URL/artifactory/api/security/keys/trusted?alias=$KEY_ALIAS"
-  resp=$(mktemp)
-  code=$(curl -sS -L -o "$resp" -w "%{http_code}" -X PUT \
-    "$ALT_EP" \
+# Function to upload key to JFrog Platform
+upload_key_to_jfrog() {
+  local public_key_file="$1"
+  local alias="$2"
+  
+  echo "📤 Uploading public key to JFrog trusted keys (alias: $alias)"
+  
+  # Prepare public key content
+  local public_key_b64
+  public_key_b64=$(grep -v "BEGIN\|END" "$public_key_file" | tr -d '\n')
+  
+  # Create JSON payload
+  local payload
+  payload=$(cat << EOF
+{
+  "alias": "$alias",
+  "public_key": "$public_key_b64"
+}
+EOF
+)
+  
+  # Upload to JFrog Platform
+  local response
+  local http_code
+  response=$(curl -s -w "%{http_code}" \
+    -X POST \
     -H "Authorization: Bearer $JFROG_ADMIN_TOKEN" \
-    -H "Content-Type: text/plain" \
-    --data-binary @"$WORKDIR/evidence_public.pem") || code=000
-  echo "   → $ALT_EP (HTTP $code)"
-  if [[ "$code" == "200" || "$code" == "201" || "$code" == "204" ]]; then
-    echo "   ✅ Uploaded trusted key"
-    uploaded=true
+    -H "Content-Type: application/json" \
+    -d "$payload" \
+    "$JFROG_URL/artifactory/api/security/keys/trusted")
+  
+  http_code="${response: -3}"
+  
+  if [[ "$http_code" == "200" ]] || [[ "$http_code" == "201" ]]; then
+    echo "✅ Public key uploaded to JFrog Platform successfully"
+    return 0
   else
-    echo "   Body:"; cat "$resp" || true
+    echo "⚠️  Failed to upload public key to JFrog Platform (HTTP $http_code)"
+    echo "Response: ${response%???}"  # Remove last 3 chars (HTTP code)
+    return 1
   fi
-  rm -f "$resp"
-fi
+}
 
-if [[ "$uploaded" != true ]]; then
-  echo "⚠️ Unable to upload trusted key to JFrog automatically. You can verify locally using --public-keys."
-else
-  # If the alias changed, try to remove the previous alias to avoid confusion
-  if [[ "$PREVIOUS_ALIAS" != "$KEY_ALIAS" && -n "$PREVIOUS_ALIAS" ]]; then
-    echo "🧹 Cleaning up previous trusted key alias: $PREVIOUS_ALIAS"
-    attempt_delete_alias "$PREVIOUS_ALIAS" || true
+# Check if any repository already has evidence keys configured
+WORKDIR=$(mktemp -d)
+trap 'rm -rf "$WORKDIR"' EXIT
+
+echo ""
+echo "🔍 Checking for existing evidence keys in repositories..."
+
+# Check first repository for existing keys
+FIRST_REPO="${SERVICE_REPOS[0]}"
+if check_repo_keys "$FIRST_REPO"; then
+  echo "✅ Found existing evidence keys in $FIRST_REPO"
+  echo "📥 Using existing keys instead of generating new ones"
+  
+  # Get keys from the repository
+  if get_repo_keys "$FIRST_REPO" "$WORKDIR"; then
+    PUBLIC_KEY_CONTENT=$(cat "$WORKDIR/evidence_public.pem")
+    
+    echo "🧪 Using existing key with alias: $KEY_ALIAS"
+    
+    # Upload existing public key to JFrog Platform
+    if upload_key_to_jfrog "$WORKDIR/evidence_public.pem" "$KEY_ALIAS"; then
+      echo "✅ Evidence keys setup complete using existing keys"
+    else
+      echo "⚠️  Evidence keys setup completed, but JFrog Platform update failed"
+    fi
+  else
+    echo "❌ Failed to retrieve keys from $FIRST_REPO" >&2
+    exit 1
   fi
+else
+  echo "⚠️  No evidence keys found in repositories"
+  echo "⚠️  Please run the key replacement script to generate and deploy evidence keys:"
+  echo "     ./scripts/update_evidence_keys.sh --generate"
+  echo ""
+  echo "🚫 Skipping evidence key setup until keys are deployed"
 fi
 
 echo "🎉 Evidence keys setup completed"

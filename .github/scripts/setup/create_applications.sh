@@ -67,15 +67,102 @@ create_application() {
             "group_owners": []
         }')
     
-    # Create application
+    # Validate payload before sending
+    if ! echo "$app_payload" | jq . >/dev/null 2>&1; then
+        echo "❌ CRITICAL: Generated payload is not valid JSON!"
+        echo "Raw payload: $app_payload"
+        return 1
+    fi
+    
+    # Check for required fields
+    local missing_fields=()
+    for field in "project_key" "application_key" "application_name" "criticality"; do
+        if ! echo "$app_payload" | jq -e ".$field" >/dev/null 2>&1; then
+            missing_fields+=("$field")
+        fi
+    done
+    
+    if [[ ${#missing_fields[@]} -gt 0 ]]; then
+        echo "❌ CRITICAL: Missing required fields in payload: ${missing_fields[*]}"
+        echo "Generated payload:"
+        echo "$app_payload" | jq .
+        return 1
+    fi
+    
+    # Create application with detailed debugging and retry logic
     local temp_response=$(mktemp)
-    local response_code=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
-        --header "Content-Type: application/json" \
-        -X POST \
-        -d "$app_payload" \
-        --write-out "%{http_code}" \
-        --output "$temp_response" \
-        "${JFROG_URL}/apptrust/api/v1/applications")
+    local temp_headers=$(mktemp)
+    local endpoint="${JFROG_URL}/apptrust/api/v1/applications"
+    
+    echo "🔍 DEBUG: About to create application with the following details:"
+    echo "   • Endpoint: $endpoint"
+    echo "   • Application Key: $app_key"
+    echo "   • Owner: $owner"
+    echo "   • Payload being sent:"
+    echo "$app_payload" | jq . 2>/dev/null || echo "$app_payload"
+    echo ""
+    
+    # Try up to 3 times for 500 errors (server issues)
+    local max_attempts=3
+    local attempt=1
+    local response_code
+    
+    while [[ $attempt -le $max_attempts ]]; do
+        echo "🔄 Attempt $attempt/$max_attempts: Creating application '$app_name'"
+        
+        response_code=$(curl -s \
+            --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+            --header "Content-Type: application/json" \
+            --header "User-Agent: BookVerse-Setup/1.0" \
+            -X POST \
+            -d "$app_payload" \
+            --write-out "%{http_code}" \
+            --output "$temp_response" \
+            --dump-header "$temp_headers" \
+            --max-time 30 \
+            "$endpoint")
+        
+        echo "📡 Response received: HTTP $response_code"
+        
+        # If not a 500 error, break out of retry loop
+        if [[ "$response_code" != "500" ]]; then
+            break
+        fi
+        
+        # For 500 errors, provide extensive debugging
+        echo "❌ HTTP 500 ERROR - Server Internal Error (Attempt $attempt/$max_attempts)"
+        echo ""
+        echo "🔍 FULL DEBUGGING INFORMATION:"
+        echo "================================"
+        echo "📋 Request Details:"
+        echo "   • Method: POST"
+        echo "   • URL: $endpoint"
+        echo "   • Content-Type: application/json"
+        echo "   • Authorization: Bearer [REDACTED]"
+        echo "   • User-Agent: BookVerse-Setup/1.0"
+        echo ""
+        echo "📤 Request Payload:"
+        echo "$app_payload" | jq . 2>/dev/null || echo "$app_payload"
+        echo ""
+        echo "📥 Response Headers:"
+        cat "$temp_headers" 2>/dev/null || echo "   (No headers captured)"
+        echo ""
+        echo "📥 Response Body:"
+        cat "$temp_response" 2>/dev/null || echo "   (No response body)"
+        echo ""
+        echo "🔧 Server Analysis:"
+        echo "   • This suggests the AppTrust API server is experiencing issues"
+        echo "   • Could be: payload format issue, server overload, API version mismatch"
+        echo "   • Server should be investigated by platform team"
+        echo ""
+        
+        if [[ $attempt -lt $max_attempts ]]; then
+            echo "⏳ Waiting 5 seconds before retry..."
+            sleep 5
+        fi
+        
+        ((attempt++))
+    done
     
     case "$response_code" in
         200|201)
@@ -96,27 +183,45 @@ create_application() {
             fi
             ;;
         500)
-            echo "⚠️  AppTrust API server error for '$app_name' (HTTP 500) - treating as non-critical"
-            echo "💡 Server-side issue with AppTrust API - applications may be created despite error"
-            if [[ $VERBOSITY -ge 2 ]]; then
-                echo "Response body: $(cat "$temp_response")"
-            fi
+            echo "❌ CRITICAL: AppTrust API returned HTTP 500 for '$app_name' after $max_attempts attempts"
+            echo "🚨 This is a REAL server error that needs immediate investigation!"
+            echo ""
+            echo "🔍 FINAL ATTEMPT DEBUGGING INFO:"
+            echo "================================"
+            echo "📥 Final Response Headers:"
+            cat "$temp_headers" 2>/dev/null || echo "   (No headers captured)"
+            echo ""
+            echo "📥 Final Response Body:"
+            cat "$temp_response" 2>/dev/null || echo "   (No response body)"
+            echo ""
+            echo "🎯 RECOMMENDED ACTIONS:"
+            echo "   1. Check AppTrust API server status and logs"
+            echo "   2. Verify endpoint: ${JFROG_URL}/apptrust/api/v1/applications"
+            echo "   3. Test API endpoint manually with curl"
+            echo "   4. Check server capacity and performance"
+            echo "   5. Review server-side application creation logic"
+            echo ""
+            echo "⚠️  TREATING AS NON-CRITICAL FOR NOW - but this needs investigation"
             ;;
         502|503|504)
-            echo "⚠️  AppTrust API unavailable for '$app_name' (HTTP $response_code) - treating as non-critical"
+            echo "❌ AppTrust API unavailable for '$app_name' (HTTP $response_code)"
+            echo "🔍 DEBUG: Response details:"
+            echo "Response headers: $(cat "$temp_headers" 2>/dev/null || echo 'none')"
+            echo "Response body: $(cat "$temp_response" 2>/dev/null || echo 'none')"
             echo "💡 Temporary server issue - applications may need manual verification"
             ;;
         *)
             echo "❌ Failed to create application '$app_name' (HTTP $response_code)"
-            if [[ $VERBOSITY -ge 1 ]]; then
-                echo "Response body: $(cat "$temp_response")"
-            fi
+            echo "🔍 DEBUG: Full response details:"
+            echo "Response headers: $(cat "$temp_headers" 2>/dev/null || echo 'none')"
+            echo "Response body: $(cat "$temp_response" 2>/dev/null || echo 'none')"
             echo "💡 This may be due to API format changes or permission issues"
+            echo "🎯 RECOMMENDED: Check API documentation for correct payload format"
             # Don't exit on application failures - they're not critical for platform function
             ;;
     esac
     
-    rm -f "$temp_response"
+    rm -f "$temp_response" "$temp_headers"
     echo ""
 }
 

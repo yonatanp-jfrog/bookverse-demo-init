@@ -33,11 +33,12 @@ jobs:
           fi
           echo "✅ Cleanup confirmed. Proceeding with BookVerse project cleanup..."
 
-      - name: Cleanup BookVerse Project (PROJECT-BASED)
+      - name: Cleanup BookVerse Project (PROJECT-BASED) with Safety Layer
         env:
           JFROG_URL: ${{ vars.JFROG_URL }}
           JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
           VERBOSITY: 1
+          CONFIRM_DELETION: ${{ github.event.inputs.confirm_cleanup == 'DELETE' && 'true' || 'false' }}
         run: ./.github/scripts/setup/cleanup_project_based.sh
       
       # Note: This will completely remove the BookVerse project and all resources!

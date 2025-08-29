@@ -30,6 +30,10 @@ trap 'error_handler ${LINENO} $?' ERR
 
 source "$(dirname "$0")/common.sh"
 
+# 🔧 CRITICAL FIX: Initialize script to load PROJECT_KEY from config.sh  
+# This prevents the same catastrophic filtering failure as cleanup_project_based.sh
+init_script "cleanup.sh" "Enhanced BookVerse JFrog Platform Cleanup"
+
 VERBOSITY="${VERBOSITY:-1}"
 CI_ENVIRONMENT="${CI:-false}"
 if [[ -n "${GITHUB_ACTIONS}" ]] || [[ -n "${CI}" ]] || [[ "$CI_ENVIRONMENT" == "true" ]]; then
@@ -45,8 +49,7 @@ fi
 TEMP_DIR="/tmp/bookverse_cleanup_$$"
 mkdir -p "$TEMP_DIR"
 
-echo "Enhanced BookVerse JFrog Platform Cleanup"
-echo "========================================"
+# Header is now displayed by init_script() - avoid duplication
 echo "Project Key: ${PROJECT_KEY}"
 echo "JFrog URL: ${JFROG_URL}"
 echo "Temp Debug Dir: ${TEMP_DIR}"

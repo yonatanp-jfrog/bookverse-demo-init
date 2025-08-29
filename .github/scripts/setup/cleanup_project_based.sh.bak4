@@ -80,19 +80,19 @@ set -e
 
 source "$(dirname "$0")/common.sh"
 
-# 🔧 CRITICAL FIX: Initialize script to load PROJECT_KEY from config.sh
-# This was the root cause of the catastrophic filtering failure
-init_script "cleanup_project_based.sh" "PROJECT-BASED BookVerse Cleanup"
-
 # Constants (HTTP status codes defined in common.sh)
 # Additional constants (HTTP status codes inherited from common.sh)
 
 TEMP_DIR="/tmp/bookverse_cleanup_$$"
 mkdir -p "$TEMP_DIR"
 
-# Header is now displayed by init_script() - avoid duplication
+echo "🎯 PROJECT-BASED BookVerse JFrog Platform Cleanup"
+echo "=================================================="
 echo "APPROACH: Find ALL resources belonging to PROJECT '${PROJECT_KEY}'"
 echo "NOT just resources with 'bookverse' in their names"
+echo ""
+echo "Project Key: ${PROJECT_KEY}"
+echo "JFrog URL: ${JFROG_URL}"
 echo "Debug Dir: ${TEMP_DIR}"
 echo ""
 
@@ -459,11 +459,6 @@ verify_repository_project_membership() {
 delete_project_repositories() {
     local count="$1"
     echo "🗑️ Starting project repository deletion..."
-    echo "🚨 EMERGENCY SAFETY CHECK: About to delete repositories"
-    echo "Project: $PROJECT_KEY"
-    echo "Count: $count repositories"
-    echo ""
-    echo "⚠️ This action will delete repositories. Proceeding..."
     
     if [[ "$count" -eq 0 ]]; then
         echo "No project repositories to delete"
@@ -828,224 +823,12 @@ delete_project() {
 }
 
 # =============================================================================
-# SAFETY LAYER: DISCOVERY AND APPROVAL
+# MAIN EXECUTION - PROJECT-BASED CLEANUP
 # =============================================================================
 
-# Comprehensive discovery function that lists all resources without deletion
-run_discovery_preview() {
-    echo "🔍 DISCOVERY PHASE: Finding all resources for deletion preview"
-    echo "=============================================================="
-    echo ""
-    
-    local preview_file="$TEMP_DIR/deletion_preview.txt"
-    local total_items=0
-    
-    echo "🛡️ SAFETY: Discovering what would be deleted..." > "$preview_file"
-    echo "Project: $PROJECT_KEY" >> "$preview_file"
-    echo "Date: $(date)" >> "$preview_file"
-    echo "" >> "$preview_file"
-    
-    # 1. Discover builds
-    echo "🏗️ Discovering builds..."
-    local builds_count=$(discover_project_builds)
-    if [[ "$builds_count" -gt 0 ]]; then
-        echo "BUILDS TO DELETE ($builds_count items):" >> "$preview_file"
-        echo "=======================================" >> "$preview_file"
-        if [[ -f "$TEMP_DIR/project_builds.txt" ]]; then
-            while IFS= read -r build; do
-                if [[ -n "$build" ]]; then
-                    echo "  ❌ Build: $build" >> "$preview_file"
-                    ((total_items++))
-                fi
-            done < "$TEMP_DIR/project_builds.txt"
-        fi
-        echo "" >> "$preview_file"
-    else
-        echo "BUILDS: None found" >> "$preview_file"
-        echo "" >> "$preview_file"
-    fi
-    
-    # 2. Discover applications
-    echo "🚀 Discovering applications..."
-    local apps_count=$(discover_project_applications)
-    if [[ "$apps_count" -gt 0 ]]; then
-        echo "APPLICATIONS TO DELETE ($apps_count items):" >> "$preview_file"
-        echo "===========================================" >> "$preview_file"
-        if [[ -f "$TEMP_DIR/project_applications.txt" ]]; then
-            while IFS= read -r app; do
-                if [[ -n "$app" ]]; then
-                    echo "  ❌ Application: $app" >> "$preview_file"
-                    ((total_items++))
-                fi
-            done < "$TEMP_DIR/project_applications.txt"
-        fi
-        echo "" >> "$preview_file"
-    else
-        echo "APPLICATIONS: None found" >> "$preview_file"
-        echo "" >> "$preview_file"
-    fi
-    
-    # 3. Discover repositories
-    echo "📦 Discovering repositories..."
-    local repos_count=$(discover_project_repositories)
-    if [[ "$repos_count" -gt 0 ]]; then
-        echo "REPOSITORIES TO DELETE ($repos_count items):" >> "$preview_file"
-        echo "=============================================" >> "$preview_file"
-        if [[ -f "$TEMP_DIR/project_repositories.txt" ]]; then
-            while IFS= read -r repo; do
-                if [[ -n "$repo" ]]; then
-                    echo "  ❌ Repository: $repo" >> "$preview_file"
-                    ((total_items++))
-                fi
-            done < "$TEMP_DIR/project_repositories.txt"
-        fi
-        echo "" >> "$preview_file"
-    else
-        echo "REPOSITORIES: None found" >> "$preview_file"
-        echo "" >> "$preview_file"
-    fi
-    
-    # 4. Discover users
-    echo "👥 Discovering users..."
-    local users_count=$(discover_project_users)
-    if [[ "$users_count" -gt 0 ]]; then
-        echo "USERS TO DELETE ($users_count items):" >> "$preview_file"
-        echo "======================================" >> "$preview_file"
-        if [[ -f "$TEMP_DIR/project_users.txt" ]]; then
-            while IFS= read -r user; do
-                if [[ -n "$user" ]]; then
-                    echo "  ❌ User: $user" >> "$preview_file"
-                    ((total_items++))
-                fi
-            done < "$TEMP_DIR/project_users.txt"
-        fi
-        echo "" >> "$preview_file"
-    else
-        echo "USERS: None found" >> "$preview_file"
-        echo "" >> "$preview_file"
-    fi
-    
-    # 5. Discover stages
-    echo "🏷️ Discovering stages..."
-    local stages_count=$(discover_project_stages)
-    if [[ "$stages_count" -gt 0 ]]; then
-        echo "STAGES TO DELETE ($stages_count items):" >> "$preview_file"
-        echo "=======================================" >> "$preview_file"
-        if [[ -f "$TEMP_DIR/project_stages.txt" ]]; then
-            while IFS= read -r stage; do
-                if [[ -n "$stage" ]]; then
-                    echo "  ❌ Stage: $stage" >> "$preview_file"
-                    ((total_items++))
-                fi
-            done < "$TEMP_DIR/project_stages.txt"
-        fi
-        echo "" >> "$preview_file"
-    else
-        echo "STAGES: None found" >> "$preview_file"
-        echo "" >> "$preview_file"
-    fi
-    
-    # Summary
-    echo "SUMMARY:" >> "$preview_file"
-    echo "========" >> "$preview_file"
-    echo "Total items to delete: $total_items" >> "$preview_file"
-    echo "Project to delete: $PROJECT_KEY" >> "$preview_file"
-    echo "" >> "$preview_file"
-    echo "⚠️ WARNING: This action cannot be undone!" >> "$preview_file"
-    
-    echo "$preview_file"
-    return $total_items
-}
-
-# User approval function
-get_user_approval() {
-    local preview_file="$1"
-    local total_items="$2"
-    
-    echo ""
-    echo "🛡️ DELETION PREVIEW COMPLETE"
-    echo "============================"
-    echo ""
-    echo "📋 DISCOVERED $total_items ITEMS FOR DELETION:"
-    echo ""
-    
-    # Display the preview
-    cat "$preview_file"
-    echo ""
-    
-    # Safety check for empty PROJECT_KEY (the root cause we just fixed)
-    if [[ -z "$PROJECT_KEY" ]]; then
-        echo "🚨 CRITICAL SAFETY CHECK FAILED!"
-        echo "PROJECT_KEY is empty - this would delete ALL resources!"
-        echo "Aborting for safety."
-        return 1
-    fi
-    
-    # Check for suspicious high numbers that might indicate filtering failure
-    if [[ "$total_items" -gt 100 ]]; then
-        echo "⚠️ SUSPICIOUS HIGH COUNT: $total_items items"
-        echo "This seems unusually high and might indicate a filtering failure."
-        echo "Please verify this is correct before proceeding."
-        echo ""
-    fi
-    
-    # In CI environment, require explicit confirmation
-    if [[ "$CI_ENVIRONMENT" == "true" ]] || [[ -n "$GITHUB_ACTIONS" ]]; then
-        echo "🤖 CI ENVIRONMENT DETECTED"
-        echo "Automatic approval in CI requires CONFIRM_DELETION=true environment variable"
-        if [[ "$CONFIRM_DELETION" == "true" ]]; then
-            echo "✅ CI deletion confirmed via CONFIRM_DELETION environment variable"
-            return 0
-        else
-            echo "❌ CI deletion not confirmed - set CONFIRM_DELETION=true to proceed"
-            return 1
-        fi
-    fi
-    
-    # Interactive approval
-    echo "🔴 CRITICAL: This will PERMANENTLY DELETE all listed resources!"
-    echo ""
-    echo "To confirm deletion, type exactly: DELETE $PROJECT_KEY"
-    read -p "Your input: " user_input
-    
-    if [[ "$user_input" == "DELETE $PROJECT_KEY" ]]; then
-        echo "✅ Deletion confirmed by user"
-        return 0
-    else
-        echo "❌ Deletion cancelled - input did not match required confirmation"
-        return 1
-    fi
-}
-
-# =============================================================================
-# MAIN EXECUTION WITH SAFETY LAYER
-# =============================================================================
-
-echo "🚀 Starting SAFE PROJECT-BASED cleanup sequence..."
+echo "🚀 Starting PROJECT-BASED cleanup sequence..."
 echo "Finding ALL resources belonging to project '$PROJECT_KEY'"
 echo ""
-
-# PHASE 1: DISCOVERY AND APPROVAL
-echo "🛡️ SAFETY PHASE: Discovery and Approval Required"
-echo "=================================================="
-preview_file=$(run_discovery_preview)
-total_items=$?
-
-if ! get_user_approval "$preview_file" "$total_items"; then
-    echo ""
-    echo "❌ CLEANUP CANCELLED BY USER/SAFETY CHECK"
-    echo "No resources were deleted."
-    echo "Preview saved: $preview_file"
-    exit 0
-fi
-
-echo ""
-echo "✅ DELETION APPROVED - Proceeding with cleanup..."
-echo ""
-
-# PHASE 2: ACTUAL DELETION
-echo "🗑️ DELETION PHASE: Executing approved cleanup"
-echo "=============================================="
 
 FAILED=false
 

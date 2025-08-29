@@ -77,16 +77,16 @@ validate_environment() {
     
     # Check if gh CLI is available and authenticated
     if ! command -v gh &> /dev/null; then
-        log_error "GitHub CLI (gh) is not installed"
+        echo "GitHub CLI (gh) is not installed" >&2
         exit 1
     fi
     
     if ! gh auth status &> /dev/null; then
-        log_error "GitHub CLI is not authenticated"
+        echo "GitHub CLI is not authenticated" >&2
         exit 1
     fi
     
-    log_success "Environment validation successful"
+    echo "Environment validation successful" >&2
 }
 
 get_existing_repositories() {
@@ -195,18 +195,18 @@ replace_keys_in_all_repositories() {
 # =============================================================================
 
 main() {
-    echo "🔄 Evidence Key Replacement"
-    echo "==========================="
-    echo ""
-    echo "This script will replace evidence keys across all BookVerse repositories."
-    echo ""
-    echo "🔑 Key alias: $KEY_ALIAS"
-    echo "📋 GitHub organization: $GITHUB_ORG"
-    echo ""
+    echo "🔄 Evidence Key Replacement" >&2
+    echo "===========================" >&2
+    echo "" >&2
+    echo "This script will replace evidence keys across all BookVerse repositories." >&2
+    echo "" >&2
+    echo "🔑 Key alias: $KEY_ALIAS" >&2
+    echo "📋 GitHub organization: $GITHUB_ORG" >&2
+    echo "" >&2
     
     # Step 1: Validate environment
     validate_environment
-    echo ""
+    echo "" >&2
     
     # Step 2: Replace keys in all repositories
     replace_keys_in_all_repositories

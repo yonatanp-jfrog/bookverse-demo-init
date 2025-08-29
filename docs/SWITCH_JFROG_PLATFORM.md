@@ -35,7 +35,7 @@ Use the interactive script for local testing or manual control:
 
 ```bash
 cd bookverse-demo-init
-./scripts/switch_jpd_interactive.sh
+./scripts/switch_jfrog_platform_interactive.sh
 ```
 
 **Features:**
@@ -202,7 +202,7 @@ Enable debug mode for additional logging:
 
 ```bash
 # For interactive script
-DEBUG=1 ./scripts/switch_jpd_interactive.sh
+DEBUG=1 ./scripts/switch_jfrog_platform_interactive.sh
 ```
 
 ### Manual Rollback

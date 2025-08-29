@@ -54,7 +54,7 @@ jobs:
           echo "To: ${{ github.event.inputs.jpd_host }}"
           echo ""
           
-          ./.github/scripts/setup/switch_jpd_platform.sh
+          ./.github/scripts/setup/switch_jfrog_platform.sh
           
       - name: Validate New Platform
         env:

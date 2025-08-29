@@ -99,10 +99,10 @@ export JFROG_ADMIN_TOKEN="your-admin-token"
 
 ## Other Scripts
 
-### JPD Platform Management
+### JFrog Platform Management
 
-- `switch_jpd_platform.sh` - Switch to different JFrog Platform instance
-- `switch_jpd_interactive.sh` - Interactive JPD switching
+- `switch_jfrog_platform.sh` - Switch to different JFrog Platform instance
+- `switch_jfrog_platform_interactive.sh` - Interactive JFrog Platform switching
 
 ### Environment Setup  
 

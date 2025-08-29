@@ -52,10 +52,10 @@ To switch to a different JFrog Platform instance:
 
 #### Option 2: Interactive Script
 ```bash
-./scripts/switch_jpd_interactive.sh
+./scripts/switch_jfrog_platform_interactive.sh
 ```
 
-See [SWITCH_JPD_PLATFORM.md](docs/SWITCH_JPD_PLATFORM.md) for detailed instructions.
+See [SWITCH_JFROG_PLATFORM.md](docs/SWITCH_JFROG_PLATFORM.md) for detailed instructions.
 
 ## 🔑 Evidence Key Management
 

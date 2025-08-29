@@ -183,25 +183,66 @@ create_application() {
             fi
             ;;
         500)
-            echo "❌ CRITICAL: AppTrust API returned HTTP 500 for '$app_name' after $max_attempts attempts"
-            echo "🚨 This is a REAL server error that needs immediate investigation!"
-            echo ""
-            echo "🔍 FINAL ATTEMPT DEBUGGING INFO:"
-            echo "================================"
-            echo "📥 Final Response Headers:"
-            cat "$temp_headers" 2>/dev/null || echo "   (No headers captured)"
-            echo ""
-            echo "📥 Final Response Body:"
-            cat "$temp_response" 2>/dev/null || echo "   (No response body)"
-            echo ""
-            echo "🎯 RECOMMENDED ACTIONS:"
-            echo "   1. Check AppTrust API server status and logs"
-            echo "   2. Verify endpoint: ${JFROG_URL}/apptrust/api/v1/applications"
-            echo "   3. Test API endpoint manually with curl"
-            echo "   4. Check server capacity and performance"
-            echo "   5. Review server-side application creation logic"
-            echo ""
-            echo "⚠️  TREATING AS NON-CRITICAL FOR NOW - but this needs investigation"
+            # Check if this is the specific AppTrust bug (returns 500 instead of 409 for conflicts)
+            response_body=$(cat "$temp_response" 2>/dev/null || echo "")
+            if [[ "$response_body" == *'"An unexpected error occurred"'* ]]; then
+                echo "🐛 DETECTED: AppTrust API bug - HTTP 500 instead of 409 for conflict"
+                echo "🔍 Checking if application '$app_name' already exists..."
+                
+                # Check if the application already exists
+                existing_check=$(curl -s \
+                    --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+                    --write-out "%{http_code}" \
+                    --output /dev/null \
+                    --max-time 15 \
+                    "${JFROG_URL}/apptrust/api/v1/applications/${app_key}")
+                
+                if [[ "$existing_check" == "200" ]]; then
+                    echo "✅ WORKAROUND: Application '$app_name' already exists (confirmed via GET)"
+                    echo "🐛 AppTrust API bug confirmed: Returns HTTP 500 instead of HTTP 409 for conflicts"
+                    echo "📋 This should be reported to JFrog support for fixing"
+                else
+                    echo "❌ CRITICAL: Real HTTP 500 error - application does not exist"
+                    echo "🚨 This is a genuine server error that needs immediate investigation!"
+                    echo ""
+                    echo "🔍 FINAL ATTEMPT DEBUGGING INFO:"
+                    echo "================================"
+                    echo "📥 Final Response Headers:"
+                    cat "$temp_headers" 2>/dev/null || echo "   (No headers captured)"
+                    echo ""
+                    echo "📥 Final Response Body:"
+                    cat "$temp_response" 2>/dev/null || echo "   (No response body)"
+                    echo ""
+                    echo "🎯 RECOMMENDED ACTIONS:"
+                    echo "   1. Check AppTrust API server status and logs"
+                    echo "   2. Verify endpoint: ${JFROG_URL}/apptrust/api/v1/applications"
+                    echo "   3. Test API endpoint manually with curl"
+                    echo "   4. Check server capacity and performance"
+                    echo "   5. Review server-side application creation logic"
+                    echo ""
+                    echo "⚠️  TREATING AS NON-CRITICAL FOR NOW - but this needs investigation"
+                fi
+            else
+                echo "❌ CRITICAL: AppTrust API returned HTTP 500 for '$app_name' after $max_attempts attempts"
+                echo "🚨 This is a REAL server error that needs immediate investigation!"
+                echo ""
+                echo "🔍 FINAL ATTEMPT DEBUGGING INFO:"
+                echo "================================"
+                echo "📥 Final Response Headers:"
+                cat "$temp_headers" 2>/dev/null || echo "   (No headers captured)"
+                echo ""
+                echo "📥 Final Response Body:"
+                cat "$temp_response" 2>/dev/null || echo "   (No response body)"
+                echo ""
+                echo "🎯 RECOMMENDED ACTIONS:"
+                echo "   1. Check AppTrust API server status and logs"
+                echo "   2. Verify endpoint: ${JFROG_URL}/apptrust/api/v1/applications"
+                echo "   3. Test API endpoint manually with curl"
+                echo "   4. Check server capacity and performance"
+                echo "   5. Review server-side application creation logic"
+                echo ""
+                echo "⚠️  TREATING AS NON-CRITICAL FOR NOW - but this needs investigation"
+            fi
             ;;
         502|503|504)
             echo "❌ AppTrust API unavailable for '$app_name' (HTTP $response_code)"

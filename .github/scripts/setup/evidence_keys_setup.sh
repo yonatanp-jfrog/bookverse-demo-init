@@ -112,7 +112,7 @@ upload_key_to_jfrog() {
       "public_key": $public_key
     }')
   
-  # Upload to JFrog Platform
+  # 1. Attempt to upload the key
   local response
   local http_code
   response=$(curl -s -w "%{http_code}" \
@@ -124,11 +124,92 @@ upload_key_to_jfrog() {
   
   http_code="${response: -3}"
   
+  # 2. Handle success cases
   if [[ "$http_code" == "200" ]] || [[ "$http_code" == "201" ]]; then
     echo "✅ Public key uploaded to JFrog Platform successfully"
     return 0
+  
+  # 3. Handle conflict (key already exists)
+  elif [[ "$http_code" == "409" ]]; then
+    echo "🔍 Key '$alias' already exists. Checking if content is identical..."
+    
+    # Fetch existing key data
+    local existing_key_data
+    existing_key_data=$(curl -s -X GET "$JFROG_URL/artifactory/api/security/keys/trusted" \
+      -H "Authorization: Bearer $JFROG_ADMIN_TOKEN" | \
+      jq --arg alias "$alias" '.keys[] | select(.alias == $alias)')
+    
+    if [[ -z "$existing_key_data" ]]; then
+      echo "❌ Could not fetch existing key data for alias '$alias'"
+      return 1
+    fi
+    
+    local existing_public_key
+    existing_public_key=$(echo "$existing_key_data" | jq -r '.key')
+    
+    # Normalize keys by removing all whitespace for reliable comparison
+    local normalized_new_key
+    local normalized_existing_key
+    normalized_new_key=$(echo "$public_key_content" | tr -d '[:space:]')
+    normalized_existing_key=$(echo "$existing_public_key" | tr -d '[:space:]')
+    
+    # 4. Compare keys
+    if [[ "$normalized_new_key" == "$normalized_existing_key" ]]; then
+      echo "✅ Existing key is identical. No action needed."
+      return 0
+    else
+      echo "🔄 Existing key is different. Replacing it..."
+      
+      # Extract kid and delete the old key
+      local kid
+      kid=$(echo "$existing_key_data" | jq -r '.kid')
+      
+      if [[ -z "$kid" || "$kid" == "null" ]]; then
+        echo "❌ Could not extract kid from existing key data"
+        return 1
+      fi
+      
+      echo "🗑️  Deleting old key (kid: $kid)..."
+      local delete_response
+      delete_response=$(curl -s -w "%{http_code}" \
+        -X DELETE \
+        -H "Authorization: Bearer $JFROG_ADMIN_TOKEN" \
+        "$JFROG_URL/artifactory/api/security/keys/trusted/$kid")
+      
+      local delete_http_code="${delete_response: -3}"
+      
+      if [[ "$delete_http_code" == "200" ]] || [[ "$delete_http_code" == "204" ]]; then
+        echo "✅ Old key deleted successfully"
+      else
+        echo "❌ Failed to delete old key (HTTP $delete_http_code)"
+        return 1
+      fi
+      
+      # Re-upload the new key
+      echo "📤 Uploading new key..."
+      local upload_response
+      upload_response=$(curl -s -w "%{http_code}" \
+        -X POST \
+        -H "Authorization: Bearer $JFROG_ADMIN_TOKEN" \
+        -H "Content-Type: application/json" \
+        -d "$payload" \
+        "$JFROG_URL/artifactory/api/security/keys/trusted")
+      
+      local upload_http_code="${upload_response: -3}"
+      
+      if [[ "$upload_http_code" == "200" ]] || [[ "$upload_http_code" == "201" ]]; then
+        echo "✅ Key '$alias' was replaced successfully"
+        return 0
+      else
+        echo "❌ Failed to upload new key after deletion (HTTP $upload_http_code)"
+        echo "Response: ${upload_response%???}"
+        return 1
+      fi
+    fi
+  
+  # 5. Handle other error cases
   else
-    echo "⚠️  Failed to upload public key to JFrog Platform (HTTP $http_code)"
+    echo "❌ Failed to upload public key to JFrog Platform (HTTP $http_code)"
     echo "Response: ${response%???}"  # Remove last 3 chars (HTTP code)
     return 1
   fi

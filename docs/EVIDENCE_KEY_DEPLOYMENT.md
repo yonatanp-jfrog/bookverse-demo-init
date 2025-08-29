@@ -12,20 +12,30 @@ After generating evidence keys, you need to update:
 
 ### Option 1: Local Script (Recommended)
 
-Use the provided local script for repository updates:
-
+#### Generate Keys and Update Repositories (All-in-One)
 ```bash
-./scripts/update_evidence_keys_local.sh \
+# Generate ED25519 keys and update all repositories
+./scripts/update_evidence_keys.sh --generate
+
+# Generate with specific key type
+./scripts/update_evidence_keys.sh --generate --key-type rsa
+```
+
+#### Use Existing Keys
+```bash
+./scripts/update_evidence_keys.sh \
   --private-key private.pem \
   --public-key public.pem \
   --alias "bookverse_evidence_key"
 ```
 
 **Benefits:**
+- ✅ Can generate keys or use existing ones
 - ✅ Uses your GitHub credentials (full permissions)
 - ✅ Updates all repositories at once
 - ✅ Handles secret-to-variable migration automatically
 - ✅ Includes dry-run mode for testing
+- ✅ Shows generated keys for secure storage
 
 ### Option 2: Manual Repository Updates
 
@@ -51,13 +61,12 @@ Update each repository individually:
 
 ### Option 3: JFrog Platform Update
 
-Use the GitHub Actions workflow:
+Use the simplified GitHub Actions workflow:
 
-1. Go to **Actions** → **Evidence Keys Management**
-2. Select "Update JFrog Platform"
-3. Paste your public key content
-4. Set key alias
-5. Run workflow
+1. Go to **Actions** → **Upload Evidence Key to JFrog Platform**
+2. Paste your public key content (PEM format)
+3. Set key alias (optional, defaults to `bookverse_evidence_key`)
+4. Run workflow
 
 ## Local Script Usage
 
@@ -78,27 +87,30 @@ gh auth login
 ### Basic Usage
 
 ```bash
-# Update all repositories
-./scripts/update_evidence_keys_local.sh \
+# Generate keys and update all repositories (recommended)
+./scripts/update_evidence_keys.sh --generate
+
+# Generate specific key type
+./scripts/update_evidence_keys.sh --generate --key-type rsa
+
+# Use existing keys
+./scripts/update_evidence_keys.sh \
   --private-key private.pem \
   --public-key public.pem
 
 # With custom alias
-./scripts/update_evidence_keys_local.sh \
-  --private-key private.pem \
-  --public-key public.pem \
+./scripts/update_evidence_keys.sh \
+  --generate \
   --alias "my_evidence_key_2024"
 
 # Dry run (see what would be changed)
-./scripts/update_evidence_keys_local.sh \
-  --private-key private.pem \
-  --public-key public.pem \
+./scripts/update_evidence_keys.sh \
+  --generate \
   --dry-run
 
 # Verbose output
-./scripts/update_evidence_keys_local.sh \
-  --private-key private.pem \
-  --public-key public.pem \
+./scripts/update_evidence_keys.sh \
+  --generate \
   --verbose
 ```
 
@@ -218,9 +230,8 @@ Run a test build to ensure:
 Use verbose mode for detailed output:
 
 ```bash
-./scripts/update_evidence_keys_local.sh \
-  --private-key private.pem \
-  --public-key public.pem \
+./scripts/update_evidence_keys.sh \
+  --generate \
   --verbose
 ```
 

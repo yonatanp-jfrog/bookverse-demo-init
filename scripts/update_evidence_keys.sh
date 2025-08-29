@@ -1,19 +1,22 @@
 #!/bin/bash
 
 # =============================================================================
-# Local Evidence Key Update Script
+# Evidence Key Management Script
 # =============================================================================
 # 
-# This script updates evidence keys across all BookVerse repositories using
-# your local GitHub CLI authentication. Run this script locally to update
-# repository secrets and variables with new evidence keys.
+# This script can generate evidence keys and/or update them across all BookVerse 
+# repositories using your local GitHub CLI authentication.
 #
 # Usage:
-#   ./update_evidence_keys_local.sh --private-key private.pem --public-key public.pem [options]
+#   # Generate keys and update repositories
+#   ./update_evidence_keys.sh --generate --key-type ed25519
+#   
+#   # Use existing keys
+#   ./update_evidence_keys.sh --private-key private.pem --public-key public.pem
 #
 # Requirements:
 #   - GitHub CLI (gh) installed and authenticated
-#   - OpenSSL for key validation
+#   - OpenSSL for key generation and validation
 #   - Access to BookVerse repositories
 #
 # =============================================================================
@@ -40,6 +43,9 @@ KEY_ALIAS="bookverse_evidence_key"
 GITHUB_ORG="yonatanp-jfrog"
 DRY_RUN=false
 VERBOSE=false
+GENERATE_KEYS=false
+KEY_TYPE="ed25519"
+TEMP_DIR=""
 
 # BookVerse repositories
 BOOKVERSE_REPOS=(
@@ -59,15 +65,23 @@ BOOKVERSE_REPOS=(
 
 show_usage() {
     cat << 'EOF'
-Local Evidence Key Update Script
+Evidence Key Management Script
 
-Updates evidence keys across all BookVerse repositories using your local
-GitHub CLI authentication.
+Generate evidence keys and/or update them across all BookVerse repositories
+using your local GitHub CLI authentication.
 
 USAGE:
-    ./update_evidence_keys_local.sh --private-key <file> --public-key <file> [options]
+    # Generate new keys and update repositories
+    ./update_evidence_keys.sh --generate [--key-type <type>] [options]
+    
+    # Use existing keys
+    ./update_evidence_keys.sh --private-key <file> --public-key <file> [options]
 
-REQUIRED ARGUMENTS:
+KEY GENERATION:
+    --generate              Generate new key pair
+    --key-type <type>       Key algorithm: rsa, ec, or ed25519 (default: ed25519)
+
+EXISTING KEYS:
     --private-key <file>    Path to private key PEM file
     --public-key <file>     Path to public key PEM file
 
@@ -79,19 +93,31 @@ OPTIONAL ARGUMENTS:
     --help                  Show this help message
 
 EXAMPLES:
-    # Basic usage
-    ./update_evidence_keys_local.sh --private-key private.pem --public-key public.pem
+    # Generate ED25519 keys and update repositories
+    ./update_evidence_keys.sh --generate
+    
+    # Generate RSA keys and update repositories
+    ./update_evidence_keys.sh --generate --key-type rsa
+    
+    # Use existing keys
+    ./update_evidence_keys.sh --private-key private.pem --public-key public.pem
+    
+    # Generate keys with custom alias
+    ./update_evidence_keys.sh --generate --alias "my_evidence_key_2024"
+    
+    # Dry run with key generation
+    ./update_evidence_keys.sh --generate --dry-run
 
-    # With custom alias
-    ./update_evidence_keys_local.sh --private-key private.pem --public-key public.pem --alias "my_evidence_key"
-
-    # Dry run to see what would be updated
-    ./update_evidence_keys_local.sh --private-key private.pem --public-key public.pem --dry-run
+KEY ALGORITHMS:
+    rsa        RSA 2048-bit (widely supported)
+    ec         EC secp256r1 (smaller keys, excellent security)
+    ed25519    ED25519 (modern, fast, secure) [DEFAULT]
 
 PREREQUISITES:
     1. Install GitHub CLI: https://cli.github.com/
     2. Authenticate: gh auth login
-    3. Ensure access to BookVerse repositories
+    3. Install OpenSSL for key generation/validation
+    4. Ensure access to BookVerse repositories
 
 EOF
 }
@@ -99,6 +125,14 @@ EOF
 parse_arguments() {
     while [[ $# -gt 0 ]]; do
         case $1 in
+            --generate)
+                GENERATE_KEYS=true
+                shift
+                ;;
+            --key-type)
+                KEY_TYPE="$2"
+                shift 2
+                ;;
             --private-key)
                 PRIVATE_KEY_FILE="$2"
                 shift 2
@@ -136,31 +170,40 @@ parse_arguments() {
         esac
     done
 
-    # Validate required arguments
-    if [[ -z "$PRIVATE_KEY_FILE" ]]; then
-        log_error "Private key file is required. Use --private-key <file>"
-        exit 1
-    fi
+    # Validate arguments
+    if [[ "$GENERATE_KEYS" == true ]]; then
+        # When generating, we don't need existing key files
+        if [[ -n "$PRIVATE_KEY_FILE" ]] || [[ -n "$PUBLIC_KEY_FILE" ]]; then
+            log_error "Cannot specify --private-key or --public-key when using --generate"
+            exit 1
+        fi
+        
+        # Validate key type
+        case "$KEY_TYPE" in
+            rsa|ec|ed25519)
+                # Valid key types
+                ;;
+            *)
+                log_error "Invalid key type: $KEY_TYPE. Use: rsa, ec, or ed25519"
+                exit 1
+                ;;
+        esac
+    else
+        # When not generating, require existing key files
+        if [[ -z "$PRIVATE_KEY_FILE" ]]; then
+            log_error "Private key file is required. Use --private-key <file> or --generate"
+            exit 1
+        fi
 
-    if [[ -z "$PUBLIC_KEY_FILE" ]]; then
-        log_error "Public key file is required. Use --public-key <file>"
-        exit 1
+        if [[ -z "$PUBLIC_KEY_FILE" ]]; then
+            log_error "Public key file is required. Use --public-key <file> or --generate"
+            exit 1
+        fi
     fi
 }
 
 validate_environment() {
     log_info "Validating environment..."
-
-    # Check if files exist
-    if [[ ! -f "$PRIVATE_KEY_FILE" ]]; then
-        log_error "Private key file not found: $PRIVATE_KEY_FILE"
-        exit 1
-    fi
-
-    if [[ ! -f "$PUBLIC_KEY_FILE" ]]; then
-        log_error "Public key file not found: $PUBLIC_KEY_FILE"
-        exit 1
-    fi
 
     # Check if OpenSSL is available
     if ! command -v openssl &> /dev/null; then
@@ -181,7 +224,55 @@ validate_environment() {
         exit 1
     fi
 
+    # Check if files exist (only when not generating)
+    if [[ "$GENERATE_KEYS" == false ]]; then
+        if [[ ! -f "$PRIVATE_KEY_FILE" ]]; then
+            log_error "Private key file not found: $PRIVATE_KEY_FILE"
+            exit 1
+        fi
+
+        if [[ ! -f "$PUBLIC_KEY_FILE" ]]; then
+            log_error "Public key file not found: $PUBLIC_KEY_FILE"
+            exit 1
+        fi
+    fi
+
     log_success "Environment validation successful"
+}
+
+generate_keys() {
+    if [[ "$GENERATE_KEYS" == false ]]; then
+        return 0
+    fi
+    
+    log_info "Generating $KEY_TYPE key pair..."
+    
+    # Create temporary directory for generated keys
+    TEMP_DIR=$(mktemp -d)
+    PRIVATE_KEY_FILE="$TEMP_DIR/private.pem"
+    PUBLIC_KEY_FILE="$TEMP_DIR/public.pem"
+    
+    case "$KEY_TYPE" in
+        "rsa")
+            openssl genrsa -out "$PRIVATE_KEY_FILE" 2048
+            openssl rsa -in "$PRIVATE_KEY_FILE" -pubout -out "$PUBLIC_KEY_FILE"
+            KEY_ALGORITHM="RSA 2048-bit"
+            ;;
+        "ec")
+            openssl ecparam -name secp256r1 -genkey -noout -out "$PRIVATE_KEY_FILE"
+            openssl ec -in "$PRIVATE_KEY_FILE" -pubout > "$PUBLIC_KEY_FILE"
+            KEY_ALGORITHM="EC secp256r1"
+            ;;
+        "ed25519")
+            openssl genpkey -algorithm ed25519 -out "$PRIVATE_KEY_FILE"
+            openssl pkey -in "$PRIVATE_KEY_FILE" -pubout -out "$PUBLIC_KEY_FILE"
+            KEY_ALGORITHM="ED25519"
+            ;;
+    esac
+    
+    log_success "Generated $KEY_ALGORITHM key pair"
+    log_info "Private key: $PRIVATE_KEY_FILE"
+    log_info "Public key: $PUBLIC_KEY_FILE"
 }
 
 validate_keys() {
@@ -338,9 +429,19 @@ update_all_repositories() {
 # MAIN EXECUTION
 # =============================================================================
 
+cleanup() {
+    if [[ -n "$TEMP_DIR" ]] && [[ -d "$TEMP_DIR" ]]; then
+        log_info "Cleaning up temporary files..."
+        rm -rf "$TEMP_DIR"
+    fi
+}
+
 main() {
-    log_info "🔄 Local Evidence Key Update Script"
-    log_info "==================================="
+    # Setup cleanup trap
+    trap cleanup EXIT
+    
+    log_info "🔐 Evidence Key Management Script"
+    log_info "================================="
     echo ""
     
     # Parse command line arguments
@@ -351,16 +452,30 @@ main() {
         echo ""
     fi
     
-    log_info "Configuration:"
-    log_info "  Private key: $PRIVATE_KEY_FILE"
-    log_info "  Public key: $PUBLIC_KEY_FILE"
-    log_info "  Key alias: $KEY_ALIAS"
-    log_info "  Organization: $GITHUB_ORG"
+    if [[ "$GENERATE_KEYS" == true ]]; then
+        log_info "Mode: Generate keys and update repositories"
+        log_info "Key type: $KEY_TYPE"
+    else
+        log_info "Mode: Use existing keys"
+        log_info "Private key: $PRIVATE_KEY_FILE"
+        log_info "Public key: $PUBLIC_KEY_FILE"
+    fi
+    
+    log_info "Key alias: $KEY_ALIAS"
+    log_info "Organization: $GITHUB_ORG"
     echo ""
     
-    # Validate environment and keys
+    # Validate environment
     validate_environment
     echo ""
+    
+    # Generate keys if requested
+    if [[ "$GENERATE_KEYS" == true ]]; then
+        generate_keys
+        echo ""
+    fi
+    
+    # Validate keys
     validate_keys
     echo ""
     
@@ -368,13 +483,32 @@ main() {
     update_all_repositories
     echo ""
     
+    # Show generated keys if created
+    if [[ "$GENERATE_KEYS" == true ]] && [[ "$DRY_RUN" == false ]]; then
+        echo ""
+        log_success "🔑 Generated Keys:"
+        log_success "=================="
+        echo ""
+        echo "📄 Private Key (save securely):"
+        echo "--------------------------------"
+        cat "$PRIVATE_KEY_FILE"
+        echo ""
+        echo "📄 Public Key:"
+        echo "---------------"
+        cat "$PUBLIC_KEY_FILE"
+        echo ""
+        log_warning "⚠️  IMPORTANT: Save the private key securely!"
+        log_warning "    The temporary files will be deleted when this script exits."
+        echo ""
+    fi
+    
     # Summary
     if [[ "$DRY_RUN" == true ]]; then
         log_success "🎯 Dry run completed successfully!"
         log_info "Run without --dry-run to apply changes"
     else
-        log_success "🎯 Evidence Key Update Complete!"
-        log_success "====================================="
+        log_success "🎯 Evidence Key Management Complete!"
+        log_success "===================================="
         echo ""
         log_success "✅ Updated in all BookVerse repositories:"
         log_success "  - EVIDENCE_PRIVATE_KEY (secret)"
@@ -383,12 +517,16 @@ main() {
         echo ""
         log_info "🔑 Key alias: $KEY_ALIAS"
         echo ""
-        log_success "All repositories are now using the new evidence keys!"
+        log_success "All repositories are now using the evidence keys!"
         echo ""
         log_info "Next steps:"
-        log_info "1. Update JFrog Platform trusted keys (use workflow or manual)"
+        log_info "1. Upload public key to JFrog Platform (use workflow)"
         log_info "2. Test evidence signing with new keys"
-        log_info "3. Archive old private key securely"
+        if [[ "$GENERATE_KEYS" == true ]]; then
+            log_info "3. Save the private key shown above securely"
+        else
+            log_info "3. Archive old private key securely (if replacing)"
+        fi
     fi
 }
 

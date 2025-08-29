@@ -17,6 +17,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Install jq
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y jq
+
       - name: Setup JFrog CLI
         uses: jfrog/setup-jfrog-cli@v4
         with:
@@ -38,6 +43,7 @@ jobs:
         run: |
           set -e
           cd .github/scripts/setup
+          export SKIP_PROTECTION=true
           awk '/# PHASE 2:/{exit} {print}' cleanup_project_based.sh > discovery_only.sh
           chmod +x discovery_only.sh
           bash ./discovery_only.sh || true

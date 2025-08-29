@@ -1036,17 +1036,23 @@ get_user_approval() {
         echo ""
     fi
     
-    # In CI environment, require explicit confirmation
-    if [[ "$CI_ENVIRONMENT" == "true" ]] || [[ -n "$GITHUB_ACTIONS" ]]; then
+    # Security-first approach: Always require explicit approval unless bypassed
+    if [[ "$SKIP_PROTECTION" == "true" ]]; then
+        echo "⚠️ PROTECTION BYPASSED via SKIP_PROTECTION=true"
+        echo "🤖 Automatic approval - NO HUMAN CONFIRMATION"
+        return 0
+    fi
+    
+    # Check if running in CI but no way to get interactive input
+    if [[ -n "$GITHUB_ACTIONS" ]] || [[ -n "$CI" ]]; then
         echo "🤖 CI ENVIRONMENT DETECTED"
-        echo "Automatic approval in CI requires CONFIRM_DELETION=true environment variable"
-        if [[ "$CONFIRM_DELETION" == "true" ]]; then
-            echo "✅ CI deletion confirmed via CONFIRM_DELETION environment variable"
-            return 0
-        else
-            echo "❌ CI deletion not confirmed - set CONFIRM_DELETION=true to proceed"
-            return 1
-        fi
+        echo "❌ Cannot get interactive approval in CI environment"
+        echo ""
+        echo "💡 SOLUTIONS:"
+        echo "  1. Use discovery workflow first, then execution workflow"
+        echo "  2. Set SKIP_PROTECTION=true to bypass (NOT RECOMMENDED)"
+        echo "  3. Run locally with manual approval"
+        return 1
     fi
     
     # Interactive approval

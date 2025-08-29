@@ -1,0 +1,93 @@
+name: 🔍 Cleanup Discovery - Find Resources to Delete
+
+on:
+  workflow_dispatch:
+    inputs:
+      verbosity_level:
+        description: 'Verbosity level (0=quiet, 1=normal, 2=verbose)'
+        required: false
+        default: '1'
+        type: choice
+        options:
+        - '0'
+        - '1'
+        - '2'
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  discover-resources:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup JFrog CLI
+        uses: jfrog/setup-jfrog-cli@v4
+        with:
+          version: latest
+
+      - name: Configure JFrog CLI for Admin
+        env:
+          JFROG_URL: ${{ vars.JFROG_URL }}
+          JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
+        run: |
+          jf c add bookverse-admin --url="${JFROG_URL}" --access-token="${JFROG_ADMIN_TOKEN}" --interactive=false --overwrite
+          jf c use bookverse-admin
+
+      - name: 🔍 Discovery Phase - Find Resources to Delete
+        env:
+          JFROG_URL: ${{ vars.JFROG_URL }}
+          JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
+          VERBOSITY: ${{ inputs.verbosity_level }}
+        run: |
+          echo "🔍 DISCOVERY MODE: Finding resources to delete"
+          echo "=============================================="
+          echo ""
+          echo "This workflow ONLY discovers and reports - NO DELETION occurs"
+          echo ""
+          
+          # Create discovery-only script
+          cp ./.github/scripts/setup/cleanup_project_based.sh ./discovery_only.sh
+          
+          # Modify to stop after discovery (before get_user_approval)
+          sed -i '/get_user_approval/,/^fi$/c\
+echo ""\
+echo "🛡️ DISCOVERY COMPLETE - NO DELETION PERFORMED"\
+echo "=============================================="\
+echo ""\
+echo "📋 To execute the deletion:"\
+echo "  1. Review the preview above carefully"\
+echo "  2. Run the '\''Cleanup Execution'\'' workflow"\
+echo "  3. Or set SKIP_PROTECTION=true for automated deletion"\
+echo ""\
+echo "💾 Preview saved to: $preview_file"\
+exit 0' ./discovery_only.sh
+          
+          # Run discovery
+          bash ./discovery_only.sh
+
+      - name: 📤 Upload Discovery Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: cleanup-discovery-report
+          path: /tmp/bookverse_cleanup_*/deletion_preview.txt
+          retention-days: 7
+
+      - name: 📋 Summary
+        run: |
+          echo "## 🔍 Cleanup Discovery Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **Discovery completed successfully**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📋 Next Steps:" >> $GITHUB_STEP_SUMMARY
+          echo "1. 👀 **Review the logs above** to see what would be deleted" >> $GITHUB_STEP_SUMMARY
+          echo "2. 📥 **Download the discovery report** from the artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "3. 🗑️ **Run 'Cleanup Execution' workflow** to perform the actual deletion" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### ⚠️ Important:" >> $GITHUB_STEP_SUMMARY
+          echo "- This discovery workflow **DOES NOT DELETE** anything" >> $GITHUB_STEP_SUMMARY
+          echo "- Resources are only **discovered and reported**" >> $GITHUB_STEP_SUMMARY
+          echo "- Use the execution workflow for actual deletion" >> $GITHUB_STEP_SUMMARY

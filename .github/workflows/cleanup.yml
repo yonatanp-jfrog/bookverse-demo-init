@@ -6,6 +6,11 @@ on:
         description: 'Type "DELETE" to confirm cleanup (this action cannot be undone)'
         required: true
         type: string
+      skip_protection:
+        description: 'Skip protection layer (NOT RECOMMENDED)'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   cleanup-platform:
@@ -26,19 +31,30 @@ jobs:
 
       - name: Validate Confirmation
         run: |
+          echo "🔍 Validating confirmation input..."
+          
           if [[ "${{ github.event.inputs.confirm_cleanup }}" != "DELETE" ]]; then
             echo "❌ Cleanup cancelled: Invalid confirmation input"
             echo "   You must type 'DELETE' to confirm cleanup"
+            echo "   Current input: '${{ github.event.inputs.confirm_cleanup }}'"
             exit 1
           fi
+          
           echo "✅ Cleanup confirmed. Proceeding with BookVerse project cleanup..."
+          
+          if [[ "${{ github.event.inputs.skip_protection }}" == "true" ]]; then
+            echo "🚨 WARNING: Protection layer will be bypassed"
+          else
+            echo "🛡️ Protection layer active - will fail if interactive approval needed"
+            echo "💡 Consider using Discovery workflow first for safer operation"
+          fi
 
       - name: Cleanup BookVerse Project (PROJECT-BASED) with Safety Layer
         env:
           JFROG_URL: ${{ vars.JFROG_URL }}
           JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
           VERBOSITY: 1
-          CONFIRM_DELETION: ${{ github.event.inputs.confirm_cleanup == 'DELETE' && 'true' || 'false' }}
+          SKIP_PROTECTION: ${{ github.event.inputs.skip_protection }}
         run: ./.github/scripts/setup/cleanup_project_based.sh
       
       # Note: This will completely remove the BookVerse project and all resources!

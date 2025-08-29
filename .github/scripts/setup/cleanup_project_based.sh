@@ -1316,7 +1316,7 @@ get_user_approval() {
     fi
     
     # Security-first approach: Always require explicit approval unless bypassed
-    if [[ "$SKIP_PROTECTION" == "true" ]]; then
+    if [[ "${SKIP_PROTECTION:-}" == "true" ]]; then
         echo "⚠️ PROTECTION BYPASSED via SKIP_PROTECTION=true"
         echo "🤖 Automatic approval - NO HUMAN CONFIRMATION"
         return 0

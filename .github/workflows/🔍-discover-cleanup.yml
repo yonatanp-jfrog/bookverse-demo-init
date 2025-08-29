@@ -45,7 +45,12 @@ jobs:
 
       - name: Commit shared discovery report
         run: |
-          if [[ -f ".github/cleanup-report.json" ]]; then
+          # Locate report anywhere in the workspace
+          report_path=$(find "$GITHUB_WORKSPACE" -type f -name "*cleanup-report.json" -print -quit)
+          if [[ -n "$report_path" ]]; then
+            echo "Found report at: $report_path"
+            mkdir -p .github
+            cp "$report_path" .github/cleanup-report.json
             git config --global user.name "BookVerse Discovery Bot"
             git config --global user.email "discovery@bookverse.demo"
             git add .github/cleanup-report.json

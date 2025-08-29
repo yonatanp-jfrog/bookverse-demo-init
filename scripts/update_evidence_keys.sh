@@ -362,7 +362,7 @@ update_repository_secrets_and_variables() {
     
     if [[ "$DRY_RUN" == true ]]; then
         log_info "  [DRY RUN] Would update EVIDENCE_PRIVATE_KEY secret"
-        log_info "  [DRY RUN] Would migrate EVIDENCE_PUBLIC_KEY from secret to variable"
+        log_info "  [DRY RUN] Would set EVIDENCE_PUBLIC_KEY variable"
         log_info "  [DRY RUN] Would update EVIDENCE_KEY_ALIAS variable"
         return 0
     fi
@@ -378,11 +378,8 @@ update_repository_secrets_and_variables() {
         success=false
     fi
     
-    # Migrate public key from secret to variable (delete secret first if it exists)
-    log_info "  → Migrating EVIDENCE_PUBLIC_KEY from secret to variable..."
-    # Try to delete existing secret (ignore failure if it doesn't exist)
-    gh secret delete EVIDENCE_PUBLIC_KEY --repo "$repo" 2>/dev/null || true
-    log_info "    → Setting EVIDENCE_PUBLIC_KEY variable..."
+    # Set public key as variable (public keys should never be secrets)
+    log_info "  → Setting EVIDENCE_PUBLIC_KEY variable..."
     if gh variable set EVIDENCE_PUBLIC_KEY --body "$public_key_content" --repo "$repo"; then
         log_success "    ✅ EVIDENCE_PUBLIC_KEY variable updated"
     else

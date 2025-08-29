@@ -68,9 +68,20 @@ jobs:
           exit 0
           EOF
           
-          # Replace the get_user_approval section with discovery completion
-          sed -i '/get_user_approval/,/^fi$/r discovery_patch.sh' ./discovery_only.sh
-          sed -i '/get_user_approval/,/^fi$/d' ./discovery_only.sh
+          # Replace the user approval CALL (not the function definition) with discovery completion
+          sed -i '/if ! get_user_approval/,/^fi$/c\
+          # Discovery mode - show results and exit\
+          echo ""\
+          echo "🛡️ DISCOVERY COMPLETE - NO DELETION PERFORMED"\
+          echo "=============================================="\
+          echo ""\
+          echo "📋 To execute the deletion:"\
+          echo "  1. Review the preview above carefully"\
+          echo "  2. Run 🗑️ Execute Cleanup workflow"\
+          echo "  3. Set SKIP_PROTECTION=true for automated deletion"\
+          echo ""\
+          echo "💾 Preview saved to: $preview_file"\
+          exit 0' ./discovery_only.sh
           
           # Run discovery from the correct directory
           bash ./discovery_only.sh
@@ -90,6 +101,7 @@ jobs:
           echo "## 🔍 Cleanup Discovery Report" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "✅ **Discovery completed successfully**" >> $GITHUB_STEP_SUMMARY
+          echo "🔧 **Verbosity Level**: ${{ github.event.inputs.verbosity_level }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
           # Find and include the detailed preview file content

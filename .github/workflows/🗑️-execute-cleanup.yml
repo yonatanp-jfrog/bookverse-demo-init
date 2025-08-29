@@ -65,6 +65,7 @@ jobs:
           
           if [[ "${{ job.status }}" == "success" ]]; then
             echo "✅ **Cleanup completed successfully**" >> $GITHUB_STEP_SUMMARY
+            echo "🔧 **Protection Skipped**: ${{ github.event.inputs.skip_protection }}" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "🎯 **All BookVerse project resources have been deleted**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY

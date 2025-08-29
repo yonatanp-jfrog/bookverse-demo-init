@@ -96,6 +96,71 @@ jobs:
             echo "- 🚀 Applications: $apps" >> $GITHUB_STEP_SUMMARY
             echo "- 🏷️ Stages: $stages" >> $GITHUB_STEP_SUMMARY
             echo "- 🔧 Builds: $builds" >> $GITHUB_STEP_SUMMARY
+
+            # Extract deletion preview content from report
+            preview_file="/tmp/deletion_preview.txt"
+            jq -r '.deletion_plan' .github/cleanup-report.json > "$preview_file"
+
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 🔎 Detailed Items Discovered" >> $GITHUB_STEP_SUMMARY
+
+            # Repositories
+            repo_list=$(grep -E '^  ❌ Repository:' "$preview_file" | sed 's/^  ❌ Repository: //') || true
+            echo "#### 📦 Repositories ($repos)" >> $GITHUB_STEP_SUMMARY
+            if [[ -n "$repo_list" ]]; then
+              echo "$repo_list" | sed 's/^/- /' >> $GITHUB_STEP_SUMMARY
+            else
+              echo "- None" >> $GITHUB_STEP_SUMMARY
+            fi
+
+            # Users
+            user_list=$(grep -E '^  ❌ User:' "$preview_file" | sed 's/^  ❌ User: //') || true
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "#### 👥 Users ($users)" >> $GITHUB_STEP_SUMMARY
+            if [[ -n "$user_list" ]]; then
+              echo "$user_list" | sed 's/^/- /' >> $GITHUB_STEP_SUMMARY
+            else
+              echo "- None" >> $GITHUB_STEP_SUMMARY
+            fi
+
+            # Applications
+            app_list=$(grep -E '^  ❌ Application:' "$preview_file" | sed 's/^  ❌ Application: //') || true
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "#### 🚀 Applications ($apps)" >> $GITHUB_STEP_SUMMARY
+            if [[ -n "$app_list" ]]; then
+              echo "$app_list" | sed 's/^/- /' >> $GITHUB_STEP_SUMMARY
+            else
+              echo "- None" >> $GITHUB_STEP_SUMMARY
+            fi
+
+            # Stages
+            stage_list=$(grep -E '^  ❌ Stage:' "$preview_file" | sed 's/^  ❌ Stage: //') || true
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "#### 🏷️ Stages ($stages)" >> $GITHUB_STEP_SUMMARY
+            if [[ -n "$stage_list" ]]; then
+              echo "$stage_list" | sed 's/^/- /' >> $GITHUB_STEP_SUMMARY
+            else
+              echo "- None" >> $GITHUB_STEP_SUMMARY
+            fi
+
+            # Builds
+            build_list=$(grep -E '^  ❌ Build:' "$preview_file" | sed 's/^  ❌ Build: //') || true
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "#### 🔧 Builds ($builds)" >> $GITHUB_STEP_SUMMARY
+            if [[ -n "$build_list" ]]; then
+              echo "$build_list" | sed 's/^/- /' >> $GITHUB_STEP_SUMMARY
+            else
+              echo "- None" >> $GITHUB_STEP_SUMMARY
+            fi
+
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "<details>" >> $GITHUB_STEP_SUMMARY
+            echo "<summary>📄 Raw Discovery Preview</summary>" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat "$preview_file" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "</details>" >> $GITHUB_STEP_SUMMARY
           else
             echo "No report generated" >> $GITHUB_STEP_SUMMARY
           fi

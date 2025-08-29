@@ -44,7 +44,7 @@ GITHUB_ORG="yonatanp-jfrog"
 DRY_RUN=false
 VERBOSE=false
 GENERATE_KEYS=false
-KEY_TYPE="ed25519"
+KEY_TYPE="rsa"
 TEMP_DIR=""
 UPDATE_JFROG=true
 JFROG_URL="${JFROG_URL:-}"
@@ -82,7 +82,7 @@ USAGE:
 
 KEY GENERATION:
     --generate              Generate new key pair
-    --key-type <type>       Key algorithm: rsa, ec, or ed25519 (default: ed25519)
+    --key-type <type>       Key algorithm: rsa, ec, or ed25519 (default: rsa)
 
 EXISTING KEYS:
     --private-key <file>    Path to private key PEM file
@@ -97,11 +97,11 @@ OPTIONAL ARGUMENTS:
     --help                  Show this help message
 
 EXAMPLES:
-    # Generate ED25519 keys and update repositories
+    # Generate RSA keys and update repositories (default)
     ./update_evidence_keys.sh --generate
     
-    # Generate RSA keys and update repositories
-    ./update_evidence_keys.sh --generate --key-type rsa
+    # Generate ED25519 keys and update repositories
+    ./update_evidence_keys.sh --generate --key-type ed25519
     
     # Use existing keys
     ./update_evidence_keys.sh --private-key private.pem --public-key public.pem
@@ -113,9 +113,9 @@ EXAMPLES:
     ./update_evidence_keys.sh --generate --dry-run
 
 KEY ALGORITHMS:
-    rsa        RSA 2048-bit (widely supported)
+    rsa        RSA 2048-bit (widely supported) [DEFAULT]
     ec         EC secp256r1 (smaller keys, excellent security)
-    ed25519    ED25519 (modern, fast, secure) [DEFAULT]
+    ed25519    ED25519 (modern, fast, secure)
 
 PREREQUISITES:
     1. Install GitHub CLI: https://cli.github.com/
@@ -448,6 +448,57 @@ update_all_repositories() {
     fi
 }
 
+delete_existing_trusted_key() {
+    local alias_to_delete="$1"
+    
+    log_info "Checking for existing trusted key with alias: $alias_to_delete"
+    
+    # Find the Key ID (kid) for the given alias
+    local response_file="$TEMP_DIR/trusted_keys_response.json"
+    local http_code
+    http_code=$(curl -s -w "%{http_code}" \
+        -X GET \
+        -H "Authorization: Bearer $JFROG_ADMIN_TOKEN" \
+        "$JFROG_URL/artifactory/api/security/keys/trusted" \
+        -o "$response_file")
+    
+    if [[ "$http_code" != "200" ]]; then
+        log_warning "Failed to retrieve trusted keys list (HTTP $http_code)"
+        return 1
+    fi
+    
+    # Extract Key ID for the given alias
+    local kid
+    kid=$(jq -r --arg alias "$alias_to_delete" '.keys[] | select(.alias == $alias) | .kid' "$response_file" 2>/dev/null)
+    
+    if [[ -n "$kid" ]] && [[ "$kid" != "null" ]]; then
+        log_info "Found existing key with ID: $kid"
+        log_info "Deleting existing trusted key..."
+        
+        local delete_response_file="$TEMP_DIR/delete_response.json"
+        local delete_code
+        delete_code=$(curl -s -w "%{http_code}" \
+            -X DELETE \
+            -H "Authorization: Bearer $JFROG_ADMIN_TOKEN" \
+            "$JFROG_URL/artifactory/api/security/keys/trusted/$kid" \
+            -o "$delete_response_file")
+        
+        if [[ "$delete_code" == "200" ]] || [[ "$delete_code" == "204" ]]; then
+            log_success "✅ Existing trusted key deleted successfully"
+            return 0
+        else
+            log_error "❌ Failed to delete existing trusted key (HTTP $delete_code)"
+            if [[ -f "$delete_response_file" ]]; then
+                cat "$delete_response_file"
+            fi
+            return 1
+        fi
+    else
+        log_info "No existing trusted key found with alias: $alias_to_delete"
+        return 0
+    fi
+}
+
 upload_public_key_to_jfrog() {
     if [[ "$UPDATE_JFROG" == false ]]; then
         return 0
@@ -466,23 +517,19 @@ upload_public_key_to_jfrog() {
         TEMP_DIR=$(mktemp -d)
     fi
 
-    # Read public key content
+    # Read public key content (use full PEM format including headers)
     local public_key_content
     public_key_content=$(cat "$PUBLIC_KEY_FILE")
     
-    # Prepare public key content (remove headers/footers and newlines for JSON)
-    local public_key_b64
-    public_key_b64=$(echo "$public_key_content" | grep -v "BEGIN\|END" | tr -d '\n')
-    
-    # Create JSON payload
+    # Create JSON payload with full PEM format
     local payload
-    payload=$(cat << EOF
-{
-  "alias": "$KEY_ALIAS",
-  "public_key": "$public_key_b64"
-}
-EOF
-)
+    payload=$(jq -n \
+        --arg alias "$KEY_ALIAS" \
+        --arg public_key "$public_key_content" \
+        '{
+            "alias": $alias,
+            "public_key": $public_key
+        }')
     
     # Upload to JFrog Platform
     local response_file="$TEMP_DIR/jfrog_response.json"
@@ -501,6 +548,38 @@ EOF
             log_info "Response:"
             cat "$response_file" | jq '.' 2>/dev/null || cat "$response_file"
         fi
+        return 0
+    elif [[ "$http_code" == "409" ]]; then
+        log_warning "⚠️ Trusted key with alias '$KEY_ALIAS' already exists"
+        
+        # Delete existing key and retry upload
+        if delete_existing_trusted_key "$KEY_ALIAS"; then
+            log_info "Retrying upload after deleting existing key..."
+            
+            # Retry the upload
+            http_code=$(curl -s -w "%{http_code}" \
+                -X POST \
+                -H "Authorization: Bearer $JFROG_ADMIN_TOKEN" \
+                -H "Content-Type: application/json" \
+                -d "$payload" \
+                "$JFROG_URL/artifactory/api/security/keys/trusted" \
+                -o "$response_file")
+            
+            if [[ "$http_code" == "200" ]] || [[ "$http_code" == "201" ]]; then
+                log_success "✅ Public key uploaded to JFrog Platform (after replacing existing key)"
+                return 0
+            else
+                log_error "❌ Failed to upload public key after deletion (HTTP $http_code)"
+                if [[ -f "$response_file" ]]; then
+                    log_error "Response:"
+                    cat "$response_file"
+                fi
+                return 1
+            fi
+        else
+            log_error "❌ Failed to delete existing key, cannot upload new key"
+            return 1
+        fi
     else
         log_error "❌ Failed to upload public key to JFrog Platform (HTTP $http_code)"
         if [[ -f "$response_file" ]]; then
@@ -509,16 +588,7 @@ EOF
         fi
         return 1
     fi
-    
-    # Verify upload by listing trusted keys
-    log_info "Verifying key upload..."
-    local verify_response="$TEMP_DIR/verify_response.json"
-    local verify_code
-    verify_code=$(curl -s -w "%{http_code}" \
-        -X GET \
-        -H "Authorization: Bearer $JFROG_ADMIN_TOKEN" \
-        "$JFROG_URL/artifactory/api/security/keys/trusted" \
-        -o "$verify_response")
+}
     
     if [[ "$verify_code" == "200" ]]; then
         if cat "$verify_response" | jq -r '.[].alias' 2>/dev/null | grep -q "^$KEY_ALIAS$"; then

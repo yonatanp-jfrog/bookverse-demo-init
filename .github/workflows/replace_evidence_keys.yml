@@ -56,9 +56,35 @@ jobs:
             exit 1
           fi
           
-          # Create temporary files for validation
-          echo '${{ inputs.private_key_content }}' > private.pem
-          echo '${{ inputs.public_key_content }}' > public.pem
+          # Normalize and create temporary files for validation
+          echo "🔧 Normalizing key formats..."
+          
+          # Normalize private key: replace spaces between header/content/footer with newlines
+          PRIVATE_KEY_NORMALIZED=$(echo '${{ inputs.private_key_content }}' | \
+            sed 's/-----BEGIN PRIVATE KEY----- /-----BEGIN PRIVATE KEY-----\n/g' | \
+            sed 's/ -----END PRIVATE KEY-----/\n-----END PRIVATE KEY-----/g' | \
+            sed 's/-----BEGIN RSA PRIVATE KEY----- /-----BEGIN RSA PRIVATE KEY-----\n/g' | \
+            sed 's/ -----END RSA PRIVATE KEY-----/\n-----END RSA PRIVATE KEY-----/g' | \
+            sed 's/-----BEGIN EC PRIVATE KEY----- /-----BEGIN EC PRIVATE KEY-----\n/g' | \
+            sed 's/ -----END EC PRIVATE KEY-----/\n-----END EC PRIVATE KEY-----/g' | \
+            sed 's/\([A-Za-z0-9+/=]\{64\}\) /\1\n/g')
+          
+          # Normalize public key: replace spaces between header/content/footer with newlines  
+          PUBLIC_KEY_NORMALIZED=$(echo '${{ inputs.public_key_content }}' | \
+            sed 's/-----BEGIN PUBLIC KEY----- /-----BEGIN PUBLIC KEY-----\n/g' | \
+            sed 's/ -----END PUBLIC KEY-----/\n-----END PUBLIC KEY-----/g' | \
+            sed 's/-----BEGIN RSA PUBLIC KEY----- /-----BEGIN RSA PUBLIC KEY-----\n/g' | \
+            sed 's/ -----END RSA PUBLIC KEY-----/\n-----END RSA PUBLIC KEY-----/g' | \
+            sed 's/\([A-Za-z0-9+/=]\{64\}\) /\1\n/g')
+          
+          # Write normalized keys to files
+          printf "%s\n" "$PRIVATE_KEY_NORMALIZED" > private.pem
+          printf "%s\n" "$PUBLIC_KEY_NORMALIZED" > public.pem
+          
+          echo "📋 Private key preview (first 2 lines):"
+          head -2 private.pem
+          echo "📋 Public key preview (first 2 lines):"
+          head -2 public.pem
           
           # Validate private key format
           if ! openssl pkey -in private.pem -check -noout 2>/dev/null; then
@@ -88,18 +114,28 @@ jobs:
       - name: Replace evidence keys in repositories
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PRIVATE_KEY_CONTENT: ${{ inputs.private_key_content }}
-          PUBLIC_KEY_CONTENT: ${{ inputs.public_key_content }}
         run: |
+          echo "🔧 Preparing normalized key content for distribution..."
+          
+          # Read the normalized keys from the validation step
+          PRIVATE_KEY_CONTENT=$(cat private.pem)
+          PUBLIC_KEY_CONTENT=$(cat public.pem)
+          
+          # Export for the script
+          export PRIVATE_KEY_CONTENT
+          export PUBLIC_KEY_CONTENT
+          
           ./.github/scripts/setup/replace_evidence_keys.sh
 
       - name: Update JFrog Platform trusted keys
         if: ${{ inputs.update_jfrog_platform }}
         env:
           JFROG_CLI_LOG_LEVEL: INFO
-          PUBLIC_KEY_CONTENT: ${{ inputs.public_key_content }}
         run: |
           echo "📤 Updating JFrog Platform trusted keys..."
+          
+          # Read the normalized public key
+          PUBLIC_KEY_CONTENT=$(cat public.pem)
           
           # Prepare public key content for JSON (escape newlines and quotes)
           PUBLIC_KEY_JSON=$(echo "$PUBLIC_KEY_CONTENT" | sed 's/"/\\"/g' | awk '{printf "%s\\n", $0}' | sed 's/\\n$//')

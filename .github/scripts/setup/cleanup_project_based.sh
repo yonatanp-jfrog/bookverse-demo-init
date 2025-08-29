@@ -1190,8 +1190,18 @@ run_discovery_preview() {
     echo "" >> "$preview_file"
     echo "⚠️ WARNING: This action cannot be undone!" >> "$preview_file"
     
-    # Save report to shared location for cleanup workflow
-    local shared_report_file=".github/cleanup-report.json"
+    # Save report to shared location for cleanup workflow (repo-root .github)
+    local script_dir
+    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local repo_root
+    if [[ -n "$GITHUB_WORKSPACE" && -d "$GITHUB_WORKSPACE" ]]; then
+        repo_root="$GITHUB_WORKSPACE"
+    else
+        # script lives at repo/.github/scripts/setup → go up three levels
+        repo_root="$(cd "$script_dir/../../.." && pwd)"
+    fi
+    mkdir -p "$repo_root/.github"
+    local shared_report_file="$repo_root/.github/cleanup-report.json"
     local timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
     
     # Create structured report with metadata

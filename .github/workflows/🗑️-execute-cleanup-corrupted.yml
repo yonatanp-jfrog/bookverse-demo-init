@@ -1,0 +1,187 @@
+name: '🗑️ Execute Cleanup'
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_cleanup:
+        description: 'Type "DELETE" to confirm cleanup (this action cannot be undone)'
+        required: true
+        type: string
+      skip_protection:
+        description: 'Skip protection layer (NOT RECOMMENDED)'
+        required: false
+        default: false
+        type: boolean
+  push:
+    paths:
+      - '.github/workflows/🗑️-execute-cleanup.yml'
+      - '.github/scripts/setup/cleanup_from_report.sh'
+
+jobs:
+  cleanup-platform:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup JFrog CLI
+        uses: jfrog/setup-jfrog-cli@v4
+        with:
+          version: latest
+
+      - name: Configure JFrog CLI for Admin
+        run: |
+          jfrog config add bookverse-admin --url=${{ vars.JFROG_URL }} --access-token=${{ secrets.JFROG_ADMIN_TOKEN }} --interactive=false
+          jfrog config use bookverse-admin
+
+      - name: Validate Confirmation
+        run: |
+          echo "🔍 Validating confirmation input..."
+          
+          if [[ "${{ github.event.inputs.confirm_cleanup }}" != "DELETE" ]]; then
+            echo "❌ Cleanup cancelled: Invalid confirmation input"
+            echo "   You must type 'DELETE' to confirm cleanup"
+            echo "   Current input: '${{ github.event.inputs.confirm_cleanup }}'"
+            exit 1
+          fi
+          
+          echo "✅ Cleanup confirmed. Proceeding with BookVerse project cleanup..."
+          
+          if [[ "${{ github.event.inputs.skip_protection }}" == "true" ]]; then
+            echo "🚨 WARNING: Protection layer will be bypassed"
+          else
+            echo "🛡️ Protection layer active - will fail if interactive approval needed"
+            echo "💡 Consider using 🔍 Discover Cleanup workflow first for safer operation"
+          fi
+
+      - name: 🛡️ Validate Cleanup Report
+        env:
+          JFROG_URL: ${{ vars.JFROG_URL }}
+          JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
+          PROJECT_KEY: 'bookverse'
+        run: |
+          # Run cleanup report validation
+          bash ./.github/scripts/setup/validate_cleanup_report.sh
+
+      - name: 🗑️ Execute Cleanup from Report
+        env:
+          JFROG_URL: ${{ vars.JFROG_URL }}
+          JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
+          PROJECT_KEY: 'bookverse'
+          SKIP_PROTECTION: ${{ github.event.inputs.skip_protection }}
+        run: |
+          # Run cleanup from shared report instead of discovering again
+          echo "📋 Executing cleanup from shared discovery report..."
+          bash ./.github/scripts/setup/cleanup_from_report.sh
+          
+          # Clear and commit the cleanup report after successful execution
+          git config --global user.name "BookVerse Cleanup Bot"
+          git config --global user.email "cleanup@bookverse.demo"
+          git add .github/cleanup-report.json
+          git commit -m "chore: Clear cleanup report after successful execution
+
+Cleanup completed at: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+Project: bookverse
+Status: Cleanup completed, new discovery required
+
+This report has been cleared to prevent accidental re-execution.
+Run 🔍 Discover Cleanup workflow to generate a new report."
+          git push origin main
+          echo "📋 Cleanup report cleared and committed"
+
+      - name: 📋 Execute Cleanup Summary
+        if: always()
+        run: |
+          echo "## 🗑️ Execute Cleanup Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [[ "${{ job.status }}" == "success" ]]; then
+            echo "✅ **Cleanup completed successfully**" >> $GITHUB_STEP_SUMMARY
+            echo "🔧 **Protection Skipped**: ${{ github.event.inputs.skip_protection }}" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "🎯 **All BookVerse project resources have been deleted**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            # Look for execution logs to show what was actually deleted
+            echo "### 📋 Resources Successfully Deleted:" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            # Parse logs from the cleanup step to extract deletion info
+            execution_log="/tmp/cleanup_execution.log"
+            if [[ -f "$execution_log" ]]; then
+              echo "#### 📊 **Deletion Summary**" >> $GITHUB_STEP_SUMMARY
+              deleted_repos=$(grep -c "✅.*repository.*deleted" "$execution_log" 2>/dev/null || echo "0")
+              deleted_users=$(grep -c "✅.*user.*deleted" "$execution_log" 2>/dev/null || echo "0") 
+              deleted_apps=$(grep -c "✅.*application.*deleted" "$execution_log" 2>/dev/null || echo "0")
+              deleted_stages=$(grep -c "✅.*stage.*deleted" "$execution_log" 2>/dev/null || echo "0")
+
+              deleted_builds=$(grep -c "✅.*build.*deleted" "$execution_log" 2>/dev/null || echo "0")
+              
+              echo "| Resource Type | Deleted |" >> $GITHUB_STEP_SUMMARY
+              echo "|---------------|---------|" >> $GITHUB_STEP_SUMMARY
+              echo "| 📦 Repositories | $deleted_repos |" >> $GITHUB_STEP_SUMMARY
+              echo "| 👥 Users | $deleted_users |" >> $GITHUB_STEP_SUMMARY
+              echo "| 🚀 Applications | $deleted_apps |" >> $GITHUB_STEP_SUMMARY
+              echo "| 🏷️ Stages | $deleted_stages |" >> $GITHUB_STEP_SUMMARY
+
+              echo "| 🔧 Builds | $deleted_builds |" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              
+              # Show specific deleted items
+              if [[ $deleted_repos -gt 0 ]]; then
+                echo "#### 📦 **Deleted Repositories**" >> $GITHUB_STEP_SUMMARY
+                grep "✅.*repository.*deleted" "$execution_log" | head -10 | sed 's/.*repository /- `/' | sed 's/ deleted.*/`/' >> $GITHUB_STEP_SUMMARY
+                echo "" >> $GITHUB_STEP_SUMMARY
+              fi
+              
+              if [[ $deleted_users -gt 0 ]]; then
+                echo "#### 👥 **Deleted Users**" >> $GITHUB_STEP_SUMMARY
+                grep "✅.*user.*deleted" "$execution_log" | head -10 | sed 's/.*user /- `/' | sed 's/ deleted.*/`/' >> $GITHUB_STEP_SUMMARY
+                echo "" >> $GITHUB_STEP_SUMMARY
+              fi
+              
+              if [[ $deleted_apps -gt 0 ]]; then
+                echo "#### 🚀 **Deleted Applications**" >> $GITHUB_STEP_SUMMARY
+                grep "✅.*application.*deleted" "$execution_log" | head -10 | sed 's/.*application /- `/' | sed 's/ deleted.*/`/' >> $GITHUB_STEP_SUMMARY
+                echo "" >> $GITHUB_STEP_SUMMARY
+              fi
+            else
+              echo "**Standard BookVerse project cleanup completed:**" >> $GITHUB_STEP_SUMMARY
+              echo "- 📦 All BookVerse repositories removed" >> $GITHUB_STEP_SUMMARY
+              echo "- 👥 All BookVerse users deleted" >> $GITHUB_STEP_SUMMARY
+              echo "- 🚀 All AppTrust applications removed" >> $GITHUB_STEP_SUMMARY
+              echo "- 🏷️ All project stages deleted" >> $GITHUB_STEP_SUMMARY
+              echo "- 🔗 All OIDC integrations removed" >> $GITHUB_STEP_SUMMARY
+              echo "- 🔧 All builds and artifacts cleaned" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+            fi
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 📋 What was deleted:" >> $GITHUB_STEP_SUMMARY
+            echo "- 🚀 **Applications**: All project applications removed" >> $GITHUB_STEP_SUMMARY
+            echo "- 📦 **Repositories**: All project repositories deleted" >> $GITHUB_STEP_SUMMARY
+            echo "- 👥 **Users**: Project users/admins removed" >> $GITHUB_STEP_SUMMARY
+            echo "- 🏷️ **Stages**: Project-level stages deleted" >> $GITHUB_STEP_SUMMARY
+            echo "- 🔄 **Lifecycle**: Project lifecycle configuration cleared" >> $GITHUB_STEP_SUMMARY
+            echo "- 🎯 **Project**: BookVerse project completely removed" >> $GITHUB_STEP_SUMMARY
+          elif [[ "${{ github.event.inputs.skip_protection }}" != "true" ]]; then
+            echo "❌ **Cleanup failed - Protection layer active**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "🛡️ **The protection layer blocked execution**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 💡 To proceed with deletion:" >> $GITHUB_STEP_SUMMARY
+            echo "1. 🔍 **Run Discover Cleanup workflow first** to see what will be deleted" >> $GITHUB_STEP_SUMMARY
+            echo "2. 🗑️ **Re-run this workflow** with skip_protection=true" >> $GITHUB_STEP_SUMMARY
+            echo "3. ⚠️ **Type 'DELETE' to confirm** the destructive operation" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Cleanup execution failed**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "🔍 **Check the logs above for error details**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 💡 Common causes:" >> $GITHUB_STEP_SUMMARY
+            echo "- 🔐 **Authentication issues** with JFrog platform" >> $GITHUB_STEP_SUMMARY
+            echo "- 🔒 **Resources locked** by other processes" >> $GITHUB_STEP_SUMMARY
+            echo "- 🌐 **Network connectivity** problems" >> $GITHUB_STEP_SUMMARY
+            echo "- ⚠️ **Resource dependencies** preventing deletion" >> $GITHUB_STEP_SUMMARY
+          fi
+      
+      # Note: This will completely remove the BookVerse project and all resources!
+      # Use with caution - this action cannot be undone.

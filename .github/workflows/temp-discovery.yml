@@ -1,0 +1,161 @@
+name: '🔍 Discover Cleanup'
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/🔍-discover-cleanup.yml'
+      - '.github/scripts/setup/cleanup_project_based.sh'
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  setup-platform:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup JFrog CLI
+        uses: jfrog/setup-jfrog-cli@v4
+        with:
+          version: latest
+
+      - name: Initialize JFrog Platform
+        run: |
+          # Configure JFrog CLI for admin access
+          jfrog config add bookverse-admin --url="$JFROG_URL" --access-token="$JFROG_ADMIN_TOKEN" --interactive=false
+          jfrog config use bookverse-admin
+          
+          # Validate environment and connectivity
+          ./.github/scripts/setup/validate_environment.sh
+
+      - name: Create Core Infrastructure
+        run: |
+          # Execute core setup scripts in optimal order
+          ./.github/scripts/setup/create_project.sh
+          ./.github/scripts/setup/create_stages.sh
+          ./.github/scripts/setup/create_repositories.sh
+
+      - name: Setup Users and Applications
+        run: |
+          # Execute user and application setup
+          ./.github/scripts/setup/create_users.sh
+          ./.github/scripts/setup/create_applications.sh
+
+      - name: Configure Security Integration
+        run: |
+          # Configure OIDC integrations for GitHub Actions
+          ./.github/scripts/setup/create_oidc.sh
+
+      - name: Setup Evidence Keys
+        run: |
+          # Generate keys (if not provided), upload trusted key to JFrog, and
+          # distribute secrets/variables to service repos
+          bash ./.github/scripts/setup/evidence_keys_setup.sh
+
+      - name: Validate Complete Setup
+        run: |
+          # Final validation of all created resources
+          ./.github/scripts/setup/validate_setup.sh
+
+      - name: 📋 Setup Platform Summary
+        if: always()
+        run: |
+          echo "## 🚀 Setup Platform Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [[ "${{ job.status }}" == "success" ]]; then
+            echo "✅ **Platform setup completed successfully**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "🎯 **BookVerse demo environment is ready**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 📋 What was created:" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            # Get actual created resources details
+            echo "#### 🎯 **Project & Configuration**" >> $GITHUB_STEP_SUMMARY
+            echo "- **Project**: \`bookverse\` with full configuration" >> $GITHUB_STEP_SUMMARY
+            echo "- **Lifecycle stages**: \`bookverse-DEV\`, \`bookverse-QA\`, \`bookverse-STAGING\` (+ system PROD)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            echo "#### 📦 **Repositories Created**" >> $GITHUB_STEP_SUMMARY
+            echo "**Service Repositories:**" >> $GITHUB_STEP_SUMMARY
+            echo "- \`bookverse-inventory-python-internal-local\` & \`bookverse-inventory-python-release-local\`" >> $GITHUB_STEP_SUMMARY
+            echo "- \`bookverse-recommendations-python-internal-local\` & \`bookverse-recommendations-python-release-local\`" >> $GITHUB_STEP_SUMMARY
+            echo "- \`bookverse-checkout-python-internal-local\` & \`bookverse-checkout-python-release-local\`" >> $GITHUB_STEP_SUMMARY
+            echo "- \`bookverse-platform-maven-internal-local\` & \`bookverse-platform-maven-release-local\`" >> $GITHUB_STEP_SUMMARY
+            echo "- \`bookverse-helm-helm-internal-local\` & \`bookverse-helm-helm-release-local\`" >> $GITHUB_STEP_SUMMARY
+            echo "- \`bookverse-web-npm-internal-local\` & \`bookverse-web-npm-release-local\`" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Dependency Repositories:**" >> $GITHUB_STEP_SUMMARY
+            echo "- \`bookverse-pypi-virtual\` (Python: cache + PyPI.org)" >> $GITHUB_STEP_SUMMARY
+            echo "- \`bookverse-npm-virtual\` (npm: cache + npmjs.org)" >> $GITHUB_STEP_SUMMARY
+            echo "- \`bookverse-dockerhub-virtual\` (Docker: cache + Docker Hub)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            echo "#### 👥 **Users Created**" >> $GITHUB_STEP_SUMMARY
+            echo "**Management Users:**" >> $GITHUB_STEP_SUMMARY
+            echo "- \`alice.developer@bookverse.com\` (Developer)" >> $GITHUB_STEP_SUMMARY
+            echo "- \`bob.release@bookverse.com\` (Release Manager, Project Admin)" >> $GITHUB_STEP_SUMMARY
+            echo "- \`charlie.devops@bookverse.com\` (DevOps Manager, Project Admin)" >> $GITHUB_STEP_SUMMARY
+            echo "- \`diana.architect@bookverse.com\` (Platform Architect, Project Admin)" >> $GITHUB_STEP_SUMMARY
+            echo "- \`edward.manager@bookverse.com\` (Engineering Manager, Project Admin)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Service Owners:**" >> $GITHUB_STEP_SUMMARY
+            echo "- \`frank.inventory@bookverse.com\` (Inventory Service)" >> $GITHUB_STEP_SUMMARY
+            echo "- \`grace.ai@bookverse.com\` (Recommendations Service)" >> $GITHUB_STEP_SUMMARY
+            echo "- \`henry.checkout@bookverse.com\` (Checkout Service)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Pipeline Users:**" >> $GITHUB_STEP_SUMMARY
+            echo "- \`pipeline.inventory@bookverse.com\`" >> $GITHUB_STEP_SUMMARY
+            echo "- \`pipeline.recommendations@bookverse.com\`" >> $GITHUB_STEP_SUMMARY
+            echo "- \`pipeline.checkout@bookverse.com\`" >> $GITHUB_STEP_SUMMARY
+            echo "- \`pipeline.platform@bookverse.com\`" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            echo "#### 🚀 **Applications** (AppTrust)" >> $GITHUB_STEP_SUMMARY
+            echo "- \`bookverse-inventory\` → frank.inventory@bookverse.com [high criticality]" >> $GITHUB_STEP_SUMMARY
+            echo "- \`bookverse-recommendations\` → grace.ai@bookverse.com [medium criticality]" >> $GITHUB_STEP_SUMMARY
+            echo "- \`bookverse-checkout\` → henry.checkout@bookverse.com [high criticality]" >> $GITHUB_STEP_SUMMARY
+            echo "- \`bookverse-platform\` → diana.architect@bookverse.com [high criticality]" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            echo "#### 🔐 **Security & Integration**" >> $GITHUB_STEP_SUMMARY
+            echo "**OIDC Integrations:**" >> $GITHUB_STEP_SUMMARY
+            echo "- \`github-bookverse-inventory\` → frank.inventory@bookverse.com" >> $GITHUB_STEP_SUMMARY
+            echo "- \`github-bookverse-recommendations\` → grace.ai@bookverse.com" >> $GITHUB_STEP_SUMMARY
+            echo "- \`github-bookverse-checkout\` → henry.checkout@bookverse.com" >> $GITHUB_STEP_SUMMARY
+            echo "- \`github-bookverse-platform\` → diana.architect@bookverse.com" >> $GITHUB_STEP_SUMMARY
+            echo "- \`github-bookverse-web\` → alice.developer@bookverse.com" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Evidence Keys:**" >> $GITHUB_STEP_SUMMARY
+            echo "- Smart conflict resolution implemented" >> $GITHUB_STEP_SUMMARY
+            echo "- Keys distributed to all service repositories" >> $GITHUB_STEP_SUMMARY
+            echo "- Public key uploaded to JFrog Platform as trusted key" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 🎯 Next Steps:" >> $GITHUB_STEP_SUMMARY
+            echo "1. 🏗️ **Run service CI/CD workflows** to build and deploy applications" >> $GITHUB_STEP_SUMMARY
+            echo "2. 🧪 **Test the demo applications** using the provided endpoints" >> $GITHUB_STEP_SUMMARY
+            echo "3. 🔍 **Explore JFrog Platform** to see created resources" >> $GITHUB_STEP_SUMMARY
+            echo "4. 📖 **Check documentation** for detailed usage instructions" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Platform setup failed**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "🔍 **Check the logs above for error details**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 💡 Common causes:" >> $GITHUB_STEP_SUMMARY
+            echo "- 🔐 **Authentication issues** with JFrog platform" >> $GITHUB_STEP_SUMMARY
+            echo "- 🔒 **Insufficient permissions** for admin token" >> $GITHUB_STEP_SUMMARY
+            echo "- 🌐 **Network connectivity** problems" >> $GITHUB_STEP_SUMMARY
+            echo "- ⚠️ **Resource conflicts** (project/users already exist)" >> $GITHUB_STEP_SUMMARY
+            echo "- 🎯 **Missing prerequisites** (GitHub token, environment variables)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 🔧 Recommended actions:" >> $GITHUB_STEP_SUMMARY
+            echo "1. 🔍 **Review error logs** for specific failure points" >> $GITHUB_STEP_SUMMARY
+            echo "2. 🗑️ **Run Discover Cleanup workflow** to see existing resources" >> $GITHUB_STEP_SUMMARY
+            echo "3. 🧹 **Clean up conflicts** before retrying setup" >> $GITHUB_STEP_SUMMARY
+            echo "4. ✅ **Verify environment variables** and secrets are configured" >> $GITHUB_STEP_SUMMARY
+          fi

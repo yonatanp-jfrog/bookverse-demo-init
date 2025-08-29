@@ -35,47 +35,26 @@ jobs:
         env:
           JFROG_URL: ${{ vars.JFROG_URL }}
           JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
-          VERBOSITY: ${{ inputs.verbosity_level }}
+          PROJECT_KEY: 'bookverse'
         run: |
-          echo "🔍 DISCOVERY MODE: Finding resources to delete"
-          echo "=============================================="
-          echo ""
-          echo "This workflow ONLY discovers and reports - NO DELETION occurs"
-          echo ""
-          
-          # Create discovery-only script in the correct directory
+          # Run discovery only (no deletion)
           cd .github/scripts/setup
+          
+          # Copy the main script and modify it for discovery-only
           cp cleanup_project_based.sh discovery_only.sh
           
-          # Modify to stop after discovery (before get_user_approval)
-          cat > discovery_patch.sh << 'EOF'
-          echo ""
-          echo "🛡️ DISCOVERY COMPLETE - NO DELETION PERFORMED"
-          echo "=============================================="
-          echo ""
-          echo "📋 To execute the deletion:"
-          echo "  1. Review the preview above carefully"
-          echo "  2. Run 🗑️ Execute Cleanup workflow"
-          echo "  3. Set SKIP_PROTECTION=true for automated deletion"
-          echo ""
-          echo "💾 Preview saved to: $preview_file"
-          exit 0
-          EOF
-          
-          # Replace the user approval CALL (not the function definition) with discovery completion
-          sed -i '/if ! get_user_approval/,/^fi$/c\
-          # Discovery mode - show results and exit\
-          echo ""\
-          echo "🛡️ DISCOVERY COMPLETE - NO DELETION PERFORMED"\
-          echo "=============================================="\
-          echo ""\
-          echo "📋 To execute the deletion:"\
-          echo "  1. Review the preview above carefully"\
-          echo "  2. Run 🗑️ Execute Cleanup workflow"\
-          echo "  3. Set SKIP_PROTECTION=true for automated deletion"\
-          echo ""\
-          echo "💾 Preview saved to: $preview_file"\
-          exit 0' ./discovery_only.sh
+          # Remove the deletion phase - only keep discovery
+          sed -i '/# PHASE 2: EXECUTION/,$d' discovery_only.sh
+          echo 'echo "🛡️ DISCOVERY COMPLETE - NO DELETION PERFORMED"' >> discovery_only.sh
+          echo 'echo "=============================================="' >> discovery_only.sh
+          echo 'echo ""' >> discovery_only.sh
+          echo 'echo "📋 To execute the deletion:"' >> discovery_only.sh
+          echo 'echo "  1. Review the preview above carefully"' >> discovery_only.sh
+          echo 'echo "  2. Run 🗑️ Execute Cleanup workflow"' >> discovery_only.sh
+          echo 'echo "  3. Set SKIP_PROTECTION=true for automated deletion"' >> discovery_only.sh
+          echo 'echo ""' >> discovery_only.sh
+          echo 'echo "💾 Preview saved to: $preview_file"' >> discovery_only.sh
+          echo 'exit 0' >> discovery_only.sh
           
           # Run discovery from the correct directory
           bash ./discovery_only.sh
@@ -103,98 +82,15 @@ and is used by the cleanup workflow for safe deletion."
           else
             echo "⚠️ Warning: Cleanup report file not found"
           fi
-          
-          # Find the preview file and add it to job summary
-          preview_file=$(find /tmp -name "deletion_preview.txt" 2>/dev/null | head -1)
-          if [[ -f "$preview_file" ]]; then
-            echo "📋 Preview file found: $preview_file"
-          else
-            echo "⚠️ Preview file not found, will extract from temp directory"
-            preview_file="/tmp/bookverse_cleanup_*/deletion_preview.txt"
-          fi
 
       - name: 📋 Discovery Report Summary
         run: |
           echo "## 🔍 Cleanup Discovery Report" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "✅ **Discovery completed successfully**" >> $GITHUB_STEP_SUMMARY
-          echo "🔧 **Discovery Mode**: Detailed output (shows all discovered resources)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
-          # Find and include the detailed preview file content
-          preview_file=$(find /tmp -name "deletion_preview.txt" 2>/dev/null | head -1)
-          if [[ -f "$preview_file" ]]; then
-            echo "### 📋 Resources Discovered for Deletion:" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            
-            # Parse and format the preview file for better readability
-            echo "#### 📊 **Quick Summary**" >> $GITHUB_STEP_SUMMARY
-            repo_count=$(grep -c "❌ Repository:" "$preview_file" 2>/dev/null || echo "0")
-            user_count=$(grep -c "❌ User:" "$preview_file" 2>/dev/null || echo "0") 
-            app_count=$(grep -c "❌ Application:" "$preview_file" 2>/dev/null || echo "0")
-            stage_count=$(grep -c "❌ Stage:" "$preview_file" 2>/dev/null || echo "0")
-
-            build_count=$(grep -c "❌ Build:" "$preview_file" 2>/dev/null || echo "0")
-            
-            echo "| Resource Type | Count |" >> $GITHUB_STEP_SUMMARY
-            echo "|---------------|-------|" >> $GITHUB_STEP_SUMMARY
-            echo "| 📦 Repositories | $repo_count |" >> $GITHUB_STEP_SUMMARY
-            echo "| 👥 Users | $user_count |" >> $GITHUB_STEP_SUMMARY
-            echo "| 🚀 Applications | $app_count |" >> $GITHUB_STEP_SUMMARY
-            echo "| 🏷️ Stages | $stage_count |" >> $GITHUB_STEP_SUMMARY
-
-            echo "| 🔧 Builds | $build_count |" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            
-            # Extract detailed lists for each category
-            if grep -q "REPOSITORIES TO DELETE" "$preview_file"; then
-              echo "#### 📦 **Repositories**" >> $GITHUB_STEP_SUMMARY
-              grep "❌ Repository:" "$preview_file" | head -20 | sed 's/.*❌ Repository: /- `/' | sed 's/$/`/' >> $GITHUB_STEP_SUMMARY
-              echo "" >> $GITHUB_STEP_SUMMARY
-            fi
-            
-            if grep -q "USERS TO DELETE" "$preview_file"; then
-              echo "#### 👥 **Users**" >> $GITHUB_STEP_SUMMARY
-              grep "❌ User:" "$preview_file" | head -15 | sed 's/.*❌ User: /- `/' | sed 's/$/`/' >> $GITHUB_STEP_SUMMARY
-              echo "" >> $GITHUB_STEP_SUMMARY
-            fi
-            
-            if grep -q "APPLICATIONS TO DELETE" "$preview_file"; then
-              echo "#### 🚀 **Applications**" >> $GITHUB_STEP_SUMMARY
-              grep "❌ Application:" "$preview_file" | head -10 | sed 's/.*❌ Application: /- `/' | sed 's/$/`/' >> $GITHUB_STEP_SUMMARY
-              echo "" >> $GITHUB_STEP_SUMMARY
-            fi
-            
-            if grep -q "STAGES TO DELETE" "$preview_file"; then
-              echo "#### 🏷️ **Stages**" >> $GITHUB_STEP_SUMMARY
-              grep "❌ Stage:" "$preview_file" | head -5 | sed 's/.*❌ Stage: /- `/' | sed 's/$/`/' >> $GITHUB_STEP_SUMMARY
-              echo "" >> $GITHUB_STEP_SUMMARY
-            fi
-            
-            if grep -q "BUILDS TO DELETE" "$preview_file"; then
-              echo "#### 🔧 **Builds**" >> $GITHUB_STEP_SUMMARY
-              grep "❌ Build:" "$preview_file" | head -10 | sed 's/.*❌ Build: /- `/' | sed 's/$/`/' >> $GITHUB_STEP_SUMMARY
-              echo "" >> $GITHUB_STEP_SUMMARY
-            fi
-            
-            echo "<details>" >> $GITHUB_STEP_SUMMARY
-            echo "<summary>📄 <strong>Click to see complete raw discovery report</strong></summary>" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            cat "$preview_file" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            echo "</details>" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "### ⚠️ No preview file generated" >> $GITHUB_STEP_SUMMARY
-            echo "Discovery may have failed or no bookverse resources were found." >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Possible reasons:**" >> $GITHUB_STEP_SUMMARY
-            echo "- No BookVerse project resources exist" >> $GITHUB_STEP_SUMMARY
-            echo "- Discovery script failed" >> $GITHUB_STEP_SUMMARY
-            echo "- Resources exist in different project scope" >> $GITHUB_STEP_SUMMARY
-          fi
-          
-          echo "" >> $GITHUB_STEP_SUMMARY
+          # Add report details to job summary  
           echo "### 📋 Next Steps:" >> $GITHUB_STEP_SUMMARY
           echo "1. 👀 **Review the discovery report above** carefully" >> $GITHUB_STEP_SUMMARY
           echo "2. 🗑️ **Run Execute Cleanup workflow** to execute deletion" >> $GITHUB_STEP_SUMMARY

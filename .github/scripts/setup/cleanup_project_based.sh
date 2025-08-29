@@ -443,10 +443,11 @@ discover_project_stages() {
     fi
     
     if is_success "$code" && [[ -s "$stages_file" ]]; then
-        jq -r '.[]? | .name' "$stages_file" > "$filtered_stages" 2>/dev/null || touch "$filtered_stages"
+        # Extract unique stage names only (deduplicate)
+        jq -r '.[]? | .name' "$stages_file" | sort -u > "$filtered_stages" 2>/dev/null || touch "$filtered_stages"
         
         local count=$(wc -l < "$filtered_stages" 2>/dev/null || echo "0")
-        echo "🏷️ Found $count stages in project '$PROJECT_KEY'" >&2
+        echo "🏷️ Found $count unique stages in project '$PROJECT_KEY'" >&2
         
         if [[ "$count" -gt 0 ]] && [[ "$VERBOSITY" -ge 1 ]]; then
             echo "Project stages:" >&2
@@ -477,16 +478,17 @@ discover_project_oidc() {
     
     if is_success "$code" && [[ -s "$oidc_file" ]]; then
         # Filter for tokens that appear to be OIDC integrations related to this project:
-        # 1. Tokens with project name in description
-        # 2. Tokens scoped to this project
-        # 3. Tokens with GitHub/OIDC-related descriptions
+        # 1. Project-scoped tokens
+        # 2. Tokens with project name + github/oidc in description
+        # 3. Tokens with specific OIDC patterns 
         jq --arg project "$PROJECT_KEY" -r '
         .[] | select(
-            (.description? | contains($project)) or
             (.project_key? == $project) or
-            (.description? | test("(?i)(github|oidc|integration).*" + $project)) or
-            (.description? | test("(?i)" + $project + ".*(github|oidc|integration)")) or
-            (.subject? | contains($project))
+            (.description? | test("(?i)github.*" + $project)) or
+            (.description? | test("(?i)" + $project + ".*github")) or
+            (.description? | test("(?i)oidc.*" + $project)) or
+            (.description? | test("(?i)" + $project + ".*oidc")) or
+            ((.description? // "") | test("(?i)(github|oidc).*(integration|token)") and contains($project))
         ) | .token_id + " | " + (.description // "No description") + " | " + (.project_key // "global")
         ' "$oidc_file" > "$filtered_oidc" 2>/dev/null || touch "$filtered_oidc"
         

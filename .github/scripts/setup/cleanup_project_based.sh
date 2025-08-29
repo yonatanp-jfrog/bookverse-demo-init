@@ -408,49 +408,23 @@ discover_project_builds() {
 discover_project_stages() {
     echo "🔍 Discovering project stages (PROJECT-BASED)..." >&2
     
-    local stages_file="$TEMP_DIR/project_stages.json"
+    local lifecycle_file="$TEMP_DIR/project_lifecycle.json"
     local filtered_stages="$TEMP_DIR/project_stages.txt"
     
-    # PROJECT-LEVEL STAGE DISCOVERY: Only find stages that belong to THIS project
-    # Method 1: Try project-specific stages endpoint (v1) - these are project-level stages
-    local code=$(jfrog_api_call "GET" "/access/api/v1/projects/$PROJECT_KEY/stages" "$stages_file" "curl" "" "project-level stages v1")
+    # PROJECT-LEVEL STAGE DISCOVERY: Find stages from lifecycle configuration
+    # Method 1: Get lifecycle configuration - this contains project-specific stages
+    echo "Getting project lifecycle configuration..." >&2
+    local code=$(jfrog_api_call "GET" "/access/api/v2/lifecycle/?project_key=$PROJECT_KEY" "$lifecycle_file" "curl" "" "project lifecycle")
     
-    if ! is_success "$code"; then
-        # Method 2: Try alternate project-specific endpoint (v2)
-        echo "Trying alternate project-level stages endpoint..." >&2
-        code=$(jfrog_api_call "GET" "/access/api/v2/projects/$PROJECT_KEY/stages" "$stages_file" "curl" "" "project-level stages v2")
-        
-        if ! is_success "$code"; then
-            # Method 3: Get all stages and filter for BookVerse-related stages
-            echo "Getting all stages and filtering for project-level only..." >&2
-            code=$(jfrog_api_call "GET" "/access/api/v2/stages" "$stages_file" "curl" "" "all stages")
-            
-            if is_success "$code" && [[ -s "$stages_file" ]]; then
-                # Filter for stages related to this project:
-                # 1. Stages used in project lifecycle
-                # 2. Stages containing project repositories
-                # 3. Stages with project in scope (if scope field exists)
-                jq --arg project "$PROJECT_KEY" '
-                [.[] | select(
-                    (.used_in_lifecycles[]? == $project) or
-                    (.repositories[]? | contains($project)) or
-                    (.projectKey == $project) or
-                    (.scope == $project)
-                )]' "$stages_file" > "${stages_file}.filtered" 2>/dev/null || echo "[]" > "${stages_file}.filtered"
-                mv "${stages_file}.filtered" "$stages_file"
-            fi
-        fi
-    fi
-    
-    if is_success "$code" && [[ -s "$stages_file" ]]; then
-        # Extract unique stage names only (deduplicate)
-        jq -r '.[]? | .name' "$stages_file" | sort -u > "$filtered_stages" 2>/dev/null || touch "$filtered_stages"
+    if is_success "$code" && [[ -s "$lifecycle_file" ]]; then
+        # Extract stage names from lifecycle configuration
+        jq -r '.categories[]?.stages[]? | select(.scope == "project") | .name' "$lifecycle_file" > "$filtered_stages" 2>/dev/null || touch "$filtered_stages"
         
         local count=$(wc -l < "$filtered_stages" 2>/dev/null || echo "0")
-        echo "🏷️ Found $count unique stages in project '$PROJECT_KEY'" >&2
+        echo "🏷️ Found $count project lifecycle stages in '$PROJECT_KEY'" >&2
         
         if [[ "$count" -gt 0 ]] && [[ "$VERBOSITY" -ge 1 ]]; then
-            echo "Project stages:" >&2
+            echo "Project lifecycle stages:" >&2
             cat "$filtered_stages" | sed 's/^/  - /' >&2
         fi
         
@@ -458,9 +432,32 @@ discover_project_stages() {
         GLOBAL_STAGE_COUNT=$count
         return 0
     else
-        echo "❌ Project stage discovery failed (HTTP $code)" >&2
+        echo "⚠️ Project lifecycle not found, trying fallback methods..." >&2
+        
+        # Fallback: Try project-specific stages endpoints
+        code=$(jfrog_api_call "GET" "/access/api/v1/projects/$PROJECT_KEY/stages" "$lifecycle_file" "curl" "" "project-level stages v1")
+        
+        if ! is_success "$code"; then
+            # Final fallback: Filter global stages for project-specific ones
+            echo "Trying global stages with project filtering..." >&2
+            code=$(jfrog_api_call "GET" "/access/api/v2/stages" "$lifecycle_file" "curl" "" "all stages")
+            
+            if is_success "$code" && [[ -s "$lifecycle_file" ]]; then
+                # Filter for stages starting with project prefix
+                jq --arg project "$PROJECT_KEY" -r '.[] | select(.name | startswith($project + "-")) | .name' "$lifecycle_file" > "$filtered_stages" 2>/dev/null || touch "$filtered_stages"
+            fi
+        fi
+        
+        local count=$(wc -l < "$filtered_stages" 2>/dev/null || echo "0")
+        echo "🏷️ Found $count fallback stages in project '$PROJECT_KEY'" >&2
+        
+        if [[ "$count" -gt 0 ]] && [[ "$VERBOSITY" -ge 1 ]]; then
+            echo "Fallback stages:" >&2
+            cat "$filtered_stages" | sed 's/^/  - /' >&2
+        fi
+        
         # Count returned via global variable, function always returns 0 (success)
-        GLOBAL_STAGE_COUNT=0
+        GLOBAL_STAGE_COUNT=$count
         return 0
     fi
 }

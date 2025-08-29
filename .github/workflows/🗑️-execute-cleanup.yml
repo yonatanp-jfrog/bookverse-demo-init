@@ -37,11 +37,18 @@ jobs:
           jfrog config use bookverse-admin
 
       - name: Validate cleanup report freshness
+        env:
+          JFROG_URL: ${{ vars.JFROG_URL }}
+          JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
+          PROJECT_KEY: 'bookverse'
         run: |
           bash ./.github/scripts/setup/validate_cleanup_report.sh
 
       - name: Execute cleanup from report
         env:
+          JFROG_URL: ${{ vars.JFROG_URL }}
+          JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
+          PROJECT_KEY: 'bookverse'
           SKIP_PROTECTION: ${{ github.event.inputs.skip_protection }}
         run: |
           bash ./.github/scripts/setup/cleanup_from_report.sh

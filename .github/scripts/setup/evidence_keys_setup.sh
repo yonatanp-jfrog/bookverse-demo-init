@@ -98,19 +98,19 @@ upload_key_to_jfrog() {
   
   echo "📤 Uploading public key to JFrog trusted keys (alias: $alias)"
   
-  # Prepare public key content
-  local public_key_b64
-  public_key_b64=$(grep -v "BEGIN\|END" "$public_key_file" | tr -d '\n')
+  # Read public key content (use full PEM format including headers)
+  local public_key_content
+  public_key_content=$(cat "$public_key_file")
   
-  # Create JSON payload
+  # Create JSON payload with full PEM format (same as update_evidence_keys.sh)
   local payload
-  payload=$(cat << EOF
-{
-  "alias": "$alias",
-  "public_key": "$public_key_b64"
-}
-EOF
-)
+  payload=$(jq -n \
+    --arg alias "$alias" \
+    --arg public_key "$public_key_content" \
+    '{
+      "alias": $alias,
+      "public_key": $public_key
+    }')
   
   # Upload to JFrog Platform
   local response

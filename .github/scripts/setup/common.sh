@@ -7,24 +7,24 @@
 # This reduces boilerplate and standardizes error handling
 # =============================================================================
 
-# HTTP Status Codes
-readonly HTTP_OK=200
-readonly HTTP_CREATED=201
-readonly HTTP_NO_CONTENT=204
-readonly HTTP_BAD_REQUEST=400
-readonly HTTP_UNAUTHORIZED=401
-readonly HTTP_NOT_FOUND=404
-readonly HTTP_CONFLICT=409
-readonly HTTP_INTERNAL_ERROR=500
+# HTTP Status Codes (define once to avoid readonly re-declaration errors)
+[[ -z ${HTTP_OK+x} ]] && readonly HTTP_OK=200
+[[ -z ${HTTP_CREATED+x} ]] && readonly HTTP_CREATED=201
+[[ -z ${HTTP_NO_CONTENT+x} ]] && readonly HTTP_NO_CONTENT=204
+[[ -z ${HTTP_BAD_REQUEST+x} ]] && readonly HTTP_BAD_REQUEST=400
+[[ -z ${HTTP_UNAUTHORIZED+x} ]] && readonly HTTP_UNAUTHORIZED=401
+[[ -z ${HTTP_NOT_FOUND+x} ]] && readonly HTTP_NOT_FOUND=404
+[[ -z ${HTTP_CONFLICT+x} ]] && readonly HTTP_CONFLICT=409
+[[ -z ${HTTP_INTERNAL_ERROR+x} ]] && readonly HTTP_INTERNAL_ERROR=500
 
-# Color codes for output
-readonly RED='\033[0;31m'
-readonly GREEN='\033[0;32m'
-readonly YELLOW='\033[1;33m'
-readonly BLUE='\033[0;34m'
-readonly PURPLE='\033[0;35m'
-readonly CYAN='\033[0;36m'
-readonly NC='\033[0m' # No Color
+# Color codes for output (define once)
+[[ -z ${RED+x} ]] && readonly RED='\033[0;31m'
+[[ -z ${GREEN+x} ]] && readonly GREEN='\033[0;32m'
+[[ -z ${YELLOW+x} ]] && readonly YELLOW='\033[1;33m'
+[[ -z ${BLUE+x} ]] && readonly BLUE='\033[0;34m'
+[[ -z ${PURPLE+x} ]] && readonly PURPLE='\033[0;35m'
+[[ -z ${CYAN+x} ]] && readonly CYAN='\033[0;36m'
+[[ -z ${NC+x} ]] && readonly NC='\033[0m' # No Color
 
 # =============================================================================
 # ERROR HANDLING AND LOGGING

@@ -285,9 +285,11 @@ discover_project_repositories() {
         fi
         
         # Count returned via function return code, not echo
+        return $count
     else
         echo "❌ Project repository discovery failed (HTTP $code)" >&2
         # Count returned via function return code, not echo
+        return 0
     fi
 }
 
@@ -316,9 +318,11 @@ discover_project_users() {
         fi
         
         # Count returned via function return code, not echo
+        return $count
     else
         echo "❌ Project user discovery failed (HTTP $code)" >&2
         # Count returned via function return code, not echo
+        return 0
     fi
 }
 
@@ -344,9 +348,11 @@ discover_project_applications() {
         fi
         
         # Count returned via function return code, not echo
+        return $count
     else
         echo "❌ Project application discovery failed (HTTP $code)" >&2
         # Count returned via function return code, not echo
+        return 0
     fi
 }
 
@@ -381,10 +387,12 @@ discover_project_builds() {
         fi
         
         # Count returned via function return code, not echo
+        return $count
     else
         echo "❌ Failed to discover project builds (HTTP $code)" >&2
         touch "$filtered_builds"
         # Count returned via function return code, not echo
+        return 0
     fi
 }
 
@@ -431,9 +439,11 @@ discover_project_stages() {
         fi
         
         # Count returned via function return code, not echo
+        return $count
     else
         echo "❌ Project stage discovery failed (HTTP $code)" >&2
         # Count returned via function return code, not echo
+        return 0
     fi
 }
 

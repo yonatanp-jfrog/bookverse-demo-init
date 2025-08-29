@@ -57,6 +57,32 @@ To switch to a different JFrog Platform instance:
 
 See [SWITCH_JPD_PLATFORM.md](docs/SWITCH_JPD_PLATFORM.md) for detailed instructions.
 
+## 🔑 Evidence Key Management
+
+### Replace Evidence Keys
+Replace evidence keys across all BookVerse repositories with custom key pairs:
+
+1. Generate key pair locally:
+   ```bash
+   # ED25519 (Recommended)
+   openssl genpkey -algorithm ed25519 -out private.pem
+   openssl pkey -in private.pem -pubout -out public.pem
+   
+   # RSA 2048-bit
+   openssl genrsa -out private.pem 2048
+   openssl rsa -in private.pem -pubout -out public.pem
+   
+   # Elliptic Curve (secp256r1)
+   openssl ecparam -name secp256r1 -genkey -noout -out private.pem
+   openssl ec -in private.pem -pubout > public.pem
+   ```
+
+2. Go to **Actions** → **Replace Evidence Keys**
+3. Paste the private and public key contents
+4. The workflow will update all repositories and JFrog Platform
+
+See [REPLACE_EVIDENCE_KEYS.md](docs/REPLACE_EVIDENCE_KEYS.md) for detailed instructions.
+
 ### Easy Verbosity Control with Wrapper Scripts
 
 For convenience, we've created wrapper scripts that automatically set the correct verbosity level:

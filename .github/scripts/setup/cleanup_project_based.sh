@@ -444,6 +444,217 @@ discover_project_stages() {
 # PROJECT-BASED DELETION FUNCTIONS
 # =============================================================================
 
+# SPECIFIC DELETION FUNCTIONS - For cleanup from reports
+# These functions delete only the specific items provided in a file
+
+# Delete specific builds from a list file
+delete_specific_builds() {
+    local builds_file="$1"
+    local failed_count=0
+    
+    if [[ ! -f "$builds_file" ]]; then
+        echo "❌ Builds file not found: $builds_file" >&2
+        return 1
+    fi
+    
+    echo "🔧 Deleting specific builds from report..." >&2
+    
+    while IFS= read -r build_name; do
+        if [[ -n "$build_name" ]]; then
+            echo "  → Deleting build: $build_name"
+            # URL decode the build name for API calls
+            local decoded_build_name=$(printf '%b' "${build_name//%/\\x}")
+            
+            # Delete all build numbers for this build
+            local code=$(jfrog_api_call "DELETE" "/artifactory/api/build/$decoded_build_name?project=$PROJECT_KEY&deleteAll=1" "" "curl" "" "delete all builds for $decoded_build_name")
+            
+            if is_success "$code"; then
+                echo "    ✅ Build '$build_name' deleted successfully"
+            else
+                echo "    ❌ Failed to delete build '$build_name' (HTTP $code)"
+                ((failed_count++))
+            fi
+        fi
+    done < "$builds_file"
+    
+    if [[ $failed_count -gt 0 ]]; then
+        echo "❌ Failed to delete $failed_count builds" >&2
+        return 1
+    fi
+    
+    echo "✅ All specified builds deleted successfully" >&2
+    return 0
+}
+
+# Delete specific applications from a list file
+delete_specific_applications() {
+    local apps_file="$1"
+    local failed_count=0
+    
+    if [[ ! -f "$apps_file" ]]; then
+        echo "❌ Applications file not found: $apps_file" >&2
+        return 1
+    fi
+    
+    echo "🚀 Deleting specific applications from report..." >&2
+    
+    while IFS= read -r app_key; do
+        if [[ -n "$app_key" ]]; then
+            echo "  → Deleting application: $app_key"
+            
+            local code=$(jfrog_api_call "DELETE" "/apptrust/api/v1/applications/$app_key" "" "curl" "" "delete application $app_key")
+            
+            if is_success "$code"; then
+                echo "    ✅ Application '$app_key' deleted successfully"
+            else
+                echo "    ❌ Failed to delete application '$app_key' (HTTP $code)"
+                ((failed_count++))
+            fi
+        fi
+    done < "$apps_file"
+    
+    if [[ $failed_count -gt 0 ]]; then
+        echo "❌ Failed to delete $failed_count applications" >&2
+        return 1
+    fi
+    
+    echo "✅ All specified applications deleted successfully" >&2
+    return 0
+}
+
+# Delete specific repositories from a list file
+delete_specific_repositories() {
+    local repos_file="$1"
+    local failed_count=0
+    
+    if [[ ! -f "$repos_file" ]]; then
+        echo "❌ Repositories file not found: $repos_file" >&2
+        return 1
+    fi
+    
+    echo "📦 Deleting specific repositories from report..." >&2
+    
+    while IFS= read -r repo_key; do
+        if [[ -n "$repo_key" ]]; then
+            echo "  → Deleting repository: $repo_key"
+            
+            # Purge artifacts first
+            echo "    Purging artifacts..."
+            jf rt del "${repo_key}/**" --quiet 2>/dev/null || echo "    Warning: Artifact purge failed"
+            
+            # Delete repository via REST API
+            echo "    Deleting repository via REST API..."
+            local code=$(jfrog_api_call "DELETE" "/artifactory/api/repositories/$repo_key" "" "curl" "" "delete repository $repo_key")
+            
+            if is_success "$code"; then
+                echo "    ✅ Repository '$repo_key' deleted successfully"
+            else
+                echo "    ❌ Failed to delete repository '$repo_key' (HTTP $code)"
+                ((failed_count++))
+            fi
+        fi
+    done < "$repos_file"
+    
+    if [[ $failed_count -gt 0 ]]; then
+        echo "❌ Failed to delete $failed_count repositories" >&2
+        return 1
+    fi
+    
+    echo "✅ All specified repositories deleted successfully" >&2
+    return 0
+}
+
+# Delete specific users from a list file
+delete_specific_users() {
+    local users_file="$1"
+    local failed_count=0
+    
+    if [[ ! -f "$users_file" ]]; then
+        echo "❌ Users file not found: $users_file" >&2
+        return 1
+    fi
+    
+    echo "👥 Deleting specific users from report..." >&2
+    
+    while IFS= read -r username; do
+        if [[ -n "$username" ]]; then
+            echo "  → Deleting user: $username"
+            
+            local code=$(jfrog_api_call "DELETE" "/access/api/v2/users/$username" "" "curl" "" "delete user $username")
+            
+            if is_success "$code"; then
+                echo "    ✅ User '$username' deleted successfully"
+            else
+                echo "    ❌ Failed to delete user '$username' (HTTP $code)"
+                ((failed_count++))
+            fi
+        fi
+    done < "$users_file"
+    
+    if [[ $failed_count -gt 0 ]]; then
+        echo "❌ Failed to delete $failed_count users" >&2
+        return 1
+    fi
+    
+    echo "✅ All specified users deleted successfully" >&2
+    return 0
+}
+
+# Delete specific stages from a list file
+delete_specific_stages() {
+    local stages_file="$1"
+    local failed_count=0
+    
+    if [[ ! -f "$stages_file" ]]; then
+        echo "❌ Stages file not found: $stages_file" >&2
+        return 1
+    fi
+    
+    echo "🏷️ Deleting specific stages from report..." >&2
+    
+    while IFS= read -r stage_name; do
+        if [[ -n "$stage_name" ]]; then
+            echo "  → Deleting stage: $stage_name"
+            
+            local code=$(jfrog_api_call "DELETE" "/access/api/v2/stages/$stage_name" "" "curl" "" "delete stage $stage_name")
+            
+            if is_success "$code"; then
+                echo "    ✅ Stage '$stage_name' deleted successfully"
+            else
+                echo "    ❌ Failed to delete stage '$stage_name' (HTTP $code)"
+                ((failed_count++))
+            fi
+        fi
+    done < "$stages_file"
+    
+    if [[ $failed_count -gt 0 ]]; then
+        echo "❌ Failed to delete $failed_count stages" >&2
+        return 1
+    fi
+    
+    echo "✅ All specified stages deleted successfully" >&2
+    return 0
+}
+
+# Final project deletion function
+delete_project_final() {
+    local project_key="$1"
+    
+    echo "🎯 Attempting final project deletion: $project_key" >&2
+    
+    # Try to delete the project
+    local code=$(jfrog_api_call "DELETE" "/access/api/v2/projects/$project_key" "" "curl" "" "delete project $project_key")
+    
+    if is_success "$code"; then
+        echo "✅ Project '$project_key' deleted successfully" >&2
+        return 0
+    else
+        echo "❌ Failed to delete project '$project_key' (HTTP $code)" >&2
+        echo "💡 This usually indicates there are still resources in the project" >&2
+        return 1
+    fi
+}
+
 # 🚨 EMERGENCY SAFETY CHECK: Verify repository belongs to project
 verify_repository_project_membership() {
     local repo_key="$1"

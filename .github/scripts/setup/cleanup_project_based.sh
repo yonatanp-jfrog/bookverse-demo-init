@@ -80,12 +80,8 @@ set -e
 
 source "$(dirname "$0")/common.sh"
 
-# Constants
-readonly HTTP_OK=200
-readonly HTTP_CREATED=201
-readonly HTTP_NO_CONTENT=204
-readonly HTTP_BAD_REQUEST=400
-readonly HTTP_NOT_FOUND=404
+# Constants (HTTP status codes defined in common.sh)
+# Additional constants (HTTP status codes inherited from common.sh)
 
 TEMP_DIR="/tmp/bookverse_cleanup_$$"
 mkdir -p "$TEMP_DIR"

@@ -39,12 +39,7 @@ else
     export CI_ENVIRONMENT="false"
 fi
 
-# HTTP Status codes
-readonly HTTP_OK=200
-readonly HTTP_CREATED=201
-readonly HTTP_NO_CONTENT=204
-readonly HTTP_BAD_REQUEST=400
-readonly HTTP_NOT_FOUND=404
+# HTTP Status codes (inherited from common.sh)
 
 # Create temp directory
 TEMP_DIR="/tmp/bookverse_cleanup_$$"

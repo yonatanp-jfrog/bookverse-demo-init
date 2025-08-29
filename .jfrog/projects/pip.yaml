@@ -1,0 +1,5 @@
+version: 1
+type: pip
+resolver:
+    repo: bookverse-pypi-virtual
+    serverId: bookverse-admin

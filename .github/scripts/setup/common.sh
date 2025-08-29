@@ -93,8 +93,8 @@ log_config() {
 # =============================================================================
 
 # Make HTTP API call with standardized error handling
-# Usage: make_api_call METHOD URL [DATA] [OUTPUT_FILE]
-make_api_call() {
+# Usage: jfrog_api_call METHOD URL [DATA] [OUTPUT_FILE]  
+jfrog_api_call() {
     local method="$1"
     local url="$2"
     local data="${3:-}"
@@ -136,7 +136,7 @@ make_api_call() {
 resource_exists() {
     local url="$1"
     local code
-    code=$(make_api_call GET "$url")
+    code=$(jfrog_api_call GET "$url")
     [[ "$code" -eq $HTTP_OK ]]
 }
 
@@ -436,7 +436,7 @@ show_config() {
     log_config "Project Key: ${PROJECT_KEY}"
     log_config "Project Name: ${PROJECT_DISPLAY_NAME}"
     log_config "JFrog URL: ${JFROG_URL}"
-    log_config "Local Stages: ${LOCAL_STAGES[*]}"
+    log_config "Non-Prod Stages: ${NON_PROD_STAGES[*]}"
     log_config "Production Stage: ${PROD_STAGE}"
 }
 
@@ -448,7 +448,7 @@ validate_jfrog_connectivity() {
     
     # Test system ping
     local ping_code
-    ping_code=$(make_api_call GET "${url_no_slash}/access/api/v1/system/ping")
+    ping_code=$(jfrog_api_call GET "${url_no_slash}/access/api/v1/system/ping")
     if [[ "$ping_code" -eq $HTTP_OK ]]; then
         log_success "System ping successful (HTTP $ping_code)"
     else
@@ -458,7 +458,7 @@ validate_jfrog_connectivity() {
     
     # Test API access
     local projects_code
-    projects_code=$(make_api_call GET "${url_no_slash}/access/api/v1/projects")
+    projects_code=$(jfrog_api_call GET "${url_no_slash}/access/api/v1/projects")
     if [[ "$projects_code" -eq $HTTP_OK ]]; then
         log_success "Projects API accessible (HTTP $projects_code)"
     else
@@ -473,7 +473,7 @@ validate_jfrog_connectivity() {
 # Export all functions for use in other scripts
 export -f setup_error_handling error_handler
 export -f log_info log_success log_warning log_error log_step log_config
-export -f make_api_call resource_exists handle_api_response
+export -f jfrog_api_call resource_exists handle_api_response
 export -f build_project_payload build_user_payload build_application_payload
 export -f build_stage_payload build_oidc_integration_payload build_oidc_mapping_payload
 export -f init_script finalize_script process_batch 

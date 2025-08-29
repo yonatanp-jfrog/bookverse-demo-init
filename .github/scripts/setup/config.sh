@@ -22,44 +22,25 @@ export DOCKER_EXTERNAL_PROD_REPO="docker-external-prod"
 export PYPI_LOCAL_REPO="pypi-local"
 
 # Stage Configuration
-export LOCAL_STAGES=("DEV" "QA" "STAGING")  # Local stages to create (PROD is always last)
-export PROD_STAGE="PROD"                   # Production stage (always present, always last)
+export NON_PROD_STAGES=("DEV" "QA" "STAGING")  # Non-production stages to create (PROD is global)
+export PROD_STAGE="PROD"                       # Production stage (global, not project-specific)
+
+# API and Integration Constants
+export GITHUB_ACTIONS_ISSUER_URL="https://token.actions.githubusercontent.com/"
+export JFROG_CLI_SERVER_ID="bookverse-admin"
+export DEFAULT_RSA_KEY_SIZE=2048
+export DEFAULT_API_RETRIES=3
+export API_TIMEOUT=30
+
+# Temporary Directory Configuration
+export TEMP_DIR_PREFIX="bookverse_cleanup"
+export CACHE_TTL_SECONDS=300  # 5 minutes cache for API responses
 
 # =============================================================================
-# HELPER FUNCTIONS
+# HELPER FUNCTIONS - MOVED TO common.sh
 # =============================================================================
-
-# Function to validate required environment variables
-validate_environment() {
-    local missing_vars=()
-    
-    if [[ -z "${JFROG_ADMIN_TOKEN}" ]]; then
-        missing_vars+=("JFROG_ADMIN_TOKEN")
-    fi
-    
-    if [[ -z "${JFROG_URL}" ]]; then
-        missing_vars+=("JFROG_URL")
-    fi
-    
-    if [[ ${#missing_vars[@]} -gt 0 ]]; then
-        echo "❌ Error: Missing required environment variables:"
-        printf '   - %s\n' "${missing_vars[@]}"
-        echo ""
-        echo "Please set these variables and try again."
-        exit 1
-    fi
-}
-
-# Function to display current configuration
-show_config() {
-    echo "🔧 Current BookVerse Configuration:"
-    echo "   Project Key: ${PROJECT_KEY}"
-    echo "   Project Name: ${PROJECT_DISPLAY_NAME}"
-    echo "   JFrog URL: ${JFROG_URL}"
-    echo "   Local Stages: ${LOCAL_STAGES[*]}"
-    echo "   Production Stage: ${PROD_STAGE}"
-    echo ""
-}
+# Note: validate_environment() and show_config() functions have been
+# consolidated into common.sh to eliminate duplication
 
 # =============================================================================
 # AUTO-LOAD CONFIGURATION

@@ -1,13 +1,13 @@
-# Switch JFrog Platform Deployment (JPD)
+# Switch JFrog Platform Deployment
 
 ## Overview
 
-The BookVerse demo provides tools to easily switch between different JFrog Platform Deployments (JPDs). This is useful when:
+The BookVerse demo provides tools to easily switch between different JFrog Platform deployments. This is useful when:
 
-- Moving from a trial to a production JPD instance
-- Switching between different organizational JPD platforms
+- Moving from a trial to a production JFrog Platform instance
+- Switching between different organizational JFrog Platform instances
 - Testing the demo on different JFrog Platform configurations
-- Migrating between JPD regions or deployments
+- Migrating between JFrog Platform regions or deployments
 
 ## Available Methods
 
@@ -16,9 +16,9 @@ The BookVerse demo provides tools to easily switch between different JFrog Platf
 Use the automated GitHub Actions workflow for a seamless switch:
 
 1. **Navigate to Actions**: Go to the `bookverse-demo-init` repository → Actions tab
-2. **Select Workflow**: Choose "🔄 Switch JFrog Platform Deployment (JPD)"
+2. **Select Workflow**: Choose "🔄 Switch JFrog Platform"
 3. **Run Workflow**: Click "Run workflow" and provide:
-   - **JPD Host**: Your new platform URL (e.g., `https://mycompany.jfrog.io`)
+   - **Platform Host**: Your new platform URL (e.g., `https://mycompany.jfrog.io`)
    - **Admin Token**: Admin token for the new platform
    - **Confirmation**: Type `SWITCH` to confirm
 
@@ -47,7 +47,7 @@ cd bookverse-demo-init
 
 ## What Gets Updated
 
-The JPD switch process updates the following in all BookVerse repositories:
+The platform switch process updates the following in all BookVerse repositories:
 
 ### GitHub Actions Secrets
 - `JFROG_ADMIN_TOKEN` → New admin token

@@ -44,7 +44,7 @@ GITHUB_ORG="yonatanp-jfrog"
 DRY_RUN=false
 VERBOSE=false
 GENERATE_KEYS=false
-KEY_TYPE="rsa"
+KEY_TYPE="rsa"  # Uses DEFAULT_RSA_KEY_SIZE from config.sh
 TEMP_DIR=""
 UPDATE_JFROG=true
 JFROG_URL="${JFROG_URL:-}"
@@ -275,9 +275,9 @@ generate_keys() {
     
     case "$KEY_TYPE" in
         "rsa")
-            openssl genrsa -out "$PRIVATE_KEY_FILE" 2048
+            openssl genrsa -out "$PRIVATE_KEY_FILE" ${DEFAULT_RSA_KEY_SIZE:-2048}
             openssl rsa -in "$PRIVATE_KEY_FILE" -pubout -out "$PUBLIC_KEY_FILE"
-            KEY_ALGORITHM="RSA 2048-bit"
+            KEY_ALGORITHM="RSA ${DEFAULT_RSA_KEY_SIZE:-2048}-bit"
             ;;
         "ec")
             openssl ecparam -name secp256r1 -genkey -noout -out "$PRIVATE_KEY_FILE"

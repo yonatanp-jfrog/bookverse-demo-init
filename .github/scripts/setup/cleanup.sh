@@ -28,8 +28,7 @@ trap 'error_handler ${LINENO} $?' ERR
 # CONFIGURATION & CONSTANTS
 # =============================================================================
 
-source "$(dirname "$0")/config.sh"
-validate_environment
+source "$(dirname "$0")/common.sh"
 
 VERBOSITY="${VERBOSITY:-1}"
 CI_ENVIRONMENT="${CI:-false}"
@@ -64,8 +63,8 @@ touch "$HTTP_DEBUG_LOG"
 echo "HTTP debug log: $HTTP_DEBUG_LOG"
 echo "" 
 
-# Resource configuration function - more portable than associative arrays
-get_resource_config() {
+# API endpoint configuration function - more portable than associative arrays
+get_api_endpoint_config() {
     local resource_type="$1"
     case "$resource_type" in
         "repositories") echo "/artifactory/api/repositories?project=$PROJECT_KEY|key|prefix|jf|repositories|/artifactory/api/repositories/{item}" ;;
@@ -211,7 +210,7 @@ apply_filter() {
 # Enhanced discovery function with project fallback for project resource
 discover_resource() {
     local resource_type="$1"
-    local config="$(get_resource_config "$resource_type")"
+    local config="$(get_api_endpoint_config "$resource_type")"
     IFS='|' read -r endpoint key_field filter_type client display_name delete_pattern <<< "$config"
     
     echo "Discovering $display_name with '$PROJECT_KEY' prefix..." >&2
@@ -283,7 +282,7 @@ discover_resource() {
 # Generic deletion function for all resource types  
 delete_resource() {
     local resource_type="$1" count="$2"
-    local config="$(get_resource_config "$resource_type")"
+    local config="$(get_api_endpoint_config "$resource_type")"
     IFS='|' read -r endpoint key_field filter_type client display_name delete_pattern <<< "$config"
     
     echo "Starting $display_name deletion..."

@@ -78,8 +78,7 @@ set -e
 # - ALL RESOURCES: Look for project membership, not names containing 'bookverse'
 # =============================================================================
 
-source "$(dirname "$0")/config.sh"
-validate_environment
+source "$(dirname "$0")/common.sh"
 
 # Constants
 readonly HTTP_OK=200
@@ -109,7 +108,7 @@ touch "$HTTP_DEBUG_LOG"
 # HELPER FUNCTIONS
 # =============================================================================
 
-log_api_call() {
+log_http_request() {
     local method="$1" endpoint="$2" code="$3" description="$4"
     echo "[API] $method $endpoint -> HTTP $code ($description)" >> "$HTTP_DEBUG_LOG"
 }
@@ -125,7 +124,7 @@ is_not_found() {
 }
 
 # Enhanced API call with better debugging
-make_api_call() {
+jfrog_api_call() {
     local method="$1" endpoint="$2" output_file="$3" client="$4"
     local data_payload="${5:-}"
     local description="${6:-}"
@@ -182,7 +181,7 @@ make_api_call() {
         fi
     fi
     
-    log_api_call "$method" "$endpoint" "$code" "$description"
+    log_http_request "$method" "$endpoint" "$code" "$description"
     
     # Log response body for non-success codes
     if [[ "$code" != 2* ]] && [[ -s "$output_file" ]]; then
@@ -230,32 +229,15 @@ discover_project_repositories() {
     # Try multiple repository discovery methods for project-based repositories
     local code=404  # Default to not found
     
-    # Method 1: Try JFrog CLI to list repositories (most reliable)
-    echo "Trying JFrog CLI repository discovery..." >&2
-    if jf rt repo-list --json > "$repos_file" 2>/dev/null; then
-        code=200
-        echo "CLI repository discovery successful" >&2
-    else
-        echo "CLI repository discovery failed, trying REST API..." >&2
-        
-        # Method 2: Try REST API via curl
-        code=$(make_api_call "GET" "/artifactory/api/repositories" "$repos_file" "curl" "" "all repositories")
-        
-        if ! is_success "$code"; then
-            # Method 3: Try different API endpoint
-            echo "Trying alternate repository endpoint..." >&2
-            code=$(make_api_call "GET" "/artifactory/api/repositories/list" "$repos_file" "curl" "" "repository list")
-            
-            if ! is_success "$code"; then
-                # Method 4: Try JFrog CLI with different approach
-                echo "Trying CLI configuration list..." >&2
-                if jf rt config show --json > "$repos_file" 2>/dev/null; then
-                    code=200
-                else
-                    echo "All repository discovery methods failed" >&2
-                fi
-            fi
-        fi
+    # Use REST API directly (consistent, reliable, no CLI dependency)
+    echo "Discovering repositories via REST API..." >&2
+    
+    code=$(jfrog_api_call "GET" "/artifactory/api/repositories" "$repos_file" "curl" "" "all repositories")
+    
+    if ! is_success "$code"; then
+        # Single fallback: try alternate endpoint
+        echo "Trying alternate repository endpoint..." >&2
+        code=$(jfrog_api_call "GET" "/artifactory/api/repositories/list" "$repos_file" "curl" "" "repository list")
     fi
     
     # Filter repositories by project key if we got data
@@ -318,7 +300,7 @@ discover_project_users() {
     local filtered_users="$TEMP_DIR/project_users.txt"
     
     # Use project-specific user endpoint - this finds actual project members
-    local code=$(make_api_call "GET" "/access/api/v1/projects/$PROJECT_KEY/users" "$users_file" "curl" "" "project users")
+    local code=$(jfrog_api_call "GET" "/access/api/v1/projects/$PROJECT_KEY/users" "$users_file" "curl" "" "project users")
     
     if is_success "$code" && [[ -s "$users_file" ]]; then
         # Extract user names from project members (not filtering by email domain)
@@ -349,7 +331,7 @@ discover_project_applications() {
     local filtered_apps="$TEMP_DIR/project_applications.txt"
     
     # Use correct project_key parameter as specified in API documentation
-    local code=$(make_api_call "GET" "/apptrust/api/v1/applications?project_key=$PROJECT_KEY" "$apps_file" "curl" "" "project applications")
+    local code=$(jfrog_api_call "GET" "/apptrust/api/v1/applications?project_key=$PROJECT_KEY" "$apps_file" "curl" "" "project applications")
     
     if is_success "$code" && [[ -s "$apps_file" ]]; then
         jq -r '.[] | .application_key' "$apps_file" > "$filtered_apps" 2>/dev/null || touch "$filtered_apps"
@@ -377,7 +359,7 @@ discover_project_builds() {
     local filtered_builds="$TEMP_DIR/project_builds.txt"
     
     # Use project-specific build discovery API (user's correct approach)
-    local code=$(make_api_call "GET" "/artifactory/api/build?project=$PROJECT_KEY" "$builds_file" "curl" "" "project builds")
+    local code=$(jfrog_api_call "GET" "/artifactory/api/build?project=$PROJECT_KEY" "$builds_file" "curl" "" "project builds")
     
     if is_success "$code" && [[ -s "$builds_file" ]]; then
         echo "✅ Successfully discovered builds for project '$PROJECT_KEY'" >&2
@@ -416,17 +398,17 @@ discover_project_stages() {
     
     # PROJECT-LEVEL STAGE DISCOVERY: Only find stages that belong to THIS project
     # Method 1: Try project-specific stages endpoint (v1) - these are project-level stages
-    local code=$(make_api_call "GET" "/access/api/v1/projects/$PROJECT_KEY/stages" "$stages_file" "curl" "" "project-level stages v1")
+    local code=$(jfrog_api_call "GET" "/access/api/v1/projects/$PROJECT_KEY/stages" "$stages_file" "curl" "" "project-level stages v1")
     
     if ! is_success "$code"; then
         # Method 2: Try alternate project-specific endpoint (v2)
         echo "Trying alternate project-level stages endpoint..." >&2
-        code=$(make_api_call "GET" "/access/api/v2/projects/$PROJECT_KEY/stages" "$stages_file" "curl" "" "project-level stages v2")
+        code=$(jfrog_api_call "GET" "/access/api/v2/projects/$PROJECT_KEY/stages" "$stages_file" "curl" "" "project-level stages v2")
         
         if ! is_success "$code"; then
             # Method 3: Get all stages and filter ONLY for this project's stages (not global)
             echo "Getting all stages and filtering for project-level only..." >&2
-            code=$(make_api_call "GET" "/access/api/v2/stages" "$stages_file" "curl" "" "all stages")
+            code=$(jfrog_api_call "GET" "/access/api/v2/stages" "$stages_file" "curl" "" "all stages")
             
             if is_success "$code" && [[ -s "$stages_file" ]]; then
                 # Filter for PROJECT-LEVEL stages belonging to this project (not global stages)
@@ -482,27 +464,20 @@ delete_project_repositories() {
                 echo "    Purging artifacts..."
                 jf rt del "${repo_key}/**" --quiet 2>/dev/null || echo "    Warning: Artifact purge failed"
                 
-                # Delete repository using JFrog CLI (HTTP 405 fix)
-                echo "    Deleting repository via CLI..."
-                if jf rt repo-delete "$repo_key" --force --quiet 2>/dev/null; then
-                    echo "    ✅ Repository '$repo_key' deleted successfully (CLI)"
+                # Use REST API directly (consistent, reliable, no CLI dependency)
+                echo "    Deleting repository via REST API..."
+                local code=$(jfrog_api_call "DELETE" "/artifactory/api/repositories/$repo_key" "$TEMP_DIR/delete_repo_${repo_key}.txt" "curl" "" "delete repository $repo_key")
+                
+                if is_success "$code"; then
+                    echo "    ✅ Repository '$repo_key' deleted successfully (HTTP $code)"
+                    ((deleted_count++))
+                elif is_not_found "$code"; then
+                    echo "    ⚠️ Repository '$repo_key' not found or already deleted (HTTP $code)"
                     ((deleted_count++))
                 else
-                    # Fallback: Try REST API DELETE
-                    echo "    CLI deletion failed, trying REST API..."
-                    local code=$(make_api_call "DELETE" "/artifactory/api/repositories/$repo_key" "$TEMP_DIR/delete_repo_${repo_key}.txt" "curl" "" "delete repository $repo_key")
-                    
-                    if is_success "$code"; then
-                        echo "    ✅ Repository '$repo_key' deleted successfully (REST API - HTTP $code)"
-                        ((deleted_count++))
-                    elif is_not_found "$code"; then
-                        echo "    ⚠️ Repository '$repo_key' not found or already deleted (HTTP $code)"
-                        ((deleted_count++))
-                    else
-                        echo "    ❌ Failed to delete repository '$repo_key' (HTTP $code)"
-                        echo "    Response: $(cat "$TEMP_DIR/delete_repo_${repo_key}.txt" 2>/dev/null || echo 'No response')"
-                        ((failed_count++))
-                    fi
+                    echo "    ❌ Failed to delete repository '$repo_key' (HTTP $code)"
+                    echo "    Response: $(cat "$TEMP_DIR/delete_repo_${repo_key}.txt" 2>/dev/null || echo 'No response')"
+                    ((failed_count++))
                 fi
             fi
         done < "$repos_file"
@@ -530,7 +505,7 @@ delete_project_users() {
             if [[ -n "$username" ]]; then
                 echo "  → Removing user from project: $username"
                 
-                local code=$(make_api_call "DELETE" "/access/api/v1/projects/$PROJECT_KEY/users/$username" "$TEMP_DIR/delete_user_${username}.txt" "curl" "" "remove project user $username")
+                local code=$(jfrog_api_call "DELETE" "/access/api/v1/projects/$PROJECT_KEY/users/$username" "$TEMP_DIR/delete_user_${username}.txt" "curl" "" "remove project user $username")
                 
                 if is_success "$code"; then
                     echo "    ✅ User '$username' removed from project successfully (HTTP $code)"
@@ -582,7 +557,7 @@ delete_project_applications() {
                 
                 # Double-check this app is actually in our target project
                 local app_verify_file="$TEMP_DIR/verify_${app_key}.json"
-                local verify_code=$(make_api_call "GET" "/apptrust/api/v1/applications?project_key=$PROJECT_KEY" "$app_verify_file" "curl" "" "verify app in project")
+                local verify_code=$(jfrog_api_call "GET" "/apptrust/api/v1/applications?project_key=$PROJECT_KEY" "$app_verify_file" "curl" "" "verify app in project")
                 
                 local app_confirmed=false
                 if is_success "$verify_code" && [[ -s "$app_verify_file" ]]; then
@@ -602,7 +577,7 @@ delete_project_applications() {
                     # Get and delete versions first
                     echo "    Deleting versions for confirmed project application..."
                     local versions_file="$TEMP_DIR/${app_key}_versions.json"
-                    local code_versions=$(make_api_call "GET" "/apptrust/api/v1/applications/$app_key/versions?project_key=$PROJECT_KEY" "$versions_file" "curl" "" "get app versions")
+                    local code_versions=$(jfrog_api_call "GET" "/apptrust/api/v1/applications/$app_key/versions?project_key=$PROJECT_KEY" "$versions_file" "curl" "" "get app versions")
                     
                     if is_success "$code_versions" && [[ -s "$versions_file" ]]; then
                         # Extract versions using portable method (no mapfile dependency)
@@ -614,7 +589,7 @@ delete_project_applications() {
                             
                             # API deletion (CLI commands don't exist)
                             local version_delete_file="$TEMP_DIR/delete_version_${app_key}_${ver}.json"
-                            local ver_code=$(make_api_call "DELETE" "/apptrust/api/v1/applications/$app_key/versions/$ver?project_key=$PROJECT_KEY" "$version_delete_file" "curl" "" "delete version $ver")
+                            local ver_code=$(jfrog_api_call "DELETE" "/apptrust/api/v1/applications/$app_key/versions/$ver?project_key=$PROJECT_KEY" "$version_delete_file" "curl" "" "delete version $ver")
                             if is_success "$ver_code"; then
                                 echo "        ✅ Version $ver deleted successfully"
                             else
@@ -626,7 +601,7 @@ delete_project_applications() {
                     # Delete application via API (CLI commands don't exist)
                     echo "    Deleting application via API (project-verified)..."
                     local app_delete_file="$TEMP_DIR/delete_app_${app_key}.json"
-                    code=$(make_api_call "DELETE" "/apptrust/api/v1/applications/$app_key?project_key=$PROJECT_KEY" "$app_delete_file" "curl" "" "delete application $app_key")
+                    code=$(jfrog_api_call "DELETE" "/apptrust/api/v1/applications/$app_key?project_key=$PROJECT_KEY" "$app_delete_file" "curl" "" "delete application $app_key")
                     if is_success "$code"; then
                         echo "    ✅ Application '$app_key' deleted successfully (HTTP $code)"
                     else
@@ -686,7 +661,7 @@ delete_project_builds() {
                 fi
                 
                 echo "    Getting build numbers for '$decoded_build_name'..."
-                local code=$(make_api_call "GET" "/artifactory/api/build/$decoded_build_name?project=$PROJECT_KEY" "$build_details_file" "curl" "" "get build numbers")
+                local code=$(jfrog_api_call "GET" "/artifactory/api/build/$decoded_build_name?project=$PROJECT_KEY" "$build_details_file" "curl" "" "get build numbers")
                 
                 if is_success "$code" && [[ -s "$build_details_file" ]]; then
                     # Extract build numbers
@@ -714,7 +689,7 @@ delete_project_builds() {
                         local delete_response_file="$TEMP_DIR/delete_build_${decoded_build_name}.json"
                         
                         # Use correct build deletion API
-                        code=$(make_api_call "POST" "/artifactory/api/build/delete" "$delete_response_file" "curl" "$delete_payload" "delete build $decoded_build_name")
+                        code=$(jfrog_api_call "POST" "/artifactory/api/build/delete" "$delete_response_file" "curl" "$delete_payload" "delete build $decoded_build_name")
                         
                         if is_success "$code"; then
                             echo "    ✅ Build '$decoded_build_name' deleted successfully (HTTP $code)"
@@ -763,12 +738,12 @@ delete_project_stages() {
                 echo "  → Deleting project-level stage: $stage_name"
                 
                 # Delete project-level stage using the project-scoped endpoint
-                local code=$(make_api_call "DELETE" "/access/api/v1/projects/$PROJECT_KEY/stages/$stage_name" "$TEMP_DIR/delete_stage_${stage_name}.txt" "curl" "" "delete project stage $stage_name")
+                local code=$(jfrog_api_call "DELETE" "/access/api/v1/projects/$PROJECT_KEY/stages/$stage_name" "$TEMP_DIR/delete_stage_${stage_name}.txt" "curl" "" "delete project stage $stage_name")
                 
                 if ! is_success "$code"; then
                     # Fallback to v2 endpoint
                     echo "    Trying alternate deletion endpoint..."
-                    code=$(make_api_call "DELETE" "/access/api/v2/stages/$stage_name?projectKey=$PROJECT_KEY" "$TEMP_DIR/delete_stage_${stage_name}_v2.txt" "curl" "" "delete project stage v2 $stage_name")
+                    code=$(jfrog_api_call "DELETE" "/access/api/v2/stages/$stage_name?projectKey=$PROJECT_KEY" "$TEMP_DIR/delete_stage_${stage_name}_v2.txt" "curl" "" "delete project stage v2 $stage_name")
                 fi
                 
                 if is_success "$code"; then
@@ -815,7 +790,7 @@ delete_project() {
     echo "🗑️ Attempting to delete project '$PROJECT_KEY'..."
     
     # Try force deletion first
-    local code=$(make_api_call "DELETE" "/access/api/v1/projects/$PROJECT_KEY?force=true" "$TEMP_DIR/delete_project.txt" "curl" "" "delete project")
+    local code=$(jfrog_api_call "DELETE" "/access/api/v1/projects/$PROJECT_KEY?force=true" "$TEMP_DIR/delete_project.txt" "curl" "" "delete project")
     
     if is_success "$code"; then
         echo "✅ Project '$PROJECT_KEY' deleted successfully (HTTP $code)"

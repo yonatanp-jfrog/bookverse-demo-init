@@ -3,7 +3,7 @@
 set -e
 
 # =============================================================================
-# INTERACTIVE JPD PLATFORM SWITCH SCRIPT
+# INTERACTIVE JFROG PLATFORM SWITCH SCRIPT
 # =============================================================================
 # This script provides an interactive way to switch JFrog Platform Deployments
 # and update all BookVerse repositories with new configuration
@@ -34,7 +34,7 @@ prompt_for_jpd_host() {
     log_info "Format: https://yourcompany.jfrog.io"
     log_info "Example: https://acme.jfrog.io"
     echo ""
-    read -p "JPD Host URL: " jpd_host
+    read -p "JFrog Platform Host URL: " jpd_host
     
     # Remove trailing slash if present
     jpd_host=$(echo "$jpd_host" | sed 's:/*$::')
@@ -49,7 +49,7 @@ prompt_for_jpd_host() {
 
 prompt_for_admin_token() {
     echo ""
-    log_prompt "Enter the admin token for the new JPD platform:"
+    log_prompt "Enter the admin token for the new JFrog Platform:"
     log_warning "This token will be used to validate connectivity and update repositories"
     echo ""
     read -s -p "Admin Token: " admin_token
@@ -68,7 +68,7 @@ confirm_switch() {
     local current_host="${JFROG_URL:-https://evidencetrial.jfrog.io}"
     
     echo ""
-    echo "🔄 JPD Platform Switch Confirmation"
+    echo "🔄 JFrog Platform Switch Confirmation"
     echo "===================================="
     echo ""
     echo "Current Platform: $current_host"

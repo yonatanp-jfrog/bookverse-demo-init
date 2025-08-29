@@ -70,20 +70,38 @@ cache_docker_image() {
         image_path="library/$image"
     fi
     
-    # Retry pulls to handle transient network/remote hiccups
-    local attempt
-    for attempt in 1 2 3; do
-        if docker pull "${virtual_repo_path}/${image_path}:$tag"; then
-            return 0
-        fi
-        # Fallback: try without 'library/' if the first path failed
-        if [[ "$image_path" == library/* ]]; then
-            if docker pull "${virtual_repo_path}/${image}:$tag"; then
+    # Use JFrog CLI for secure Docker operations if available
+    if [[ "$USE_JF_DOCKER" == "true" ]]; then
+        # Retry pulls using JFrog CLI to handle transient network/remote hiccups
+        local attempt
+        for attempt in 1 2 3; do
+            if jf docker pull "${virtual_repo_path}/${image_path}:$tag" 2>/dev/null; then
                 return 0
             fi
-        fi
-        sleep $((attempt * 2))
-    done
+            # Fallback: try without 'library/' if the first path failed
+            if [[ "$image_path" == library/* ]]; then
+                if jf docker pull "${virtual_repo_path}/${image}:$tag" 2>/dev/null; then
+                    return 0
+                fi
+            fi
+            sleep $((attempt * 2))
+        done
+    else
+        # Fallback to direct docker pull (may have authentication issues)
+        local attempt
+        for attempt in 1 2 3; do
+            if docker pull "${virtual_repo_path}/${image_path}:$tag"; then
+                return 0
+            fi
+            # Fallback: try without 'library/' if the first path failed
+            if [[ "$image_path" == library/* ]]; then
+                if docker pull "${virtual_repo_path}/${image}:$tag"; then
+                    return 0
+                fi
+            fi
+            sleep $((attempt * 2))
+        done
+    fi
     echo "⚠️ docker pull failed for $image:$tag via ${virtual_repo_path}; attempting API prefetch"
 
     # Fallback: Prefetch via Artifactory Docker API (manifest + blobs) using admin token
@@ -127,32 +145,36 @@ cache_docker_image() {
 echo "=== Configuring JFrog CLI for dependency management ==="
 jf c use bookverse-admin
 
-# Configure secure Docker authentication for JFrog registry
+# Configure secure Docker authentication for JFrog registry and virtual repositories
 echo "🔐 Configuring secure Docker authentication..."
 
 # Extract registry host from JFROG_URL
 DOCKER_REG_HOST=$(echo "$JFROG_URL" | sed 's|https://||' | sed 's|http://||')
+VIRTUAL_REPO_HOST="${DOCKER_REG_HOST}/${PROJECT_KEY}-dockerhub-virtual"
 
 if command -v jf >/dev/null 2>&1; then
-  # Method 1: Use modern JFrog CLI docker login (preferred - no unencrypted storage)
-  echo "Attempting JFrog CLI docker login..."
-  if jf docker login "$DOCKER_REG_HOST" 2>/dev/null; then
-    echo "✅ JFrog CLI docker login successful - credentials stored securely"
-  else
-    echo "⚠️ JFrog CLI docker login failed, trying alternative authentication..."
+  # Method 1: Use JFrog CLI for secure authentication to virtual repository
+  echo "Configuring authentication for Docker virtual repository..."
+  
+  # First ensure JFrog CLI is authenticated
+  if jf rt ping >/dev/null 2>&1; then
+    echo "✅ JFrog CLI authentication verified"
     
-    # Method 2: Verify JFrog CLI can access Artifactory (this is often sufficient)
-    if jf rt ping >/dev/null 2>&1; then
-      echo "✅ JFrog CLI authentication verified"
-      echo "ℹ️ Docker operations will use JFrog CLI's secure token-based authentication"
-      echo "ℹ️ This prevents unencrypted credential storage in ~/.docker/config.json"
-    else
-      echo "❌ JFrog CLI authentication failed completely"
-      echo "❌ Docker image caching will be limited"
-    fi
+    # Use JFrog CLI's secure approach for Docker operations instead of direct docker commands
+    echo "ℹ️ Using JFrog CLI for secure Docker operations"
+    echo "ℹ️ This prevents unencrypted credential storage in ~/.docker/config.json"
+    
+    # Set up an environment variable to track that we should use JF CLI commands
+    export USE_JF_DOCKER="true"
+    
+  else
+    echo "❌ JFrog CLI authentication failed"
+    echo "❌ Docker image caching will be limited"
+    export USE_JF_DOCKER="false"
   fi
 else
   echo "❌ JFrog CLI not available - Docker image caching will be skipped"
+  export USE_JF_DOCKER="false"
 fi
 
 echo ""

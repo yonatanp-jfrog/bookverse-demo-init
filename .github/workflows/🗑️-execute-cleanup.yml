@@ -1,4 +1,4 @@
-name: '🗑️ Execute Cleanup'
+name: 🗑️ Execute Cleanup
 on:
   workflow_dispatch:
     inputs:
@@ -11,6 +11,10 @@ on:
         required: false
         default: false
         type: boolean
+  push:
+    paths:
+      - '.github/workflows/🗑️-execute-cleanup.yml'
+      - '.github/scripts/setup/cleanup_from_report.sh'
 
 jobs:
   cleanup-platform:

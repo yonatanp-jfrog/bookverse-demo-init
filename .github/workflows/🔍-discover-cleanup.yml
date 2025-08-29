@@ -1,10 +1,14 @@
-name: '🔍 Discover Cleanup'
+name: 🔍 Discover Cleanup
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/🔍-discover-cleanup.yml'
+      - '.github/scripts/setup/cleanup_project_based.sh'
 
 permissions:
-  contents: read
+  contents: write
   actions: write
 
 jobs:

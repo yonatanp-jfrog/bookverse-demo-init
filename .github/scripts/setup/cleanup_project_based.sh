@@ -284,11 +284,13 @@ discover_project_repositories() {
             cat "$filtered_repos" | sed 's/^/  - /' >&2
         fi
         
-        # Count returned via function return code, not echo
-        return $count
+        # Count returned via global variable, function always returns 0 (success)
+        GLOBAL_REPO_COUNT=$count
+        return 0
     else
         echo "❌ Project repository discovery failed (HTTP $code)" >&2
-        # Count returned via function return code, not echo
+        # Count returned via global variable, function always returns 0 (success) 
+        GLOBAL_REPO_COUNT=0
         return 0
     fi
 }
@@ -317,11 +319,13 @@ discover_project_users() {
             jq -r '.members[]? | "  - \(.name) (roles: \(.roles | join(", ")))"' "$users_file" 2>/dev/null || true >&2
         fi
         
-        # Count returned via function return code, not echo
-        return $count
+        # Count returned via global variable, function always returns 0 (success)
+        GLOBAL_USER_COUNT=$count
+        return 0
     else
         echo "❌ Project user discovery failed (HTTP $code)" >&2
-        # Count returned via function return code, not echo
+        # Count returned via global variable, function always returns 0 (success)
+        GLOBAL_USER_COUNT=0
         return 0
     fi
 }
@@ -347,11 +351,13 @@ discover_project_applications() {
             cat "$filtered_apps" | sed 's/^/  - /' >&2
         fi
         
-        # Count returned via function return code, not echo
-        return $count
+        # Count returned via global variable, function always returns 0 (success)
+        GLOBAL_APP_COUNT=$count
+        return 0
     else
         echo "❌ Project application discovery failed (HTTP $code)" >&2
-        # Count returned via function return code, not echo
+        # Count returned via global variable, function always returns 0 (success)
+        GLOBAL_APP_COUNT=0
         return 0
     fi
 }
@@ -386,12 +392,14 @@ discover_project_builds() {
             count=0
         fi
         
-        # Count returned via function return code, not echo
-        return $count
+        # Count returned via global variable, function always returns 0 (success)
+        GLOBAL_BUILD_COUNT=$count
+        return 0
     else
         echo "❌ Failed to discover project builds (HTTP $code)" >&2
         touch "$filtered_builds"
-        # Count returned via function return code, not echo
+        # Count returned via global variable, function always returns 0 (success)
+        GLOBAL_BUILD_COUNT=0
         return 0
     fi
 }
@@ -438,11 +446,13 @@ discover_project_stages() {
             cat "$filtered_stages" | sed 's/^/  - /' >&2
         fi
         
-        # Count returned via function return code, not echo
-        return $count
+        # Count returned via global variable, function always returns 0 (success)
+        GLOBAL_STAGE_COUNT=$count
+        return 0
     else
         echo "❌ Project stage discovery failed (HTTP $code)" >&2
-        # Count returned via function return code, not echo
+        # Count returned via global variable, function always returns 0 (success)
+        GLOBAL_STAGE_COUNT=0
         return 0
     fi
 }
@@ -865,9 +875,7 @@ run_discovery_preview() {
     # 1. Discover builds
     echo "🏗️ Discovering builds..."
     if discover_project_builds; then
-        if [[ -f "$TEMP_DIR/project_builds.txt" ]]; then
-            builds_count=$(wc -l < "$TEMP_DIR/project_builds.txt" | tr -d ' ')
-        fi
+        builds_count=$GLOBAL_BUILD_COUNT
     else
         echo "⚠️  Warning: Build discovery failed, treating as 0 builds"
         builds_count=0
@@ -890,9 +898,7 @@ run_discovery_preview() {
     # 2. Discover applications
     echo "🚀 Discovering applications..."
     if discover_project_applications; then
-        if [[ -f "$TEMP_DIR/project_applications.txt" ]]; then
-            apps_count=$(wc -l < "$TEMP_DIR/project_applications.txt" | tr -d ' ')
-        fi
+        apps_count=$GLOBAL_APP_COUNT
     else
         echo "⚠️  Warning: Application discovery failed, treating as 0 applications"
         apps_count=0
@@ -915,9 +921,7 @@ run_discovery_preview() {
     # 3. Discover repositories
     echo "📦 Discovering repositories..."
     if discover_project_repositories; then
-        if [[ -f "$TEMP_DIR/project_repositories.txt" ]]; then
-            repos_count=$(wc -l < "$TEMP_DIR/project_repositories.txt" | tr -d ' ')
-        fi
+        repos_count=$GLOBAL_REPO_COUNT
     else
         echo "⚠️  Warning: Repository discovery failed, treating as 0 repositories"
         repos_count=0
@@ -940,9 +944,7 @@ run_discovery_preview() {
     # 4. Discover users
     echo "👥 Discovering users..."
     if discover_project_users; then
-        if [[ -f "$TEMP_DIR/project_users.txt" ]]; then
-            users_count=$(wc -l < "$TEMP_DIR/project_users.txt" | tr -d ' ')
-        fi
+        users_count=$GLOBAL_USER_COUNT
     else
         echo "⚠️  Warning: User discovery failed, treating as 0 users"
         users_count=0
@@ -965,9 +967,7 @@ run_discovery_preview() {
     # 5. Discover stages
     echo "🏷️ Discovering stages..."
     if discover_project_stages; then
-        if [[ -f "$TEMP_DIR/project_stages.txt" ]]; then
-            stages_count=$(wc -l < "$TEMP_DIR/project_stages.txt" | tr -d ' ')
-        fi
+        stages_count=$GLOBAL_STAGE_COUNT
     else
         echo "⚠️  Warning: Stage discovery failed, treating as 0 stages"
         stages_count=0
@@ -1101,7 +1101,7 @@ FAILED=false
 echo "🏗️ STEP 1: Project Build Cleanup"
 echo "================================="
 discover_project_builds
-builds_count=$?
+builds_count=$GLOBAL_BUILD_COUNT
 echo ""
 delete_project_builds "$builds_count" || FAILED=true
 echo ""
@@ -1110,7 +1110,7 @@ echo ""
 echo "🚀 STEP 2: Project Application Cleanup"
 echo "======================================="
 discover_project_applications
-apps_count=$?
+apps_count=$GLOBAL_APP_COUNT
 echo ""
 delete_project_applications "$apps_count" || FAILED=true
 echo ""
@@ -1119,7 +1119,7 @@ echo ""
 echo "📦 STEP 3: Project Repository Cleanup"
 echo "======================================"
 discover_project_repositories
-repos_count=$?
+repos_count=$GLOBAL_REPO_COUNT
 echo ""
 delete_project_repositories "$repos_count" || FAILED=true
 echo ""
@@ -1128,7 +1128,7 @@ echo ""
 echo "👥 STEP 4: Project User Cleanup"
 echo "================================"
 discover_project_users
-users_count=$?
+users_count=$GLOBAL_USER_COUNT
 echo ""
 delete_project_users "$users_count" || FAILED=true
 echo ""
@@ -1137,7 +1137,7 @@ echo ""
 echo "🏷️ STEP 5: Project Stage Cleanup"
 echo "================================="
 discover_project_stages
-stages_count=$?
+stages_count=$GLOBAL_STAGE_COUNT
 echo ""
 delete_project_stages "$stages_count" || FAILED=true
 echo ""

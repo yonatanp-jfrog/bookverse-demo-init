@@ -141,7 +141,8 @@ create_virtual_repository() {
             "packageType": $packageType,
             "description": $description,
             "projectKey": $projectKey,
-            "repositories": $repositories
+            "repositories": $repositories,
+            "artifactoryRequestsCanRetrieveRemoteArtifacts": true
         }')
     
     echo "Creating virtual repository: $repo_key"

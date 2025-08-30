@@ -121,7 +121,7 @@ jobs:
 
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "#### 🏷️ Stages ($stages)" >> $GITHUB_STEP_SUMMARY
-            stage_list=$(jq -r '.plan.stages[]?.name' .github/cleanup-report.json 2>/dev/null || true)
+            stage_list=$(jq -r '.plan.stages[]? | "\(.name) (in lifecycle: \(.in_use // false))"' .github/cleanup-report.json 2>/dev/null || true)
             if [[ -n "$stage_list" ]]; then echo "$stage_list" | sed 's/^/- /' >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
 
             echo "" >> $GITHUB_STEP_SUMMARY

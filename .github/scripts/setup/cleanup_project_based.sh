@@ -1320,7 +1320,19 @@ run_discovery_preview() {
         users_json='[]'
     fi
     if [[ -f "$TEMP_DIR/project_stages.txt" ]]; then
-        stages_json=$(jq -R -s --arg project "$PROJECT_KEY" 'split("\n")|map(select(length>0))|map({name:., project:$project})' "$TEMP_DIR/project_stages.txt" 2>/dev/null || echo '[]')
+        # Fetch lifecycle to check which stages are referenced
+        local lifecycle_file="$TEMP_DIR/lifecycle.json"
+        jfrog_api_call "GET" "/access/api/v2/lifecycle/?project_key=$PROJECT_KEY" "$lifecycle_file" "curl" "" "get lifecycle for stage usage" >/dev/null || true
+        if [[ -s "$lifecycle_file" ]]; then
+            stages_json=$(jq -R -s --arg project "$PROJECT_KEY" --argfile lif "$lifecycle_file" '
+                ( ($lif|try .promote_stages catch []) ) as $ps
+                | split("\n")
+                | map(select(length>0))
+                | map({name:., project:$project, in_use: ( ($ps|index(.)) != null )})
+            ' "$TEMP_DIR/project_stages.txt" 2>/dev/null || echo '[]')
+        else
+            stages_json=$(jq -R -s --arg project "$PROJECT_KEY" 'split("\n")|map(select(length>0))|map({name:., project:$project, in_use:false})' "$TEMP_DIR/project_stages.txt" 2>/dev/null || echo '[]')
+        fi
     else
         stages_json='[]'
     fi

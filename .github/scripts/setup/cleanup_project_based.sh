@@ -656,6 +656,16 @@ delete_project_final() {
     
     echo "🎯 Attempting final project deletion: $project_key" >&2
     
+    # Safety: verify there are truly no resources detected by a quick re-discovery
+    discover_project_repositories >/dev/null 2>&1 || true
+    discover_project_applications >/dev/null 2>&1 || true
+    discover_project_users >/dev/null 2>&1 || true
+    discover_project_stages >/dev/null 2>&1 || true
+    local remaining=$(( ${GLOBAL_REPO_COUNT:-0} + ${GLOBAL_APP_COUNT:-0} + ${GLOBAL_USER_COUNT:-0} + ${GLOBAL_STAGE_COUNT:-0} ))
+    if [[ "$remaining" -gt 0 ]]; then
+        echo "⚠️ Remaining resources detected just before project deletion: $remaining" >&2
+    fi
+
     # Try to delete the project
     local code=$(jfrog_api_call "DELETE" "/access/api/v2/projects/$project_key" "" "curl" "" "delete project $project_key")
     

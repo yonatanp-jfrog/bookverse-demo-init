@@ -73,10 +73,16 @@ jobs:
             echo "#### 🚀 Applications" >> $GITHUB_STEP_SUMMARY
             if [[ -n "$apps" ]]; then echo "$apps" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
 
-            stages=$(grep -E "→ Deleting project-level stage: " "$exec_log" | sed -E "s/.*stage: (.*)/- \1/") || true
+            stages=$(grep -E "✅ (Project stage|Stage) '.*' deleted successfully" "$exec_log" | sed -E "s/.*'(.*)'.*/- \1/") || true
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "#### 🏷️ Stages" >> $GITHUB_STEP_SUMMARY
             if [[ -n "$stages" ]]; then echo "$stages" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
+
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 🧪 Post-Cleanup Verification" >> $GITHUB_STEP_SUMMARY
+            if [[ -f ".github/cleanup-report.json" ]]; then
+              echo "- Note: The report is not auto-refreshed after deletion. If it still shows items, run 🔍 Discover Cleanup again to regenerate it." >> $GITHUB_STEP_SUMMARY
+            fi
 
             builds=$(grep -E "✅ Build '.*' deleted successfully" "$exec_log" | sed -E "s/.*Build '([^']+)'.*/- \1/") || true
             echo "" >> $GITHUB_STEP_SUMMARY

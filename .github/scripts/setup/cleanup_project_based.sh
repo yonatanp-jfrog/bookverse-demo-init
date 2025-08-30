@@ -128,6 +128,37 @@ stage_exists() {
     [[ "$code" -eq $HTTP_OK ]]
 }
 
+# Lifecycle helpers
+is_lifecycle_cleared() {
+    local out_file="$TEMP_DIR/get_lifecycle.json"
+    local code=$(jfrog_api_call "GET" "/access/api/v2/lifecycle/?project_key=$PROJECT_KEY" "$out_file" "curl" "" "get lifecycle config")
+    if [[ "$code" -ne $HTTP_OK ]]; then
+        # If lifecycle not found, treat as cleared
+        [[ "$code" -eq $HTTP_NOT_FOUND ]]
+        return
+    fi
+    local len=$(jq -r '.promote_stages | length' "$out_file" 2>/dev/null || echo 0)
+    [[ "$len" -eq 0 ]]
+}
+
+wait_for_lifecycle_cleared() {
+    local timeout_secs="${1:-20}"
+    local interval_secs="${2:-2}"
+    local start_ts=$(date +%s)
+    while true; do
+        if is_lifecycle_cleared; then
+            echo "✅ Lifecycle is cleared (no promote_stages)"
+            return 0
+        fi
+        local now=$(date +%s)
+        if (( now - start_ts >= timeout_secs )); then
+            echo "⚠️ Lifecycle not cleared after ${timeout_secs}s; proceeding"
+            return 1
+        fi
+        sleep "$interval_secs"
+    done
+}
+
 # Enhanced API call with better debugging
 jfrog_api_call() {
     local method="$1" endpoint="$2" output_file="$3" client="$4"
@@ -626,8 +657,9 @@ delete_specific_stages() {
     
     echo "🏷️ Deleting specific stages from report..." >&2
     
-    # Ensure lifecycle is cleared first (idempotent)
+    # Ensure lifecycle is cleared first (idempotent), then wait briefly for consistency
     delete_project_lifecycle >/dev/null 2>&1 || true
+    wait_for_lifecycle_cleared 20 2 || true
 
     while IFS= read -r stage_name; do
         if [[ -n "$stage_name" ]]; then
@@ -1471,6 +1503,7 @@ if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
     echo "🔄 STEP 5: Project Lifecycle Cleanup"
     echo "====================================="
     delete_project_lifecycle || FAILED=true
+    wait_for_lifecycle_cleared 20 2 || true
     echo ""
 
     # 6) Project stages cleanup (after lifecycle cleared)

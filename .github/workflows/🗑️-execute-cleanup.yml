@@ -69,6 +69,7 @@ jobs:
         run: |
           echo "## 🗑️ Cleanup Execution Report" >> $GITHUB_STEP_SUMMARY
           if [[ -f ".github/cleanup-report.json" ]]; then
+            echo "Project: $(jq -r '.metadata.project_key' .github/cleanup-report.json)" >> $GITHUB_STEP_SUMMARY
             echo "Status: $(jq -r '.status' .github/cleanup-report.json)" >> $GITHUB_STEP_SUMMARY
             echo "Total items: $(jq -r '.metadata.total_items' .github/cleanup-report.json)" >> $GITHUB_STEP_SUMMARY
           fi

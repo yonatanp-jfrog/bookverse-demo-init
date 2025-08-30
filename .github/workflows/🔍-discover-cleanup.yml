@@ -85,6 +85,7 @@ jobs:
           echo "## 🔍 Cleanup Discovery Report" >> $GITHUB_STEP_SUMMARY
           if [[ -f ".github/cleanup-report.json" ]]; then
             ts=$(jq -r '.metadata.timestamp' .github/cleanup-report.json)
+            proj=$(jq -r '.metadata.project_key' .github/cleanup-report.json)
             total=$(jq -r '.metadata.total_items' .github/cleanup-report.json)
             repos=$(jq -r '.metadata.discovery_counts.repositories' .github/cleanup-report.json)
             users=$(jq -r '.metadata.discovery_counts.users' .github/cleanup-report.json)
@@ -92,6 +93,7 @@ jobs:
             stages=$(jq -r '.metadata.discovery_counts.stages' .github/cleanup-report.json)
             builds=$(jq -r '.metadata.discovery_counts.builds' .github/cleanup-report.json)
             echo "Generated: $ts" >> $GITHUB_STEP_SUMMARY
+            echo "Project: $proj" >> $GITHUB_STEP_SUMMARY
             echo "Total items: $total" >> $GITHUB_STEP_SUMMARY
             echo "- 📦 Repositories: $repos" >> $GITHUB_STEP_SUMMARY
             echo "- 👥 Users: $users" >> $GITHUB_STEP_SUMMARY

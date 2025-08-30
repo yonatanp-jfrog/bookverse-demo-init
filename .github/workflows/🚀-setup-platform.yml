@@ -133,16 +133,8 @@ jobs:
             echo "- Smart conflict resolution implemented" >> $GITHUB_STEP_SUMMARY
             echo "- Keys distributed to all service repositories" >> $GITHUB_STEP_SUMMARY
             echo "- Public key uploaded to JFrog Platform as trusted key" >> $GITHUB_STEP_SUMMARY
-            # Extract key alias from setup logs if available
-            alias_line=$(grep -m1 -E "Alias: |alias:" -n $GITHUB_WORKSPACE/_actions/*/*/run.log 2>/dev/null || true)
-            if [[ -z "$alias_line" && -f "$GITHUB_WORKSPACE/.github/scripts/setup/evidence_keys_setup.sh" ]]; then
-              alias_line=$(grep -m1 "Alias:" $GITHUB_WORKSPACE/.github/scripts/setup/evidence_keys_setup.sh || true)
-            fi
-            key_alias=$(echo "$alias_line" | sed -E 's/.*Alias: *//;s/.*alias: *//' | head -1)
-            if [[ -z "$key_alias" ]]; then
-              # Fallback to default from script if not found in logs
-              key_alias="BookVerse-Evidence-Key"
-            fi
+            # Resolve key alias using the script default/env rather than grepping logs
+            key_alias=${EVIDENCE_KEY_ALIAS:-BookVerse-Evidence-Key}
             echo "- Key alias: \`$key_alias\`" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "### 🎯 Next Steps:" >> $GITHUB_STEP_SUMMARY

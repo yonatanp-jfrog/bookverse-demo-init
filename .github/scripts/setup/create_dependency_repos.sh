@@ -28,8 +28,8 @@ create_remote_repository() {
     
     # Build remote repository config; for PyPI set both url (files host) and pypiRegistryUrl (index)
     if [[ "$package_type" == "pypi" ]]; then
-        # Default registry_url to https://pypi.org if not provided
-        local effective_registry_url=${registry_url:-"https://pypi.org"}
+        # Default registry_url to https://pypi.org/simple for index queries
+        local effective_registry_url=${registry_url:-"https://pypi.org/simple"}
         local repo_config=$(jq -n \
             --arg key "$repo_key" \
             --arg rclass "remote" \
@@ -244,7 +244,7 @@ create_remote_repository \
     "pypi" \
     "https://pypi.org" \
     "Remote proxy for PyPI.org - Python packages" \
-    "https://pypi.org"
+    "https://pypi.org/simple"
 
 # Create Python local cache repository
 create_local_cache_repository \

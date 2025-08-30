@@ -666,17 +666,29 @@ delete_project_final() {
         echo "⚠️ Remaining resources detected just before project deletion: $remaining" >&2
     fi
 
-    # Try to delete the project
-    local code=$(jfrog_api_call "DELETE" "/access/api/v2/projects/$project_key" "" "curl" "" "delete project $project_key")
-    
+    # Prefer v1 endpoint with force=true (works reliably)
+    local code=$(jfrog_api_call "DELETE" "/access/api/v1/projects/$project_key?force=true" "" "curl" "" "delete project $project_key (v1 force)")
     if is_success "$code"; then
         echo "✅ Project '$project_key' deleted successfully" >&2
         return 0
-    else
-        echo "❌ Failed to delete project '$project_key' (HTTP $code)" >&2
-        echo "💡 This usually indicates there are still resources in the project" >&2
-        return 1
     fi
+    
+    # Fallback to v2 (some instances)
+    code=$(jfrog_api_call "DELETE" "/access/api/v2/projects/$project_key" "" "curl" "" "delete project $project_key (v2)")
+    if is_success "$code"; then
+        echo "✅ Project '$project_key' deleted successfully (v2)" >&2
+        return 0
+    fi
+    
+    # Treat 404 as already deleted
+    if [[ "$code" -eq $HTTP_NOT_FOUND ]]; then
+        echo "⚠️ Project '$project_key' not found (HTTP $code) - treating as already deleted" >&2
+        return 0
+    fi
+    
+    echo "❌ Failed to delete project '$project_key' (HTTP $code)" >&2
+    echo "💡 This usually indicates there are still resources in the project or eventual consistency delays" >&2
+    return 1
 }
 
 # 🚨 EMERGENCY SAFETY CHECK: Verify repository belongs to project

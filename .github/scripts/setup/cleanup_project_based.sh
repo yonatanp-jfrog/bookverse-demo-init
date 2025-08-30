@@ -121,6 +121,13 @@ is_not_found() {
     [[ "$code" -eq $HTTP_NOT_FOUND ]]
 }
 
+# Check if a project-level stage exists (v2 API)
+stage_exists() {
+    local stage_name="$1"
+    local code=$(jfrog_api_call "GET" "/access/api/v2/stages/$stage_name?project_key=$PROJECT_KEY" "" "curl" "" "get stage $stage_name")
+    [[ "$code" -eq $HTTP_OK ]]
+}
+
 # Enhanced API call with better debugging
 jfrog_api_call() {
     local method="$1" endpoint="$2" output_file="$3" client="$4"
@@ -633,7 +640,13 @@ delete_specific_stages() {
             fi
 
             if is_success "$code" || is_not_found "$code"; then
-                echo "    ✅ Stage '$stage_name' deleted successfully"
+                # Double-check deletion: ensure stage no longer exists
+                if stage_exists "$stage_name"; then
+                    echo "    ❌ Stage '$stage_name' still exists after deletion attempt"
+                    ((failed_count++))
+                else
+                    echo "    ✅ Stage '$stage_name' deleted successfully"
+                fi
             else
                 echo "    ❌ Failed to delete stage '$stage_name' (HTTP $code)"
                 ((failed_count++))

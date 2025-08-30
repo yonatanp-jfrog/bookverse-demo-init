@@ -1,36 +1,23 @@
 {
   "metadata": {
-    "timestamp": "2025-08-30T00:09:05Z",
+    "timestamp": "2025-08-30T00:11:47Z",
     "project_key": "bookverse",
-    "total_items": 3,
+    "total_items": 0,
     "discovery_counts": {
       "builds": 0,
       "applications": 0,
       "repositories": 0,
       "users": 0,
-      "stages": 3
+      "stages": 0
     }
   },
   "plan": {
     "repositories": [],
     "applications": [],
     "users": [],
-    "stages": [
-      {
-        "name": "bookverse-DEV",
-        "project": "bookverse"
-      },
-      {
-        "name": "bookverse-QA",
-        "project": "bookverse"
-      },
-      {
-        "name": "bookverse-STAGING",
-        "project": "bookverse"
-      }
-    ],
+    "stages": [],
     "builds": []
   },
-  "deletion_preview": "🛡️ SAFETY: Discovering what would be deleted...\nProject: bookverse\nDate: Sat Aug 30 00:09:04 UTC 2025\n\nBUILDS: None found\n\nAPPLICATIONS: None found\n\nREPOSITORIES: None found\n\nUSERS: None found\n\nSTAGES TO DELETE (3 items):\n=======================================\n  ❌ Stage: bookverse-DEV\n  ❌ Stage: bookverse-QA\n  ❌ Stage: bookverse-STAGING\n\nSUMMARY:\n========\nTotal items to delete: 3\nProject to delete: bookverse\n\n⚠️ WARNING: This action cannot be undone!",
+  "deletion_preview": "🛡️ SAFETY: Discovering what would be deleted...\nProject: bookverse\nDate: Sat Aug 30 00:11:46 UTC 2025\n\nBUILDS: None found\n\nAPPLICATIONS: None found\n\nREPOSITORIES: None found\n\nUSERS: None found\n\nSTAGES: None found\n\nSUMMARY:\n========\nTotal items to delete: 0\nProject to delete: bookverse\n\n⚠️ WARNING: This action cannot be undone!",
   "status": "ready_for_cleanup"
 }

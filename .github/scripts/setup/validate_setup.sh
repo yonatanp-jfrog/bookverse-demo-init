@@ -150,44 +150,28 @@ echo ""
 
 # 5. Stage count
 echo "5. Counting project stages..."
-# Try different stage API endpoints and filtering approaches
-stage_count=0
-for endpoint in "/access/api/v2/stages" "/lifecycle/api/v2/promotion/stages"; do
-    stage_response=$(curl -s -w "%{http_code}" \
-        -H "Authorization: Bearer $JFROG_ADMIN_TOKEN" \
-        "${JFROG_URL}${endpoint}")
-    
-    http_code="${stage_response: -3}"
-    response_body="${stage_response%???}"
-    
-    if [[ "$http_code" =~ ^[23] ]]; then
-        # Try different filtering approaches for stages
-        stage_count=$(echo "$response_body" | jq -r ".[] | select(.name // .stage_name | startswith(\"${PROJECT_KEY}-\")) | .name // .stage_name" 2>/dev/null | wc -l)
-        if [[ "$stage_count" -gt 0 ]]; then
-            echo "✅ Found $stage_count project stages (via ${endpoint})"
-            break
-        fi
-    fi
-done
 
-if [[ "$stage_count" -eq 0 ]]; then
-    echo "⚠️  No project stages found - stages may have been created but are not accessible via API"
-    echo "💡 This is common when stage API endpoints vary by JFrog version"
-    # Try to verify stages exist by checking lifecycle configuration
-    lifecycle_response=$(curl -s -w "%{http_code}" \
-        -H "Authorization: Bearer $JFROG_ADMIN_TOKEN" \
-        "${JFROG_URL}/access/api/v2/lifecycle/?project_key=${PROJECT_KEY}")
-    
-    lifecycle_http_code="${lifecycle_response: -3}"
-    lifecycle_body="${lifecycle_response%???}"
-    
-    if [[ "$lifecycle_http_code" =~ ^[23] ]]; then
-        promote_stages=$(echo "$lifecycle_body" | jq -r '.promote_stages[]?' 2>/dev/null)
-        if [[ -n "$promote_stages" ]]; then
-            echo "💡 However, lifecycle configuration shows promote stages are configured:"
-            echo "$promote_stages" | sed 's/^/     - /'
-        fi
-    fi
+# Preferred project-scoped stages API (promote category)
+stage_list=$(curl -s -H "Authorization: Bearer $JFROG_ADMIN_TOKEN" \
+  "${JFROG_URL}/access/api/v2/stages/?project_key=${PROJECT_KEY}&scope=project&category=promote" | jq -r '.[]?.name' 2>/dev/null)
+
+stage_count=0
+if [[ -n "$stage_list" ]]; then
+  stage_count=$(echo "$stage_list" | wc -l | awk '{print $1}')
+  echo "✅ Found $stage_count project stages (project-scoped promote)"
+  echo "$stage_list" | sed 's/^/   - /'
+else
+  # Fallback: check lifecycle configuration for promote_stages
+  lifecycle_body=$(curl -s -H "Authorization: Bearer $JFROG_ADMIN_TOKEN" \
+    "${JFROG_URL}/access/api/v2/lifecycle/?project_key=${PROJECT_KEY}")
+  promote_stages=$(echo "$lifecycle_body" | jq -r '.promote_stages[]?' 2>/dev/null)
+  if [[ -n "$promote_stages" ]]; then
+    stage_count=$(echo "$promote_stages" | wc -l | awk '{print $1}')
+    echo "✅ Found $stage_count project stages (via lifecycle configuration)"
+    echo "$promote_stages" | sed 's/^/   - /'
+  else
+    echo "⚠️  No project stages found via API"
+  fi
 fi
 echo ""
 

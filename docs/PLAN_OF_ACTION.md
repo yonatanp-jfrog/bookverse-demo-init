@@ -173,7 +173,7 @@ Completed:
 - 16.1) Platform web scaffold ✅ (moved to bookverse-web repo per architecture)
 - 16.2) Web Dockerfile ✅
 - 16.3) CI build/push of web image ✅ (push deferred until connectivity)
-- 16.4) Promotion to release on PROD ✅ (actual publish deferred ⚠️)
+ 
 - 16.5) Runtime config entrypoint ✅
 - 16.6) SBOM/sign placeholders ✅
 - 16.7) Web README ✅
@@ -182,7 +182,9 @@ Completed:
 
 Pending/Skipped:
 - 7) OIDC trust and identity mappings – pending ⚠️ (endpoint alignment in progress)
-- 12) Seed sample services and artifacts – skipped ⚠️ (deferred until connectivity)
+- 12) Seed sample services and artifacts – cancelled ❌ (per decision to drop task for now)
+- 15) Validation checks and smoke tests for each stage – cancelled ❌ (per decision to drop task for now)
+- 16.4) Web image release (publish to PROD repo) – cancelled ❌ (per decision to drop task for now)
 - Remaining items – pending ⚠️
 
 

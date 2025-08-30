@@ -62,6 +62,9 @@ if [[ $age_minutes -gt $MAX_AGE_MINUTES ]]; then
     log_info "   3. Run cleanup within $MAX_AGE_MINUTES minutes"
     echo ""
     log_error "🚨 CLEANUP BLOCKED: Report expired"
+    # Mark report as stale to prevent accidental reuse
+    tmpfile=$(mktemp)
+    jq '.status = "stale_report"' "$SHARED_REPORT_FILE" > "$tmpfile" && mv "$tmpfile" "$SHARED_REPORT_FILE"
     exit 1
 fi
 

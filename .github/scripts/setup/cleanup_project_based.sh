@@ -666,23 +666,38 @@ delete_specific_stages() {
             echo "  → Deleting stage: $stage_name"
             # Try project-scoped v1 first
             local code=$(jfrog_api_call "DELETE" "/access/api/v1/projects/$PROJECT_KEY/stages/$stage_name" "" "curl" "" "delete project stage $stage_name")
-            if ! is_success "$code"; then
-                # Fallback to v2 with explicit project key
-                code=$(jfrog_api_call "DELETE" "/access/api/v2/stages/$stage_name?projectKey=$PROJECT_KEY" "" "curl" "" "delete project stage v2 $stage_name")
-            fi
-
-            if is_success "$code" || is_not_found "$code"; then
-                # Double-check deletion: ensure stage no longer exists
-                if stage_exists "$stage_name"; then
-                    echo "    ❌ Stage '$stage_name' still exists after deletion attempt"
-                    ((failed_count++))
-                else
-                    echo "    ✅ Stage '$stage_name' deleted successfully"
+            # Retry deletion a few times due to eventual consistency
+            local attempts=0
+            local max_attempts=3
+            while true; do
+                if ! is_success "$code"; then
+                    # Fallback to v2 with explicit project key (snake_case)
+                    code=$(jfrog_api_call "DELETE" "/access/api/v2/stages/$stage_name?project_key=$PROJECT_KEY" "" "curl" "" "delete project stage v2 $stage_name")
                 fi
-            else
-                echo "    ❌ Failed to delete stage '$stage_name' (HTTP $code)"
-                ((failed_count++))
-            fi
+
+                # If deletion request was accepted or resource not found, verify actual absence
+                if is_success "$code" || is_not_found "$code"; then
+                    sleep 1
+                    if stage_exists "$stage_name"; then
+                        ((attempts++))
+                        if [[ "$attempts" -lt "$max_attempts" ]]; then
+                            echo "    ⚠️ Stage '$stage_name' still exists, retrying deletion ($attempts/$max_attempts)..."
+                            # Re-attempt using v1 first on next loop
+                            code=$(jfrog_api_call "DELETE" "/access/api/v1/projects/$PROJECT_KEY/stages/$stage_name" "" "curl" "" "retry delete project stage $stage_name")
+                            continue
+                        else
+                            echo "    ❌ Stage '$stage_name' still exists after deletion attempts"
+                            ((failed_count++))
+                        fi
+                    else
+                        echo "    ✅ Stage '$stage_name' deleted successfully"
+                    fi
+                else
+                    echo "    ❌ Failed to delete stage '$stage_name' (HTTP $code)"
+                    ((failed_count++))
+                fi
+                break
+            done
         fi
     done < "$stages_file"
     

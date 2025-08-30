@@ -70,28 +70,74 @@ echo ""
 
 # 3. User count  
 echo "3. Counting BookVerse users..."
-# Try different user API endpoints since the exact endpoint varies by JFrog version
-user_count=0
+
+# Expected BookVerse usernames (must match create_users.sh)
+expected_users=(
+  "alice.developer@bookverse.com"
+  "bob.release@bookverse.com"
+  "charlie.devops@bookverse.com"
+  "diana.architect@bookverse.com"
+  "edward.manager@bookverse.com"
+  "frank.inventory@bookverse.com"
+  "grace.ai@bookverse.com"
+  "henry.checkout@bookverse.com"
+  "pipeline.inventory@bookverse.com"
+  "pipeline.recommendations@bookverse.com"
+  "pipeline.checkout@bookverse.com"
+  "pipeline.platform@bookverse.com"
+)
+
+declare -A found_users_map
+
+# Try list endpoints first (structure varies across versions)
 for endpoint in "/access/api/v1/users" "/artifactory/api/security/users" "/access/api/v2/users"; do
-    user_response=$(curl -s -w "%{http_code}" \
-        -H "Authorization: Bearer $JFROG_ADMIN_TOKEN" \
-        "${JFROG_URL}${endpoint}")
-    
-    http_code="${user_response: -3}"
-    response_body="${user_response%???}"
-    
-    if [[ "$http_code" =~ ^[23] ]]; then
-        user_count=$(echo "$response_body" | jq -r '.[] | select(.email // "" | contains("@bookverse.com")) | .name // .username' 2>/dev/null | wc -l)
-        if [[ "$user_count" -gt 0 ]]; then
-            echo "✅ Found $user_count BookVerse users (via ${endpoint})"
-            break
-        fi
+  resp=$(curl -s -w "%{http_code}" -H "Authorization: Bearer $JFROG_ADMIN_TOKEN" "${JFROG_URL}${endpoint}")
+  code="${resp: -3}"; body="${resp%???}"
+  if [[ "$code" =~ ^[23] ]]; then
+    # Collect candidates from multiple possible fields
+    # Normalize to one-per-line list of possible identifiers
+    candidates=$(echo "$body" | jq -r '[.[]? | (.email? // empty), (.name? // empty), (.username? // empty)] | .[]' 2>/dev/null || echo "")
+    if [[ -n "$candidates" ]]; then
+      while IFS= read -r cand; do
+        for exp in "${expected_users[@]}"; do
+          if [[ "$cand" == "$exp" ]]; then found_users_map["$exp"]=1; fi
+        done
+      done <<< "$candidates"
     fi
+  fi
 done
 
-if [[ "$user_count" -eq 0 ]]; then
-    echo "⚠️  No BookVerse users found - users may have been created but are not accessible via API"
-    echo "💡 This is common when user API endpoints vary by JFrog version or permissions"
+# If still missing, verify per expected user (fallback)
+for exp in "${expected_users[@]}"; do
+  if [[ -z "${found_users_map[$exp]:-}" ]]; then
+    # Try both Access and Artifactory user endpoints
+    u1=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $JFROG_ADMIN_TOKEN" "${JFROG_URL}/access/api/v1/users/${exp}")
+    u2=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $JFROG_ADMIN_TOKEN" "${JFROG_URL}/artifactory/api/security/users/${exp}")
+    if [[ "$u1" == "200" || "$u2" == "200" ]]; then
+      found_users_map["$exp"]=1
+    fi
+  fi
+done
+
+# Build lists
+found_users=()
+missing_users=()
+for exp in "${expected_users[@]}"; do
+  if [[ -n "${found_users_map[$exp]:-}" ]]; then
+    found_users+=("$exp")
+  else
+    missing_users+=("$exp")
+  fi
+done
+
+user_count=${#found_users[@]}
+echo "✅ Found $user_count/${#expected_users[@]} BookVerse users"
+if [[ ${#found_users[@]} -gt 0 ]]; then
+  printf '   • %s\n' "${found_users[@]}"
+fi
+if [[ ${#missing_users[@]} -gt 0 ]]; then
+  echo "⚠️  Missing users (not visible via current APIs/permissions):"
+  printf '   • %s\n' "${missing_users[@]}"
 fi
 echo ""
 

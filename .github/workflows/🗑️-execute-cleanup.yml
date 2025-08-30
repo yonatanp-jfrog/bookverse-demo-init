@@ -37,7 +37,24 @@ jobs:
           JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
           PROJECT_KEY: 'bookverse'
         run: |
+          set +e
           bash ./.github/scripts/setup/validate_cleanup_report.sh
+          status=$?
+          if [[ $status -ne 0 ]]; then
+            echo "## 🗑️ Cleanup Execution Report" >> $GITHUB_STEP_SUMMARY
+            if [[ -f ".github/cleanup-report.json" ]]; then
+              ts=$(jq -r '.metadata.timestamp // "unknown"' .github/cleanup-report.json)
+              echo "Report is not usable (missing/invalid/expired)." >> $GITHUB_STEP_SUMMARY
+              echo "- Last report timestamp: $ts" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "No cleanup report found. Please run 🔍 Discover Cleanup first." >> $GITHUB_STEP_SUMMARY
+            fi
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Next steps" >> $GITHUB_STEP_SUMMARY
+            echo "- Run the 🔍 Discover Cleanup workflow to generate a fresh report (valid for 30 minutes)." >> $GITHUB_STEP_SUMMARY
+            echo "- Then re-run 🗑️ Execute Cleanup." >> $GITHUB_STEP_SUMMARY
+            exit 0
+          fi
 
       - name: Execute cleanup from report
         env:

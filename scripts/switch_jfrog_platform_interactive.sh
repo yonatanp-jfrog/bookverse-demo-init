@@ -201,6 +201,71 @@ test_services() {
 }
 
 # =============================================================================
+# REPOSITORY ENVIRONMENTS MAPPING (Artifactory)
+# =============================================================================
+
+patch_repo_envs() {
+    local jpd_host="$1"
+    local admin_token="$2"
+    local repo_key="$3"
+    shift 3
+    local -a envs=("$@")
+
+    # Build JSON array for environments
+    local env_json
+    env_json=$(printf '"%s",' "${envs[@]}")
+    env_json="[${env_json%,}]"
+
+    local body
+    body=$(mktemp)
+    local code
+    code=$(curl -sS -L -o "$body" -w "%{http_code}" -X PATCH \
+        "$jpd_host/artifactory/api/v2/repositories/$repo_key" \
+        -H "Authorization: Bearer $admin_token" \
+        -H "Content-Type: application/json" \
+        -d "{\"environments\": $env_json}" || echo 000)
+
+    if [[ "$code" -ge 200 && "$code" -lt 300 ]]; then
+        log_success "  → $repo_key environments set to $env_json"
+    else
+        log_warning "  → Failed to patch $repo_key environments (HTTP $code)"
+        cat "$body" 2>/dev/null || true
+    fi
+    rm -f "$body"
+}
+
+repair_repository_environments() {
+    local jpd_host="$1"
+    local admin_token="$2"
+
+    log_info "Repairing repository environments mapping (internal → DEV/QA/STAGING, release → PROD)"
+
+    # Project key (allow override via env, default to bookverse)
+    local project_key="${PROJECT_KEY:-bookverse}"
+
+    # Internal repos map to project-prefixed DEV/QA/STAGING
+    local dev_envs=("${project_key}-DEV" "${project_key}-QA" "${project_key}-STAGING")
+
+    # Fetch all repositories and filter by project prefix
+    local list_json
+    list_json=$(curl -sS -L -H "Authorization: Bearer $admin_token" \
+        "$jpd_host/artifactory/api/repositories" 2>/dev/null || echo "[]")
+
+    # Extract keys belonging to this project
+    mapfile -t repo_keys < <(echo "$list_json" | jq -r --arg p "${project_key}-" '.[]? | select(.key | startswith($p)) | .key')
+
+    for key in "${repo_keys[@]}"; do
+        if [[ "$key" == *"-internal-local" ]]; then
+            patch_repo_envs "$jpd_host" "$admin_token" "$key" "${dev_envs[@]}"
+        elif [[ "$key" == *"-release-local" ]]; then
+            patch_repo_envs "$jpd_host" "$admin_token" "$key" "PROD"
+        fi
+    done
+
+    log_success "Repository environments mapping repaired."
+}
+
+# =============================================================================
 # REPOSITORY UPDATE FUNCTIONS
 # =============================================================================
 
@@ -342,6 +407,10 @@ main() {
     
     # Step 8: Update repositories
     update_all_repositories "$jpd_host" "$admin_token"
+    echo ""
+
+    # Step 9: Ensure repository environment mappings are correct
+    repair_repository_environments "$jpd_host" "$admin_token"
     echo ""
     
     # Summary

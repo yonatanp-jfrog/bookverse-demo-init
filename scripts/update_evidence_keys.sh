@@ -409,6 +409,11 @@ update_all_repositories() {
     log_info "Updating evidence keys across all repositories..."
     echo ""
     
+    # Ensure temporary directory exists even when not generating keys
+    if [[ -z "$TEMP_DIR" ]] || [[ ! -d "$TEMP_DIR" ]]; then
+        TEMP_DIR=$(mktemp -d)
+    fi
+
     # Get repositories using portable method (no mapfile dependency)
     local repos_temp="$TEMP_DIR/repos_list.txt"
     get_existing_repositories > "$repos_temp"

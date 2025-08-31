@@ -157,7 +157,9 @@ jobs:
           
           # Create SAST summary report (improved)
           NOW_TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-          cat <<EOF > sast-summary.md
+          # Use a quoted delimiter <<'EOF' to prevent shell expansion.
+          # Create a literal template with placeholder variables.
+          cat > sast-summary.template.md <<'EOF'
           # 🛡️ SAST Security Scan Report: Checkmarx
 
           > ## ✅ Review Required
@@ -186,6 +188,10 @@ jobs:
           * **Commit SHA**: `${{ github.sha }}`
           * **Scan Date (UTC)**: `${NOW_TS}`
           EOF
+          # Safely populate the template with envsubst.
+          if ! command -v envsubst >/dev/null 2>&1; then sudo apt-get update -y && sudo apt-get install -y gettext-base; fi
+          export NOW_TS="${NOW_TS}"
+          envsubst < sast-summary.template.md > sast-summary.md
           
           echo "✅ SAST scan completed with $(jq '.runs[0].results | length' sast-results.json) findings"
           
@@ -238,10 +244,12 @@ jobs:
           if [[ "${TESTS_PASSED:-}" != "true" ]]; then STATUS="FAILED"; STATUS_EMOJI="⚠️"; fi
           NOW_TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
           ANALYSIS_TEXT="Coverage is 90% with pytest. Aim to keep above 85%. Add tests for critical paths as needed."
-          cat <<EOF > coverage-evidence.md
+          # Use a quoted delimiter <<'EOF' to prevent shell expansion.
+          # This creates a literal template with placeholder variables.
+          cat > coverage-evidence.template.md <<'EOF'
           # Code Coverage Report: `pytest`
 
-          > ## ${STATUS_EMOJI} Status: `${STATUS}`
+          > ## ${STATUS_EMOJI} Status: ${STATUS}
           >
           > This report details the results of the automated code coverage checks.
 
@@ -260,11 +268,6 @@ jobs:
 
           > ${ANALYSIS_TEXT}
 
-          **
-          **
-          **
-          **
-
           ---
 
           ## 📄 Generated Report Artifacts
@@ -277,6 +280,10 @@ jobs:
           ---
           <p align="right">⏰ Report Generated: <code>${NOW_TS}</code> (UTC)</p>
           EOF
+          # Safely populate the template with envsubst.
+          if ! command -v envsubst >/dev/null 2>&1; then sudo apt-get update -y && sudo apt-get install -y gettext-base; fi
+          export STATUS STATUS_EMOJI ANALYSIS_TEXT NOW_TS
+          envsubst < coverage-evidence.template.md > coverage-evidence.md
           
           # Attach coverage evidence to Docker image
           jf evd create-evidence \
@@ -510,16 +517,18 @@ jobs:
           EOF
           
           # Create SDLC evidence markdown
-          cat <<EOF > sdlc-evidence.md
+          # Use a quoted delimiter <<'EOF' to prevent shell expansion.
+          # Create a literal template and then populate with envsubst.
+          cat > sdlc-evidence.template.md <<'EOF'
           # SDLC Release Evidence
           
           **Application Version:** ${{ env.APP_VERSION }}  
-          **Release Date:** $(date -u)  
+          **Release Date:** ${NOW_HUMAN}  
           **Build:** ${{ env.SERVICE_NAME }}#${{ env.IMAGE_TAG }}  
           
           ## 👤 Development Team
           - **Developer:** ${{ github.actor }} (${{ github.actor }}@bookverse.com)
-          - **Tech Lead/Reviewer:** tech-lead-$(echo ${{ github.actor }} | head -c3) (tech-lead@bookverse.com)
+          - **Tech Lead/Reviewer:** tech-lead-${REVIEWER_ID} (tech-lead@bookverse.com)
           - **Approval Status:** ✅ Approved
           
           ## 🎫 JIRA Issues Resolved
@@ -541,6 +550,12 @@ jobs:
           - **Branch:** ${{ github.ref_name }}
           - **Triggered By:** ${{ github.event_name }}
           EOF
+          # Safely substitute template variables
+          if ! command -v envsubst >/dev/null 2>&1; then sudo apt-get update -y && sudo apt-get install -y gettext-base; fi
+          NOW_HUMAN=$(date -u)
+          REVIEWER_ID=$(echo ${{ github.actor }} | head -c3)
+          export NOW_HUMAN REVIEWER_ID
+          envsubst < sdlc-evidence.template.md > sdlc-evidence.md
           
           # Attach SDLC evidence to application version
           jf evd create-evidence \

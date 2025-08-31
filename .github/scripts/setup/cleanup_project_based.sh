@@ -905,7 +905,7 @@ delete_project_applications() {
                     # Get and delete versions first
                     echo "    Deleting versions for confirmed project application..."
                     local versions_file="$TEMP_DIR/${app_key}_versions.json"
-                    local code_versions=$(jfrog_api_call "GET" "/apptrust/api/v1/applications/$app_key/versions?project_key=$PROJECT_KEY" "$versions_file" "curl" "" "get app versions")
+                    local code_versions=$(jfrog_api_call "GET" "/apptrust/api/v1/applications/$app_key/versions" "$versions_file" "curl" "" "get app versions")
                     
                     if is_success "$code_versions" && [[ -s "$versions_file" ]]; then
                         # Extract versions using portable method (no mapfile dependency)
@@ -917,7 +917,7 @@ delete_project_applications() {
                             
                             # API deletion (CLI commands don't exist)
                             local version_delete_file="$TEMP_DIR/delete_version_${app_key}_${ver}.json"
-                            local ver_code=$(jfrog_api_call "DELETE" "/apptrust/api/v1/applications/$app_key/versions/$ver?project_key=$PROJECT_KEY" "$version_delete_file" "curl" "" "delete version $ver")
+                            local ver_code=$(jfrog_api_call "DELETE" "/apptrust/api/v1/applications/$app_key/versions/$ver" "$version_delete_file" "curl" "" "delete version $ver")
                             if is_success "$ver_code"; then
                                 echo "        ✅ Version $ver deleted successfully"
                             else
@@ -929,7 +929,7 @@ delete_project_applications() {
                     # Delete application via API (CLI commands don't exist)
                     echo "    Deleting application via API (project-verified)..."
                     local app_delete_file="$TEMP_DIR/delete_app_${app_key}.json"
-                    code=$(jfrog_api_call "DELETE" "/apptrust/api/v1/applications/$app_key?project_key=$PROJECT_KEY" "$app_delete_file" "curl" "" "delete application $app_key")
+                    code=$(jfrog_api_call "DELETE" "/apptrust/api/v1/applications/$app_key" "$app_delete_file" "curl" "" "delete application $app_key")
                     if is_success "$code"; then
                         echo "    ✅ Application '$app_key' deleted successfully (HTTP $code)"
                     else
@@ -1069,7 +1069,7 @@ delete_project_stages() {
                 if ! is_success "$code"; then
                     # Fallback to v2 endpoint
                     echo "    Trying alternate deletion endpoint..."
-                    code=$(jfrog_api_call "DELETE" "/access/api/v2/stages/$stage_name?projectKey=$PROJECT_KEY" "$TEMP_DIR/delete_stage_${stage_name}_v2.txt" "curl" "" "delete project stage v2 $stage_name")
+                    code=$(jfrog_api_call "DELETE" "/access/api/v2/stages/$stage_name?project_key=$PROJECT_KEY" "$TEMP_DIR/delete_stage_${stage_name}_v2.txt" "curl" "" "delete project stage v2 $stage_name")
                 fi
                 
                 if is_success "$code"; then

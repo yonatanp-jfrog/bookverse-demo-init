@@ -43,7 +43,7 @@ discover_applications() {
     local apps_file="$1"
     log_info "Discovering applications in project '$PROJECT_KEY'..."
     
-    local code=$(jfrog_api_call "GET" "/apptrust/api/v1/applications?project_key=$PROJECT_KEY" "$apps_file" "curl" "" "project applications")
+    local code=$(jfrog_api_call "GET" "${JFROG_URL%/}/apptrust/api/v1/applications?project_key=$PROJECT_KEY" "$apps_file" "curl" "" "project applications")
     
     if [[ $(jq length "$apps_file" 2>/dev/null || echo 0) -gt 0 ]]; then
         local count=$(jq -r '.[].application_key' "$apps_file" | wc -l)
@@ -72,7 +72,7 @@ discover_repositories() {
     fi
     
     # Method 2: REST API fallback
-    local code=$(jfrog_api_call "GET" "/artifactory/api/repositories" "$repos_file" "curl" "" "all repositories")
+    local code=$(jfrog_api_call "GET" "${JFROG_URL%/}/artifactory/api/repositories" "$repos_file" "curl" "" "all repositories")
     if [[ "$code" == "200" ]]; then
         # Filter for repositories containing project key  
         jq --arg project "$PROJECT_KEY" '[.[] | select(.key | contains($project))]' "$repos_file" > "${repos_file}.tmp" && mv "${repos_file}.tmp" "$repos_file"
@@ -92,7 +92,7 @@ discover_builds() {
     local builds_file="$1"
     log_info "Discovering builds in project '$PROJECT_KEY'..."
     
-    local code=$(jfrog_api_call "GET" "/artifactory/api/build?project=$PROJECT_KEY" "$builds_file" "curl" "" "project builds")
+    local code=$(jfrog_api_call "GET" "${JFROG_URL%/}/artifactory/api/build?project=$PROJECT_KEY" "$builds_file" "curl" "" "project builds")
     
     if [[ "$code" == "200" ]] && [[ $(jq length "$builds_file" 2>/dev/null || echo 0) -gt 0 ]]; then
         local count=$(jq -r '.builds[].uri' "$builds_file" | wc -l)
@@ -121,13 +121,13 @@ delete_applications() {
             
             # Delete all versions first
             local versions_file="$TEMP_DIR_BASE/versions_${app_key}.json"
-            local code=$(jfrog_api_call "GET" "/apptrust/api/v1/applications/$app_key/versions?project_key=$PROJECT_KEY" "$versions_file" "curl" "" "get app versions")
+            local code=$(jfrog_api_call "GET" "${JFROG_URL%/}/apptrust/api/v1/applications/$app_key/versions" "$versions_file" "curl" "" "get app versions")
             
             if [[ "$code" == "200" ]] && [[ $(jq length "$versions_file" 2>/dev/null || echo 0) -gt 0 ]]; then
                 while IFS= read -r version; do
                     if [[ -n "$version" ]] && [[ "$version" != "null" ]]; then
                         log_info "  Deleting version: $version"
-                        local ver_code=$(jfrog_api_call "DELETE" "/apptrust/api/v1/applications/$app_key/versions/$version?project_key=$PROJECT_KEY" "/dev/null" "curl" "" "delete version")
+                        local ver_code=$(jfrog_api_call "DELETE" "${JFROG_URL%/}/apptrust/api/v1/applications/$app_key/versions/$version" "/dev/null" "curl" "" "delete version")
                         if [[ "$ver_code" =~ ^2[0-9][0-9]$ ]]; then
                             log_success "    Version $version deleted"
                         else
@@ -138,7 +138,7 @@ delete_applications() {
             fi
             
             # Delete the application
-            local app_code=$(jfrog_api_call "DELETE" "/apptrust/api/v1/applications/$app_key?project_key=$PROJECT_KEY" "/dev/null" "curl" "" "delete application")
+            local app_code=$(jfrog_api_call "DELETE" "${JFROG_URL%/}/apptrust/api/v1/applications/$app_key" "/dev/null" "curl" "" "delete application")
             if [[ "$app_code" =~ ^2[0-9][0-9]$ ]]; then
                 log_success "Application '$app_key' deleted"
                 ((apps_deleted++))
@@ -164,7 +164,7 @@ delete_repositories() {
             log_info "Deleting repository: $repo_key"
             
             # Use REST API directly (consistent, reliable, faster)
-            local code=$(jfrog_api_call "DELETE" "/artifactory/api/repositories/$repo_key" "/dev/null" "curl" "" "delete repository")
+            local code=$(jfrog_api_call "DELETE" "${JFROG_URL%/}/artifactory/api/repositories/$repo_key" "/dev/null" "curl" "" "delete repository")
             if [[ "$code" =~ ^2[0-9][0-9]$ ]] || [[ "$code" == "404" ]]; then
                 log_success "Repository '$repo_key' deleted (HTTP $code)"
                 ((repos_deleted++))
@@ -193,7 +193,7 @@ delete_builds() {
             
             # Get build numbers for this build
             local build_details="$TEMP_DIR_BASE/build_${build_name//\//_}.json"
-            local code=$(jfrog_api_call "GET" "/artifactory/api/build/$decoded_name?project=$PROJECT_KEY" "$build_details" "curl" "" "get build details")
+            local code=$(jfrog_api_call "GET" "${JFROG_URL%/}/artifactory/api/build/$decoded_name?project=$PROJECT_KEY" "$build_details" "curl" "" "get build details")
             
             if [[ "$code" == "200" ]] && [[ -s "$build_details" ]]; then
                 local build_numbers=($(jq -r '.buildsNumbers[].uri' "$build_details" 2>/dev/null | sed 's|.*/||'))
@@ -210,7 +210,7 @@ delete_builds() {
                             buildNumbers: $buildNumbers
                         }')
                     
-                    local delete_code=$(jfrog_api_call "POST" "/artifactory/api/build/delete" "/dev/null" "curl" "$delete_payload" "delete build")
+                    local delete_code=$(jfrog_api_call "POST" "${JFROG_URL%/}/artifactory/api/build/delete" "/dev/null" "curl" "$delete_payload" "delete build")
                     if [[ "$delete_code" =~ ^2[0-9][0-9]$ ]]; then
                         log_success "Build '$decoded_name' deleted"
                         ((builds_deleted++))
@@ -229,7 +229,7 @@ delete_builds() {
 delete_project() {
     log_step "Deleting project '$PROJECT_KEY'..."
     
-    local code=$(jfrog_api_call "DELETE" "/access/api/v1/projects/$PROJECT_KEY?force=true" "/dev/null" "curl" "" "delete project")
+    local code=$(jfrog_api_call "DELETE" "${JFROG_URL%/}/access/api/v1/projects/$PROJECT_KEY?force=true" "/dev/null" "curl" "" "delete project")
     if [[ "$code" =~ ^2[0-9][0-9]$ ]]; then
         log_success "Project '$PROJECT_KEY' deleted successfully"
     else

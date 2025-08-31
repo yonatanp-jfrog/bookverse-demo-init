@@ -61,6 +61,11 @@ jobs:
           jf pip install -r requirements.txt
           echo "✅ Installed project dependencies via JFrog CLI"
 
+      # - name: Prepare evidence signing key (local dev style; avoid in GH)
+      #   run: |
+      #     umask 077
+      #     printf "%s" "${{ secrets.EVIDENCE_PRIVATE_KEY }}" > private.pem
+
       - name: Run tests with coverage
         run: |
           # Run tests with coverage
@@ -249,14 +254,16 @@ jobs:
           EOF
           
           # Attach coverage evidence to Docker image
-          jf evd create \
+          jf evd create-evidence \
             --predicate coverage-evidence.json \
             --markdown coverage-evidence.md \
             --predicate-type "Test Coverage" \
             --package-name "${{ env.SERVICE_NAME }}" \
             --package-repo-name "${{ vars.PROJECT_KEY }}-${{ env.SERVICE_NAME }}-docker-internal-local" \
             --package-version "${{ env.IMAGE_TAG }}" \
-            --project "${{ vars.PROJECT_KEY }}" || echo "⚠️ Coverage evidence attachment failed"
+            --project "${{ vars.PROJECT_KEY }}" \
+            # --key-alias "${{ vars.EVIDENCE_KEY_ALIAS || 'BookVerse-Evidence-Key' }}" \
+            --key "${{ secrets.EVIDENCE_PRIVATE_KEY }}" || echo "⚠️ Coverage evidence attachment failed"
           
           echo "✅ Coverage evidence attached to Docker image"
 
@@ -303,14 +310,16 @@ jobs:
           EOF
           
           # Attach SAST evidence to Docker image
-          jf evd create \
+          jf evd create-evidence \
             --predicate sast-evidence.json \
             --markdown sast-summary.md \
             --predicate-type "SAST Scan" \
             --package-name "${{ env.SERVICE_NAME }}" \
             --package-repo-name "${{ vars.PROJECT_KEY }}-${{ env.SERVICE_NAME }}-docker-internal-local" \
             --package-version "${{ env.IMAGE_TAG }}" \
-            --project "${{ vars.PROJECT_KEY }}" || echo "⚠️ SAST evidence attachment failed"
+            --project "${{ vars.PROJECT_KEY }}" \
+            # --key-alias "${{ vars.EVIDENCE_KEY_ALIAS || 'BookVerse-Evidence-Key' }}" \
+            --key "${{ secrets.EVIDENCE_PRIVATE_KEY }}" || echo "⚠️ SAST evidence attachment failed"
           
           echo "✅ SAST evidence attached to Docker image"
 
@@ -343,9 +352,9 @@ jobs:
           
           echo "🔍 Checking for existing application versions..."
           
-          # Get latest version from AppTrust API
+          # Get latest version from AppTrust API (explicit sort + limit)
           LATEST_VERSION=$(curl -s \
-            "${{ vars.JFROG_URL }}/apptrust/api/v1/applications/$APPLICATION_KEY/versions/" \
+            "${{ vars.JFROG_URL }}/apptrust/api/v1/applications/$APPLICATION_KEY/versions?limit=1&order_by=created&order_asc=false" \
             -H "Authorization: Bearer ${{ secrets.JFROG_ACCESS_TOKEN }}" \
             -H "Content-Type: application/json" | \
             jq -r '.versions[0].version // empty' 2>/dev/null || echo "")
@@ -509,13 +518,15 @@ jobs:
           EOF
           
           # Attach SDLC evidence to application version
-          jf evd create \
+          jf evd create-evidence \
             --predicate sdlc-evidence.json \
             --markdown sdlc-evidence.md \
             --predicate-type "SDLC Release" \
             --release-bundle "${{ env.APPLICATION_KEY }}" \
             --release-bundle-version "${{ env.APP_VERSION }}" \
-            --project "${{ vars.PROJECT_KEY }}" || echo "⚠️ SDLC evidence attachment failed"
+            --project "${{ vars.PROJECT_KEY }}" \
+            # --key-alias "${{ vars.EVIDENCE_KEY_ALIAS || 'BookVerse-Evidence-Key' }}" \
+            --key "${{ secrets.EVIDENCE_PRIVATE_KEY }}" || echo "⚠️ SDLC evidence attachment failed"
           
           echo "✅ SDLC evidence attached to application version"
 

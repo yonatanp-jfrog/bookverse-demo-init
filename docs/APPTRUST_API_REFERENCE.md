@@ -85,7 +85,7 @@ The project key for the project that is associated with the Application.
 description
 string
 Free text description of the application.
-maturity
+maturity_level
 string
 Default: unspecified
 Maturity level of the application (unspecified, experimental, production, end_of_life).
@@ -188,7 +188,7 @@ Request Body Example:
     "application_key": "catalina-app",
     "project_key": "catalina",
     "description": "This application contains enhancements to login performance.",
-    "maturity": "production",
+    "maturity_level": "production",
     "criticaly": "low",
     "labels": {
         "environment": "production",
@@ -212,7 +212,7 @@ Response Body Example:
     "project_key": "catalina"
     "signing_key": "catalina-key",
     "description": "This application contains enhancements to login performance.",
-    "maturity": "production",
+    "maturity_level": "production",
     "criticality": "low",
     "labels": {
         "environment": "production",
@@ -341,38 +341,30 @@ HTTP Return code: 200
 Parameter Name
 Type
 Description
-applications
+array (top-level)
 array: object
-A list of Applications.
-applications
+The response is a top-level JSON array, where each element represents an application object.
 application_name
 string
 Application display name. Must be 1-255 alphanumeric characters, containing underscores, hyphens and spaces. Must be unique within the scope of the project.
-applications
 application_key
 string
 Application key must be 2 - 64 lowercase alphanumeric characters, beginning with a letter, can contain dashes,  unique and immutable.
-applications
 project_key
 string
 The project key for the project that is associated with the Application.
-applications
 project_name
 string
 The project name for the project that is associated with the Application.
-application
 created
 string
 The timestamp in ISO 8601 format indicating when the application was created.
-application
 application_version_latest
 string
 The latest version of the application currently by timestamp.
-application
 application_version_tag
 string
 A tag associated with the latest application version (e.g., stable, beta).
-application
 application_versions_count
 integer
 The total number of versions for the application.
@@ -404,7 +396,7 @@ Description
 Example
 Request HTTP Example:
 
-GET 'https://{host}.jfrog.io/apptrust/api/v1/applications?project=catalina&labels=environmnet:production&labels=region=us-east&owners=JohnD&owners=DevOps&prefix=backend&order_by=name&order_asc=true'
+GET 'https://{host}.jfrog.io/apptrust/api/v1/applications?project_key=catalina&labels=environment:production&labels=region=us-east&owners=JohnD&owners=DevOps&name=backend&order_by=name&order_asc=true'
 Authorization: ••••••
 
 Request Body Example:
@@ -568,7 +560,7 @@ Description
 Updates the details of the specified application with new data. All fields in the body are optional and only the existing fields will be replaced.
 
 Request URL
-PATCH https://{{artifactory-host}}/apptrust/v1/applications/{application_key}
+PATCH https://{{artifactory-host}}/apptrust/api/v1/applications/{application_key}
 Query Parameter
 Parameter Name
 Type
@@ -1280,118 +1272,6 @@ Response Body Example:
   "limit": 3,
   "offset": 0
 }
-
-
-
-
-
-Get Application Version Summary
-
-
-API
-
-Description
-Retrieves detailed metadata and summary information for a specific application version. 
-
-Request URL
-GET https://{{artifactory-host}}/apptrust/api/v1/applications/{{application_key}}/versions/{{version}}
-
-Query Parameter
-Parameter Name
-Type
-Description
-
-
-
-
-
-
-
-
-Request Body
-Parameter Name
-Type
-Description
-
-
-
-
-
-
-
-
-Response
-On Success 
-HTTP Return code: 200
-Parameter Name
-Type
-Description
-application_key
-string
-The key of the application this version belongs to.
-version
-string
-The version identifier of the application version.
-project_key
-string
-The key of the project this application version belongs to.
-tag
-string
-The user-defined tag associated with the version (e.g., "release-candidate").
-created_by
-string
-The user ID that created this application version.
-created_at
-string
-The ISO 8601 timestamp indicating when the application version was created.
-status
-string
-The overall status of the application version. 
-release_status
-string
-The release status of the version. Can be PRE_RELEASE, RELEASED, or TRUSTED_RELEASE.
-current_stage
-string
-Indicates the most recent stage (e.g., QA, Staging) where the application version was successfully promoted. If the version has not yet been promoted, this value will be an empty string.
-
-
-
-On Failure
-Status Code
-Description
-400
-Bad Parameters
-401
-Bad Credentials
-403
-Permissions Denied
-404
-Version not found
-
-
-Example
-Request HTTP Example:
-
-GET 'https://{host}.jfrog.io/apptrust/api/v1/applications/catalina-app/versions/1.0.1'
-Authorization: ••••••
-
-Request Body Example:
-{
-}
-
-Response Body Example:
-{
-  "application_key": "catalina-app",
-  "project_key": "catalina-proj",
-  "version": "1.0.1",
-  "tag": "release",
-  "created_by": "user@example.com",
-  "created_at": "2025-07-15T09:30:00Z",
-  "status": "COMPLETED",
-  "release_status": "PRE_RELEASE",
-  "current_stage": "QA",
-}
-
 
 
 

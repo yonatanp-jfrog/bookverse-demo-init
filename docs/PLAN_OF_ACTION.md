@@ -8,6 +8,9 @@ Link to source playbook: [JFrog AppTrust Demo Playbook: The BookVerse Scenario](
 - Services: `inventory`, `recommendations`, `checkout`, `platform`
 - Packages: `python` (pypi), `docker`
 
+### Service Plans (quick links)
+- Checkout: see `CHECKOUT_PLAN_OF_ACTION.md` (central copy; source at `bookverse-checkout/PLAN_OF_ACTION.md`)
+
 ### Guardrails and Constraints
 - Stage names must be project-prefixed (e.g., `bookverse-QA`).
 - `PROD` is global and must not be created or included in lifecycle API payloads.

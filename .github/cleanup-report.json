@@ -1,57 +1,17 @@
 {
   "metadata": {
-    "timestamp": "2025-09-01T19:02:58Z",
+    "timestamp": "2025-09-01T19:04:06Z",
     "project_key": "bookverse",
-    "total_items": 11,
+    "total_items": 0,
     "discovery_counts": {
       "builds": 0,
-      "applications": 2,
-      "repositories": 6,
+      "applications": 0,
+      "repositories": 0,
       "users": 0,
-      "stages": 3
+      "stages": 0
     }
   },
-  "plan": {
-    "repositories": [
-      {
-        "key": "bookverse-dockerhub-cache-local",
-        "project": "bookverse"
-      },
-      {
-        "key": "bookverse-inventory-docker-internal-local",
-        "project": "bookverse"
-      },
-      {
-        "key": "bookverse-inventory-docker-release-local",
-        "project": "bookverse"
-      },
-      {
-        "key": "bookverse-release-bundles-v2",
-        "project": "bookverse"
-      },
-      {
-        "key": "bookverse-web-docker-internal-local",
-        "project": "bookverse"
-      },
-      {
-        "key": "bookverse-web-docker-release-local",
-        "project": "bookverse"
-      }
-    ],
-    "applications": [
-      {
-        "key": "bookverse-checkout",
-        "project": "bookverse"
-      },
-      {
-        "key": "bookverse-inventory",
-        "project": "bookverse"
-      }
-    ],
-    "users": [],
-    "stages": [],
-    "builds": []
-  },
-  "deletion_preview": "🛡️ SAFETY: Discovering what would be deleted...\nProject: bookverse\nDate: Mon Sep  1 19:02:57 UTC 2025\n\nBUILDS: None found\n\nAPPLICATIONS TO DELETE (2 items):\n===========================================\n  ❌ Application: bookverse-checkout\n  ❌ Application: bookverse-inventory\n\nREPOSITORIES TO DELETE (6 items):\n=============================================\n  ❌ Repository: bookverse-dockerhub-cache-local\n  ❌ Repository: bookverse-inventory-docker-internal-local\n  ❌ Repository: bookverse-inventory-docker-release-local\n  ❌ Repository: bookverse-release-bundles-v2\n  ❌ Repository: bookverse-web-docker-internal-local\n  ❌ Repository: bookverse-web-docker-release-local\n\nUSERS: None found\n\nSTAGES TO DELETE (3 items):\n=======================================\n  ❌ Stage: bookverse-DEV\n  ❌ Stage: bookverse-QA\n  ❌ Stage: bookverse-STAGING\n\nSUMMARY:\n========\nTotal items to delete: 11\nProject to delete: bookverse\n\n⚠️ WARNING: This action cannot be undone!",
-  "status": "ready_for_cleanup"
+  "deletion_plan": "No items found for deletion",
+  "status": "cleanup_completed",
+  "last_cleanup": "2025-09-01T19:02:58Z"
 }

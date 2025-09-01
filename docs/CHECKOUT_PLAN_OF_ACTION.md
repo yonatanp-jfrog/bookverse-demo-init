@@ -219,7 +219,7 @@ Carry over the proven CI structure and practices from `bookverse-inventory` and 
 - Evidence attachments
   - Coverage (pytest) attached to image; compute and export coverage percent
   - SAST (placeholder), Sonar quality gate (placeholder), License compliance (placeholder)
-  - Add minimal verified-evidence path (`verified_only` job)
+  - Remove legacy verified-only flow; attach evidence in main pipeline
 - AppTrust application version
   - Create version with build sources; attach SLSA and Jira templates for UNASSIGNED (gate to DEV)
   - Emit GitHub step summary with highlights
@@ -308,7 +308,7 @@ sequenceDiagram
   - [ ] OpenAPI docs polish and examples
   - [ ] CI: test → build → SBOM/sign → publish (reuse inventory workflow pattern)
 - Workflows & CI/CD
-  - [ ] Create `.github/workflows/ci.yml` mirroring inventory jobs (build-test-publish, create-application-version, verified-only)
+  - [ ] Create `.github/workflows/ci.yml` mirroring inventory jobs (build-test-publish, create-application-version)
   - [ ] Configure OIDC provider `github-bookverse-checkout`; `id-token: write`, `contents: read`
   - [ ] Implement SemVer resolver for `APPLICATION_KEY=bookverse-checkout`; set `IMAGE_TAG` and `APP_VERSION`
   - [ ] Name Docker image `${REGISTRY_URL}/${PROJECT_KEY}-checkout-docker-internal-local/checkout:${IMAGE_TAG}`

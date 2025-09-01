@@ -40,6 +40,23 @@ bash scripts/set_actions_vars.sh
 This will set `PROJECT_KEY`, `JFROG_URL`, and `DOCKER_REGISTRY` as Actions variables in:
 `bookverse-inventory`, `bookverse-recommendations`, `bookverse-checkout`, `bookverse-platform`, `bookverse-demo-assets`.
 
+### 📦 Provision Artifactory Repositories (Steady State)
+
+Provision the required repositories once during initialization using the setup script (CI will not create repos dynamically):
+
+```bash
+cd bookverse-demo-init/.github/scripts/setup
+export JFROG_URL="https://your-jfrog-instance.com"
+export JFROG_ADMIN_TOKEN="your-admin-token"
+export PROJECT_KEY=bookverse
+./create_repositories.sh
+```
+
+Creates/ensures (among others):
+- `${PROJECT_KEY}-generic-internal-local`
+- `${PROJECT_KEY}-helm-helm-internal-local`
+- `${PROJECT_KEY}-{service}-docker-internal-local` for `inventory`, `recommendations`, `checkout`, `platform`, `web`
+
 ### 🔄 Switch Platform
 
 To switch to a different JFrog Platform instance:

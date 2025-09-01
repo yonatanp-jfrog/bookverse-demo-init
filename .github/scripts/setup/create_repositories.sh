@@ -116,7 +116,7 @@ create_repository() {
 declare -A SERVICE_PACKAGES=(
     ["inventory"]="python docker"
     ["recommendations"]="python"  
-    ["checkout"]="python"
+    ["checkout"]="python docker"
     ["platform"]="maven"
     ["web"]="npm docker"
     ["helm"]="helm"
@@ -124,6 +124,68 @@ declare -A SERVICE_PACKAGES=(
 
 echo "Creating repositories for services..."
 echo ""
+
+# Create project-level generic repo for shared artifacts (internal)
+{
+    repo_key="${PROJECT_KEY}-generic-internal-local"
+    echo "Creating repository: $repo_key"
+    environments="\"${PROJECT_KEY}-DEV\", \"${PROJECT_KEY}-QA\", \"${PROJECT_KEY}-STAGING\""
+    repo_config=$(jq -n \
+        --arg key "$repo_key" \
+        --arg rclass "local" \
+        --arg packageType "generic" \
+        --arg description "Generic repository for shared artifacts (internal)" \
+        --arg projectKey "$PROJECT_KEY" \
+        --argjson environments "[$environments]" \
+        '{
+            "key": $key,
+            "rclass": $rclass,
+            "packageType": $packageType,
+            "description": $description,
+            "projectKey": $projectKey,
+            "environments": $environments
+        }')
+
+    temp_response=$(mktemp)
+    response_code=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+        --header "Content-Type: application/json" \
+        -X PUT \
+        -d "$repo_config" \
+        --write-out "%{http_code}" \
+        --output "$temp_response" \
+        "${JFROG_URL}/artifactory/api/repositories/${repo_key}")
+
+    case "$response_code" in
+        200|201)
+            echo "✅ Repository '$repo_key' created successfully (HTTP $response_code)"
+            ;;
+        409)
+            echo "✅ Repository '$repo_key' already exists and is configured"
+            ;;
+        400)
+            if grep -q -i "already exists\|repository.*exists\|case insensitive.*already exists" "$temp_response"; then
+                echo "✅ Repository '$repo_key' already exists (case-insensitive match)"
+            else
+                echo "⚠️  Repository '$repo_key' creation issue (HTTP $response_code)"
+                if [[ "${VERBOSITY:-0}" -ge 1 ]]; then
+                    echo "Response body: $(cat "$temp_response")"
+                    echo "Repository config sent:"
+                    echo "$repo_config" | jq .
+                fi
+            fi
+            ;;
+        *)
+            echo "❌ Failed to create repository '$repo_key' (HTTP $response_code)"
+            if [[ "${VERBOSITY:-0}" -ge 1 ]]; then
+                echo "Response body: $(cat "$temp_response")"
+                echo "Repository config sent:"
+                echo "$repo_config" | jq .
+            fi
+            ;;
+    esac
+
+    rm -f "$temp_response"
+}
 
 # Create repositories for each service
 for service in "${!SERVICE_PACKAGES[@]}"; do

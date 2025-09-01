@@ -50,8 +50,10 @@ jobs:
             echo "## 🗑️ Cleanup Execution Report" >> $GITHUB_STEP_SUMMARY
             if [[ -f ".github/cleanup-report.json" ]]; then
               ts=$(jq -r '.metadata.timestamp // "unknown"' .github/cleanup-report.json)
+              # Format timestamp to a human-readable form (UTC); fall back to raw if conversion fails
+              pretty_ts=$(date -u -d "$ts" +"%a, %b %d %Y %H:%M:%S %Z" 2>/dev/null || echo "$ts")
               echo "Report is not usable (missing/invalid/expired)." >> $GITHUB_STEP_SUMMARY
-              echo "- Last report timestamp: $ts" >> $GITHUB_STEP_SUMMARY
+              echo "- Last report timestamp: $pretty_ts" >> $GITHUB_STEP_SUMMARY
             else
               echo "No cleanup report found. Please run 🔍 Discover Cleanup first." >> $GITHUB_STEP_SUMMARY
             fi

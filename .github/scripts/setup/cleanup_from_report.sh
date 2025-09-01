@@ -23,6 +23,9 @@ if [[ ! -f "$SHARED_REPORT_FILE" ]]; then
     exit 1
 fi
 
+# Defense-in-depth: re-validate freshness and readiness
+bash "$(dirname "$0")/validate_cleanup_report.sh"
+
 # Load report metadata
 report_timestamp=$(jq -r '.metadata.timestamp' "$SHARED_REPORT_FILE")
 project_key=$(jq -r '.metadata.project_key' "$SHARED_REPORT_FILE")

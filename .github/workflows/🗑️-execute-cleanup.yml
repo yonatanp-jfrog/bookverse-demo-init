@@ -32,6 +32,7 @@ jobs:
           jfrog config use bookverse-admin
 
       - name: Validate cleanup report freshness
+        id: validate
         env:
           JFROG_URL: ${{ vars.JFROG_URL }}
           JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
@@ -40,6 +41,11 @@ jobs:
           set +e
           bash ./.github/scripts/setup/validate_cleanup_report.sh
           status=$?
+          if [[ $status -eq 0 ]]; then
+            echo "report_valid=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "report_valid=false" >> "$GITHUB_OUTPUT"
+          fi
           if [[ $status -ne 0 ]]; then
             echo "## 🗑️ Cleanup Execution Report" >> $GITHUB_STEP_SUMMARY
             if [[ -f ".github/cleanup-report.json" ]]; then
@@ -57,6 +63,7 @@ jobs:
           fi
 
       - name: Execute cleanup from report
+        if: ${{ steps.validate.outputs.report_valid == 'true' }}
         env:
           JFROG_URL: ${{ vars.JFROG_URL }}
           JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}

@@ -1,12 +1,12 @@
 {
   "metadata": {
-    "timestamp": "2025-09-01T18:30:44Z",
+    "timestamp": "2025-09-01T18:50:12Z",
     "project_key": "bookverse",
-    "total_items": 19,
+    "total_items": 11,
     "discovery_counts": {
-      "builds": 2,
+      "builds": 0,
       "applications": 2,
-      "repositories": 12,
+      "repositories": 6,
       "users": 0,
       "stages": 3
     }
@@ -14,15 +14,7 @@
   "plan": {
     "repositories": [
       {
-        "key": "bookverse-checkout-docker-internal-local",
-        "project": "bookverse"
-      },
-      {
         "key": "bookverse-dockerhub-cache-local",
-        "project": "bookverse"
-      },
-      {
-        "key": "bookverse-generic-internal-local",
         "project": "bookverse"
       },
       {
@@ -31,22 +23,6 @@
       },
       {
         "key": "bookverse-inventory-docker-release-local",
-        "project": "bookverse"
-      },
-      {
-        "key": "bookverse-recommendations-docker-internal-local",
-        "project": "bookverse"
-      },
-      {
-        "key": "bookverse-recommendations-docker-qa-local",
-        "project": "bookverse"
-      },
-      {
-        "key": "bookverse-recommendations-docker-release-local",
-        "project": "bookverse"
-      },
-      {
-        "key": "bookverse-recommendations-docker-staging-local",
         "project": "bookverse"
       },
       {
@@ -74,17 +50,8 @@
     ],
     "users": [],
     "stages": [],
-    "builds": [
-      {
-        "name": "bookverse-checkout-build-test-publish",
-        "project": "bookverse"
-      },
-      {
-        "name": "bookverse-checkout_CI_build-test-publish",
-        "project": "bookverse"
-      }
-    ]
+    "builds": []
   },
-  "deletion_preview": "🛡️ SAFETY: Discovering what would be deleted...\nProject: bookverse\nDate: Mon Sep  1 18:30:43 UTC 2025\n\nBUILDS TO DELETE (2 items):\n=======================================\n  ❌ Build: bookverse-checkout-build-test-publish\n  ❌ Build: bookverse-checkout_CI_build-test-publish\n\nAPPLICATIONS TO DELETE (2 items):\n===========================================\n  ❌ Application: bookverse-checkout\n  ❌ Application: bookverse-inventory\n\nREPOSITORIES TO DELETE (12 items):\n=============================================\n  ❌ Repository: bookverse-checkout-docker-internal-local\n  ❌ Repository: bookverse-dockerhub-cache-local\n  ❌ Repository: bookverse-generic-internal-local\n  ❌ Repository: bookverse-inventory-docker-internal-local\n  ❌ Repository: bookverse-inventory-docker-release-local\n  ❌ Repository: bookverse-recommendations-docker-internal-local\n  ❌ Repository: bookverse-recommendations-docker-qa-local\n  ❌ Repository: bookverse-recommendations-docker-release-local\n  ❌ Repository: bookverse-recommendations-docker-staging-local\n  ❌ Repository: bookverse-release-bundles-v2\n  ❌ Repository: bookverse-web-docker-internal-local\n  ❌ Repository: bookverse-web-docker-release-local\n\nUSERS: None found\n\nSTAGES TO DELETE (3 items):\n=======================================\n  ❌ Stage: bookverse-DEV\n  ❌ Stage: bookverse-QA\n  ❌ Stage: bookverse-STAGING\n\nSUMMARY:\n========\nTotal items to delete: 19\nProject to delete: bookverse\n\n⚠️ WARNING: This action cannot be undone!",
+  "deletion_preview": "🛡️ SAFETY: Discovering what would be deleted...\nProject: bookverse\nDate: Mon Sep  1 18:50:11 UTC 2025\n\nBUILDS: None found\n\nAPPLICATIONS TO DELETE (2 items):\n===========================================\n  ❌ Application: bookverse-checkout\n  ❌ Application: bookverse-inventory\n\nREPOSITORIES TO DELETE (6 items):\n=============================================\n  ❌ Repository: bookverse-dockerhub-cache-local\n  ❌ Repository: bookverse-inventory-docker-internal-local\n  ❌ Repository: bookverse-inventory-docker-release-local\n  ❌ Repository: bookverse-release-bundles-v2\n  ❌ Repository: bookverse-web-docker-internal-local\n  ❌ Repository: bookverse-web-docker-release-local\n\nUSERS: None found\n\nSTAGES TO DELETE (3 items):\n=======================================\n  ❌ Stage: bookverse-DEV\n  ❌ Stage: bookverse-QA\n  ❌ Stage: bookverse-STAGING\n\nSUMMARY:\n========\nTotal items to delete: 11\nProject to delete: bookverse\n\n⚠️ WARNING: This action cannot be undone!",
   "status": "ready_for_cleanup"
 }

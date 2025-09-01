@@ -45,19 +45,22 @@ create_repository() {
                 "environments": $environments
             }')
     else
-        # Release repositories are for production use without environment restrictions
+        # Release repositories are used for production; attach to PROD environment
+        local environments='["PROD"]'
         local repo_config=$(jq -n \
             --arg key "$repo_key" \
             --arg rclass "local" \
             --arg packageType "$package_type" \
             --arg description "Repository for $service $package_type packages ($repo_type)" \
             --arg projectKey "$PROJECT_KEY" \
+            --argjson environments "$environments" \
             '{
                 "key": $key,
                 "rclass": $rclass,
                 "packageType": $packageType,
                 "description": $description,
-                "projectKey": $projectKey
+                "projectKey": $projectKey,
+                "environments": $environments
             }')
     fi
     
@@ -110,6 +113,55 @@ create_repository() {
     esac
     
     rm -f "$temp_response"
+
+    # Ensure repository has expected environment attachments (idempotent)
+    local expected_envs_json
+    if [[ "$repo_type" == "internal" ]]; then
+        expected_envs_json=$(jq -nc --arg p "$PROJECT_KEY" '[($p+"-DEV"), ($p+"-QA"), ($p+"-STAGING")]')
+    else
+        expected_envs_json='["PROD"]'
+    fi
+
+    local get_resp_file=$(mktemp)
+    local get_code=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+        --write-out "%{http_code}" --output "$get_resp_file" \
+        "${JFROG_URL}/artifactory/api/repositories/${repo_key}")
+    if [[ "$get_code" =~ ^2 ]]; then
+        # Compare current environments with expected
+        local envs_match
+        envs_match=$(jq --argjson exp "$expected_envs_json" '(
+            ( .environments // [] ) as $cur
+            | ($cur | length) == ($exp | length)
+            and ((($cur - $exp) | length) == 0)
+            and ((($exp - $cur) | length) == 0)
+        )' "$get_resp_file" 2>/dev/null || echo "false")
+        if [[ "$envs_match" != "true" ]]; then
+            echo "Updating environments for repository: $repo_key"
+            local updated_config
+            updated_config=$(jq --arg projectKey "$PROJECT_KEY" --argjson envs "$expected_envs_json" \
+                '.projectKey = $projectKey | .environments = $envs' "$get_resp_file")
+            local up_tmp=$(mktemp)
+            local up_code=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+                --header "Content-Type: application/json" -X POST \
+                -d "$updated_config" --write-out "%{http_code}" --output "$up_tmp" \
+                "${JFROG_URL}/artifactory/api/repositories/${repo_key}")
+            case "$up_code" in
+                200)
+                    echo "✅ Repository '$repo_key' environments updated"
+                    ;;
+                *)
+                    echo "⚠️  Failed to update environments for '$repo_key' (HTTP $up_code)"
+                    if [[ "${VERBOSITY:-0}" -ge 1 ]]; then
+                        echo "Response body: $(cat "$up_tmp")"
+                    fi
+                    ;;
+            esac
+            rm -f "$up_tmp"
+        fi
+    else
+        echo "⚠️  Could not fetch repository '$repo_key' to verify environments (HTTP $get_code)"
+    fi
+    rm -f "$get_resp_file"
 }
 
 # Services and their package types

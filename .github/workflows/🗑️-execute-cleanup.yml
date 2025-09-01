@@ -65,32 +65,92 @@ jobs:
           fi
 
       - name: Execute cleanup from report
+        id: run_cleanup
         if: ${{ steps.validate.outputs.report_valid == 'true' }}
         env:
           JFROG_URL: ${{ vars.JFROG_URL }}
           JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
           PROJECT_KEY: 'bookverse'
         run: |
-          bash ./.github/scripts/setup/cleanup_from_report.sh | tee /tmp/cleanup_execution.log
+          set -euo pipefail
+          bash ./.github/scripts/setup/cleanup_from_report.sh 2>&1 | tee /tmp/cleanup_execution.log
+          exit ${PIPESTATUS[0]}
 
       - name: 📋 Execute Cleanup Summary
         if: always()
+        env:
+          CLEANUP_REPORT_VALID: ${{ steps.validate.outputs.report_valid }}
         run: |
           echo "## 🗑️ Cleanup Execution Report" >> $GITHUB_STEP_SUMMARY
-          if [[ -f ".github/cleanup-report.json" ]]; then
-            echo "Project: $(jq -r '.metadata.project_key' .github/cleanup-report.json)" >> $GITHUB_STEP_SUMMARY
-            echo "Status: $(jq -r '.status' .github/cleanup-report.json)" >> $GITHUB_STEP_SUMMARY
-            echo "Total items: $(jq -r '.metadata.total_items' .github/cleanup-report.json)" >> $GITHUB_STEP_SUMMARY
+
+          report_file=".github/cleanup-report.json"
+          exec_log="/tmp/cleanup_execution.log"
+
+          # Extract metadata (if available)
+          project_key="unknown"
+          report_status="unknown"
+          total_items="unknown"
+          ts_pretty="unknown"
+          if [[ -f "$report_file" ]]; then
+            project_key=$(jq -r '.metadata.project_key // "unknown"' "$report_file")
+            report_status=$(jq -r '.status // "unknown"' "$report_file")
+            total_items=$(jq -r '.metadata.total_items // "0"' "$report_file")
+            ts=$(jq -r '.metadata.timestamp // "unknown"' "$report_file")
+            ts_pretty=$(date -u -d "$ts" +"%a, %b %d %Y %H:%M:%S %Z" 2>/dev/null || echo "$ts")
           fi
+
+          # Derive overall status from execution log and report
+          overall="UNKNOWN"
+          project_deleted="unknown"
+          failed_any="false"
+          if [[ -f "$exec_log" ]]; then
+            if grep -Eq "❌ (Failed to delete|Stage '.*' still exists|Some deletions failed|PROJECT DELETION INCOMPLETE)" "$exec_log"; then
+              failed_any="true"
+            fi
+            if grep -Eq "✅ Project '.*' deleted successfully" "$exec_log"; then
+              project_deleted="yes"
+            elif grep -Eq "❌ Failed to delete project '.*'" "$exec_log"; then
+              project_deleted="no"
+            fi
+          fi
+
+          if [[ "$failed_any" == "true" ]] || [[ "$report_status" == "stale_report" ]] || [[ "$project_deleted" == "no" ]]; then
+            overall="FAILED"
+          elif [[ "$report_status" == "cleanup_completed" ]] || [[ "$project_deleted" == "yes" ]]; then
+            overall="SUCCESS"
+          elif [[ -f "$exec_log" ]]; then
+            overall="PARTIAL"
+          fi
+
+          # Top summary block
+          if [[ "$overall" == "SUCCESS" ]]; then
+            echo "**✅ Overall Result: Cleanup Succeeded**" >> $GITHUB_STEP_SUMMARY
+          elif [[ "$overall" == "FAILED" ]]; then
+            echo "**❌ Overall Result: Cleanup FAILED**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**⚠️ Overall Result: Partial/Unknown**" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [[ -n "$project_key" ]]; then echo "- **Project**: $project_key" >> $GITHUB_STEP_SUMMARY; fi
+          if [[ -n "$ts_pretty" ]]; then echo "- **Last report timestamp**: $ts_pretty (UTC)" >> $GITHUB_STEP_SUMMARY; fi
+          if [[ -n "$report_status" ]]; then echo "- **Report status**: $report_status" >> $GITHUB_STEP_SUMMARY; fi
+          if [[ -n "$total_items" ]]; then echo "- **Items in report**: $total_items" >> $GITHUB_STEP_SUMMARY; fi
+          if [[ "$project_deleted" == "yes" ]]; then echo "- **Project deletion**: ✅ deleted" >> $GITHUB_STEP_SUMMARY; fi
+          if [[ "$project_deleted" == "no" ]]; then echo "- **Project deletion**: ❌ failed" >> $GITHUB_STEP_SUMMARY; fi
+
+          # Guidance when failed/partial
+          if [[ "$overall" != "SUCCESS" ]]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "> The workflow run can be green even if cleanup failed. This section reflects the cleanup outcome from logs and the report." >> $GITHUB_STEP_SUMMARY
+          fi
+
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 🔎 Detailed Items Deleted" >> $GITHUB_STEP_SUMMARY
-          exec_log="/tmp/cleanup_execution.log"
           if [[ -f "$exec_log" ]]; then
             repos=$(grep -E "✅ Repository '.*' deleted successfully" "$exec_log" | sed -E "s/.*Repository '([^']+)'.*/- \1/") || true
             echo "#### 📦 Repositories" >> $GITHUB_STEP_SUMMARY
             if [[ -n "$repos" ]]; then echo "$repos" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
 
-            users=$(grep -E "✅ User '.*' removed from project successfully" "$exec_log" | sed -E "s/.*User '([^']+)'.*/- \1/") || true
+            users=$(grep -E "✅ User '.*' (removed from project|deleted) successfully" "$exec_log" | sed -E "s/.*User '([^']+)'.*/- \1/") || true
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "#### 👥 Users (removed from project)" >> $GITHUB_STEP_SUMMARY
             if [[ -n "$users" ]]; then echo "$users" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
@@ -105,17 +165,41 @@ jobs:
             echo "#### 🏷️ Stages" >> $GITHUB_STEP_SUMMARY
             if [[ -n "$stages" ]]; then echo "$stages" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
 
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### 🧪 Post-Cleanup Verification" >> $GITHUB_STEP_SUMMARY
-            if [[ -f ".github/cleanup-report.json" ]]; then
-              echo "- Note: The report is not auto-refreshed after deletion. If it still shows items, run 🔍 Discover Cleanup again to regenerate it." >> $GITHUB_STEP_SUMMARY
-              echo "- Current report status: $(jq -r '.status' .github/cleanup-report.json)" >> $GITHUB_STEP_SUMMARY
-            fi
-
             builds=$(grep -E "✅ Build '.*' deleted successfully" "$exec_log" | sed -E "s/.*Build '([^']+)'.*/- \1/") || true
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "#### 🔧 Builds" >> $GITHUB_STEP_SUMMARY
             if [[ -n "$builds" ]]; then echo "$builds" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
+
+            # Failed/Remaining items section
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### ❗ Failed/Remaining Items" >> $GITHUB_STEP_SUMMARY
+            repos_failed=$(grep -E "❌ .*repository '.*'" "$exec_log" | sed -E "s/.*'([^']+)'.*/- \1/" | sort -u) || true
+            users_failed=$(grep -E "❌ Failed to (remove|delete) user '.*'" "$exec_log" | sed -E "s/.*'([^']+)'.*/- \1/" | sort -u) || true
+            apps_failed=$(grep -E "❌ Failed to delete application '.*'" "$exec_log" | sed -E "s/.*'([^']+)'.*/- \1/" | sort -u) || true
+            stages_failed=$(grep -E "❌ (Failed to delete stage|Stage '.*' still exists)" "$exec_log" | sed -E "s/.*'([^']+)'.*/- \1/" | sort -u) || true
+            builds_failed=$(grep -E "❌ Failed to delete build '.*'" "$exec_log" | sed -E "s/.*'([^']+)'.*/- \1/" | sort -u) || true
+
+            echo "#### 📦 Repositories" >> $GITHUB_STEP_SUMMARY
+            if [[ -n "$repos_failed" ]]; then echo "$repos_failed" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "#### 👥 Users" >> $GITHUB_STEP_SUMMARY
+            if [[ -n "$users_failed" ]]; then echo "$users_failed" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "#### 🚀 Applications" >> $GITHUB_STEP_SUMMARY
+            if [[ -n "$apps_failed" ]]; then echo "$apps_failed" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "#### 🏷️ Stages" >> $GITHUB_STEP_SUMMARY
+            if [[ -n "$stages_failed" ]]; then echo "$stages_failed" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "#### 🔧 Builds" >> $GITHUB_STEP_SUMMARY
+            if [[ -n "$builds_failed" ]]; then echo "$builds_failed" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
+
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 🧪 Post-Cleanup Verification" >> $GITHUB_STEP_SUMMARY
+            if [[ -f "$report_file" ]]; then
+              echo "- Note: The report is not auto-refreshed after deletion. If it still shows items, run 🔍 Discover Cleanup again to regenerate it." >> $GITHUB_STEP_SUMMARY
+              echo "- Current report status: $(jq -r '.status' "$report_file")" >> $GITHUB_STEP_SUMMARY
+            fi
 
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "<details>" >> $GITHUB_STEP_SUMMARY
@@ -127,4 +211,32 @@ jobs:
             echo "</details>" >> $GITHUB_STEP_SUMMARY
           else
             echo "- Execution log not found" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Fail the job if cleanup did not succeed (only when a valid report triggered execution)
+          if [[ "${CLEANUP_REPORT_VALID}" == "true" ]] && [[ "$overall" != "SUCCESS" ]]; then
+            echo "Cleanup result: $overall (project_deleted=$project_deleted). Failing job." >&2
+            exit 1
+          fi
+
+      - name: 🔒 Commit cleanup report changes (post-run)
+        if: ${{ always() && steps.validate.outputs.report_valid == 'true' && steps.run_cleanup.outcome == 'success' }}
+        run: |
+          set -euo pipefail
+          report_file=".github/cleanup-report.json"
+          if [[ -f "$report_file" ]]; then
+            echo "Committing cleanup report changes (post-success)..."
+            # Do not alter the report; the script set status=cleanup_completed on success
+            git config --global user.name "BookVerse Cleanup Bot"
+            git config --global user.email "cleanup@bookverse.demo"
+            git add "$report_file"
+            if git diff --cached --quiet; then
+              echo "📋 No changes to commit for cleanup report"
+            else
+              git commit -m "chore: Commit cleanup report after successful execution"
+              git push origin ${{ github.ref_name }}
+              echo "📋 Cleanup report changes pushed"
+            fi
+          else
+            echo "No cleanup report found to invalidate"
           fi

@@ -119,7 +119,7 @@ rm -f "$repos_file" "$apps_file" "$users_file" "$stages_file" "$builds_file"
 # Check if there were any failures during deletion
 if [[ "$FAILED" == "true" ]]; then
     log_error "❌ Some deletions failed - cleanup incomplete"
-    log_info "📋 Shared report will NOT be cleared due to failures"
+    log_info "📋 Shared report will remain available for retry"
     log_info "🔄 Fix any issues and try running cleanup again"
     log_info "⏭️  Skipping project deletion due to prior failures"
     exit 1
@@ -167,9 +167,6 @@ else
     log_info "   3. Run this cleanup workflow again with the updated report"
     echo ""
     log_info "📋 The cleanup report will remain available for retry"
-    # Mark report as not ready to prevent accidental reuse
-    tmpfile=$(mktemp)
-    jq '.status = "stale_report"' "$SHARED_REPORT_FILE" > "$tmpfile" && mv "$tmpfile" "$SHARED_REPORT_FILE"
     log_error "🚨 PROJECT DELETION INCOMPLETE - Fresh discovery recommended"
     exit 1
 fi

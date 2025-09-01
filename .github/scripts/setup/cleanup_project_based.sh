@@ -546,10 +546,47 @@ delete_specific_applications() {
     while IFS= read -r app_key; do
         if [[ -n "$app_key" ]]; then
             echo "  → Deleting application: $app_key"
-            
+
+            # First delete all versions (prevents HTTP 400 on app delete)
+            # Use a pagination-safe loop: always fetch first page and delete until none remain
+            local safety_loops=0
+            while true; do
+                local versions_file="$TEMP_DIR/${app_key}_versions.json"
+                local versions_list_file="$TEMP_DIR/${app_key}_versions.txt"
+                local code_versions=$(jfrog_api_call "GET" "/apptrust/api/v1/applications/$app_key/versions?limit=250&order_by=created&order_asc=false" "$versions_file" "curl" "" "get app versions (paged)")
+                if is_success "$code_versions" && [[ -s "$versions_file" ]]; then
+                    jq -r '.versions[]?.version // empty' "$versions_file" > "$versions_list_file" 2>/dev/null || true
+                    if [[ -s "$versions_list_file" ]]; then
+                        while IFS= read -r ver; do
+                            [[ -z "$ver" ]] && continue
+                            echo "    - Deleting version $ver"
+                            local ver_resp="$TEMP_DIR/delete_version_${app_key}_${ver}.json"
+                            local ver_code=$(jfrog_api_call "DELETE" "/apptrust/api/v1/applications/$app_key/versions/$ver" "$ver_resp" "curl" "" "delete version $ver")
+                            if is_success "$ver_code" || is_not_found "$ver_code"; then
+                                echo "      ✅ Version $ver deleted"
+                            else
+                                echo "      ⚠️ Version $ver deletion failed (HTTP $ver_code)"
+                            fi
+                        done < "$versions_list_file"
+                    else
+                        # No versions in this page; break
+                        break
+                    fi
+                else
+                    # Failed to list or empty response; assume nothing to delete
+                    break
+                fi
+
+                ((safety_loops++))
+                if [[ "$safety_loops" -gt 50 ]]; then
+                    echo "      ⚠️ Aborting version deletion loop after 50 iterations for safety"
+                    break
+                fi
+            done
+
+            # Delete the application itself
             local code=$(jfrog_api_call "DELETE" "/apptrust/api/v1/applications/$app_key" "" "curl" "" "delete application $app_key")
-            
-            if is_success "$code"; then
+            if is_success "$code" || is_not_found "$code"; then
                 echo "    ✅ Application '$app_key' deleted successfully"
             else
                 echo "    ❌ Failed to delete application '$app_key' (HTTP $code)"
@@ -582,17 +619,31 @@ delete_specific_repositories() {
     while IFS= read -r repo_key; do
         if [[ -n "$repo_key" ]]; then
             echo "  → Deleting repository: $repo_key"
-            
-            # Purge artifacts first
+
+            # Skip Distribution-managed Release Bundles repositories
+            if [[ "$repo_key" == *"release-bundles"* ]]; then
+                echo "    ⚠️ Skipping Distribution-managed repository '$repo_key' (use Distribution APIs to remove release bundles)"
+                continue
+            fi
+
+            # Purge artifacts first (best-effort)
             echo "    Purging artifacts..."
             jf rt del "${repo_key}/**" --quiet 2>/dev/null || echo "    Warning: Artifact purge failed"
-            
-            # Delete repository via REST API
-            echo "    Deleting repository via REST API..."
-            local code=$(jfrog_api_call "DELETE" "/artifactory/api/repositories/$repo_key" "" "curl" "" "delete repository $repo_key")
-            
+
+            # Attempt deletion via JFrog CLI-backed API first
+            echo "    Deleting repository via API (jf client)..."
+            local code=$(jfrog_api_call "DELETE" "/artifactory/api/repositories/$repo_key" "" "jf" "" "delete repository $repo_key (jf)")
+
+            # Fallback to direct curl if needed
+            if ! is_success "$code" && [[ "$code" -ne $HTTP_NOT_FOUND ]]; then
+                echo "    Fallback to direct API (curl)..."
+                code=$(jfrog_api_call "DELETE" "/artifactory/api/repositories/$repo_key" "" "curl" "" "delete repository $repo_key (curl)")
+            fi
+
             if is_success "$code"; then
                 echo "    ✅ Repository '$repo_key' deleted successfully"
+            elif is_not_found "$code"; then
+                echo "    ⚠️ Repository '$repo_key' not found or already deleted (HTTP $code)"
             else
                 echo "    ❌ Failed to delete repository '$repo_key' (HTTP $code)"
                 ((failed_count++))
@@ -1323,7 +1374,9 @@ run_discovery_preview() {
         # Fetch lifecycle to check which stages are referenced
         local lifecycle_file="$TEMP_DIR/lifecycle.json"
         jfrog_api_call "GET" "/access/api/v2/lifecycle/?project_key=$PROJECT_KEY" "$lifecycle_file" "curl" "" "get lifecycle for stage usage" >/dev/null || true
-        if [[ -s "$lifecycle_file" ]]; then
+
+        # Use lifecycle info only if it's valid JSON; otherwise fall back gracefully
+        if [[ -s "$lifecycle_file" ]] && jq -e . "$lifecycle_file" >/dev/null 2>&1; then
             stages_json=$(jq -R -s --arg project "$PROJECT_KEY" --argfile lif "$lifecycle_file" '
                 ( ($lif|try .promote_stages catch []) ) as $ps
                 | split("\n")

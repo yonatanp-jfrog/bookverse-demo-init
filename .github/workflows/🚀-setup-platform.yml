@@ -24,11 +24,22 @@ jobs:
       - name: Initialize JFrog Platform
         run: |
           # Configure JFrog CLI for admin access
-          jfrog config add bookverse-admin --url="$JFROG_URL" --access-token="$JFROG_ADMIN_TOKEN" --interactive=false
-          jfrog config use bookverse-admin
+          jf c add bookverse-admin --url "$JFROG_URL" --access-token "$JFROG_ADMIN_TOKEN" --interactive=false
+          jf c use bookverse-admin
+          jf c show
           
           # Validate environment and connectivity
           ./.github/scripts/setup/validate_environment.sh
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
 
       - name: Create Core Infrastructure
         run: |

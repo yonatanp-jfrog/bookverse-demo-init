@@ -119,23 +119,38 @@ delete_applications() {
         if [[ -n "$app_key" ]]; then
             log_info "Deleting application: $app_key"
             
-            # Delete all versions first
-            local versions_file="$TEMP_DIR_BASE/versions_${app_key}.json"
-            local code=$(jfrog_api_call "GET" "${JFROG_URL%/}/apptrust/api/v1/applications/$app_key/versions" "$versions_file" "curl" "" "get app versions")
-            
-            if [[ "$code" == "200" ]] && [[ $(jq length "$versions_file" 2>/dev/null || echo 0) -gt 0 ]]; then
-                while IFS= read -r version; do
-                    if [[ -n "$version" ]] && [[ "$version" != "null" ]]; then
-                        log_info "  Deleting version: $version"
-                        local ver_code=$(jfrog_api_call "DELETE" "${JFROG_URL%/}/apptrust/api/v1/applications/$app_key/versions/$version" "/dev/null" "curl" "" "delete version")
-                        if [[ "$ver_code" =~ ^2[0-9][0-9]$ ]]; then
-                            log_success "    Version $version deleted"
-                        else
-                            log_warning "    Failed to delete version $version (HTTP $ver_code)"
+            # Delete all versions first (pagination-safe loop)
+            local safety_loops=0
+            while true; do
+                local versions_file="$TEMP_DIR_BASE/versions_${app_key}.json"
+                local code=$(jfrog_api_call "GET" "${JFROG_URL%/}/apptrust/api/v1/applications/$app_key/versions?limit=250&order_by=created&order_asc=false" "$versions_file" "curl" "" "get app versions (paged)")
+                if [[ "$code" =~ ^2[0-9][0-9]$ ]] && [[ $(jq length "$versions_file" 2>/dev/null || echo 0) -gt 0 ]]; then
+                    local any_deleted=false
+                    while IFS= read -r version; do
+                        if [[ -n "$version" ]] && [[ "$version" != "null" ]]; then
+                            log_info "  Deleting version: $version"
+                            local ver_code=$(jfrog_api_call "DELETE" "${JFROG_URL%/}/apptrust/api/v1/applications/$app_key/versions/$version" "/dev/null" "curl" "" "delete version")
+                            if [[ "$ver_code" =~ ^2[0-9][0-9]$ ]] || [[ "$ver_code" == "404" ]]; then
+                                log_success "    Version $version deleted"
+                                any_deleted=true
+                            else
+                                log_warning "    Failed to delete version $version (HTTP $ver_code)"
+                            fi
                         fi
+                    done < <(jq -r '.versions[]?.version // empty' "$versions_file" 2>/dev/null)
+                    # If none deleted, break to avoid infinite loop
+                    if [[ "$any_deleted" != true ]]; then
+                        break
                     fi
-                done < <(jq -r '.[].version' "$versions_file" 2>/dev/null)
-            fi
+                else
+                    break
+                fi
+                ((safety_loops++))
+                if [[ "$safety_loops" -gt 50 ]]; then
+                    log_warning "    Aborting version deletion loop after 50 iterations for safety"
+                    break
+                fi
+            done
             
             # Delete the application
             local app_code=$(jfrog_api_call "DELETE" "${JFROG_URL%/}/apptrust/api/v1/applications/$app_key" "/dev/null" "curl" "" "delete application")

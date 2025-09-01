@@ -115,7 +115,7 @@ create_repository() {
 # Services and their package types
 declare -A SERVICE_PACKAGES=(
     ["inventory"]="python docker"
-    ["recommendations"]="python"  
+    ["recommendations"]="python docker"
     ["checkout"]="python docker"
     ["platform"]="maven"
     ["web"]="npm docker"

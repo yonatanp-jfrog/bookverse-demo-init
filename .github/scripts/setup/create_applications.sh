@@ -23,6 +23,7 @@ BOOKVERSE_APPLICATIONS=(
     "bookverse-recommendations|BookVerse Recommendations Service|AI-powered microservice that provides personalized book recommendations based on user preferences, reading history, and collaborative filtering|medium|production|ai-ml-team|grace.ai@bookverse.com"
     "bookverse-checkout|BookVerse Checkout Service|Secure microservice handling payment processing, order fulfillment, and transaction management for book purchases|high|production|checkout-team|henry.checkout@bookverse.com"
     "bookverse-platform|BookVerse Platform|Integrated platform solution combining all microservices with unified API gateway, monitoring, and operational tooling|high|production|platform|diana.architect@bookverse.com"
+    "bookverse-web|BookVerse Web Application|Frontend web application delivering the BookVerse user interface and static assets, served via nginx with versioned bundles|medium|production|web-team|alice.developer@bookverse.com"
 )
 
 # Function to create an application

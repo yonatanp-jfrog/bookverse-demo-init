@@ -151,7 +151,47 @@ create_oidc_integration() {
     echo "Creating identity mapping for: $integration_name → $username"
     
     # Build identity mapping payload
-    local mapping_payload=$(jq -n \
+    # Variant 1: criteria at mapping level with claims_json
+    local mapping_payload_v1=$(jq -n \
+        --arg name "$integration_name" \
+        --arg priority "1" \
+        --arg repo "${org_name}/bookverse-${service_name}" \
+        --argjson audiences '["jfrog-github"]' \
+        --arg token_spec "{\"username\": \"$username\", \"scope\": \"applied-permissions/user\"}" \
+        '{
+            "name": $name,
+            "description": ("Identity mapping for " + $name),
+            "priority": ($priority | tonumber),
+            "criteria": {
+                "audiences": $audiences,
+                "claims_json": ({"repository": $repo} | tostring)
+            },
+            "token_spec": ($token_spec | fromjson)
+        }')
+    # Variant 2: rule-level criteria with claims_json
+    local mapping_payload_v2=$(jq -n \
+        --arg name "$integration_name" \
+        --arg priority "1" \
+        --arg repo "${org_name}/bookverse-${service_name}" \
+        --argjson audiences '["jfrog-github"]' \
+        --arg token_spec "{\"username\": \"$username\", \"scope\": \"applied-permissions/user\"}" \
+        '{
+            "name": $name,
+            "description": ("Identity mapping for " + $name),\
+            "priority": ($priority | tonumber),
+            "rules": [
+                {
+                    "name": "repo-rule",
+                    "criteria": {
+                        "audiences": $audiences,
+                        "claims_json": ({"repository": $repo} | tostring)
+                    },
+                    "token_spec": ($token_spec | fromjson)
+                }
+            ]
+        }')
+    # Variant 3: top-level claims object
+    local mapping_payload_v3=$(jq -n \
         --arg name "$integration_name" \
         --arg priority "1" \
         --arg repo "${org_name}/bookverse-${service_name}" \
@@ -160,21 +200,29 @@ create_oidc_integration() {
             "name": $name,
             "description": ("Identity mapping for " + $name),
             "priority": ($priority | tonumber),
-            "claims_json": ({"repository": $repo} | tostring),
+            "claims": {"repository": $repo},
             "token_spec": ($token_spec | fromjson)
         }')
+
+    # Debug: show first payload for troubleshooting
+    echo "OIDC identity mapping payload (variant 1):"; echo "$mapping_payload_v1" | jq . || echo "$mapping_payload_v1"
     
     # Create identity mapping (idempotent + retries)
     if mapping_exists "$integration_name"; then
         echo "⚠️  Identity mapping for '$integration_name' already exists (pre-check)"
     else
         local attempt2
+        local variant=1
+        local payload="$mapping_payload_v1"
         for attempt2 in 1 2 3; do
             local temp_response2=$(mktemp)
+            # Debug: show which variant is being sent
+            echo "Sending identity mapping (variant ${variant}), attempt ${attempt2}..."
+            echo "$payload" | jq . || echo "$payload"
             local response_code2=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
                 --header "Content-Type: application/json" \
                 -X POST \
-                -d "$mapping_payload" \
+                -d "$payload" \
                 --write-out "%{http_code}" \
                 --output "$temp_response2" \
                 "${JFROG_URL}/access/api/v1/oidc/${integration_name}/identity_mappings")
@@ -207,10 +255,18 @@ create_oidc_integration() {
                     fi
                     ;;
                 400)
-                    echo "❌ Failed to create identity mapping for '$integration_name' (HTTP $response_code2)"
+                    echo "❌ Identity mapping creation returned 400 for variant ${variant}"
                     echo "Response body: $(cat "$temp_response2")"
                     rm -f "$temp_response2"
-                    return 1
+                    # Try next variant if available
+                    if [[ "$variant" -eq 1 ]]; then
+                        variant=2; payload="$mapping_payload_v2"; echo "🔁 Retrying with payload variant 2 (rules-level criteria)"; continue
+                    elif [[ "$variant" -eq 2 ]]; then
+                        variant=3; payload="$mapping_payload_v3"; echo "🔁 Retrying with payload variant 3 (top-level claims)"; continue
+                    else
+                        echo "❌ All payload variants failed with 400"
+                        return 1
+                    fi
                     ;;
                 *)
                     echo "❌ Failed to create identity mapping for '$integration_name' (HTTP $response_code2)"

@@ -50,6 +50,9 @@ export JFROG_URL="https://your-jfrog-instance.com"
 export JFROG_ADMIN_TOKEN="your-admin-token"
 export PROJECT_KEY=bookverse
 ./create_repositories.sh
+# Optionally create dependency repos and pre-populate caches:
+./create_dependency_repos.sh
+./prepopulate_dependencies.sh
 ```
 
 Creates/ensures (among others):

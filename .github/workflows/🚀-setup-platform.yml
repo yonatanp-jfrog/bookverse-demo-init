@@ -65,9 +65,17 @@ jobs:
         run: |
           ./.github/scripts/setup/create_stages.sh
 
-      - name: Create Repositories
+      - name: Create Service Repositories
         run: |
           ./.github/scripts/setup/create_repositories.sh
+
+      - name: Create Dependency Repositories
+        run: |
+          ./.github/scripts/setup/create_dependency_repos.sh
+
+      - name: Pre-populate Dependencies Cache
+        run: |
+          ./.github/scripts/setup/prepopulate_dependencies.sh
 
       - name: Create Users
         run: |

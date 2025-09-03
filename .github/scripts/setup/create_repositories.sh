@@ -259,33 +259,4 @@ done
 
 echo "✅ Service repositories creation completed successfully!"
 echo ""
-
-echo "=== Creating dependency repositories ==="
-echo ""
-
-# Create dependency repositories (remote, virtual, cache)
-if [[ -f "$(dirname "$0")/create_dependency_repos.sh" ]]; then
-    bash "$(dirname "$0")/create_dependency_repos.sh"
-else
-    echo "⚠️ Warning: create_dependency_repos.sh not found, skipping dependency repositories"
-fi
-
-echo ""
-echo "=== Pre-populating dependencies ==="
-echo ""
-
-# Pre-populate critical dependencies
-if [[ -f "$(dirname "$0")/prepopulate_dependencies.sh" ]]; then
-    bash "$(dirname "$0")/prepopulate_dependencies.sh"
-else
-    echo "⚠️ Warning: prepopulate_dependencies.sh not found, skipping dependency pre-population"
-fi
-
-echo ""
-echo "✅ Complete repository setup finished successfully!"
-echo ""
-echo "📋 Created repository types:"
-echo "   🏢 Service repositories: Local repos for each microservice artifact"
-echo "   🌐 Dependency repositories: Virtual repos for external dependencies"  
-echo "   📦 Pre-populated dependencies: Critical packages cached in Artifactory"
-echo ""
+echo "ℹ️ Dependency repositories and prepopulation are now run by workflow steps."

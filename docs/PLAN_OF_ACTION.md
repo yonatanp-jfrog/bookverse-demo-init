@@ -93,7 +93,8 @@ Each service repo includes:
 ### Current Bootstrap Repo (this repo) – Required State
 - `.github/scripts/setup/config.sh`: `PROJECT_KEY=bookverse`; `LOCAL_STAGES=("DEV" "QA" "STAGING")`
 - `create_stages.sh`: uses project-prefixed names; updates lifecycle without `PROD`.
-- `create_repositories.sh`: batch creation; uses `"environments"` only; maps to project stages.
+- `create_repositories.sh`: creates service and generic repos only (environments mapped).
+  `create_dependency_repos.sh` and `prepopulate_dependencies.sh` are run separately.
 - `create_users.sh`: role mapping conforms to JFrog roles; assigns to project.
 - `create_applications.sh`: creates apps; owners are managers/architects.
 - `create_oidc.sh`: OIDC per service and identity mappings.

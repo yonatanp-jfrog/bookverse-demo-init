@@ -327,12 +327,37 @@ discover_project_repositories() {
         echo "    (showing first 20 of $(jq length "$repos_file") total)" >&2
         jq -r '.[] | .key' "$repos_file" > "$filtered_repos"
         
-        # Produce repository type breakdown for metadata
-        jq -n --argfile r "$repos_file" '{
-          local: ($r | map(select((.type // "" | ascii_downcase) == "local")) | length),
-          remote: ($r | map(select((.type // "" | ascii_downcase) == "remote")) | length),
-          virtual: ($r | map(select((.type // "" | ascii_downcase) == "virtual")) | length)
-        }' > "$TEMP_DIR/repository_breakdown.json" 2>/dev/null || echo '{"local":0,"remote":0,"virtual":0}' > "$TEMP_DIR/repository_breakdown.json"
+        # Produce repository type breakdown for metadata (handle multiple schemas: rclass/type/repoType and list wrappers)
+        jq -n --argfile r "$repos_file" '
+          (if ($r | type) == "array" then $r
+           elif ($r | type) == "object" then ($r.repositories // $r.repos // [])
+           else [] end) as $repos
+          |
+          $repos
+          | map(
+              . as $item
+              | (
+                  ($item.rclass // $item.repoType // $item.type // "") as $kind_raw
+                  | (if ($kind_raw|type) == "string" then ($kind_raw|ascii_downcase) else "" end) as $kind
+                  | if $kind == "" then
+                      # Fallback heuristic from repo key
+                      ($item.key // "") as $k
+                      | (if ($k|test("-virtual$")) or ($k|test("^virtual-")) then "virtual"
+                         elif ($k|test("-remote$")) or ($k|test("^remote-")) then "remote"
+                         elif ($k|test("-local$")) or ($k|test("^local-")) then "local"
+                         else ""
+                         end)
+                    else $kind end
+                ) as $norm
+              | {key: ($item.key // ""), kind: $norm}
+            ) as $normed
+          |
+          {
+            local:   ($normed | map(select(.kind == "local"))   | length),
+            remote:  ($normed | map(select(.kind == "remote"))  | length),
+            virtual: ($normed | map(select(.kind == "virtual")) | length)
+          }
+        ' > "$TEMP_DIR/repository_breakdown.json" 2>/dev/null || echo '{"local":0,"remote":0,"virtual":0}' > "$TEMP_DIR/repository_breakdown.json"
         
         local count=$(wc -l < "$filtered_repos" 2>/dev/null || echo "0")
         echo "📦 Found $count repositories in project '$PROJECT_KEY'" >&2

@@ -287,7 +287,7 @@ discover_project_repositories() {
         
         # INVESTIGATION FINDINGS: repositories don't have projectKey field, filter by name
         # Primary strategy: Filter by repository key containing 'bookverse'
-        if jq --arg project "$PROJECT_KEY" '[.[] | select(.key | contains($project))]' "$repos_file" > "${repos_file}.filtered" 2>/dev/null && [[ -s "${repos_file}.filtered" ]]; then
+        if jq --arg project "$PROJECT_KEY" '[.[] | select(.key | contains($project)) | select((.key | test("release-bundles-v2$")) | not)]' "$repos_file" > "${repos_file}.filtered" 2>/dev/null && [[ -s "${repos_file}.filtered" ]]; then
             mv "${repos_file}.filtered" "$repos_file"
             echo "✅ Filtered by repository key containing '$PROJECT_KEY'" >&2
             
@@ -298,12 +298,12 @@ discover_project_repositories() {
             done
         else
             # Fallback: Try prefix match
-            if jq --arg project "$PROJECT_KEY" '[.[] | select(.key | startswith($project))]' "$repos_file" > "${repos_file}.filtered" 2>/dev/null && [[ -s "${repos_file}.filtered" ]]; then
+            if jq --arg project "$PROJECT_KEY" '[.[] | select(.key | startswith($project)) | select((.key | test("release-bundles-v2$")) | not)]' "$repos_file" > "${repos_file}.filtered" 2>/dev/null && [[ -s "${repos_file}.filtered" ]]; then
                 mv "${repos_file}.filtered" "$repos_file"
                 echo "✅ Filtered by repository key prefix '$PROJECT_KEY'" >&2
             else
                 # Final fallback: Try projectKey field (original logic)
-                if jq --arg project "$PROJECT_KEY" '[.[] | select(.projectKey == $project)]' "$repos_file" > "${repos_file}.filtered" 2>/dev/null && [[ -s "${repos_file}.filtered" ]]; then
+                if jq --arg project "$PROJECT_KEY" '[.[] | select(.projectKey == $project) | select((.key | test("release-bundles-v2$")) | not)]' "$repos_file" > "${repos_file}.filtered" 2>/dev/null && [[ -s "${repos_file}.filtered" ]]; then
                     mv "${repos_file}.filtered" "$repos_file"
                     echo "✅ Filtered by projectKey field" >&2
                 else
@@ -320,6 +320,13 @@ discover_project_repositories() {
         jq -r '.[] | .key' "$repos_file" | head -20 | while read -r repo; do echo "    - $repo" >&2; done
         echo "    (showing first 20 of $(jq length "$repos_file") total)" >&2
         jq -r '.[] | .key' "$repos_file" > "$filtered_repos"
+        
+        # Produce repository type breakdown for metadata
+        jq -n --argfile r "$repos_file" '{
+          local: ($r | map(select((.type // "" | ascii_downcase) == "local")) | length),
+          remote: ($r | map(select((.type // "" | ascii_downcase) == "remote")) | length),
+          virtual: ($r | map(select((.type // "" | ascii_downcase) == "virtual")) | length)
+        }' > "$TEMP_DIR/repository_breakdown.json" 2>/dev/null || echo '{"local":0,"remote":0,"virtual":0}' > "$TEMP_DIR/repository_breakdown.json"
         
         local count=$(wc -l < "$filtered_repos" 2>/dev/null || echo "0")
         echo "📦 Found $count repositories in project '$PROJECT_KEY'" >&2
@@ -387,6 +394,14 @@ discover_project_applications() {
     
     if is_success "$code" && [[ -s "$apps_file" ]]; then
         jq -r '.[] | .application_key' "$apps_file" > "$filtered_apps" 2>/dev/null || touch "$filtered_apps"
+        # Fallback if empty: list all apps and filter by project_key
+        if [[ ! -s "$filtered_apps" ]]; then
+            local all_apps_file="$TEMP_DIR/all_applications.json"
+            local code2=$(jfrog_api_call "GET" "/apptrust/api/v1/applications" "$all_apps_file" "curl" "" "all applications")
+            if is_success "$code2" && [[ -s "$all_apps_file" ]]; then
+                jq -r --arg project "$PROJECT_KEY" '.[] | select(.project_key == $project) | .application_key' "$all_apps_file" > "$filtered_apps" 2>/dev/null || true
+            fi
+        fi
         
         local count=$(wc -l < "$filtered_apps" 2>/dev/null || echo "0")
         echo "🚀 Found $count applications in project '$PROJECT_KEY'" >&2
@@ -417,36 +432,48 @@ discover_project_builds() {
     # Use project-specific build discovery API (user's correct approach)
     local code=$(jfrog_api_call "GET" "/artifactory/api/build?project=$PROJECT_KEY" "$builds_file" "curl" "" "project builds")
     
+    local count=0
     if is_success "$code" && [[ -s "$builds_file" ]]; then
         echo "✅ Successfully discovered builds for project '$PROJECT_KEY'" >&2
         
         # Extract build names from project builds
-        if jq -r '.builds[]?.uri' "$builds_file" 2>/dev/null | sed 's|^/||' > "$filtered_builds" 2>/dev/null && [[ -s "$filtered_builds" ]]; then
-            local count=$(wc -l < "$filtered_builds" 2>/dev/null || echo 0)
-            echo "🏗️ Found $count builds in project '$PROJECT_KEY'" >&2
-            
-            if [[ "$count" -gt 0 ]]; then
-                echo "Project builds:" >&2
-                while IFS= read -r build; do
-                    echo "   - $build" >&2
-                done < "$filtered_builds"
-            fi
-        else
-            echo "🔍 No builds found in project '$PROJECT_KEY'" >&2
-            touch "$filtered_builds"
-            count=0
-        fi
-        
-        # Count returned via global variable, function always returns 0 (success)
-        GLOBAL_BUILD_COUNT=$count
-        return 0
-    else
-        echo "❌ Failed to discover project builds (HTTP $code)" >&2
-        touch "$filtered_builds"
-        # Count returned via global variable, function always returns 0 (success)
-        GLOBAL_BUILD_COUNT=0
-        return 0
+        jq -r '.builds[]?.uri' "$builds_file" 2>/dev/null | sed 's|^/||' > "$filtered_builds" 2>/dev/null || true
+        count=$(wc -l < "$filtered_builds" 2>/dev/null || echo 0)
     fi
+
+    # Fallbacks if none found
+    if [[ "$count" -eq 0 ]]; then
+        echo "ℹ️ Fallback: Listing all builds to locate 'bookverse-' builds" >&2
+        local all_builds_file="$TEMP_DIR/all_builds.json"
+        local code_all=$(jfrog_api_call "GET" "/artifactory/api/build" "$all_builds_file" "curl" "" "all builds")
+        if is_success "$code_all" && [[ -s "$all_builds_file" ]]; then
+            jq -r '.builds[]?.uri | ltrimstr("/")' "$all_builds_file" 2>/dev/null | grep -E '^bookverse-' > "$filtered_builds" 2>/dev/null || true
+            count=$(wc -l < "$filtered_builds" 2>/dev/null || echo 0)
+        fi
+    fi
+
+    if [[ "$count" -eq 0 ]]; then
+        echo "ℹ️ Fallback: Using CLI to list builds" >&2
+        if jf rt builds > "$TEMP_DIR/builds_cli.txt" 2>/dev/null; then
+            grep -E '^bookverse-' "$TEMP_DIR/builds_cli.txt" > "$filtered_builds" 2>/dev/null || true
+            count=$(wc -l < "$filtered_builds" 2>/dev/null || echo 0)
+        fi
+    fi
+
+    if [[ "$count" -gt 0 ]]; then
+        echo "🏗️ Found $count builds related to '$PROJECT_KEY'" >&2
+        echo "Project builds:" >&2
+        while IFS= read -r build; do
+            [[ -z "$build" ]] && continue
+            echo "   - $build" >&2
+        done < "$filtered_builds"
+    else
+        echo "🔍 No builds found for '$PROJECT_KEY'" >&2
+        : > "$filtered_builds"
+    fi
+    
+    GLOBAL_BUILD_COUNT=$count
+    return 0
 }
 
 # 5. PROJECT-BASED STAGE DISCOVERY
@@ -479,6 +506,29 @@ discover_project_stages() {
         echo "❌ Project stage discovery failed (HTTP $code)" >&2
         # Count returned via global variable, function always returns 0 (success)
         GLOBAL_STAGE_COUNT=0
+        return 0
+    fi
+}
+
+
+# 6. OIDC INTEGRATIONS DISCOVERY
+discover_project_oidc() {
+    echo "🔍 Discovering OIDC integrations (PROJECT NAMING-BASED)..." >&2
+    
+    local oidc_file="$TEMP_DIR/project_oidc.json"
+    local filtered_oidc="$TEMP_DIR/project_oidc.txt"
+    
+    # List all OIDC integrations and filter by bookverse naming convention
+    local code=$(jfrog_api_call "GET" "/access/api/v1/oidc" "$oidc_file" "curl" "" "oidc integrations")
+    if is_success "$code" && [[ -s "$oidc_file" ]]; then
+        jq -r --arg project "$PROJECT_KEY" '.[]? | select(.name | startswith("github-" + $project + "-") or contains($project)) | .name' "$oidc_file" > "$filtered_oidc" 2>/dev/null || true
+        local count=$(wc -l < "$filtered_oidc" 2>/dev/null || echo "0")
+        echo "🔐 Found $count OIDC integrations for naming pattern 'github-$PROJECT_KEY-*'" >&2
+        GLOBAL_OIDC_COUNT=$count
+        return 0
+    else
+        echo "❌ OIDC integrations discovery failed (HTTP $code)" >&2
+        GLOBAL_OIDC_COUNT=0
         return 0
     fi
 }
@@ -1205,6 +1255,8 @@ run_discovery_preview() {
     local repos_count=0
     local users_count=0
     local stages_count=0
+    local oidc_count=0
+    local domain_users_count=0
     
     echo "🛡️ SAFETY: Discovering what would be deleted..." > "$preview_file"
     echo "Project: $PROJECT_KEY" >> "$preview_file"
@@ -1302,6 +1354,20 @@ run_discovery_preview() {
         echo "USERS: None found" >> "$preview_file"
         echo "" >> "$preview_file"
     fi
+
+    # 4b. Discover ALL global domain users (@bookverse.com)
+    echo "👥 Discovering ALL global @bookverse.com users..."
+    local all_users_file="$TEMP_DIR/all_users.json"
+    local domain_users_file="$TEMP_DIR/domain_users.txt"
+    local code_users=$(jfrog_api_call "GET" "/artifactory/api/security/users" "$all_users_file" "curl" "" "list all users")
+    if is_success "$code_users" && [[ -s "$all_users_file" ]]; then
+        jq -r '.[]? | .name' "$all_users_file" 2>/dev/null | grep -E "@bookverse\\.com$" | sort -u > "$domain_users_file" 2>/dev/null || true
+        domain_users_count=$(wc -l < "$domain_users_file" 2>/dev/null || echo 0)
+        echo "👥 Found $domain_users_count global domain users (@bookverse.com)" >&2
+    else
+        : > "$domain_users_file"
+        domain_users_count=0
+    fi
     
     # 5. Discover stages
     echo "🏷️ Discovering stages..."
@@ -1324,6 +1390,15 @@ run_discovery_preview() {
     else
         echo "STAGES: None found" >> "$preview_file"
         echo "" >> "$preview_file"
+    fi
+    
+    # 6. Discover OIDC integrations (visibility only)
+    echo "🔐 Discovering OIDC integrations..."
+    if discover_project_oidc; then
+        oidc_count=$GLOBAL_OIDC_COUNT
+    else
+        echo "⚠️  Warning: OIDC discovery failed, treating as 0"
+        oidc_count=0
     fi
     
     # Calculate total items from all discoveries
@@ -1352,7 +1427,7 @@ run_discovery_preview() {
     local timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
     
     # Build structured plan arrays for readability and safety
-    local repos_json apps_json users_json stages_json builds_json
+    local repos_json apps_json users_json stages_json builds_json oidc_json domain_users_json repo_breakdown_json
     if [[ -f "$TEMP_DIR/project_repositories.txt" ]]; then
         repos_json=$(jq -R -s --arg project "$PROJECT_KEY" 'split("\n")|map(select(length>0))|map({key:., project:$project})' "$TEMP_DIR/project_repositories.txt" 2>/dev/null || echo '[]')
     else
@@ -1395,6 +1470,27 @@ run_discovery_preview() {
         builds_json='[]'
     fi
 
+    # OIDC integrations (visibility only)
+    if [[ -f "$TEMP_DIR/project_oidc.txt" ]]; then
+        oidc_json=$(jq -R -s 'split("\n")|map(select(length>0))' "$TEMP_DIR/project_oidc.txt" 2>/dev/null || echo '[]')
+    else
+        oidc_json='[]'
+    fi
+
+    # Domain users (GLOBAL deletion plan)
+    if [[ -f "$TEMP_DIR/domain_users.txt" ]]; then
+        domain_users_json=$(jq -R -s 'split("\n")|map(select(length>0))' "$TEMP_DIR/domain_users.txt" 2>/dev/null || echo '[]')
+    else
+        domain_users_json='[]'
+    fi
+
+    # Repository breakdown (types)
+    if [[ -f "$TEMP_DIR/repository_breakdown.json" ]]; then
+        repo_breakdown_json=$(cat "$TEMP_DIR/repository_breakdown.json" 2>/dev/null || echo '{"local":0,"remote":0,"virtual":0}')
+    else
+        repo_breakdown_json='{"local":0,"remote":0,"virtual":0}'
+    fi
+
     # Create structured report with metadata and structured plan
     # Pretty-print JSON for easier debugging/validation
     jq -n \
@@ -1406,12 +1502,16 @@ run_discovery_preview() {
         --argjson repos_count "$repos_count" \
         --argjson users_count "$users_count" \
         --argjson stages_count "$stages_count" \
+        --argjson oidc_count "$oidc_count" \
+        --argjson repo_breakdown "$repo_breakdown_json" \
         --arg preview_content "$(cat "$preview_file")" \
         --argjson plan_repos "$repos_json" \
         --argjson plan_apps "$apps_json" \
         --argjson plan_users "$users_json" \
         --argjson plan_stages "$stages_json" \
         --argjson plan_builds "$builds_json" \
+        --argjson obs_oidc "$oidc_json" \
+        --argjson plan_domain_users "$domain_users_json" \
         '{
             "metadata": {
                 "timestamp": $timestamp,
@@ -1422,7 +1522,10 @@ run_discovery_preview() {
                     "applications": $apps_count,
                     "repositories": $repos_count,
                     "users": $users_count,
-                    "stages": $stages_count
+                    "stages": $stages_count,
+                    "oidc": $oidc_count,
+                    "repositories_breakdown": $repo_breakdown,
+                    "domain_users": '$domain_users_count'
                 }
             },
             "plan": {
@@ -1430,7 +1533,11 @@ run_discovery_preview() {
                 "applications": $plan_apps,
                 "users": $plan_users,
                 "stages": $plan_stages,
-                "builds": $plan_builds
+                "builds": $plan_builds,
+                "domain_users": $plan_domain_users
+            },
+            "observations": {
+                "oidc_integrations": $obs_oidc
             },
             "deletion_preview": $preview_content,
             "status": "ready_for_cleanup"

@@ -1,17 +1,28 @@
 {
   "metadata": {
-    "timestamp": "2025-09-03T20:47:56Z",
+    "timestamp": "2025-09-03T20:57:59Z",
     "project_key": "bookverse",
-    "total_items": 0,
+    "total_items": 1,
     "discovery_counts": {
       "builds": 0,
       "applications": 0,
-      "repositories": 0,
+      "repositories": 1,
       "users": 0,
       "stages": 0
     }
   },
-  "deletion_plan": "No items found for deletion",
-  "status": "cleanup_completed",
-  "last_cleanup": "2025-09-03T20:44:39Z"
+  "plan": {
+    "repositories": [
+      {
+        "key": "bookverse-release-bundles-v2",
+        "project": "bookverse"
+      }
+    ],
+    "applications": [],
+    "users": [],
+    "stages": [],
+    "builds": []
+  },
+  "deletion_preview": "🛡️ SAFETY: Discovering what would be deleted...\nProject: bookverse\nDate: Wed Sep  3 20:57:59 UTC 2025\n\nBUILDS: None found\n\nAPPLICATIONS: None found\n\nREPOSITORIES TO DELETE (1 items):\n=============================================\n  ❌ Repository: bookverse-release-bundles-v2\n\nUSERS: None found\n\nSTAGES: None found\n\nSUMMARY:\n========\nTotal items to delete: 1\nProject to delete: bookverse\n\n⚠️ WARNING: This action cannot be undone!",
+  "status": "ready_for_cleanup"
 }

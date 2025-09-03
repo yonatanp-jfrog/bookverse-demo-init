@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "timestamp": "2025-09-03T22:39:55Z",
+    "timestamp": "2025-09-03T22:48:54Z",
     "project_key": "bookverse",
     "total_items": 50,
     "discovery_counts": {
@@ -9,7 +9,7 @@
       "repositories": 30,
       "users": 12,
       "stages": 3,
-      "oidc": 1,
+      "oidc": 5,
       "repositories_breakdown": {
         "local": 0,
         "remote": 0,
@@ -237,17 +237,17 @@
         "project": "bookverse"
       },
       {
-        "name": "pipeline.inventory@bookverse.com",
-        "roles": [
-          "Developer"
-        ],
-        "project": "bookverse"
-      },
-      {
         "name": "bob.release@bookverse.com",
         "roles": [
           "Release Manager",
           "Project Admin"
+        ],
+        "project": "bookverse"
+      },
+      {
+        "name": "pipeline.inventory@bookverse.com",
+        "roles": [
+          "Developer"
         ],
         "project": "bookverse"
       }
@@ -255,7 +255,11 @@
     "stages": [],
     "builds": [],
     "oidc": [
-      "github-bookverse-inventory"
+      "github-bookverse-inventory",
+      "github-bookverse-recommendations",
+      "github-bookverse-checkout",
+      "github-bookverse-platform",
+      "github-bookverse-web"
     ],
     "domain_users": [
       "alice.developer@bookverse.com",
@@ -274,9 +278,13 @@
   },
   "observations": {
     "oidc_integrations": [
-      "github-bookverse-inventory"
+      "github-bookverse-inventory",
+      "github-bookverse-recommendations",
+      "github-bookverse-checkout",
+      "github-bookverse-platform",
+      "github-bookverse-web"
     ]
   },
-  "deletion_preview": "🛡️ SAFETY: Discovering what would be deleted...\nProject: bookverse\nDate: Wed Sep  3 22:39:53 UTC 2025\n\nBUILDS: None found\n\nAPPLICATIONS TO DELETE (5 items):\n===========================================\n  ❌ Application: bookverse-web\n  ❌ Application: bookverse-platform\n  ❌ Application: bookverse-checkout\n  ❌ Application: bookverse-recommendations\n  ❌ Application: bookverse-inventory\n\nREPOSITORIES TO DELETE (30 items):\n=============================================\n  ❌ Repository: bookverse-checkout-docker-internal-local\n  ❌ Repository: bookverse-checkout-docker-release-local\n  ❌ Repository: bookverse-checkout-python-internal-local\n  ❌ Repository: bookverse-checkout-python-release-local\n  ❌ Repository: bookverse-dockerhub-cache-local\n  ❌ Repository: bookverse-generic-internal-local\n  ❌ Repository: bookverse-helm-helm-internal-local\n  ❌ Repository: bookverse-helm-helm-release-local\n  ❌ Repository: bookverse-inventory-docker-internal-local\n  ❌ Repository: bookverse-inventory-docker-release-local\n  ❌ Repository: bookverse-inventory-python-internal-local\n  ❌ Repository: bookverse-inventory-python-release-local\n  ❌ Repository: bookverse-npm-cache-local\n  ❌ Repository: bookverse-platform-maven-internal-local\n  ❌ Repository: bookverse-platform-maven-release-local\n  ❌ Repository: bookverse-pypi-cache-local\n  ❌ Repository: bookverse-recommendations-docker-internal-local\n  ❌ Repository: bookverse-recommendations-docker-release-local\n  ❌ Repository: bookverse-recommendations-python-internal-local\n  ❌ Repository: bookverse-recommendations-python-release-local\n  ❌ Repository: bookverse-web-docker-internal-local\n  ❌ Repository: bookverse-web-docker-release-local\n  ❌ Repository: bookverse-web-npm-internal-local\n  ❌ Repository: bookverse-web-npm-release-local\n  ❌ Repository: bookverse-dockerhub-remote\n  ❌ Repository: bookverse-npm-remote\n  ❌ Repository: bookverse-pypi-remote\n  ❌ Repository: bookverse-dockerhub-virtual\n  ❌ Repository: bookverse-npm-virtual\n  ❌ Repository: bookverse-pypi-virtual\n\nUSERS TO DELETE (12 items):\n======================================\n  ❌ User: frank.inventory@bookverse.com\n  ❌ User: pipeline.recommendations@bookverse.com\n  ❌ User: henry.checkout@bookverse.com\n  ❌ User: charlie.devops@bookverse.com\n  ❌ User: diana.architect@bookverse.com\n  ❌ User: edward.manager@bookverse.com\n  ❌ User: pipeline.platform@bookverse.com\n  ❌ User: alice.developer@bookverse.com\n  ❌ User: grace.ai@bookverse.com\n  ❌ User: pipeline.checkout@bookverse.com\n  ❌ User: pipeline.inventory@bookverse.com\n  ❌ User: bob.release@bookverse.com\n\nSTAGES TO DELETE (3 items):\n=======================================\n  ❌ Stage: bookverse-DEV\n  ❌ Stage: bookverse-QA\n  ❌ Stage: bookverse-STAGING\n\nSUMMARY:\n========\nTotal items to delete: 50\nProject to delete: bookverse\n\n⚠️ WARNING: This action cannot be undone!",
+  "deletion_preview": "🛡️ SAFETY: Discovering what would be deleted...\nProject: bookverse\nDate: Wed Sep  3 22:48:50 UTC 2025\n\nBUILDS: None found\n\nAPPLICATIONS TO DELETE (5 items):\n===========================================\n  ❌ Application: bookverse-web\n  ❌ Application: bookverse-platform\n  ❌ Application: bookverse-checkout\n  ❌ Application: bookverse-recommendations\n  ❌ Application: bookverse-inventory\n\nREPOSITORIES TO DELETE (30 items):\n=============================================\n  ❌ Repository: bookverse-checkout-docker-internal-local\n  ❌ Repository: bookverse-checkout-docker-release-local\n  ❌ Repository: bookverse-checkout-python-internal-local\n  ❌ Repository: bookverse-checkout-python-release-local\n  ❌ Repository: bookverse-dockerhub-cache-local\n  ❌ Repository: bookverse-generic-internal-local\n  ❌ Repository: bookverse-helm-helm-internal-local\n  ❌ Repository: bookverse-helm-helm-release-local\n  ❌ Repository: bookverse-inventory-docker-internal-local\n  ❌ Repository: bookverse-inventory-docker-release-local\n  ❌ Repository: bookverse-inventory-python-internal-local\n  ❌ Repository: bookverse-inventory-python-release-local\n  ❌ Repository: bookverse-npm-cache-local\n  ❌ Repository: bookverse-platform-maven-internal-local\n  ❌ Repository: bookverse-platform-maven-release-local\n  ❌ Repository: bookverse-pypi-cache-local\n  ❌ Repository: bookverse-recommendations-docker-internal-local\n  ❌ Repository: bookverse-recommendations-docker-release-local\n  ❌ Repository: bookverse-recommendations-python-internal-local\n  ❌ Repository: bookverse-recommendations-python-release-local\n  ❌ Repository: bookverse-web-docker-internal-local\n  ❌ Repository: bookverse-web-docker-release-local\n  ❌ Repository: bookverse-web-npm-internal-local\n  ❌ Repository: bookverse-web-npm-release-local\n  ❌ Repository: bookverse-dockerhub-remote\n  ❌ Repository: bookverse-npm-remote\n  ❌ Repository: bookverse-pypi-remote\n  ❌ Repository: bookverse-dockerhub-virtual\n  ❌ Repository: bookverse-npm-virtual\n  ❌ Repository: bookverse-pypi-virtual\n\nUSERS TO DELETE (12 items):\n======================================\n  ❌ User: frank.inventory@bookverse.com\n  ❌ User: pipeline.recommendations@bookverse.com\n  ❌ User: henry.checkout@bookverse.com\n  ❌ User: charlie.devops@bookverse.com\n  ❌ User: diana.architect@bookverse.com\n  ❌ User: edward.manager@bookverse.com\n  ❌ User: pipeline.platform@bookverse.com\n  ❌ User: alice.developer@bookverse.com\n  ❌ User: grace.ai@bookverse.com\n  ❌ User: pipeline.checkout@bookverse.com\n  ❌ User: bob.release@bookverse.com\n  ❌ User: pipeline.inventory@bookverse.com\n\nSTAGES TO DELETE (3 items):\n=======================================\n  ❌ Stage: bookverse-DEV\n  ❌ Stage: bookverse-QA\n  ❌ Stage: bookverse-STAGING\n\nSUMMARY:\n========\nTotal items to delete: 50\nProject to delete: bookverse\n\n⚠️ WARNING: This action cannot be undone!",
   "status": "ready_for_cleanup"
 }

@@ -57,17 +57,24 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Create Core Infrastructure
+      - name: Create Project
         run: |
-          # Execute core setup scripts in optimal order
           ./.github/scripts/setup/create_project.sh
+
+      - name: Create Lifecycle Stages
+        run: |
           ./.github/scripts/setup/create_stages.sh
+
+      - name: Create Repositories
+        run: |
           ./.github/scripts/setup/create_repositories.sh
 
-      - name: Setup Users and Applications
+      - name: Create Users
         run: |
-          # Execute user and application setup
           ./.github/scripts/setup/create_users.sh
+
+      - name: Create Applications
+        run: |
           ./.github/scripts/setup/create_applications.sh
 
       - name: Configure Security Integration
@@ -107,18 +114,26 @@ jobs:
             echo "" >> $GITHUB_STEP_SUMMARY
             
             echo "#### 📦 **Repositories Created**" >> $GITHUB_STEP_SUMMARY
+            # Load project key for dynamic listing
+            source ./.github/scripts/setup/config.sh
+            project_key="${PROJECT_KEY:-bookverse}"
+            # Fetch all repositories and filter by project prefix
+            repos_json=$(curl -s -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" "${JFROG_URL}/artifactory/api/repositories")
+            repo_keys=$(echo "$repos_json" | jq -r --arg p "$project_key" '.[] | select(.key | startswith($p + "-")) | .key' 2>/dev/null || true)
+
             echo "**Service Repositories:**" >> $GITHUB_STEP_SUMMARY
-            echo "- \`bookverse-inventory-python-internal-local\` & \`bookverse-inventory-python-release-local\`" >> $GITHUB_STEP_SUMMARY
-            echo "- \`bookverse-recommendations-python-internal-local\` & \`bookverse-recommendations-python-release-local\`" >> $GITHUB_STEP_SUMMARY
-            echo "- \`bookverse-checkout-python-internal-local\` & \`bookverse-checkout-python-release-local\`" >> $GITHUB_STEP_SUMMARY
-            echo "- \`bookverse-platform-maven-internal-local\` & \`bookverse-platform-maven-release-local\`" >> $GITHUB_STEP_SUMMARY
-            echo "- \`bookverse-helm-helm-internal-local\` & \`bookverse-helm-helm-release-local\`" >> $GITHUB_STEP_SUMMARY
-            echo "- \`bookverse-web-npm-internal-local\` & \`bookverse-web-npm-release-local\`" >> $GITHUB_STEP_SUMMARY
+            service_list=$(echo "$repo_keys" | grep -E "^${project_key}-(inventory|recommendations|checkout|platform|web|helm)-(python|docker|maven|npm|helm)-(internal|release)-local$" || true)
+            if [[ -n "$service_list" ]]; then echo "$service_list" | sed 's/^/- `&`/' >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
             echo "" >> $GITHUB_STEP_SUMMARY
+
             echo "**Dependency Repositories:**" >> $GITHUB_STEP_SUMMARY
-            echo "- \`bookverse-pypi-virtual\` (Python: cache + PyPI.org)" >> $GITHUB_STEP_SUMMARY
-            echo "- \`bookverse-npm-virtual\` (npm: cache + npmjs.org)" >> $GITHUB_STEP_SUMMARY
-            echo "- \`bookverse-dockerhub-virtual\` (Docker: cache + Docker Hub)" >> $GITHUB_STEP_SUMMARY
+            dep_list=$(echo "$repo_keys" | grep -E "^${project_key}-(pypi|npm|dockerhub)-(remote|cache-local|virtual)$" || true)
+            if [[ -n "$dep_list" ]]; then echo "$dep_list" | sed 's/^/- `&`/' >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
+            echo "" >> $GITHUB_STEP_SUMMARY
+
+            echo "**Project Auxiliary Repositories:**" >> $GITHUB_STEP_SUMMARY
+            aux_list=$(echo "$repo_keys" | grep -E "^${project_key}-generic-internal-local$" || true)
+            if [[ -n "$aux_list" ]]; then echo "$aux_list" | sed 's/^/- `&`/' >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
             echo "" >> $GITHUB_STEP_SUMMARY
             
             echo "#### 👥 **Users Created**" >> $GITHUB_STEP_SUMMARY

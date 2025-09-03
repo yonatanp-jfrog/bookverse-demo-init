@@ -79,7 +79,87 @@ jobs:
             exit 0
           fi
 
-      - name: Execute cleanup from report
+      - name: 🔧 Delete builds (from report)
+        if: ${{ steps.validate.outputs.report_valid == 'true' }}
+        env:
+          JFROG_URL: ${{ vars.JFROG_URL }}
+          JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
+          PROJECT_KEY: 'bookverse'
+        run: |
+          set -euo pipefail
+          bash ./.github/scripts/setup/cleanup_from_report_phase.sh builds 2>&1 | tee -a /tmp/cleanup_execution.log
+
+      - name: 🚀 Delete applications (from report)
+        if: ${{ steps.validate.outputs.report_valid == 'true' }}
+        env:
+          JFROG_URL: ${{ vars.JFROG_URL }}
+          JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
+          PROJECT_KEY: 'bookverse'
+        run: |
+          set -euo pipefail
+          bash ./.github/scripts/setup/cleanup_from_report_phase.sh applications 2>&1 | tee -a /tmp/cleanup_execution.log
+
+      - name: 📦 Delete repositories (from report)
+        if: ${{ steps.validate.outputs.report_valid == 'true' }}
+        env:
+          JFROG_URL: ${{ vars.JFROG_URL }}
+          JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
+          PROJECT_KEY: 'bookverse'
+        run: |
+          set -euo pipefail
+          bash ./.github/scripts/setup/cleanup_from_report_phase.sh repositories 2>&1 | tee -a /tmp/cleanup_execution.log
+
+      - name: 👥 Remove project users (from report)
+        if: ${{ steps.validate.outputs.report_valid == 'true' }}
+        env:
+          JFROG_URL: ${{ vars.JFROG_URL }}
+          JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
+          PROJECT_KEY: 'bookverse'
+        run: |
+          set -euo pipefail
+          bash ./.github/scripts/setup/cleanup_from_report_phase.sh users 2>&1 | tee -a /tmp/cleanup_execution.log
+
+      - name: 🔄 Clear lifecycle config (safety)
+        if: ${{ steps.validate.outputs.report_valid == 'true' }}
+        env:
+          JFROG_URL: ${{ vars.JFROG_URL }}
+          JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
+          PROJECT_KEY: 'bookverse'
+        run: |
+          set -euo pipefail
+          bash -c 'source ./.github/scripts/setup/cleanup_project_based.sh; delete_project_lifecycle; wait_for_lifecycle_cleared 20 2 || true' 2>&1 | tee -a /tmp/cleanup_execution.log
+
+      - name: 🏷️ Delete stages (from report)
+        if: ${{ steps.validate.outputs.report_valid == 'true' }}
+        env:
+          JFROG_URL: ${{ vars.JFROG_URL }}
+          JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
+          PROJECT_KEY: 'bookverse'
+        run: |
+          set -euo pipefail
+          bash ./.github/scripts/setup/cleanup_from_report_phase.sh stages 2>&1 | tee -a /tmp/cleanup_execution.log
+
+      - name: 🔐 Delete OIDC integrations (from report)
+        if: ${{ steps.validate.outputs.report_valid == 'true' }}
+        env:
+          JFROG_URL: ${{ vars.JFROG_URL }}
+          JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
+          PROJECT_KEY: 'bookverse'
+        run: |
+          set -euo pipefail
+          bash ./.github/scripts/setup/cleanup_from_report_phase.sh oidc 2>&1 | tee -a /tmp/cleanup_execution.log
+
+      - name: 👥 Delete global @bookverse.com users (from report)
+        if: ${{ steps.validate.outputs.report_valid == 'true' }}
+        env:
+          JFROG_URL: ${{ vars.JFROG_URL }}
+          JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
+          PROJECT_KEY: 'bookverse'
+        run: |
+          set -euo pipefail
+          bash ./.github/scripts/setup/cleanup_from_report_phase.sh domain_users 2>&1 | tee -a /tmp/cleanup_execution.log
+
+      - name: 🎯 Delete project (final)
         id: run_cleanup
         if: ${{ steps.validate.outputs.report_valid == 'true' }}
         env:
@@ -88,8 +168,7 @@ jobs:
           PROJECT_KEY: 'bookverse'
         run: |
           set -euo pipefail
-          bash ./.github/scripts/setup/cleanup_from_report.sh 2>&1 | tee /tmp/cleanup_execution.log
-          exit ${PIPESTATUS[0]}
+          bash ./.github/scripts/setup/cleanup_from_report_phase.sh project 2>&1 | tee -a /tmp/cleanup_execution.log
 
       - name: 📋 Execute Cleanup Summary
         if: always()

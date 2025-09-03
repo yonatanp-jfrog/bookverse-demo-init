@@ -121,6 +121,12 @@ is_not_found() {
     [[ "$code" -eq $HTTP_NOT_FOUND ]]
 }
 
+# URL-encode a single path segment safely (requires jq)
+urlencode() {
+    local raw="$1"
+    jq -rn --arg v "$raw" '$v|@uri'
+}
+
 # Check if a project-level stage exists (v2 API)
 stage_exists() {
     local stage_name="$1"
@@ -521,7 +527,12 @@ discover_project_oidc() {
     # List all OIDC integrations and filter by bookverse naming convention
     local code=$(jfrog_api_call "GET" "/access/api/v1/oidc" "$oidc_file" "curl" "" "oidc integrations")
     if is_success "$code" && [[ -s "$oidc_file" ]]; then
-        jq -r --arg project "$PROJECT_KEY" '.[]? | select(.name | startswith("github-" + $project + "-") or contains($project)) | .name' "$oidc_file" > "$filtered_oidc" 2>/dev/null || true
+        # Prefer prefix match github-<project>-*, but allow contains(<project>) as fallback
+        if jq -r --arg project "$PROJECT_KEY" '.[]? | select(.name | startswith("github-" + $project + "-")) | .name' "$oidc_file" > "$filtered_oidc" 2>/dev/null && [[ -s "$filtered_oidc" ]]; then
+            :
+        else
+            jq -r --arg project "$PROJECT_KEY" '.[]? | select(.name | contains($project)) | .name' "$oidc_file" > "$filtered_oidc" 2>/dev/null || true
+        fi
         local count=$(wc -l < "$filtered_oidc" 2>/dev/null || echo "0")
         echo "🔐 Found $count OIDC integrations for naming pattern 'github-$PROJECT_KEY-*'" >&2
         GLOBAL_OIDC_COUNT=$count
@@ -725,11 +736,43 @@ delete_specific_users() {
     while IFS= read -r username; do
         if [[ -n "$username" ]]; then
             echo "  → Deleting user: $username"
-            
-            local code=$(jfrog_api_call "DELETE" "/access/api/v2/users/$username" "" "curl" "" "delete user $username")
-            
-            if is_success "$code"; then
-                echo "    ✅ User '$username' deleted successfully"
+
+            # URL-encode username for path segment safety
+            local encoded_username
+            encoded_username=$(urlencode "$username")
+
+            # Primary attempt: v2 endpoint with simple retry for transient 409/429/5xx
+            local attempts=0
+            local max_attempts=3
+            local code=0
+            while true; do
+                code=$(jfrog_api_call "DELETE" "/access/api/v2/users/${encoded_username}" "" "curl" "" "delete user $username (v2)")
+                if is_success "$code" || is_not_found "$code"; then
+                    break
+                fi
+                # Fallback to v1 if not success and not found
+                code=$(jfrog_api_call "DELETE" "/access/api/v1/users/${encoded_username}" "" "curl" "" "delete user $username (v1 fallback)")
+                if is_success "$code" || is_not_found "$code"; then
+                    break
+                fi
+                # Retry on transient statuses
+                if [[ "$code" =~ ^5 ]] || [[ "$code" == "409" ]] || [[ "$code" == "429" ]]; then
+                    ((attempts++))
+                    if [[ "$attempts" -lt "$max_attempts" ]]; then
+                        echo "    🔁 Retry deleting user '$username' (attempt $((attempts+1))/$max_attempts) after code $code"
+                        sleep 1
+                        continue
+                    fi
+                fi
+                break
+            done
+
+            if is_success "$code" || is_not_found "$code"; then
+                if is_not_found "$code"; then
+                    echo "    ⚠️ User '$username' not found or already deleted (HTTP $code)"
+                else
+                    echo "    ✅ User '$username' deleted successfully"
+                fi
             else
                 echo "    ❌ Failed to delete user '$username' (HTTP $code)"
                 ((failed_count++))
@@ -808,6 +851,91 @@ delete_specific_stages() {
     fi
     
     echo "✅ All specified stages deleted successfully" >&2
+    return 0
+}
+
+# Delete specific OIDC integrations from a list file (global scope)
+delete_specific_oidc_integrations() {
+    local oidc_file="$1"
+    local failed_count=0
+
+    if [[ ! -f "$oidc_file" ]]; then
+        echo "❌ OIDC file not found: $oidc_file" >&2
+        return 1
+    fi
+
+    echo "🔐 Deleting specific OIDC integrations from report..." >&2
+
+    while IFS= read -r integration_name; do
+        [[ -z "$integration_name" ]] && continue
+        echo "  → Deleting OIDC integration: $integration_name"
+
+        # URL-encode integration name for path safety
+        local enc_integration
+        enc_integration=$(urlencode "$integration_name")
+
+        # Best-effort: list identity mappings and try to remove them first
+        local mappings_file="$TEMP_DIR/oidc_${integration_name}_mappings.json"
+        local code_list=$(jfrog_api_call "GET" "/access/api/v1/oidc/${enc_integration}/identity_mappings" "$mappings_file" "curl" "" "list identity mappings for $integration_name")
+        if is_success "$code_list" && [[ -s "$mappings_file" ]]; then
+            # Extract mapping names if present
+            jq -r '.[]? | .name // empty' "$mappings_file" 2>/dev/null | while IFS= read -r mapping_name; do
+                [[ -z "$mapping_name" ]] && continue
+                echo "    - Removing identity mapping: $mapping_name"
+                local enc_mapping
+                enc_mapping=$(urlencode "$mapping_name")
+                # Primary attempt: path parameter
+                local map_del_code=$(jfrog_api_call "DELETE" "/access/api/v1/oidc/${enc_integration}/identity_mappings/${enc_mapping}" "" "curl" "" "delete identity mapping $mapping_name")
+                if ! is_success "$map_del_code" && [[ "$map_del_code" -ne $HTTP_NOT_FOUND ]]; then
+                    # Fallback attempt: query parameter style (some versions)
+                    map_del_code=$(jfrog_api_call "DELETE" "/access/api/v1/oidc/${enc_integration}/identity_mappings?name=${enc_mapping}" "" "curl" "" "delete identity mapping (fallback) $mapping_name")
+                fi
+                if is_success "$map_del_code" || is_not_found "$map_del_code"; then
+                    echo "      ✅ Mapping '$mapping_name' removed"
+                else
+                    echo "      ⚠️ Failed to remove mapping '$mapping_name' (HTTP $map_del_code)"
+                fi
+            done
+        fi
+
+        # Delete the OIDC integration itself
+        local attempts=0
+        local max_attempts=3
+        local del_code=0
+        while true; do
+            del_code=$(jfrog_api_call "DELETE" "/access/api/v1/oidc/${enc_integration}" "" "curl" "" "delete oidc integration $integration_name")
+            if ! is_success "$del_code" && ! is_not_found "$del_code"; then
+                # Fallback attempt with unencoded (for older instances)
+                del_code=$(jfrog_api_call "DELETE" "/access/api/v1/oidc/${integration_name}" "" "curl" "" "delete oidc integration $integration_name (fallback raw)")
+            fi
+            if is_success "$del_code" || is_not_found "$del_code"; then
+                break
+            fi
+            if [[ "$del_code" =~ ^5 ]] || [[ "$del_code" == "409" ]] || [[ "$del_code" == "429" ]]; then
+                ((attempts++))
+                if [[ "$attempts" -lt "$max_attempts" ]]; then
+                    echo "    🔁 Retry deleting OIDC '$integration_name' (attempt $((attempts+1))/$max_attempts) after code $del_code"
+                    sleep 1
+                    continue
+                fi
+            fi
+            break
+        done
+
+        if is_success "$del_code" || is_not_found "$del_code"; then
+            echo "    ✅ OIDC integration '$integration_name' deleted successfully"
+        else
+            echo "    ❌ Failed to delete OIDC integration '$integration_name' (HTTP $del_code)"
+            ((failed_count++))
+        fi
+    done < "$oidc_file"
+
+    if [[ $failed_count -gt 0 ]]; then
+        echo "❌ Failed to delete $failed_count OIDC integrations" >&2
+        return 1
+    fi
+
+    echo "✅ All specified OIDC integrations deleted successfully" >&2
     return 0
 }
 
@@ -1470,11 +1598,13 @@ run_discovery_preview() {
         builds_json='[]'
     fi
 
-    # OIDC integrations (visibility only)
+    # OIDC integrations (visibility + plan)
     if [[ -f "$TEMP_DIR/project_oidc.txt" ]]; then
         oidc_json=$(jq -R -s 'split("\n")|map(select(length>0))' "$TEMP_DIR/project_oidc.txt" 2>/dev/null || echo '[]')
+        plan_oidc_json="$oidc_json"
     else
         oidc_json='[]'
+        plan_oidc_json='[]'
     fi
 
     # Domain users (GLOBAL deletion plan)
@@ -1503,6 +1633,7 @@ run_discovery_preview() {
         --argjson users_count "$users_count" \
         --argjson stages_count "$stages_count" \
         --argjson oidc_count "$oidc_count" \
+        --argjson domain_users_count "$domain_users_count" \
         --argjson repo_breakdown "$repo_breakdown_json" \
         --arg preview_content "$(cat "$preview_file")" \
         --argjson plan_repos "$repos_json" \
@@ -1510,6 +1641,7 @@ run_discovery_preview() {
         --argjson plan_users "$users_json" \
         --argjson plan_stages "$stages_json" \
         --argjson plan_builds "$builds_json" \
+        --argjson plan_oidc "$plan_oidc_json" \
         --argjson obs_oidc "$oidc_json" \
         --argjson plan_domain_users "$domain_users_json" \
         '{
@@ -1525,7 +1657,7 @@ run_discovery_preview() {
                     "stages": $stages_count,
                     "oidc": $oidc_count,
                     "repositories_breakdown": $repo_breakdown,
-                    "domain_users": '$domain_users_count'
+                    "domain_users": $domain_users_count
                 }
             },
             "plan": {
@@ -1534,6 +1666,7 @@ run_discovery_preview() {
                 "users": $plan_users,
                 "stages": $plan_stages,
                 "builds": $plan_builds,
+                "oidc": $plan_oidc,
                 "domain_users": $plan_domain_users
             },
             "observations": {
@@ -1702,8 +1835,19 @@ if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
     delete_project_stages "$stages_count" || FAILED=true
     echo ""
 
-    # 7) Project deletion
-    echo "🎯 STEP 7: Project Deletion"
+    # 7) OIDC integrations cleanup (global scope)
+    echo "🔐 STEP 7: OIDC Integrations Cleanup (global)"
+    echo "============================================"
+    discover_project_oidc
+    if [[ -f "$TEMP_DIR/project_oidc.txt" ]]; then
+        delete_specific_oidc_integrations "$TEMP_DIR/project_oidc.txt" || FAILED=true
+    else
+        echo "No OIDC integrations discovered for deletion" >&2
+    fi
+    echo ""
+
+    # 8) Project deletion
+    echo "🎯 STEP 8: Project Deletion"
     echo "============================"
     delete_project || FAILED=true
     echo ""

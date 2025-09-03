@@ -58,8 +58,10 @@ map_role_to_project_role() {
         "Developer") echo "Developer" ;;
         "Release Manager") echo "Release Manager" ;;
         "Project Manager") echo "Project Admin" ;;
-        "AppTrust Admin") echo "Application Admin" ;;
-        "Inventory Manager"|"AI/ML Manager"|"Checkout Manager") echo "Application Admin" ;;
+        # Application Admin is NOT a valid JFrog Project role. Map to Release Manager
+        "AppTrust Admin") echo "Release Manager" ;;
+        # Service managers should be members with elevated release capabilities
+        "Inventory Manager"|"AI/ML Manager"|"Checkout Manager") echo "Release Manager" ;;
         "Pipeline User") echo "Developer" ;;
         *) echo "Viewer" ;;
     esac
@@ -140,12 +142,10 @@ assign_project_roles() {
 
     echo "Assigning project roles to $username for project $PROJECT_KEY: ${roles[*]}"
 
-    # Build JSON payload with roles array
+    # Build JSON payload with roles array (username provided in path)
     local role_payload=$(jq -n \
-        --arg user "$username" \
         --arg roles_str "$joined" \
         '{
-            "member": $user,
             "roles": ( $roles_str | split(":::") )
         }')
 
@@ -159,7 +159,7 @@ assign_project_roles() {
         "${JFROG_URL}/access/api/v1/projects/${PROJECT_KEY}/users/${username}")
 
     case "$response_code" in
-        200|201)
+        200|201|204)
             echo "✅ Roles assigned to '$username' successfully (HTTP $response_code)"
             ;;
         409)
@@ -210,15 +210,19 @@ for user_data in "${BOOKVERSE_USERS[@]}"; do
     # Create user
     create_user "$username" "$email" "$password" "$role"
 
-    # Determine project roles for this user
+    # Determine project roles for this user (avoid duplicates in bash 3)
     project_roles=("$(map_role_to_project_role "$role")")
     if is_platform_owner "$username"; then
-        project_roles+=("Project Admin")
-    fi
-
-    # Deduplicate roles (best-effort)
-    if command -v awk >/dev/null 2>&1; then
-        mapfile -t project_roles < <(printf "%s\n" "${project_roles[@]}" | awk '!seen[$0]++')
+        needs_admin=true
+        for r in "${project_roles[@]}"; do
+            if [[ "$r" == "Project Admin" ]]; then
+                needs_admin=false
+                break
+            fi
+        done
+        if [[ "$needs_admin" == true ]]; then
+            project_roles+=("Project Admin")
+        fi
     fi
 
     # Assign roles as project membership

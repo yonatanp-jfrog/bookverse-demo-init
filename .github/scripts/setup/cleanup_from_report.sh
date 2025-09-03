@@ -43,6 +43,7 @@ apps_file="/tmp/apps_to_delete.txt"
 users_file="/tmp/users_to_delete.txt"
 stages_file="/tmp/stages_to_delete.txt"
 builds_file="/tmp/builds_to_delete.txt"
+oidc_file="/tmp/oidc_to_delete.txt"
 domain_users_file="/tmp/domain_users_to_delete.txt"
 
 jq -r --arg p "$project_key" '.plan.repositories[]? | select(.project==$p) | .key' "$SHARED_REPORT_FILE" > "$repos_file" 2>/dev/null || true
@@ -50,6 +51,8 @@ jq -r --arg p "$project_key" '.plan.applications[]? | select(.project==$p) | .ke
 jq -r --arg p "$project_key" '.plan.users[]? | select(.project==$p) | .name' "$SHARED_REPORT_FILE" > "$users_file" 2>/dev/null || true
 jq -r --arg p "$project_key" '.plan.stages[]? | select(.project==$p) | .name' "$SHARED_REPORT_FILE" > "$stages_file" 2>/dev/null || true
 jq -r --arg p "$project_key" '.plan.builds[]? | select(.project==$p) | .name' "$SHARED_REPORT_FILE" > "$builds_file" 2>/dev/null || true
+# OIDC integrations (global; not scoped by project)
+jq -r '.plan.oidc[]? // empty' "$SHARED_REPORT_FILE" > "$oidc_file" 2>/dev/null || true
 # Global domain users (not scoped by project)
 jq -r '.plan.domain_users[]? // empty' "$SHARED_REPORT_FILE" > "$domain_users_file" 2>/dev/null || true
 
@@ -116,6 +119,15 @@ else
     log_info "🏷️ No stages found in report to delete"
 fi
 
+# 6) Delete OIDC integrations from structured plan (global)
+if [[ -s "$oidc_file" ]]; then
+    oidc_count=$(wc -l < "$oidc_file")
+    log_info "🔐 Deleting $oidc_count OIDC integrations from report..."
+    delete_specific_oidc_integrations "$oidc_file" || FAILED=true
+else
+    log_info "🔐 No OIDC integrations found in report to delete"
+fi
+
 # 6) Remove project members first, then delete global domain users
 if [[ -s "$users_file" ]]; then
     users_count=$(wc -l < "$users_file")
@@ -134,7 +146,7 @@ else
 fi
 
 # Clean up temporary files
-rm -f "$repos_file" "$apps_file" "$users_file" "$stages_file" "$builds_file" "$domain_users_file"
+rm -f "$repos_file" "$apps_file" "$users_file" "$stages_file" "$builds_file" "$oidc_file" "$domain_users_file"
 
 # Check if there were any failures during deletion
 if [[ "$FAILED" == "true" ]]; then

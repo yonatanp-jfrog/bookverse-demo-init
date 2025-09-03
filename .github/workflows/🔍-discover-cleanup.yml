@@ -108,14 +108,22 @@ jobs:
             apps=$(jq -r '.metadata.discovery_counts.applications' .github/cleanup-report.json)
             stages=$(jq -r '.metadata.discovery_counts.stages' .github/cleanup-report.json)
             builds=$(jq -r '.metadata.discovery_counts.builds' .github/cleanup-report.json)
+            oidc=$(jq -r '.metadata.discovery_counts.oidc // 0' .github/cleanup-report.json)
+            local_count=$(jq -r '.metadata.discovery_counts.repositories_breakdown.local // 0' .github/cleanup-report.json)
+            remote_count=$(jq -r '.metadata.discovery_counts.repositories_breakdown.remote // 0' .github/cleanup-report.json)
+            virtual_count=$(jq -r '.metadata.discovery_counts.repositories_breakdown.virtual // 0' .github/cleanup-report.json)
+            domain_users=$(jq -r '.metadata.discovery_counts.domain_users // 0' .github/cleanup-report.json)
             echo "Generated: $ts" >> $GITHUB_STEP_SUMMARY
             echo "Project: $proj" >> $GITHUB_STEP_SUMMARY
             echo "Total items: $total" >> $GITHUB_STEP_SUMMARY
             echo "- 📦 Repositories: $repos" >> $GITHUB_STEP_SUMMARY
+            echo "  - local: $local_count, remote: $remote_count, virtual: $virtual_count" >> $GITHUB_STEP_SUMMARY
             echo "- 👥 Users: $users" >> $GITHUB_STEP_SUMMARY
             echo "- 🚀 Applications: $apps" >> $GITHUB_STEP_SUMMARY
             echo "- 🏷️ Stages: $stages" >> $GITHUB_STEP_SUMMARY
             echo "- 🔧 Builds: $builds" >> $GITHUB_STEP_SUMMARY
+            echo "- 🔐 OIDC Integrations: $oidc" >> $GITHUB_STEP_SUMMARY
+            echo "- 👥 Domain users (@bookverse.com): $domain_users" >> $GITHUB_STEP_SUMMARY
 
             # Use structured plan arrays for reliable listing
             echo "" >> $GITHUB_STEP_SUMMARY
@@ -127,7 +135,7 @@ jobs:
 
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "#### 👥 Users ($users)" >> $GITHUB_STEP_SUMMARY
-            user_list=$(jq -r '.plan.users[]? | if (.roles|length)>0 then "\(.name) (roles: \(.roles|join(", ")) )" else .name end' .github/cleanup-report.json 2>/dev/null || true)
+            user_list=$(jq -r '.plan.users[]? | if ((.roles // [])|length)>0 then "\(.name) (roles: \((.roles // [])|join(", ")) )" else .name end' .github/cleanup-report.json 2>/dev/null || true)
             if [[ -n "$user_list" ]]; then echo "$user_list" | sed 's/^/- /' >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
 
             echo "" >> $GITHUB_STEP_SUMMARY
@@ -153,6 +161,20 @@ jobs:
             echo "#### 🔧 Builds ($builds)" >> $GITHUB_STEP_SUMMARY
             build_list=$(jq -r '.plan.builds[]?.name' .github/cleanup-report.json 2>/dev/null || true)
             if [[ -n "$build_list" ]]; then echo "$build_list" | sed 's/^/- /' >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
+
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 🔎 Additional Observations" >> $GITHUB_STEP_SUMMARY
+            oidc_list=$(jq -r '.observations.oidc_integrations[]? // empty' .github/cleanup-report.json 2>/dev/null || true)
+            if [[ -n "$oidc_list" ]]; then
+              echo "#### 🔐 OIDC Integrations ($oidc)" >> $GITHUB_STEP_SUMMARY
+              echo "$oidc_list" | sed 's/^/- /' >> $GITHUB_STEP_SUMMARY
+            fi
+            domain_users_list=$(jq -r '.plan.domain_users[]? // empty' .github/cleanup-report.json 2>/dev/null || true)
+            if [[ -n "$domain_users_list" ]]; then
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "#### 👥 Domain users (@bookverse.com)" >> $GITHUB_STEP_SUMMARY
+              echo "$domain_users_list" | sed 's/^/- /' >> $GITHUB_STEP_SUMMARY
+            fi
 
             # Safety checks: ensure all items belong to the expected project
             echo "" >> $GITHUB_STEP_SUMMARY

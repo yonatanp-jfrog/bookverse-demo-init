@@ -100,13 +100,19 @@ apps_count=$(jq -r '.metadata.discovery_counts.applications // 0' "$SHARED_REPOR
 repos_count=$(jq -r '.metadata.discovery_counts.repositories // 0' "$SHARED_REPORT_FILE")
 users_count=$(jq -r '.metadata.discovery_counts.users // 0' "$SHARED_REPORT_FILE")
 stages_count=$(jq -r '.metadata.discovery_counts.stages // 0' "$SHARED_REPORT_FILE")
+oidc_count=$(jq -r '.metadata.discovery_counts.oidc // 0' "$SHARED_REPORT_FILE")
+local_count=$(jq -r '.metadata.discovery_counts.repositories_breakdown.local // 0' "$SHARED_REPORT_FILE")
+remote_count=$(jq -r '.metadata.discovery_counts.repositories_breakdown.remote // 0' "$SHARED_REPORT_FILE")
+virtual_count=$(jq -r '.metadata.discovery_counts.repositories_breakdown.virtual // 0' "$SHARED_REPORT_FILE")
 
 log_config "🎯 Resource Breakdown:"
 log_config "   • 🔧 Builds: $builds_count"
 log_config "   • 🚀 Applications: $apps_count"
 log_config "   • 📦 Repositories: $repos_count"
+log_config "       - local: $local_count, remote: $remote_count, virtual: $virtual_count"
 log_config "   • 👥 Users: $users_count"
 log_config "   • 🏷️ Stages: $stages_count"
+log_config "   • 🔐 OIDC Integrations: $oidc_count"
 
 echo ""
 log_success "🎯 Ready to proceed with cleanup execution"

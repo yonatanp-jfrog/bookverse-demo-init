@@ -1,17 +1,148 @@
 {
   "metadata": {
-    "timestamp": "2025-09-03T21:21:15Z",
+    "timestamp": "2025-09-03T21:02:41Z",
     "project_key": "bookverse",
-    "total_items": 0,
+    "total_items": 12,
     "discovery_counts": {
       "builds": 0,
       "applications": 0,
       "repositories": 0,
-      "users": 0,
-      "stages": 0
+      "users": 12,
+      "stages": 0,
+      "oidc": 5,
+      "repositories_breakdown": {
+        "local": 0,
+        "remote": 0,
+        "virtual": 0
+      },
+      "domain_users": 12
     }
   },
-  "deletion_plan": "No items found for deletion",
-  "status": "cleanup_completed",
-  "last_cleanup": "2025-09-03T21:20:03Z"
+  "plan": {
+    "repositories": [],
+    "applications": [],
+    "users": [
+      {
+        "name": "frank.inventory@bookverse.com",
+        "roles": [
+          "Release Manager"
+        ],
+        "project": "bookverse"
+      },
+      {
+        "name": "pipeline.recommendations@bookverse.com",
+        "roles": [
+          "Developer"
+        ],
+        "project": "bookverse"
+      },
+      {
+        "name": "henry.checkout@bookverse.com",
+        "roles": [
+          "Release Manager"
+        ],
+        "project": "bookverse"
+      },
+      {
+        "name": "charlie.devops@bookverse.com",
+        "roles": [
+          "Project Admin"
+        ],
+        "project": "bookverse"
+      },
+      {
+        "name": "diana.architect@bookverse.com",
+        "roles": [
+          "Release Manager",
+          "Project Admin"
+        ],
+        "project": "bookverse"
+      },
+      {
+        "name": "edward.manager@bookverse.com",
+        "roles": [
+          "Release Manager",
+          "Project Admin"
+        ],
+        "project": "bookverse"
+      },
+      {
+        "name": "pipeline.platform@bookverse.com",
+        "roles": [
+          "Developer"
+        ],
+        "project": "bookverse"
+      },
+      {
+        "name": "alice.developer@bookverse.com",
+        "roles": [
+          "Developer"
+        ],
+        "project": "bookverse"
+      },
+      {
+        "name": "grace.ai@bookverse.com",
+        "roles": [
+          "Release Manager"
+        ],
+        "project": "bookverse"
+      },
+      {
+        "name": "pipeline.checkout@bookverse.com",
+        "roles": [
+          "Developer"
+        ],
+        "project": "bookverse"
+      },
+      {
+        "name": "bob.release@bookverse.com",
+        "roles": [
+          "Release Manager",
+          "Project Admin"
+        ],
+        "project": "bookverse"
+      },
+      {
+        "name": "pipeline.inventory@bookverse.com",
+        "roles": [
+          "Developer"
+        ],
+        "project": "bookverse"
+      }
+    ],
+    "stages": [],
+    "builds": [],
+    "oidc": [
+      "github-bookverse-inventory",
+      "github-bookverse-recommendations",
+      "github-bookverse-platform",
+      "github-bookverse-web",
+      "github-bookverse-checkout"
+    ],
+    "domain_users": [
+      "alice.developer@bookverse.com",
+      "bob.release@bookverse.com",
+      "charlie.devops@bookverse.com",
+      "diana.architect@bookverse.com",
+      "edward.manager@bookverse.com",
+      "frank.inventory@bookverse.com",
+      "grace.ai@bookverse.com",
+      "henry.checkout@bookverse.com",
+      "pipeline.checkout@bookverse.com",
+      "pipeline.inventory@bookverse.com",
+      "pipeline.platform@bookverse.com",
+      "pipeline.recommendations@bookverse.com"
+    ]
+  },
+  "observations": {
+    "oidc_integrations": [
+      "github-bookverse-inventory",
+      "github-bookverse-recommendations",
+      "github-bookverse-platform",
+      "github-bookverse-web",
+      "github-bookverse-checkout"
+    ]
+  },
+  "deletion_preview": "🛡️ SAFETY: Discovering what would be deleted...\nProject: bookverse\nDate: Thu Sep  4 00:02:34 IDT 2025\n\nBUILDS: None found\n\nAPPLICATIONS: None found\n\nREPOSITORIES: None found\n\nUSERS TO DELETE (      12 items):\n======================================\n  ❌ User: frank.inventory@bookverse.com\n  ❌ User: pipeline.recommendations@bookverse.com\n  ❌ User: henry.checkout@bookverse.com\n  ❌ User: charlie.devops@bookverse.com\n  ❌ User: diana.architect@bookverse.com\n  ❌ User: edward.manager@bookverse.com\n  ❌ User: pipeline.platform@bookverse.com\n  ❌ User: alice.developer@bookverse.com\n  ❌ User: grace.ai@bookverse.com\n  ❌ User: pipeline.checkout@bookverse.com\n  ❌ User: bob.release@bookverse.com\n  ❌ User: pipeline.inventory@bookverse.com\n\nSTAGES: None found\n\nSUMMARY:\n========\nTotal items to delete: 12\nProject to delete: bookverse\n\n⚠️ WARNING: This action cannot be undone!",
+  "status": "ready_for_cleanup"
 }

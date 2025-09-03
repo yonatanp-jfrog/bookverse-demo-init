@@ -141,6 +141,25 @@ if [[ ${#missing_users[@]} -gt 0 ]]; then
 fi
 echo ""
 
+# 3b. Project membership validation
+echo "3b. Validating project membership for all expected users..."
+members_resp=$(curl -s -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" "${JFROG_URL}/access/api/v1/projects/${PROJECT_KEY}/users")
+project_members=$(echo "$members_resp" | jq -r '.members[]?.name' 2>/dev/null || echo "")
+missing_members=()
+for exp in "${expected_users[@]}"; do
+  if ! echo "$project_members" | grep -qx "$exp"; then
+    missing_members+=("$exp")
+  fi
+done
+
+if [[ ${#missing_members[@]} -eq 0 ]]; then
+  echo "✅ All expected users are members of project '${PROJECT_KEY}'"
+else
+  echo "⚠️  Users not yet members of project '${PROJECT_KEY}':"
+  printf '   • %s\n' "${missing_members[@]}"
+fi
+echo ""
+
 # 4. Application count
 echo "4. Counting applications..."
 app_response=$(validate_api_response "${JFROG_URL}/apptrust/api/v1/applications" "Applications API")

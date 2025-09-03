@@ -50,6 +50,23 @@ is_platform_owner() {
     return 1
 }
 
+# Map human-friendly titles to valid JFrog Project roles
+# Allowed roles: Developer, Contributor, Viewer, Release Manager, Security Manager, Application Admin, Project Admin
+map_role_to_project_role() {
+    local title="$1"
+    case "$title" in
+        "Developer") echo "Developer" ;;
+        "Release Manager") echo "Release Manager" ;;
+        "Project Manager") echo "Project Admin" ;;
+        # Application Admin is NOT a valid JFrog Project role. Map to Release Manager
+        "AppTrust Admin") echo "Release Manager" ;;
+        # Service managers should be members with elevated release capabilities
+        "Inventory Manager"|"AI/ML Manager"|"Checkout Manager") echo "Release Manager" ;;
+        "Pipeline User") echo "Developer" ;;
+        *) echo "Viewer" ;;
+    esac
+}
+
 # Function to create a user
 create_user() {
     local username="$1"
@@ -113,23 +130,25 @@ create_user() {
     rm -f "$temp_response"
 }
 
-# Function to assign project role
-assign_project_role() {
-    local username="$1"
-    local role_name="$2"
-    
-    echo "Assigning '$role_name' role to $username for project $PROJECT_KEY"
-    
-    # Build role assignment payload
+# Assign multiple project roles to a user in a single request (idempotent)
+assign_project_roles() {
+    local username="$1"; shift
+    local roles=("$@")
+
+    # Join roles with a sentinel to preserve spaces in names
+    local joined
+    joined=$(printf "%s:::" "${roles[@]}")
+    joined="${joined%:::}"
+
+    echo "Assigning project roles to $username for project $PROJECT_KEY: ${roles[*]}"
+
+    # Build JSON payload with roles array (username provided in path)
     local role_payload=$(jq -n \
-        --arg user "$username" \
-        --arg role "$role_name" \
+        --arg roles_str "$joined" \
         '{
-            "member": $user,
-            "roles": [$role]
+            "roles": ( $roles_str | split(":::") )
         }')
-    
-    # Assign role
+
     local temp_response=$(mktemp)
     local response_code=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
         --header "Content-Type: application/json" \
@@ -138,43 +157,43 @@ assign_project_role() {
         --write-out "%{http_code}" \
         --output "$temp_response" \
         "${JFROG_URL}/access/api/v1/projects/${PROJECT_KEY}/users/${username}")
-    
+
     case "$response_code" in
-        200|201)
-            echo "✅ Role '$role_name' assigned to '$username' successfully (HTTP $response_code)"
+        200|201|204)
+            echo "✅ Roles assigned to '$username' successfully (HTTP $response_code)"
             ;;
         409)
-            echo "⚠️  Role '$role_name' already assigned to '$username' (HTTP $response_code)"
+            echo "⚠️  Roles already assigned to '$username' (HTTP $response_code)"
             ;;
         400)
-            # Check if it's the "already assigned" error
             if grep -q -i "already.*assign\|role.*exists" "$temp_response"; then
-                echo "⚠️  Role '$role_name' already assigned to '$username' (HTTP $response_code)"
+                echo "⚠️  Roles already assigned to '$username' (HTTP $response_code)"
             else
-                echo "❌ Failed to assign role '$role_name' to '$username' (HTTP $response_code)"
+                echo "❌ Failed to assign roles to '$username' (HTTP $response_code)"
                 echo "Response body: $(cat "$temp_response")"
                 rm -f "$temp_response"
                 return 1
             fi
             ;;
         *)
-            echo "❌ Failed to assign role '$role_name' to '$username' (HTTP $response_code)"
+            echo "❌ Failed to assign roles to '$username' (HTTP $response_code)"
             echo "Response body: $(cat "$temp_response")"
             rm -f "$temp_response"
             return 1
             ;;
     esac
-    
+
     rm -f "$temp_response"
 }
 
 echo "ℹ️  Users to be created:"
 for user_data in "${BOOKVERSE_USERS[@]}"; do
     IFS='|' read -r username email password role <<< "$user_data"
+    mapped=$(map_role_to_project_role "$role")
     if is_platform_owner "$username"; then
-        echo "   - $username ($role) → Project Admin"
+        echo "   - $username ($role → $mapped) + Project Admin"
     else
-        echo "   - $username ($role)"
+        echo "   - $username ($role → $mapped)"
     fi
 done
 
@@ -184,17 +203,30 @@ echo "🚀 Processing ${#BOOKVERSE_USERS[@]} users..."
 # Process each user
 for user_data in "${BOOKVERSE_USERS[@]}"; do
     IFS='|' read -r username email password role <<< "$user_data"
-    
+
     echo ""
     echo "Processing user: $username ($role)"
-    
+
     # Create user
     create_user "$username" "$email" "$password" "$role"
-    
-    # Assign project role if platform owner
+
+    # Determine project roles for this user (avoid duplicates in bash 3)
+    project_roles=("$(map_role_to_project_role "$role")")
     if is_platform_owner "$username"; then
-        assign_project_role "$username" "Project Admin"
+        needs_admin=true
+        for r in "${project_roles[@]}"; do
+            if [[ "$r" == "Project Admin" ]]; then
+                needs_admin=false
+                break
+            fi
+        done
+        if [[ "$needs_admin" == true ]]; then
+            project_roles+=("Project Admin")
+        fi
     fi
+
+    # Assign roles as project membership
+    assign_project_roles "$username" "${project_roles[@]}"
 done
 
 echo ""

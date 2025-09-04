@@ -75,10 +75,20 @@ create_oidc_integration() {
     echo "  Service: $service_name"
     echo "  User: $username"
     echo "  Display: $display_name"
+    echo "  Provider: GitHub"
     
-    # Build MINIMAL OIDC integration payload (more compatible across versions)
+    # Build provider-specific OIDC integration payload (GitHub), with fallback to minimal if unsupported
     local org_name="${ORG:-yonatanp-jfrog}"
-    local integration_payload=$(jq -n \
+    local integration_payload_github=$(jq -n \
+        --arg name "$integration_name" \
+        --arg issuer_url "https://token.actions.githubusercontent.com" \
+        --arg provider_type "GITHUB" \
+        '{
+            "name": $name,
+            "issuer_url": $issuer_url,
+            "provider_type": $provider_type
+        }')
+    local integration_payload_minimal=$(jq -n \
         --arg name "$integration_name" \
         --arg issuer_url "https://token.actions.githubusercontent.com" \
         '{
@@ -90,61 +100,130 @@ create_oidc_integration() {
     if integration_exists "$integration_name"; then
         echo "⚠️  OIDC integration '$integration_name' already exists (pre-check)"
     else
-        # Create OIDC integration with retries on 5xx
-        local attempt
-        for attempt in 1 2 3; do
-            local temp_response=$(mktemp)
-            local response_code=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
-                --header "Content-Type: application/json" \
-                -X POST \
-                -d "$integration_payload" \
-                --write-out "%{http_code}" \
-                --output "$temp_response" \
-                "${JFROG_URL}/access/api/v1/oidc")
+        # Attempt GitHub provider first; on 400 fallback to minimal payload; retry 5xx up to 3 times
+        local temp_response=$(mktemp)
+        local response_code=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+            --header "Content-Type: application/json" \
+            -X POST \
+            -d "$integration_payload_github" \
+            --write-out "%{http_code}" \
+            --output "$temp_response" \
+            "${JFROG_URL}/access/api/v1/oidc")
 
-            case "$response_code" in
-                200|201)
-                    echo "✅ OIDC integration '$integration_name' created successfully (HTTP $response_code)"
-                    rm -f "$temp_response"
-                    break
-                    ;;
-                409)
-                    echo "⚠️  OIDC integration '$integration_name' already exists (HTTP $response_code)"
-                    rm -f "$temp_response"
-                    break
-                    ;;
-                500|502|503|504)
-                    echo "⚠️  Transient error creating '$integration_name' (HTTP $response_code)"
-                    echo "Response body: $(cat "$temp_response")"
-                    rm -f "$temp_response"
-                    # If the resource now exists, stop retrying
-                    if integration_exists "$integration_name"; then
-                        echo "ℹ️  Detected '$integration_name' present after error; continuing"
+        case "$response_code" in
+            200|201)
+                echo "✅ OIDC integration '$integration_name' created successfully (GitHub provider)"
+                rm -f "$temp_response"
+                ;;
+            409)
+                echo "⚠️  OIDC integration '$integration_name' already exists (HTTP $response_code)"
+                rm -f "$temp_response"
+                ;;
+            400)
+                echo "⚠️  GitHub provider not accepted by this JFrog version. Falling back to minimal payload."
+                echo "Response body: $(cat "$temp_response")"
+                rm -f "$temp_response"
+                # Fallback attempt (no retries on 400)
+                temp_response=$(mktemp)
+                response_code=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+                    --header "Content-Type: application/json" \
+                    -X POST \
+                    -d "$integration_payload_minimal" \
+                    --write-out "%{http_code}" \
+                    --output "$temp_response" \
+                    "${JFROG_URL}/access/api/v1/oidc")
+                case "$response_code" in
+                    200|201)
+                        echo "✅ OIDC integration '$integration_name' created successfully (generic provider)"
+                        rm -f "$temp_response"
+                        ;;
+                    409)
+                        echo "⚠️  OIDC integration '$integration_name' already exists (HTTP $response_code)"
+                        rm -f "$temp_response"
+                        ;;
+                    500|502|503|504)
+                        echo "⚠️  Transient error creating '$integration_name' (HTTP $response_code)"
+                        echo "Response body: $(cat "$temp_response")"
+                        rm -f "$temp_response"
+                        # Retry up to 3 times for transient errors
+                        local attempt
+                        for attempt in 1 2 3; do
+                            temp_response=$(mktemp)
+                            response_code=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+                                --header "Content-Type: application/json" \
+                                -X POST \
+                                -d "$integration_payload_minimal" \
+                                --write-out "%{http_code}" \
+                                --output "$temp_response" \
+                                "${JFROG_URL}/access/api/v1/oidc")
+                            if [[ "$response_code" =~ ^20|^409 ]]; then
+                                echo "✅ OIDC integration '$integration_name' created (after retry)"
+                                rm -f "$temp_response"
+                                break
+                            fi
+                            rm -f "$temp_response"
+                            sleep $((attempt * 3))
+                        done
+                        ;;
+                    *)
+                        echo "❌ Failed to create OIDC integration '$integration_name' (HTTP $response_code)"
+                        echo "Response body: $(cat "$temp_response")"
+                        rm -f "$temp_response"
+                        return 1
+                        ;;
+                esac
+                ;;
+            500|502|503|504)
+                echo "⚠️  Transient error creating '$integration_name' (HTTP $response_code)"
+                echo "Response body: $(cat "$temp_response")"
+                rm -f "$temp_response"
+                # Retry GitHub payload first, then fallback to minimal if still failing
+                local attempt
+                for attempt in 1 2 3; do
+                    temp_response=$(mktemp)
+                    response_code=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+                        --header "Content-Type: application/json" \
+                        -X POST \
+                        -d "$integration_payload_github" \
+                        --write-out "%{http_code}" \
+                        --output "$temp_response" \
+                        "${JFROG_URL}/access/api/v1/oidc")
+                    if [[ "$response_code" =~ ^20|^409 ]]; then
+                        echo "✅ OIDC integration '$integration_name' created (GitHub provider after retry)"
+                        rm -f "$temp_response"
                         break
                     fi
-                    if [[ "$attempt" -lt 3 ]]; then
-                        sleep $((attempt * 3))
-                        continue
+                    rm -f "$temp_response"
+                    sleep $((attempt * 3))
+                done
+                if ! [[ "$response_code" =~ ^20|^409 ]]; then
+                    echo "ℹ️  Falling back to minimal payload after GitHub retries"
+                    temp_response=$(mktemp)
+                    response_code=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+                        --header "Content-Type: application/json" \
+                        -X POST \
+                        -d "$integration_payload_minimal" \
+                        --write-out "%{http_code}" \
+                        --output "$temp_response" \
+                        "${JFROG_URL}/access/api/v1/oidc")
+                    if [[ "$response_code" =~ ^20|^409 ]]; then
+                        echo "✅ OIDC integration '$integration_name' created (generic provider after retry)"
+                        rm -f "$temp_response"
                     else
-                        echo "❌ Failed to create OIDC integration '$integration_name' after retries"
+                        echo "❌ Failed to create OIDC integration '$integration_name' (HTTP $response_code)"
+                        echo "Response body: $(cat "$temp_response")"
+                        rm -f "$temp_response"
                         return 1
                     fi
-                    ;;
-                400)
-                    # Bad request - show response for troubleshooting
-                    echo "❌ Failed to create OIDC integration '$integration_name' (HTTP $response_code)"
-                    echo "Response body: $(cat "$temp_response")"
-                    rm -f "$temp_response"
-                    return 1
-                    ;;
-                *)
-                    echo "❌ Failed to create OIDC integration '$integration_name' (HTTP $response_code)"
-                    echo "Response body: $(cat "$temp_response")"
-                    rm -f "$temp_response"
-                    return 1
-                    ;;
-            esac
-        done
+                fi
+                ;;
+            *)
+                echo "❌ Failed to create OIDC integration '$integration_name' (HTTP $response_code)"
+                echo "Response body: $(cat "$temp_response")"
+                rm -f "$temp_response"
+                return 1
+                ;;
+        esac
     fi
     
     # Create identity mapping

@@ -358,6 +358,80 @@ discover_project_repositories() {
             virtual: ($normed | map(select(.kind == "virtual")) | length)
           }
         ' > "$TEMP_DIR/repository_breakdown.json" 2>/dev/null || echo '{"local":0,"remote":0,"virtual":0}' > "$TEMP_DIR/repository_breakdown.json"
+
+        # Fallback: If counts are zero but repos exist, derive by intersecting with typed lists from the API
+        local existing_count
+        existing_count=$(wc -l < "$filtered_repos" 2>/dev/null || echo "0")
+        local sum_counts
+        sum_counts=$(jq -r '([.local,.remote,.virtual] | map(tonumber) | add) // 0' "$TEMP_DIR/repository_breakdown.json" 2>/dev/null || echo "0")
+        if [[ "$existing_count" -gt 0 && "${sum_counts:-0}" -eq 0 ]]; then
+            echo "ℹ️  Repo type fields missing; using API intersection fallback..." >&2
+            local local_json remote_json virtual_json
+            local local_keys remote_keys virtual_keys
+            local local_count remote_count virtual_count
+
+            local_json="$TEMP_DIR/repos_local.json"
+            remote_json="$TEMP_DIR/repos_remote.json"
+            virtual_json="$TEMP_DIR/repos_virtual.json"
+
+            # Fetch typed repo lists
+            jfrog_api_call "GET" "/artifactory/api/repositories?type=local" "$local_json" "curl" "" "list local repos" >/dev/null || true
+            jfrog_api_call "GET" "/artifactory/api/repositories?type=remote" "$remote_json" "curl" "" "list remote repos" >/dev/null || true
+            jfrog_api_call "GET" "/artifactory/api/repositories?type=virtual" "$virtual_json" "curl" "" "list virtual repos" >/dev/null || true
+
+            local_keys="$TEMP_DIR/repos_local.txt"
+            remote_keys="$TEMP_DIR/repos_remote.txt"
+            virtual_keys="$TEMP_DIR/repos_virtual.txt"
+
+            # Normalize to key lists (support array or wrapped objects)
+            jq -r 'if (type=="array") then .[]?.key else (.repositories // .repos // []) | .[]?.key end | select(length>0)' "$local_json" 2>/dev/null | sort -u > "$local_keys" || : > "$local_keys"
+            jq -r 'if (type=="array") then .[]?.key else (.repositories // .repos // []) | .[]?.key end | select(length>0)' "$remote_json" 2>/dev/null | sort -u > "$remote_keys" || : > "$remote_keys"
+            jq -r 'if (type=="array") then .[]?.key else (.repositories // .repos // []) | .[]?.key end | select(length>0)' "$virtual_json" 2>/dev/null | sort -u > "$virtual_keys" || : > "$virtual_keys"
+
+            # Intersect with discovered repos
+            local_count=$(grep -F -x -f "$filtered_repos" "$local_keys" 2>/dev/null | wc -l | tr -d ' ')
+            remote_count=$(grep -F -x -f "$filtered_repos" "$remote_keys" 2>/dev/null | wc -l | tr -d ' ')
+            virtual_count=$(grep -F -x -f "$filtered_repos" "$virtual_keys" 2>/dev/null | wc -l | tr -d ' ')
+
+            echo "{\"local\":${local_count:-0},\"remote\":${remote_count:-0},\"virtual\":${virtual_count:-0}}" > "$TEMP_DIR/repository_breakdown.json"
+        fi
+
+        # Final safety fallback: per-repo detail query to determine rclass
+        sum_counts=$(jq -r '([.local,.remote,.virtual] | map(tonumber) | add) // 0' "$TEMP_DIR/repository_breakdown.json" 2>/dev/null || echo "0")
+        if [[ "$existing_count" -gt 0 && "${sum_counts:-0}" -eq 0 ]]; then
+            echo "ℹ️  Typed list intersection yielded 0; querying each repo for rclass..." >&2
+            local _local=0 _remote=0 _virtual=0
+            while IFS= read -r repo_key; do
+                [[ -z "$repo_key" ]] && continue
+                local enc
+                enc=$(urlencode "$repo_key")
+                local detail_file="$TEMP_DIR/repo_${repo_key}_detail.json"
+                local code
+                code=$(jfrog_api_call "GET" "/artifactory/api/repositories/${enc}" "$detail_file" "curl" "" "repo details $repo_key")
+                if is_success "$code" && [[ -s "$detail_file" ]]; then
+                    # Prefer rclass, fallback to repoType/type heuristics
+                    local kind
+                    kind=$(jq -r '(.rclass // .repoType // "") | ascii_downcase' "$detail_file" 2>/dev/null || echo "")
+                    if [[ "$kind" == "local" ]]; then
+                        _local=$((_local+1))
+                    elif [[ "$kind" == "remote" ]]; then
+                        _remote=$((_remote+1))
+                    elif [[ "$kind" == "virtual" ]]; then
+                        _virtual=$((_virtual+1))
+                    else
+                        # Last resort: infer from key
+                        if [[ "$repo_key" == virtual-* || "$repo_key" == *-virtual ]]; then
+                            _virtual=$((_virtual+1))
+                        elif [[ "$repo_key" == remote-* || "$repo_key" == *-remote ]]; then
+                            _remote=$((_remote+1))
+                        elif [[ "$repo_key" == local-* || "$repo_key" == *-local ]]; then
+                            _local=$((_local+1))
+                        fi
+                    fi
+                fi
+            done < "$filtered_repos"
+            echo "{\"local\":${_local},\"remote\":${_remote},\"virtual\":${_virtual}}" > "$TEMP_DIR/repository_breakdown.json"
+        fi
         
         local count=$(wc -l < "$filtered_repos" 2>/dev/null || echo "0")
         echo "📦 Found $count repositories in project '$PROJECT_KEY'" >&2
@@ -1581,7 +1655,36 @@ run_discovery_preview() {
     
     # Build structured plan arrays for readability and safety
     local repos_json apps_json users_json stages_json builds_json oidc_json domain_users_json repo_breakdown_json
-    if [[ -f "$TEMP_DIR/project_repositories.txt" ]]; then
+    # Prefer typed repositories if raw JSON is available; otherwise fallback to keys from .txt
+    if [[ -s "$TEMP_DIR/project_repositories.json" ]]; then
+        local typed_repos_file="$TEMP_DIR/project_repositories_typed.json"
+        jq -n --argfile r "$TEMP_DIR/project_repositories.json" --arg project "$PROJECT_KEY" '
+          (if ($r | type) == "array" then $r
+           elif ($r | type) == "object" then ($r.repositories // $r.repos // [])
+           else [] end) as $repos
+          |
+          $repos
+          | map(
+              . as $item
+              | (
+                  ($item.rclass // $item.repoType // $item.type // "") as $kind_raw
+                  | (if ($kind_raw|type) == "string" then ($kind_raw|ascii_downcase) else "" end) as $kind
+                  | if $kind == "" then
+                      # Fallback heuristic from repo key
+                      ($item.key // "") as $k
+                      | (if ($k|test("-virtual$")) or ($k|test("^virtual-")) then "virtual"
+                         elif ($k|test("-remote$")) or ($k|test("^remote-")) then "remote"
+                         elif ($k|test("-local$")) or ($k|test("^local-")) then "local"
+                         else ""
+                         end)
+                    else $kind end
+                ) as $norm
+              | {key: ($item.key // ""), project: $project, type: $norm}
+            )
+        ' > "$typed_repos_file" 2>/dev/null || echo '[]' > "$typed_repos_file"
+
+        repos_json=$(cat "$typed_repos_file" 2>/dev/null || echo '[]')
+    elif [[ -f "$TEMP_DIR/project_repositories.txt" ]]; then
         repos_json=$(jq -R -s --arg project "$PROJECT_KEY" 'split("\n")|map(select(length>0))|map({key:., project:$project})' "$TEMP_DIR/project_repositories.txt" 2>/dev/null || echo '[]')
     else
         repos_json='[]'
@@ -1639,8 +1742,14 @@ run_discovery_preview() {
         domain_users_json='[]'
     fi
 
-    # Repository breakdown (types)
-    if [[ -f "$TEMP_DIR/repository_breakdown.json" ]]; then
+    # Repository breakdown (types) - compute from typed repos if available, else fallback to computed file
+    if [[ -s "$TEMP_DIR/project_repositories_typed.json" ]]; then
+        repo_breakdown_json=$(jq '{
+          local:   (map(select((.type // "") == "local"))   | length),
+          remote:  (map(select((.type // "") == "remote"))  | length),
+          virtual: (map(select((.type // "") == "virtual")) | length)
+        }' "$TEMP_DIR/project_repositories_typed.json" 2>/dev/null || echo '{"local":0,"remote":0,"virtual":0}')
+    elif [[ -f "$TEMP_DIR/repository_breakdown.json" ]]; then
         repo_breakdown_json=$(cat "$TEMP_DIR/repository_breakdown.json" 2>/dev/null || echo '{"local":0,"remote":0,"virtual":0}')
     else
         repo_breakdown_json='{"local":0,"remote":0,"virtual":0}'

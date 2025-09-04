@@ -157,7 +157,7 @@ create_oidc_integration() {
         --arg priority "1" \
         --arg repo "${org_name}/bookverse-${service_name}" \
         --argjson audiences '["jfrog-github"]' \
-        --arg token_spec "{\"username\": \"$username\", \"scope\": \"applied-permissions/user\"}" \
+        --arg token_spec "{\"username\": \"$username\", \"scope\": \"applied-permissions/project\", \"project_key\": \"$PROJECT_KEY\"}" \
         '{
             "name": $name,
             "description": ("Identity mapping for " + $name),
@@ -174,7 +174,7 @@ create_oidc_integration() {
         --arg priority "1" \
         --arg repo "${org_name}/bookverse-${service_name}" \
         --argjson audiences '["jfrog-github"]' \
-        --arg token_spec "{\"username\": \"$username\", \"scope\": \"applied-permissions/user\"}" \
+        --arg token_spec "{\"username\": \"$username\", \"scope\": \"applied-permissions/project\", \"project_key\": \"$PROJECT_KEY\"}" \
         '{
             "name": $name,
             "description": ("Identity mapping for " + $name),\
@@ -195,7 +195,7 @@ create_oidc_integration() {
         --arg name "$integration_name" \
         --arg priority "1" \
         --arg repo "${org_name}/bookverse-${service_name}" \
-        --arg token_spec "{\"username\": \"$username\", \"scope\": \"applied-permissions/user\"}" \
+        --arg token_spec "{\"username\": \"$username\", \"scope\": \"applied-permissions/project\", \"project_key\": \"$PROJECT_KEY\"}" \
         '{
             "name": $name,
             "description": ("Identity mapping for " + $name),

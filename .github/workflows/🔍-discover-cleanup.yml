@@ -89,7 +89,14 @@ jobs:
               echo "📋 No changes to commit for cleanup report"
             else
               git commit -m "chore: Update cleanup discovery report"
+              # Handle non-fast-forward: rebase and push
+              set +e
               git push origin ${{ github.ref_name }}
+              if [[ $? -ne 0 ]]; then
+                echo "Push rejected, attempting pull --rebase..."
+                git pull --rebase origin ${{ github.ref_name }}
+                git push origin ${{ github.ref_name }}
+              fi
               echo "📋 Cleanup report committed and pushed"
             fi
           else

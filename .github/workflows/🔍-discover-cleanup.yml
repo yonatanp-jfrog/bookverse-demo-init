@@ -117,7 +117,7 @@ jobs:
             if [[ ${repo_type_sum:-0} -eq 0 && ${repos:-0} -gt 0 ]]; then
               computed=$(jq -r '
                 def key_kind:
-                  ( (.type // empty | ascii_downcase) as $t
+                  ( (.type // "" | ascii_downcase) as $t
                     | if $t != "" then $t
                       else (
                         (.key // "") as $k
@@ -136,6 +136,18 @@ jobs:
               local_count=$(echo "$computed" | jq -r '.local // 0')
               remote_count=$(echo "$computed" | jq -r '.remote // 0')
               virtual_count=$(echo "$computed" | jq -r '.virtual // 0')
+              repo_type_sum=$(( ${local_count:-0} + ${remote_count:-0} + ${virtual_count:-0} ))
+            fi
+            # Fallback 2: derive from deletion_preview if plan is empty
+            if [[ ${repo_type_sum:-0} -eq 0 && ${repos:-0} -gt 0 ]]; then
+              pv_file="/tmp/deletion_preview_for_counts.txt"
+              jq -r '.deletion_preview // .deletion_plan // ""' .github/cleanup-report.json > "$pv_file"
+              if [[ -s "$pv_file" ]]; then
+                local_count=$(grep -E -c '^\s*.*Repository:\s+.*-local$' "$pv_file" 2>/dev/null || echo 0)
+                remote_count=$(grep -E -c '^\s*.*Repository:\s+.*-remote$' "$pv_file" 2>/dev/null || echo 0)
+                virtual_count=$(grep -E -c '^\s*.*Repository:\s+.*-virtual$' "$pv_file" 2>/dev/null || echo 0)
+                echo "Derived repo breakdown from preview: local=$local_count remote=$remote_count virtual=$virtual_count" >&2
+              fi
             fi
             domain_users=$(jq -r '.metadata.discovery_counts.domain_users // 0' .github/cleanup-report.json)
             echo "Generated: $ts" >> $GITHUB_STEP_SUMMARY

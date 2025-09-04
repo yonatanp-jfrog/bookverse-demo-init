@@ -392,6 +392,32 @@ discover_project_repositories() {
           }
         ' > "$TEMP_DIR/repository_breakdown.json" 2>/dev/null || echo '{"local":0,"remote":0,"virtual":0}' > "$TEMP_DIR/repository_breakdown.json"
 
+        # Also materialize a typed repositories list for later report assembly
+        jq -n --argfile r "$repos_file" --arg project "$PROJECT_KEY" '
+          (if ($r | type) == "array" then $r
+           elif ($r | type) == "object" then ($r.repositories // $r.repos // [])
+           else [] end) as $repos
+          |
+          $repos
+          | map(
+              . as $item
+              | (
+                  ($item.rclass // $item.repoType // $item.type // "") as $kind_raw
+                  | (if ($kind_raw|type) == "string" then ($kind_raw|ascii_downcase) else "" end) as $kind
+                  | if $kind == "" then
+                      # Fallback heuristic from repo key
+                      ($item.key // "") as $k
+                      | (if ($k|test("-virtual$")) or ($k|test("^virtual-")) then "virtual"
+                         elif ($k|test("-remote$")) or ($k|test("^remote-")) then "remote"
+                         elif ($k|test("-local$")) or ($k|test("^local-")) then "local"
+                         else ""
+                         end)
+                    else $kind end
+                ) as $norm
+              | {key: ($item.key // ""), project: $project, type: $norm}
+            )
+        ' > "$TEMP_DIR/project_repositories_typed.json" 2>/dev/null || echo '[]' > "$TEMP_DIR/project_repositories_typed.json"
+
         # Fallback: If counts are zero but repos exist, derive by intersecting with typed lists from the API
         local existing_count
         existing_count=$(wc -l < "$filtered_repos" 2>/dev/null || echo "0")
@@ -464,6 +490,17 @@ discover_project_repositories() {
                 fi
             done < "$filtered_repos"
             echo "{\"local\":${_local},\"remote\":${_remote},\"virtual\":${_virtual}}" > "$TEMP_DIR/repository_breakdown.json"
+        fi
+
+        # Heuristic fallback from key suffix/prefix if still zero
+        sum_counts=$(jq -r '([.local,.remote,.virtual] | map(tonumber) | add) // 0' "$TEMP_DIR/repository_breakdown.json" 2>/dev/null || echo "0")
+        if [[ "$existing_count" -gt 0 && "${sum_counts:-0}" -eq 0 ]]; then
+            echo "ℹ️  Using key-suffix heuristic for repo breakdown..." >&2
+            local heuristic_local heuristic_remote heuristic_virtual
+            heuristic_local=$(grep -E -c '(^local-| -local$|\-local$)' "$filtered_repos" 2>/dev/null || echo 0)
+            heuristic_remote=$(grep -E -c '(^remote-| -remote$|\-remote$)' "$filtered_repos" 2>/dev/null || echo 0)
+            heuristic_virtual=$(grep -E -c '(^virtual-| -virtual$|\-virtual$)' "$filtered_repos" 2>/dev/null || echo 0)
+            echo "{\"local\":${heuristic_local},\"remote\":${heuristic_remote},\"virtual\":${heuristic_virtual}}" > "$TEMP_DIR/repository_breakdown.json"
         fi
         
         local count=$(wc -l < "$filtered_repos" 2>/dev/null || echo "0")
@@ -1775,18 +1812,33 @@ run_discovery_preview() {
         domain_users_json='[]'
     fi
 
-    # Repository breakdown (types) - compute from typed repos if available, else fallback to computed file
-    if [[ -s "$TEMP_DIR/project_repositories_typed.json" ]]; then
-        repo_breakdown_json=$(jq '{
-          local:   (map(select((.type // "") == "local"))   | length),
-          remote:  (map(select((.type // "") == "remote"))  | length),
-          virtual: (map(select((.type // "") == "virtual")) | length)
-        }' "$TEMP_DIR/project_repositories_typed.json" 2>/dev/null || echo '{"local":0,"remote":0,"virtual":0}')
-    elif [[ -f "$TEMP_DIR/repository_breakdown.json" ]]; then
+    # Repository breakdown (types)
+    # Prefer the previously computed breakdown (which includes API intersection/per-repo fallbacks),
+    # and only compute from typed repos if the existing breakdown sums to 0.
+    if [[ -f "$TEMP_DIR/repository_breakdown.json" ]]; then
         repo_breakdown_json=$(cat "$TEMP_DIR/repository_breakdown.json" 2>/dev/null || echo '{"local":0,"remote":0,"virtual":0}')
+        local sum_rb
+        sum_rb=$(echo "$repo_breakdown_json" | jq -r '([.local,.remote,.virtual] | map(tonumber) | add) // 0' 2>/dev/null || echo 0)
+        if [[ "${sum_rb:-0}" -eq 0 && -s "$TEMP_DIR/project_repositories_typed.json" ]]; then
+            repo_breakdown_json=$(jq '{
+              local:   (map(select((.type // "") == "local"))   | length),
+              remote:  (map(select((.type // "") == "remote"))  | length),
+              virtual: (map(select((.type // "") == "virtual")) | length)
+            }' "$TEMP_DIR/project_repositories_typed.json" 2>/dev/null || echo '{"local":0,"remote":0,"virtual":0}')
+        fi
     else
-        repo_breakdown_json='{"local":0,"remote":0,"virtual":0}'
+        if [[ -s "$TEMP_DIR/project_repositories_typed.json" ]]; then
+            repo_breakdown_json=$(jq '{
+              local:   (map(select((.type // "") == "local"))   | length),
+              remote:  (map(select((.type // "") == "remote"))  | length),
+              virtual: (map(select((.type // "") == "virtual")) | length)
+            }' "$TEMP_DIR/project_repositories_typed.json" 2>/dev/null || echo '{"local":0,"remote":0,"virtual":0}')
+        else
+            repo_breakdown_json='{"local":0,"remote":0,"virtual":0}'
+        fi
     fi
+    # Debug print of breakdown used
+    echo "📊 Repo breakdown used in report: $repo_breakdown_json" >&2
 
     # Create structured report with metadata and structured plan
     # Pretty-print JSON for easier debugging/validation
@@ -1801,9 +1853,10 @@ run_discovery_preview() {
         --argjson stages_count "$stages_count" \
         --argjson oidc_count "$oidc_count" \
         --argjson domain_users_count "$domain_users_count" \
-        --argjson repo_breakdown "$repo_breakdown_json" \
-        --arg preview_content "$(cat "$preview_file")" \
-        --argjson plan_repos "$repos_json" \
+        --slurpfile rb_file "$TEMP_DIR/repository_breakdown.json" \
+        --slurpfile typed_repos_file "$TEMP_DIR/project_repositories_typed.json" \
+        --rawfile repos_txt "$TEMP_DIR/project_repositories.txt" \
+        --rawfile preview_rf "$preview_file" \
         --argjson plan_apps "$apps_json" \
         --argjson plan_users "$users_json" \
         --argjson plan_stages "$stages_json" \
@@ -1811,7 +1864,50 @@ run_discovery_preview() {
         --argjson plan_oidc "$plan_oidc_json" \
         --argjson obs_oidc "$oidc_json" \
         --argjson plan_domain_users "$domain_users_json" \
-        '{
+        '
+        # derive plan repositories from typed file or text keys
+        def repos_from_text(rt; project): (rt | split("\n") | map(select(length>0)) | map({key:., project: project}));
+        def repos_from_preview(pv; project): (
+          pv
+          | split("\n")
+          | map(select(test("^\\s*❌ Repository: "))) 
+          | map(sub("^\\s*❌ Repository: \\s*"; ""))
+          | map({key:., project: project})
+        );
+        def normalize_type(r): (
+          (r.type // "") as $t
+          | if $t != "" then ($t|ascii_downcase)
+            else (
+              (r.key // "") as $k
+              | if ($k|test("-virtual$") or $k|test("^virtual-")) then "virtual"
+                elif ($k|test("-remote$") or $k|test("^remote-")) then "remote"
+                elif ($k|test("-local$") or $k|test("^local-")) then "local"
+                else ""
+              end)
+            end);
+        
+        (
+          if ($typed_repos_file|length>0) and (($typed_repos_file[0]|type)=="array") and (($typed_repos_file[0]|length)>0) then
+            $typed_repos_file[0]
+          else
+            (
+              repos_from_text($repos_txt; $project_key) as $rt
+              | if ($rt|length) > 0 then $rt else repos_from_preview($preview_rf; $project_key) end
+            )
+          end
+        ) as $repos
+        |
+        # compute breakdown from file or from derived repos
+        (
+          if ($rb_file|length>0) and (($rb_file[0]|type)=="object") then $rb_file[0]
+          else {
+            local:   ($repos | map(normalize_type(.) == "local")   | map(select(.)) | length),
+            remote:  ($repos | map(normalize_type(.) == "remote")  | map(select(.)) | length),
+            virtual: ($repos | map(normalize_type(.) == "virtual") | map(select(.)) | length)
+          } end
+        ) as $rb
+        |
+        {
             "metadata": {
                 "timestamp": $timestamp,
                 "project_key": $project_key,
@@ -1823,12 +1919,12 @@ run_discovery_preview() {
                     "users": $users_count,
                     "stages": $stages_count,
                     "oidc": $oidc_count,
-                    "repositories_breakdown": $repo_breakdown,
+                    "repositories_breakdown": $rb,
                     "domain_users": $domain_users_count
                 }
             },
             "plan": {
-                "repositories": $plan_repos,
+                "repositories": $repos,
                 "applications": $plan_apps,
                 "users": $plan_users,
                 "stages": $plan_stages,
@@ -1839,9 +1935,9 @@ run_discovery_preview() {
             "observations": {
                 "oidc_integrations": $obs_oidc
             },
-            "deletion_preview": $preview_content,
+            "deletion_preview": $preview_rf,
             "status": "ready_for_cleanup"
-        }' | jq '.' > "$shared_report_file"
+        }' > "$shared_report_file"
     
     echo "📋 Shared report saved to: $shared_report_file" >&2
     

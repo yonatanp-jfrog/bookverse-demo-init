@@ -39,6 +39,9 @@ PLATFORM_OWNERS=(
     "edward.manager@bookverse.com"
     "charlie.devops@bookverse.com"
     "bob.release@bookverse.com"
+    "frank.inventory@bookverse.com"
+    "grace.ai@bookverse.com"
+    "henry.checkout@bookverse.com"
 )
 
 # Function to check if user is a platform owner

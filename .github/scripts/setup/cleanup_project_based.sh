@@ -177,12 +177,24 @@ jfrog_api_call() {
     fi
 
     local code
-    if [[ "$client" == "jf" ]]; then
+    if [[ "$client" == "jf" || "$client" == "jf_raw" ]]; then
+        local include_project_header=true
+        if [[ "$client" == "jf_raw" ]]; then
+            include_project_header=false
+        fi
         if [[ "$endpoint" == /artifactory/* ]]; then
             if [[ -n "$data_payload" ]]; then
-                code=$(echo "$data_payload" | jf rt curl -X "$method" -H "X-JFrog-Project: ${PROJECT_KEY}" "$endpoint" --write-out "%{http_code}" --output "$output_file" --silent --data @-)
+                if $include_project_header; then
+                    code=$(echo "$data_payload" | jf rt curl -X "$method" -H "X-JFrog-Project: ${PROJECT_KEY}" "$endpoint" --write-out "%{http_code}" --output "$output_file" --silent --data @-)
+                else
+                    code=$(echo "$data_payload" | jf rt curl -X "$method" "$endpoint" --write-out "%{http_code}" --output "$output_file" --silent --data @-)
+                fi
             else
-                code=$(jf rt curl -X "$method" -H "X-JFrog-Project: ${PROJECT_KEY}" "$endpoint" --write-out "%{http_code}" --output "$output_file" --silent)
+                if $include_project_header; then
+                    code=$(jf rt curl -X "$method" -H "X-JFrog-Project: ${PROJECT_KEY}" "$endpoint" --write-out "%{http_code}" --output "$output_file" --silent)
+                else
+                    code=$(jf rt curl -X "$method" "$endpoint" --write-out "%{http_code}" --output "$output_file" --silent)
+                fi
             fi
         else
             if [[ -n "$data_payload" ]]; then
@@ -193,22 +205,43 @@ jfrog_api_call() {
         fi
     else
         local base_url="${JFROG_URL%/}"
+        local include_project_header=true
+        if [[ "$client" == "curl_raw" ]]; then
+            include_project_header=false
+        fi
         if [[ "$endpoint" == /artifactory/* ]]; then
             if [[ -n "$data_payload" ]]; then
-                code=$(curl -s -S -L \
-                    -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
-                    -H "X-JFrog-Project: ${PROJECT_KEY}" \
-                    -H "Content-Type: application/json" \
-                    -X "$method" "${base_url}${endpoint}" \
-                    --data "$data_payload" \
-                    --write-out "%{http_code}" --output "$output_file")
+                if $include_project_header; then
+                    code=$(curl -s -S -L \
+                        -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+                        -H "X-JFrog-Project: ${PROJECT_KEY}" \
+                        -H "Content-Type: application/json" \
+                        -X "$method" "${base_url}${endpoint}" \
+                        --data "$data_payload" \
+                        --write-out "%{http_code}" --output "$output_file")
+                else
+                    code=$(curl -s -S -L \
+                        -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+                        -H "Content-Type: application/json" \
+                        -X "$method" "${base_url}${endpoint}" \
+                        --data "$data_payload" \
+                        --write-out "%{http_code}" --output "$output_file")
+                fi
             else
-                code=$(curl -s -S -L \
-                    -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
-                    -H "X-JFrog-Project: ${PROJECT_KEY}" \
-                    -H "Content-Type: application/json" \
-                    -X "$method" "${base_url}${endpoint}" \
-                    --write-out "%{http_code}" --output "$output_file")
+                if $include_project_header; then
+                    code=$(curl -s -S -L \
+                        -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+                        -H "X-JFrog-Project: ${PROJECT_KEY}" \
+                        -H "Content-Type: application/json" \
+                        -X "$method" "${base_url}${endpoint}" \
+                        --write-out "%{http_code}" --output "$output_file")
+                else
+                    code=$(curl -s -S -L \
+                        -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+                        -H "Content-Type: application/json" \
+                        -X "$method" "${base_url}${endpoint}" \
+                        --write-out "%{http_code}" --output "$output_file")
+                fi
             fi
         else
             if [[ -n "$data_payload" ]]; then
@@ -375,9 +408,9 @@ discover_project_repositories() {
             virtual_json="$TEMP_DIR/repos_virtual.json"
 
             # Fetch typed repo lists
-            jfrog_api_call "GET" "/artifactory/api/repositories?type=local" "$local_json" "curl" "" "list local repos" >/dev/null || true
-            jfrog_api_call "GET" "/artifactory/api/repositories?type=remote" "$remote_json" "curl" "" "list remote repos" >/dev/null || true
-            jfrog_api_call "GET" "/artifactory/api/repositories?type=virtual" "$virtual_json" "curl" "" "list virtual repos" >/dev/null || true
+            jfrog_api_call "GET" "/artifactory/api/repositories?type=local" "$local_json" "curl_raw" "" "list local repos (raw)" >/dev/null || true
+            jfrog_api_call "GET" "/artifactory/api/repositories?type=remote" "$remote_json" "curl_raw" "" "list remote repos (raw)" >/dev/null || true
+            jfrog_api_call "GET" "/artifactory/api/repositories?type=virtual" "$virtual_json" "curl_raw" "" "list virtual repos (raw)" >/dev/null || true
 
             local_keys="$TEMP_DIR/repos_local.txt"
             remote_keys="$TEMP_DIR/repos_remote.txt"
@@ -407,7 +440,7 @@ discover_project_repositories() {
                 enc=$(urlencode "$repo_key")
                 local detail_file="$TEMP_DIR/repo_${repo_key}_detail.json"
                 local code
-                code=$(jfrog_api_call "GET" "/artifactory/api/repositories/${enc}" "$detail_file" "curl" "" "repo details $repo_key")
+                code=$(jfrog_api_call "GET" "/artifactory/api/repositories/${enc}" "$detail_file" "curl_raw" "" "repo details $repo_key (raw)")
                 if is_success "$code" && [[ -s "$detail_file" ]]; then
                     # Prefer rclass, fallback to repoType/type heuristics
                     local kind

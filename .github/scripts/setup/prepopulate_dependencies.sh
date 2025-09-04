@@ -18,12 +18,117 @@ echo "🔧 Project: $PROJECT_KEY"
 echo "🔧 JFrog URL: $JFROG_URL"
 echo ""
 
+# Helper: Execute an AQL query against Artifactory
+aql_query() {
+    local query="$1"
+    curl -sS -L \
+        -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+        -H "Content-Type: text/plain" \
+        -X POST \
+        --data "$query" \
+        "${JFROG_URL%/}/artifactory/api/search/aql" 2>/dev/null || true
+}
+
+# Check if a specific Python package version is already cached
+is_python_package_cached() {
+    local package="$1"
+    local version="$2"
+
+    # If no specific version, we can't reliably check
+    if [[ -z "$version" || "$version" == "latest" ]]; then
+        return 1
+    fi
+
+    local pkg_lower
+    pkg_lower=$(echo "$package" | tr '[:upper:]' '[:lower:]')
+
+    # Try to find a wheel first
+    local aql_wheel
+    aql_wheel=$(cat <<EOF
+items.find({
+  "${"$"}or": [
+    {"repo": "${PROJECT_KEY}-pypi-cache-local"},
+    {"repo": "${PROJECT_KEY}-pypi-remote"}
+  ],
+  "${"$"}and": [
+    {"name": {"${"$"}match": "*${pkg_lower}*-${version}*.whl"}},
+    {"type": "file"}
+  ]
+}).include("name","repo","path").limit(1)
+EOF
+)
+
+    local res
+    res=$(aql_query "$aql_wheel")
+    if echo "$res" | jq -e '.results | length > 0' >/dev/null 2>&1; then
+        return 0
+    fi
+
+    # Fallback: try sdist tarball
+    local aql_sdist
+    aql_sdist=$(cat <<EOF
+items.find({
+  "${"$"}or": [
+    {"repo": "${PROJECT_KEY}-pypi-cache-local"},
+    {"repo": "${PROJECT_KEY}-pypi-remote"}
+  ],
+  "${"$"}and": [
+    {"name": {"${"$"}match": "*${pkg_lower}*-${version}.tar.gz"}},
+    {"type": "file"}
+  ]
+}).include("name","repo","path").limit(1)
+EOF
+)
+
+    res=$(aql_query "$aql_sdist")
+    echo "$res" | jq -e '.results | length > 0' >/dev/null 2>&1
+}
+
+# Check if a specific npm package version is already cached
+is_npm_package_cached() {
+    local package="$1"
+    local version="$2"
+
+    # If no specific version, we can't reliably check
+    if [[ -z "$version" || "$version" == "latest" ]]; then
+        return 1
+    fi
+
+    # Derive tarball file name used by npm: <basename>-<version>.tgz
+    local base
+    base="${package##*/}"
+    local tar
+    tar="${base}-${version}.tgz"
+
+    local aql
+    aql=$(cat <<EOF
+items.find({
+  "${"$"}or": [
+    {"repo": "${PROJECT_KEY}-npm-cache-local"},
+    {"repo": "${PROJECT_KEY}-npm-remote"}
+  ],
+  "name": {"${"$"}match": "${tar}"},
+  "type": "file"
+}).include("name","repo","path").limit(1)
+EOF
+)
+
+    local res
+    res=$(aql_query "$aql")
+    echo "$res" | jq -e '.results | length > 0' >/dev/null 2>&1
+}
+
 # Function to download and cache Python packages
 cache_python_package() {
     local package="$1"
     local version="${2:-latest}"
     
     echo "📦 Caching Python package: $package${version:+ ($version)}"
+    
+    if is_python_package_cached "$package" "$version"; then
+        echo "⏭️  Already present in cache. Skipping $package${version:+ ($version)}"
+        return 0
+    fi
     
     # Use 'pip download' which respects the config from 'jf pipc'
     # This will download the package and its dependencies into Artifactory's cache
@@ -42,6 +147,11 @@ cache_npm_package() {
     local version="${2:-latest}"
     
     echo "📦 Caching npm package: $package${version:+ ($version)}"
+    
+    if is_npm_package_cached "$package" "$version"; then
+        echo "⏭️  Already present in cache. Skipping $package${version:+ ($version)}"
+        return 0
+    fi
     
     # Use 'npm pack' which respects the config from 'jf npmc'
     if [[ "$version" == "latest" ]]; then
@@ -63,11 +173,25 @@ cache_docker_image() {
     
     local docker_registry_host=$(echo "$JFROG_URL" | sed 's|https://||' | sed 's|http://||')
     local virtual_repo_path="${docker_registry_host}/${PROJECT_KEY}-dockerhub-virtual"
+    local cache_repo_key="${PROJECT_KEY}-dockerhub-cache-local"
     
     # Official Docker Hub images require the 'library/' prefix when pulled via Artifactory
     local image_path="$image"
     if [[ "$image" != */* ]]; then
         image_path="library/$image"
+    fi
+    
+    # Fast path: if manifest already exists in the local cache repo, skip
+    local base_api_cache="${JFROG_URL%/}/artifactory/api/docker/${cache_repo_key}/v2"
+    local manifest_url_cache="$base_api_cache/${image_path}/manifests/$tag"
+    local head_code
+    head_code=$(curl -sS -L -o /dev/null -w "%{http_code}" \
+        -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+        -H "Accept: application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.manifest.v1+json" \
+        "$manifest_url_cache" 2>/dev/null || echo 000)
+    if [[ "$head_code" == "200" ]]; then
+        echo "⏭️  Docker image already cached locally: $image:$tag — skipping"
+        return 0
     fi
     
     # Use JFrog CLI for secure Docker operations if available

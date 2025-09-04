@@ -112,6 +112,31 @@ jobs:
             local_count=$(jq -r '.metadata.discovery_counts.repositories_breakdown.local // 0' .github/cleanup-report.json)
             remote_count=$(jq -r '.metadata.discovery_counts.repositories_breakdown.remote // 0' .github/cleanup-report.json)
             virtual_count=$(jq -r '.metadata.discovery_counts.repositories_breakdown.virtual // 0' .github/cleanup-report.json)
+            # Fallback: if breakdown sums to 0 but repos > 0, derive from plan.repositories
+            repo_type_sum=$(jq -r '((.metadata.discovery_counts.repositories_breakdown.local // 0) + (.metadata.discovery_counts.repositories_breakdown.remote // 0) + (.metadata.discovery_counts.repositories_breakdown.virtual // 0))' .github/cleanup-report.json)
+            if [[ ${repo_type_sum:-0} -eq 0 && ${repos:-0} -gt 0 ]]; then
+              computed=$(jq -r '
+                def key_kind:
+                  ( (.type // empty | ascii_downcase) as $t
+                    | if $t != "" then $t
+                      else (
+                        (.key // "") as $k
+                        | if ($k|test("-virtual$") or $k|test("^virtual-")) then "virtual"
+                          elif ($k|test("-remote$") or $k|test("^remote-")) then "remote"
+                          elif ($k|test("-local$") or $k|test("^local-")) then "local"
+                          else ""
+                        end)
+                    end);
+                {
+                  local:   ([.plan.repositories[]? | key_kind | select(. == "local")]   | length),
+                  remote:  ([.plan.repositories[]? | key_kind | select(. == "remote")]  | length),
+                  virtual: ([.plan.repositories[]? | key_kind | select(. == "virtual")] | length)
+                }
+              ' .github/cleanup-report.json)
+              local_count=$(echo "$computed" | jq -r '.local // 0')
+              remote_count=$(echo "$computed" | jq -r '.remote // 0')
+              virtual_count=$(echo "$computed" | jq -r '.virtual // 0')
+            fi
             domain_users=$(jq -r '.metadata.discovery_counts.domain_users // 0' .github/cleanup-report.json)
             echo "Generated: $ts" >> $GITHUB_STEP_SUMMARY
             echo "Project: $proj" >> $GITHUB_STEP_SUMMARY

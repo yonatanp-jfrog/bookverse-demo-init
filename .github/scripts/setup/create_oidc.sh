@@ -83,10 +83,12 @@ create_oidc_integration() {
         --arg name "$integration_name" \
         --arg issuer_url "https://token.actions.githubusercontent.com" \
         --arg provider_type "GITHUB" \
+        --arg organization "$org_name" \
         '{
             "name": $name,
             "issuer_url": $issuer_url,
-            "provider_type": $provider_type
+            "provider_type": $provider_type,
+            "organization": $organization
         }')
     local integration_payload_minimal=$(jq -n \
         --arg name "$integration_name" \
@@ -236,14 +238,14 @@ create_oidc_integration() {
         --arg priority "1" \
         --arg repo "${org_name}/bookverse-${service_name}" \
         --argjson audiences '["jfrog-github"]' \
-        --arg token_spec "{\"username\": \"$username\", \"scope\": \"applied-permissions/project\", \"project_key\": \"$PROJECT_KEY\"}" \
+        --arg token_spec "{\"username\": \"$username\", \"scope\": \"applied-permissions/user\"}" \
         '{
             "name": $name,
             "description": ("Identity mapping for " + $name),
             "priority": ($priority | tonumber),
             "criteria": {
                 "audiences": $audiences,
-                "claims_json": ({"repository": $repo} | tostring)
+                "claims": {"repository": $repo}
             },
             "token_spec": ($token_spec | fromjson)
         }')
@@ -253,17 +255,17 @@ create_oidc_integration() {
         --arg priority "1" \
         --arg repo "${org_name}/bookverse-${service_name}" \
         --argjson audiences '["jfrog-github"]' \
-        --arg token_spec "{\"username\": \"$username\", \"scope\": \"applied-permissions/project\", \"project_key\": \"$PROJECT_KEY\"}" \
+        --arg token_spec "{\"username\": \"$username\", \"scope\": \"applied-permissions/user\"}" \
         '{
             "name": $name,
-            "description": ("Identity mapping for " + $name),\
+            "description": ("Identity mapping for " + $name),
             "priority": ($priority | tonumber),
             "rules": [
                 {
                     "name": "repo-rule",
                     "criteria": {
                         "audiences": $audiences,
-                        "claims_json": ({"repository": $repo} | tostring)
+                        "claims": {"repository": $repo}
                     },
                     "token_spec": ($token_spec | fromjson)
                 }
@@ -274,7 +276,7 @@ create_oidc_integration() {
         --arg name "$integration_name" \
         --arg priority "1" \
         --arg repo "${org_name}/bookverse-${service_name}" \
-        --arg token_spec "{\"username\": \"$username\", \"scope\": \"applied-permissions/project\", \"project_key\": \"$PROJECT_KEY\"}" \
+        --arg token_spec "{\"username\": \"$username\", \"scope\": \"applied-permissions/user\"}" \
         '{
             "name": $name,
             "description": ("Identity mapping for " + $name),

@@ -46,12 +46,12 @@ is_python_package_cached() {
     local aql_wheel
     aql_wheel=$(cat <<EOF
 items.find({
-  "${"$"}or": [
+  "\$or": [
     {"repo": "${PROJECT_KEY}-pypi-cache-local"},
     {"repo": "${PROJECT_KEY}-pypi-remote"}
   ],
-  "${"$"}and": [
-    {"name": {"${"$"}match": "*${pkg_lower}*-${version}*.whl"}},
+  "\$and": [
+    {"name": {"\$match": "*${pkg_lower}*-${version}*.whl"}},
     {"type": "file"}
   ]
 }).include("name","repo","path").limit(1)
@@ -68,12 +68,12 @@ EOF
     local aql_sdist
     aql_sdist=$(cat <<EOF
 items.find({
-  "${"$"}or": [
+  "\$or": [
     {"repo": "${PROJECT_KEY}-pypi-cache-local"},
     {"repo": "${PROJECT_KEY}-pypi-remote"}
   ],
-  "${"$"}and": [
-    {"name": {"${"$"}match": "*${pkg_lower}*-${version}.tar.gz"}},
+  "\$and": [
+    {"name": {"\$match": "*${pkg_lower}*-${version}.tar.gz"}},
     {"type": "file"}
   ]
 }).include("name","repo","path").limit(1)
@@ -103,11 +103,11 @@ is_npm_package_cached() {
     local aql
     aql=$(cat <<EOF
 items.find({
-  "${"$"}or": [
+  "\$or": [
     {"repo": "${PROJECT_KEY}-npm-cache-local"},
     {"repo": "${PROJECT_KEY}-npm-remote"}
   ],
-  "name": {"${"$"}match": "${tar}"},
+  "name": {"\$match": "${tar}"},
   "type": "file"
 }).include("name","repo","path").limit(1)
 EOF

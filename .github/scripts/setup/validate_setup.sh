@@ -197,7 +197,8 @@ echo ""
 # 6. OIDC integration count
 echo "6. Counting OIDC integrations..."
 oidc_response=$(validate_api_response "${JFROG_URL}/access/api/v1/oidc" "OIDC API")
-oidc_count=$(echo "$oidc_response" | jq -r ".[] | select(.name | startswith(\"github-${PROJECT_KEY}\")) | .name" 2>/dev/null | wc -l)
+# New naming convention: ${PROJECT_KEY}-${service}-github (e.g., bookverse-inventory-github)
+oidc_count=$(echo "$oidc_response" | jq -r ".[] | select(.name | startswith(\"${PROJECT_KEY}-\") and endswith(\"-github\")) | .name" 2>/dev/null | wc -l)
 echo "✅ Found $oidc_count OIDC integrations"
 echo ""
 
@@ -266,7 +267,7 @@ echo ""
 
 # Test 3: OIDC integration test
 echo "Test 3: OIDC integration validation"
-test_oidc="github-${PROJECT_KEY}-inventory"
+test_oidc="${PROJECT_KEY}-inventory-github"
 oidc_exists=$(echo "$oidc_response" | jq -r ".[] | select(.name == \"${test_oidc}\") | .name" 2>/dev/null)
 if [[ "$oidc_exists" == "$test_oidc" ]]; then
     echo "✅ Sample OIDC integration accessible: $test_oidc"

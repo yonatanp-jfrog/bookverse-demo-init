@@ -235,6 +235,61 @@ validate_gh_auth() {
     fi
 }
 
+trim_whitespace() {
+    # Trim leading/trailing whitespace from a string
+    local s="$1"
+    # shellcheck disable=SC2001
+    s=$(echo "$s" | sed 's/^\s*//;s/\s*$//')
+    echo "$s"
+}
+
+get_variable_value() {
+    # Retrieve repository variable value using GitHub REST API for stronger consistency
+    # Falls back to gh variable get if REST call fails
+    local full_repo="$1"
+    local name="$2"
+    local value
+    value=$(gh api -H "Accept: application/vnd.github+json" \
+        "repos/$full_repo/actions/variables/$name" --jq .value 2>/dev/null || echo "")
+    if [[ -z "$value" ]]; then
+        value=$(gh variable get "$name" --repo "$full_repo" 2>/dev/null || echo "")
+    fi
+    value=$(trim_whitespace "$value")
+    echo "$value"
+}
+
+verify_variable_with_retry() {
+    local full_repo="$1"
+    local name="$2"
+    local expected="$3"
+    local attempts=0
+    local max_attempts=12
+    local delay_seconds=1
+    local current
+
+    expected=$(trim_whitespace "$expected")
+
+    while (( attempts < max_attempts )); do
+        current=$(get_variable_value "$full_repo" "$name")
+        if [[ "$current" == "$expected" ]]; then
+            log_success "  → Verified $name=$current"
+            return 0
+        fi
+        ((attempts++))
+        if (( attempts < max_attempts )); then
+            sleep "$delay_seconds"
+            # Exponential backoff with cap at 8 seconds
+            if (( delay_seconds < 16 )); then
+                delay_seconds=$(( delay_seconds * 2 ))
+                if (( delay_seconds > 16 )); then delay_seconds=16; fi
+            fi
+        fi
+    done
+
+    log_warning "  → Verification failed for $name (expected: '$expected', got: '$current')"
+    return 1
+}
+
 update_repository_secrets_and_variables() {
     local repo="$1"
     local full_repo="$GITHUB_ORG/$repo"
@@ -275,23 +330,25 @@ update_repository_secrets_and_variables() {
         repo_ok=0
     fi
 
-    # Verify variables were set correctly
-    local verify_url
-    verify_url=$(gh variable get JFROG_URL --repo "$full_repo" 2>/dev/null || echo "")
-    if [[ "$verify_url" == "$NEW_JFROG_URL" ]]; then
-        log_success "  → Verified JFROG_URL=$verify_url"
-    else
-        log_warning "  → Verification failed for JFROG_URL (got: '$verify_url')"
-        repo_ok=0
+    # Verify variables were set correctly (with retries to avoid eventual consistency issues)
+    if ! verify_variable_with_retry "$full_repo" "JFROG_URL" "$NEW_JFROG_URL"; then
+        log_warning "  → JFROG_URL verification failed, retrying update once..."
+        gh variable set JFROG_URL --body "$NEW_JFROG_URL" --repo "$full_repo" >/dev/null 2>&1 || true
+        if ! verify_variable_with_retry "$full_repo" "JFROG_URL" "$NEW_JFROG_URL"; then
+            repo_ok=0
+        else
+            log_success "  → JFROG_URL verified after retry"
+        fi
     fi
-
-    local verify_reg
-    verify_reg=$(gh variable get DOCKER_REGISTRY --repo "$full_repo" 2>/dev/null || echo "")
-    if [[ "$verify_reg" == "$docker_registry" ]]; then
-        log_success "  → Verified DOCKER_REGISTRY=$verify_reg"
-    else
-        log_warning "  → Verification failed for DOCKER_REGISTRY (got: '$verify_reg')"
-        repo_ok=0
+    if ! verify_variable_with_retry "$full_repo" "DOCKER_REGISTRY" "$docker_registry"; then
+        log_warning "  → DOCKER_REGISTRY verification failed, retrying update once..."
+        # Reapply the variable to mitigate eventual consistency and retry
+        gh variable set DOCKER_REGISTRY --body "$docker_registry" --repo "$full_repo" >/dev/null 2>&1 || true
+        if ! verify_variable_with_retry "$full_repo" "DOCKER_REGISTRY" "$docker_registry"; then
+            repo_ok=0
+        else
+            log_success "  → DOCKER_REGISTRY verified after retry"
+        fi
     fi
 
     if [[ $repo_ok -eq 1 ]]; then
@@ -320,6 +377,58 @@ update_all_repositories() {
     log_info "Repository update results:"
     echo "  ✓ Success: ${success_count}/${total_count}"
     echo "  ✗ Failed: $((total_count - success_count))/${total_count}"
+}
+
+# Perform a final re-verification pass for any repositories that reported verification errors.
+# This mitigates GitHub API eventual consistency by giving changes extra time to propagate.
+final_verification_pass() {
+    if [[ ${#FAILED_REPOS[@]} -eq 0 ]]; then
+        return 0
+    fi
+
+    log_info "Performing final verification pass for repositories with errors..."
+
+    local docker_registry
+    docker_registry=$(extract_docker_registry)
+
+    # Make a copy, as we'll mutate FAILED_REPOS during iteration
+    local to_check=("${FAILED_REPOS[@]}")
+    local still_failed=()
+
+    for repo in "${to_check[@]}"; do
+        local full_repo="$GITHUB_ORG/$repo"
+        log_info "  → Re-verifying $full_repo"
+
+        # Small delay before re-check to allow propagation
+        sleep 2
+
+        local ok=1
+        if ! verify_variable_with_retry "$full_repo" "JFROG_URL" "$NEW_JFROG_URL"; then
+            # Reapply and retry once more
+            gh variable set JFROG_URL --body "$NEW_JFROG_URL" --repo "$full_repo" >/dev/null 2>&1 || true
+            if ! verify_variable_with_retry "$full_repo" "JFROG_URL" "$NEW_JFROG_URL"; then
+                ok=0
+            fi
+        fi
+
+        if ! verify_variable_with_retry "$full_repo" "DOCKER_REGISTRY" "$docker_registry"; then
+            gh variable set DOCKER_REGISTRY --body "$docker_registry" --repo "$full_repo" >/dev/null 2>&1 || true
+            if ! verify_variable_with_retry "$full_repo" "DOCKER_REGISTRY" "$docker_registry"; then
+                ok=0
+            fi
+        fi
+
+        if [[ $ok -eq 1 ]]; then
+            log_success "  → $repo verified successfully on final pass"
+            SUCCEEDED_REPOS+=("$repo")
+        else
+            log_warning "  → $repo still failing after final pass"
+            still_failed+=("$repo")
+        fi
+    done
+
+    # Replace FAILED_REPOS with those still failing
+    FAILED_REPOS=("${still_failed[@]}")
 }
 
 # =============================================================================
@@ -357,6 +466,10 @@ main() {
     
     # Step 6: Update all repositories
     update_all_repositories
+    echo ""
+
+    # Step 6.5: Final verification pass to reduce false negatives
+    final_verification_pass
     echo ""
     
     # Summary

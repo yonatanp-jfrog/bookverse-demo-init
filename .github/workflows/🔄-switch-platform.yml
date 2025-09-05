@@ -26,6 +26,10 @@ env:
   # GitHub token for updating other repositories
   GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
+concurrency:
+  group: switch-platform-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   switch-platform:
     runs-on: ubuntu-latest
@@ -76,6 +80,9 @@ jobs:
           export NEW_JFROG_ADMIN_TOKEN='${{ github.event.inputs.admin_token }}'
           # Disable ANSI colors for cleaner job summary snippets
           export NO_COLOR=1
+          # Prepare log file and export for later steps BEFORE running the script
+          LOG_FILE="switch-platform.log"
+          echo "LOG_FILE=$LOG_FILE" >> "$GITHUB_ENV"
           echo "🔄 Starting JFrog Platform Switch"
           echo "=================================================="
           echo "From: ${{ vars.JFROG_URL || 'https://evidencetrial.jfrog.io' }}"
@@ -84,20 +91,19 @@ jobs:
 
           # Run the script and capture logs to a file; append tail to summary for readability
           set -o pipefail
-          LOG_FILE="switch-platform.log"
           CONTINUE_ON_AUTH_FAILURE=1 ./.github/scripts/setup/switch_jfrog_platform.sh 2>&1 | tee "$LOG_FILE"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "- Uploading full log as artifact" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "LOG_FILE=$LOG_FILE" >> $GITHUB_ENV
 
       - name: Upload switch log artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: switch-platform.log
-          path: ${{ env.LOG_FILE }}
+          path: switch-platform.log
           retention-days: 7
+          if-no-files-found: ignore
 
       - name: Append log tail to summary
         if: always()
@@ -105,8 +111,8 @@ jobs:
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "### 🔧 Switch Script Output (tail)" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          if [[ -n "${LOG_FILE}" && -f "${LOG_FILE}" ]]; then
-            tail -n 200 "$LOG_FILE" >> "$GITHUB_STEP_SUMMARY" || true
+          if [[ -f "switch-platform.log" ]]; then
+            tail -n 200 "switch-platform.log" >> "$GITHUB_STEP_SUMMARY" || true
           fi
           
       - name: Validate New Platform

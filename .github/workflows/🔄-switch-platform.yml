@@ -42,7 +42,8 @@ jobs:
           echo "ACTIONS_STEP_DEBUG=true" >> $GITHUB_ENV
           echo "ACTIONS_RUNNER_DEBUG=true" >> $GITHUB_ENV
           echo "HTTP_DEBUG_LEVEL=verbose" >> $GITHUB_ENV
-          echo "BASH_XTRACE_ENABLED=1" >> $GITHUB_ENV
+          # Keep logs readable in summary by disabling ANSI colors
+          echo "NO_COLOR=1" >> $GITHUB_ENV
         
       - name: Setup JFrog CLI
         uses: jfrog/setup-jfrog-cli@v4
@@ -77,18 +78,40 @@ jobs:
           else
             export NEW_JFROG_ADMIN_TOKEN='${{ github.event.inputs.admin_token }}'
           fi
+          # Disable ANSI colors for cleaner job summary snippets
+          export NO_COLOR=1
           echo "🔄 Starting JFrog Platform Switch"
           echo "=================================================="
           echo "From: ${{ vars.JFROG_URL || 'https://evidencetrial.jfrog.io' }}"
           echo "To: ${{ github.event.inputs.jpd_host }}"
           echo ""
 
-          # Capture script output in the job summary for easier debugging
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "### 🔧 Switch Script Output" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
+          # Run the script and capture logs to a file; append tail to summary for readability
           set -o pipefail
-          ./.github/scripts/setup/switch_jfrog_platform.sh 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
+          LOG_FILE="switch-platform.log"
+          ./.github/scripts/setup/switch_jfrog_platform.sh 2>&1 | tee "$LOG_FILE"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Uploading full log as artifact" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "LOG_FILE=$LOG_FILE" >> $GITHUB_ENV
+
+      - name: Upload switch log artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: switch-platform.log
+          path: ${{ env.LOG_FILE }}
+          retention-days: 7
+
+      - name: Append log tail to summary
+        if: always()
+        run: |
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "### 🔧 Switch Script Output (tail)" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          if [[ -n "${LOG_FILE}" && -f "${LOG_FILE}" ]]; then
+            tail -n 200 "$LOG_FILE" >> "$GITHUB_STEP_SUMMARY" || true
+          fi
           
       - name: Validate New Platform
         run: |
@@ -124,6 +147,7 @@ jobs:
         run: |
           echo "## 🔄 Switch Platform Report" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Logs: see artifact 'switch-platform.log' (if uploaded)" >> $GITHUB_STEP_SUMMARY
           
           if [[ "${{ job.status }}" == "success" ]]; then
             echo "✅ **Platform switch completed successfully**" >> $GITHUB_STEP_SUMMARY

@@ -21,6 +21,15 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+# Disable colors when NO_COLOR is set or stdout is not a TTY
+if [[ -n "${NO_COLOR:-}" || ! -t 1 ]]; then
+    RED=''
+    GREEN=''
+    YELLOW=''
+    BLUE=''
+    NC=''
+fi
+
 # Logging functions
 log_info() { echo -e "${BLUE}ℹ️  $1${NC}"; }
 log_success() { echo -e "${GREEN}✅ $1${NC}"; }
@@ -141,6 +150,8 @@ test_platform_authentication() {
     local response
     local was_xtrace=0
     if [[ -o xtrace ]]; then was_xtrace=1; set +x; fi
+    # Show a sanitized version of the request for reproducibility
+    log_info "Command: curl -s --max-time 10 --header 'Authorization: Bearer ***' --write-out '%{http_code}' '$NEW_JFROG_URL/artifactory/api/system/ping'"
     response=$(curl -s --max-time 10 \
         --header "Authorization: Bearer $NEW_JFROG_ADMIN_TOKEN" \
         --write-out "%{http_code}" \
@@ -153,6 +164,9 @@ test_platform_authentication() {
     if [[ "$http_code" != "200" ]]; then
         log_error "Authentication failed (HTTP $http_code)"
         log_error "Response: $body"
+        echo
+        log_info "Reproduce locally:"
+        echo "curl -i -s --max-time 10 --header 'Authorization: Bearer ***' '$NEW_JFROG_URL/artifactory/api/system/ping'"
         exit 1
     fi
     
@@ -165,6 +179,7 @@ test_platform_services() {
     # Test Artifactory service
     local was_xtrace=0
     if [[ -o xtrace ]]; then was_xtrace=1; set +x; fi
+    log_info "Command: curl -s --fail --max-time 10 --header 'Authorization: Bearer ***' '$NEW_JFROG_URL/artifactory/api/system/ping'"
     if ! curl -s --fail --max-time 10 \
         --header "Authorization: Bearer $NEW_JFROG_ADMIN_TOKEN" \
         "$NEW_JFROG_URL/artifactory/api/system/ping" > /dev/null; then
@@ -174,6 +189,7 @@ test_platform_services() {
     fi
     
     # Test Access service
+    log_info "Command: curl -s --fail --max-time 10 --header 'Authorization: Bearer ***' '$NEW_JFROG_URL/access/api/v1/system/ping'"
     if ! curl -s --fail --max-time 10 \
         --header "Authorization: Bearer $NEW_JFROG_ADMIN_TOKEN" \
         "$NEW_JFROG_URL/access/api/v1/system/ping" > /dev/null; then

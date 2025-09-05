@@ -275,6 +275,25 @@ update_repository_secrets_and_variables() {
         repo_ok=0
     fi
 
+    # Verify variables were set correctly
+    local verify_url
+    verify_url=$(gh variable get JFROG_URL --repo "$full_repo" 2>/dev/null || echo "")
+    if [[ "$verify_url" == "$NEW_JFROG_URL" ]]; then
+        log_success "  → Verified JFROG_URL=$verify_url"
+    else
+        log_warning "  → Verification failed for JFROG_URL (got: '$verify_url')"
+        repo_ok=0
+    fi
+
+    local verify_reg
+    verify_reg=$(gh variable get DOCKER_REGISTRY --repo "$full_repo" 2>/dev/null || echo "")
+    if [[ "$verify_reg" == "$docker_registry" ]]; then
+        log_success "  → Verified DOCKER_REGISTRY=$verify_reg"
+    else
+        log_warning "  → Verification failed for DOCKER_REGISTRY (got: '$verify_reg')"
+        repo_ok=0
+    fi
+
     if [[ $repo_ok -eq 1 ]]; then
         log_success "  → $repo updated successfully"
         SUCCEEDED_REPOS+=("$repo")

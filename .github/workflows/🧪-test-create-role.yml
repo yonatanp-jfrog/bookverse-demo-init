@@ -1,0 +1,113 @@
+name: "🧪 Test Create Project Role"
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-create-role:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create cicd_pipeline role using API variants
+        env:
+          JFROG_URL: ${{ vars.JFROG_URL || vars.JFROG_BASE_URL || vars.JFROG_PLATFORM_URL || vars.JF_URL || vars.JFROG_PLATFORM || vars.JPD_URL || vars.JPD_HOST || vars.JF_URL }}
+          JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
+          PROJECT_KEY: ${{ vars.PROJECT_KEY || 'bookverse' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${JFROG_URL:?Missing JFROG_URL var}"
+          : "${JFROG_ADMIN_TOKEN:?Missing JFROG_ADMIN_TOKEN secret}"
+
+          echo "🔎 Listing roles for project: ${PROJECT_KEY}"
+          curl -sS -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+            -H "Accept: application/json" \
+            "${JFROG_URL}/access/api/v1/projects/${PROJECT_KEY}/roles" | jq . || true
+
+          # Try to fetch Project Admin role details (for action enumeration)
+          ROLE_NAME_ENC="$(python3 -c 'import urllib.parse;print(urllib.parse.quote("Project Admin"))')"
+          echo "\n🔎 Fetching 'Project Admin' role details"
+          DETAIL_FILE=$(mktemp)
+          DETAIL_CODE=$(curl -sS -L -o "$DETAIL_FILE" -w "%{http_code}" \
+            -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+            -H "Accept: application/json" \
+            "${JFROG_URL}/access/api/v1/projects/${PROJECT_KEY}/roles/${ROLE_NAME_ENC}")
+          echo "HTTP $DETAIL_CODE"
+          if [[ "$DETAIL_CODE" =~ ^20 ]]; then
+            echo "Project Admin details:"; cat "$DETAIL_FILE" | jq . || cat "$DETAIL_FILE"
+            ACTIONS_JSON=$(jq -c '.actions // []' "$DETAIL_FILE" 2>/dev/null || echo '[]')
+          else
+            echo "⚠️ Could not fetch Project Admin details; using a comprehensive default action set"
+            ACTIONS_JSON='[
+              {"service":"artifactory","name":"READ_REPOSITORIES"},
+              {"service":"artifactory","name":"ANNOTATE_REPOSITORIES"},
+              {"service":"artifactory","name":"DEPLOY_REPOSITORIES"},
+              {"service":"artifactory","name":"DELETE_REPOSITORIES"},
+              {"service":"artifactory","name":"READ_BUILDS"},
+              {"service":"artifactory","name":"ANNOTATE_BUILDS"},
+              {"service":"artifactory","name":"DELETE_BUILDS"},
+              {"service":"distribution","name":"READ_RELEASE_BUNDLES"},
+              {"service":"distribution","name":"ANNOTATE_RELEASE_BUNDLES"},
+              {"service":"distribution","name":"DEPLOY_RELEASE_BUNDLES"},
+              {"service":"distribution","name":"DELETE_RELEASE_BUNDLES"},
+              {"service":"distribution","name":"DISTRIBUTE_RELEASE_BUNDLES"}
+            ]'
+          fi
+          rm -f "$DETAIL_FILE"
+
+          # Prepare payload variants
+          VARIANT_A=$(jq -n \
+            --arg name "cicd_pipeline" \
+            --arg desc "CI/CD pipeline role with all actions; global DEV,PROD; all project envs" \
+            --argjson actions "$ACTIONS_JSON" \
+            '{name:$name, description:$desc, type:"CUSTOM", actions:$actions,
+              environments:["DEV","PROD"], all_project_environments:true}')
+
+          VARIANT_B=$(jq -n \
+            --arg name "cicd_pipeline" \
+            --arg desc "CI/CD pipeline role with all actions; global DEV,PROD; all project envs" \
+            --argjson actions "$ACTIONS_JSON" \
+            '{name:$name, description:$desc, type:"CUSTOM", actions:$actions,
+              environments:{global:["DEV","PROD"], project:["*"]}}')
+
+          VARIANT_C=$(jq -n \
+            --arg name "cicd_pipeline" \
+            --arg desc "CI/CD pipeline role with all actions; global DEV,PROD; all project envs" \
+            --argjson actions "$ACTIONS_JSON" \
+            '{name:$name, description:$desc, type:"CUSTOM", actions:$actions,
+              global_environments:["DEV","PROD"], project_environments:["*"]}')
+
+          echo "\n🧪 Attempting to create role with payload variants"
+          i=0
+          for payload in "$VARIANT_A" "$VARIANT_B" "$VARIANT_C"; do
+            i=$((i+1))
+            echo "\n--- Variant $i ---"
+            echo "$payload" | jq . || echo "$payload"
+            OUT=$(mktemp)
+            CODE=$(curl -sS -L -o "$OUT" -w "%{http_code}" \
+              -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+              -H "Content-Type: application/json" \
+              -X POST \
+              -d "$payload" \
+              "${JFROG_URL}/access/api/v1/projects/${PROJECT_KEY}/roles")
+            echo "HTTP $CODE"
+            cat "$OUT" || true
+            echo
+            if [[ "$CODE" =~ ^20 || "$CODE" == "409" ]]; then
+              echo "✅ Success (HTTP $CODE) using payload variant $i" | tee -a "$GITHUB_STEP_SUMMARY"
+              echo "\nPayload used:" >> "$GITHUB_STEP_SUMMARY"
+              echo '```json' >> "$GITHUB_STEP_SUMMARY"
+              echo "$payload" | jq . >> "$GITHUB_STEP_SUMMARY" || echo "$payload" >> "$GITHUB_STEP_SUMMARY"
+              echo '```' >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            rm -f "$OUT"
+          done
+
+          echo "❌ All payload variants failed." | tee -a "$GITHUB_STEP_SUMMARY"
+          exit 1
+

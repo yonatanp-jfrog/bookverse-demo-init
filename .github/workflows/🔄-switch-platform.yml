@@ -57,25 +57,47 @@ jobs:
             exit 1
           fi
           echo "✅ Platform switch confirmed. Proceeding with platform migration..."
+
+      - name: Mask sensitive inputs
+        run: |
+          # Mask either provided input or secret-based admin token
+          if [[ -n "${{ github.event.inputs.admin_token }}" ]]; then
+            echo "::add-mask::${{ github.event.inputs.admin_token }}"
+          fi
+          if [[ -n "${{ secrets.JFROG_ADMIN_TOKEN }}" ]]; then
+            echo "::add-mask::${{ secrets.JFROG_ADMIN_TOKEN }}"
+          fi
           
       - name: Switch JFrog Platform
-        env:
-          NEW_JFROG_URL: ${{ github.event.inputs.jpd_host }}
-          NEW_JFROG_ADMIN_TOKEN: ${{ github.event.inputs.admin_token }}
         run: |
+          export NEW_JFROG_URL='${{ github.event.inputs.jpd_host }}'
+          # Prefer secret if available, otherwise use dispatch input
+          if [[ -n "${{ secrets.JFROG_ADMIN_TOKEN }}" ]]; then
+            export NEW_JFROG_ADMIN_TOKEN='${{ secrets.JFROG_ADMIN_TOKEN }}'
+          else
+            export NEW_JFROG_ADMIN_TOKEN='${{ github.event.inputs.admin_token }}'
+          fi
           echo "🔄 Starting JFrog Platform Switch"
           echo "=================================================="
           echo "From: ${{ vars.JFROG_URL || 'https://evidencetrial.jfrog.io' }}"
           echo "To: ${{ github.event.inputs.jpd_host }}"
           echo ""
-          
-          ./.github/scripts/setup/switch_jfrog_platform.sh
+
+          # Capture script output in the job summary for easier debugging
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "### 🔧 Switch Script Output" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          set -o pipefail
+          ./.github/scripts/setup/switch_jfrog_platform.sh 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
           
       - name: Validate New Platform
-        env:
-          NEW_JFROG_URL: ${{ github.event.inputs.jpd_host }}
-          NEW_JFROG_ADMIN_TOKEN: ${{ github.event.inputs.admin_token }}
         run: |
+          export NEW_JFROG_URL='${{ github.event.inputs.jpd_host }}'
+          if [[ -n "${{ secrets.JFROG_ADMIN_TOKEN }}" ]]; then
+            export NEW_JFROG_ADMIN_TOKEN='${{ secrets.JFROG_ADMIN_TOKEN }}'
+          else
+            export NEW_JFROG_ADMIN_TOKEN='${{ github.event.inputs.admin_token }}'
+          fi
           echo "🔍 Validating new platform connectivity..."
           
           # Test the new platform is accessible

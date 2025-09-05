@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -e
+set -Eeuo pipefail
 
 # =============================================================================
 # SWITCH JFROG PLATFORM DEPLOYMENT (JPD) SCRIPT
@@ -8,6 +8,11 @@ set -e
 # This script validates a new JPD platform and updates all BookVerse
 # repositories with new JFROG_URL, JFROG_ADMIN_TOKEN, and DOCKER_REGISTRY values
 # =============================================================================
+
+# Enable xtrace when requested (useful in CI with DEMO_MODE/BASH_XTRACE_ENABLED)
+if [[ "${BASH_XTRACE_ENABLED:-0}" == "1" || "${DEMO_MODE:-false}" == "true" ]]; then
+    set -x
+fi
 
 # Colors for output
 RED='\033[0;31m'
@@ -21,6 +26,27 @@ log_info() { echo -e "${BLUE}ℹ️  $1${NC}"; }
 log_success() { echo -e "${GREEN}✅ $1${NC}"; }
 log_warning() { echo -e "${YELLOW}⚠️  $1${NC}"; }
 log_error() { echo -e "${RED}❌ $1${NC}"; }
+
+# Error handler to provide actionable diagnostics on failure
+on_error() {
+    local exit_code=$?
+    local failed_command=${BASH_COMMAND}
+    local src=${BASH_SOURCE[1]:-$0}
+    local line=${BASH_LINENO[0]:-0}
+    local func=${FUNCNAME[1]:-main}
+    echo
+    log_error "Command failed with exit code ${exit_code}"
+    log_error "Location: ${src}:${line} (in ${func}())"
+    log_error "Failed command: ${failed_command}"
+    echo
+    log_info "GitHub CLI status:" 
+    if ! gh auth status 2>&1; then
+        log_warning "gh auth status failed. Ensure GH_TOKEN is set with repo admin scopes."
+    fi
+    exit ${exit_code}
+}
+
+trap on_error ERR
 
 # =============================================================================
 # CONFIGURATION
@@ -50,6 +76,10 @@ else
 fi
 
 log_info "GitHub Organization: $GITHUB_ORG"
+
+# Track per-repository results
+declare -a SUCCEEDED_REPOS=()
+declare -a FAILED_REPOS=()
 
 # =============================================================================
 # VALIDATION FUNCTIONS
@@ -109,10 +139,13 @@ test_platform_authentication() {
     
     # Test authentication with admin token
     local response
+    local was_xtrace=0
+    if [[ -o xtrace ]]; then was_xtrace=1; set +x; fi
     response=$(curl -s --max-time 10 \
         --header "Authorization: Bearer $NEW_JFROG_ADMIN_TOKEN" \
         --write-out "%{http_code}" \
         "$NEW_JFROG_URL/artifactory/api/system/ping")
+    if [[ $was_xtrace -eq 1 ]]; then set -x; fi
     
     local http_code="${response: -3}"
     local body="${response%???}"
@@ -130,10 +163,13 @@ test_platform_services() {
     log_info "Testing platform services..."
     
     # Test Artifactory service
+    local was_xtrace=0
+    if [[ -o xtrace ]]; then was_xtrace=1; set +x; fi
     if ! curl -s --fail --max-time 10 \
         --header "Authorization: Bearer $NEW_JFROG_ADMIN_TOKEN" \
         "$NEW_JFROG_URL/artifactory/api/system/ping" > /dev/null; then
         log_error "Artifactory service is not available"
+        if [[ $was_xtrace -eq 1 ]]; then set -x; fi
         exit 1
     fi
     
@@ -143,6 +179,7 @@ test_platform_services() {
         "$NEW_JFROG_URL/access/api/v1/system/ping" > /dev/null; then
         log_warning "Access service is not available (may be expected for some deployments)"
     fi
+    if [[ $was_xtrace -eq 1 ]]; then set -x; fi
     
     log_success "Core services are available"
 }
@@ -156,6 +193,20 @@ extract_docker_registry() {
     echo "$NEW_JFROG_URL" | sed 's|https://||'
 }
 
+validate_gh_auth() {
+    log_info "Validating GitHub CLI authentication..."
+    # Avoid interactive prompts
+    gh config set prompt disabled true >/dev/null 2>&1 || true
+    if gh auth status >/dev/null 2>&1; then
+        local gh_user
+        gh_user=$(gh api user --jq .login 2>/dev/null || echo "unknown")
+        log_success "GitHub CLI authenticated as: ${gh_user}"
+    else
+        log_error "GitHub CLI not authenticated. Set GH_TOKEN with required scopes (repo, actions, admin:repo_hook)."
+        exit 1
+    fi
+}
+
 update_repository_secrets_and_variables() {
     local repo="$1"
     local full_repo="$GITHUB_ORG/$repo"
@@ -165,47 +216,63 @@ update_repository_secrets_and_variables() {
     # Extract docker registry from URL
     local docker_registry
     docker_registry=$(extract_docker_registry)
-    
+
+    local repo_ok=1
+
     # Update secrets
     log_info "  → Updating secrets..."
-    if ! echo "$NEW_JFROG_ADMIN_TOKEN" | gh secret set JFROG_ADMIN_TOKEN --repo "$full_repo" 2>/dev/null; then
-        log_warning "  → Failed to update JFROG_ADMIN_TOKEN secret (may not exist)"
+    local output
+    local was_xtrace=0
+    if [[ -o xtrace ]]; then was_xtrace=1; set +x; fi
+    if ! output=$(gh secret set JFROG_ADMIN_TOKEN --repo "$full_repo" --body "$NEW_JFROG_ADMIN_TOKEN" 2>&1); then
+        log_warning "  → Failed to update JFROG_ADMIN_TOKEN: ${output}"
+        repo_ok=0
     fi
-    
-    if ! echo "$NEW_JFROG_ADMIN_TOKEN" | gh secret set JFROG_ACCESS_TOKEN --repo "$full_repo" 2>/dev/null; then
-        log_warning "  → Failed to update JFROG_ACCESS_TOKEN secret (may not exist)"
+
+    if ! output=$(gh secret set JFROG_ACCESS_TOKEN --repo "$full_repo" --body "$NEW_JFROG_ADMIN_TOKEN" 2>&1); then
+        log_warning "  → Failed to update JFROG_ACCESS_TOKEN: ${output}"
+        repo_ok=0
     fi
-    
+    if [[ $was_xtrace -eq 1 ]]; then set -x; fi
+
     # Update variables
     log_info "  → Updating variables..."
-    if ! gh variable set JFROG_URL --body "$NEW_JFROG_URL" --repo "$full_repo" 2>/dev/null; then
-        log_warning "  → Failed to update JFROG_URL variable (may not exist)"
+    if ! output=$(gh variable set JFROG_URL --body "$NEW_JFROG_URL" --repo "$full_repo" 2>&1); then
+        log_warning "  → Failed to update JFROG_URL: ${output}"
+        repo_ok=0
     fi
-    
-    if ! gh variable set DOCKER_REGISTRY --body "$docker_registry" --repo "$full_repo" 2>/dev/null; then
-        log_warning "  → Failed to update DOCKER_REGISTRY variable (may not exist)"
+
+    if ! output=$(gh variable set DOCKER_REGISTRY --body "$docker_registry" --repo "$full_repo" 2>&1); then
+        log_warning "  → Failed to update DOCKER_REGISTRY: ${output}"
+        repo_ok=0
     fi
-    
-    log_success "  → $repo updated successfully"
+
+    if [[ $repo_ok -eq 1 ]]; then
+        log_success "  → $repo updated successfully"
+        SUCCEEDED_REPOS+=("$repo")
+        return 0
+    else
+        log_warning "  → $repo updated with errors"
+        FAILED_REPOS+=("$repo")
+        return 1
+    fi
 }
 
 update_all_repositories() {
     log_info "Updating all BookVerse repositories..."
     
-    local success_count=0
     local total_count=${#BOOKVERSE_REPOS[@]}
-    
+    local success_count=0
+
     for repo in "${BOOKVERSE_REPOS[@]}"; do
         if update_repository_secrets_and_variables "$repo"; then
-            ((success_count++))
+            ((++success_count))
         fi
     done
-    
-    log_success "Updated $success_count/$total_count repositories"
-    
-    if [[ $success_count -lt $total_count ]]; then
-        log_warning "Some repositories failed to update (this may be expected)"
-    fi
+
+    log_info "Repository update results:"
+    echo "  ✓ Success: ${success_count}/${total_count}"
+    echo "  ✗ Failed: $((total_count - success_count))/${total_count}"
 }
 
 # =============================================================================
@@ -237,6 +304,10 @@ main() {
     test_platform_services
     echo ""
     
+    # Step 5.5: Validate GitHub CLI auth (for cross-repo updates)
+    validate_gh_auth
+    echo ""
+    
     # Step 6: Update all repositories
     update_all_repositories
     echo ""
@@ -245,14 +316,36 @@ main() {
     local docker_registry
     docker_registry=$(extract_docker_registry)
     
-    echo "🎯 JPD Platform Switch Complete!"
+    local failed_count
+    failed_count=${#FAILED_REPOS[@]}
+    local success_count
+    success_count=${#SUCCEEDED_REPOS[@]}
+
+    echo "🎯 JPD Platform Switch Summary"
     echo "================================="
     echo "New Configuration:"
     echo "  JFROG_URL: $NEW_JFROG_URL"
     echo "  DOCKER_REGISTRY: $docker_registry"
-    echo "  Updated repositories: ${#BOOKVERSE_REPOS[@]}"
-    echo ""
-    echo "✅ All BookVerse repositories have been updated with new JPD configuration"
+    echo "  Total repositories: ${#BOOKVERSE_REPOS[@]}"
+    echo "  Success: ${success_count}"
+    echo "  Failed: ${failed_count}"
+
+    if [[ ${success_count} -gt 0 ]]; then
+        echo ""
+        echo "✓ Updated repositories: ${SUCCEEDED_REPOS[*]}"
+    fi
+
+    if [[ ${failed_count} -gt 0 ]]; then
+        echo ""
+        echo "✗ Repositories with errors: ${FAILED_REPOS[*]}"
+        echo ""
+        log_error "Some repositories failed to update. See messages above."
+        # Exit non-zero to mark the step as failed, but only after printing summary
+        exit 1
+    else
+        echo ""
+        log_success "All BookVerse repositories have been updated with new JPD configuration"
+    fi
 }
 
 # Execute main function

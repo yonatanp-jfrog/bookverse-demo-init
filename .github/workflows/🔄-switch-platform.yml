@@ -89,7 +89,7 @@ jobs:
           # Run the script and capture logs to a file; append tail to summary for readability
           set -o pipefail
           LOG_FILE="switch-platform.log"
-          ./.github/scripts/setup/switch_jfrog_platform.sh 2>&1 | tee "$LOG_FILE"
+          CONTINUE_ON_AUTH_FAILURE=1 ./.github/scripts/setup/switch_jfrog_platform.sh 2>&1 | tee "$LOG_FILE"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "- Uploading full log as artifact" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"

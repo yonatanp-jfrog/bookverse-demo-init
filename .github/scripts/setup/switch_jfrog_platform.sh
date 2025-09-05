@@ -89,6 +89,8 @@ log_info "GitHub Organization: $GITHUB_ORG"
 # Track per-repository results
 declare -a SUCCEEDED_REPOS=()
 declare -a FAILED_REPOS=()
+AUTH_FAILED=0
+SERVICES_FAILED=0
 
 # =============================================================================
 # VALIDATION FUNCTIONS
@@ -167,6 +169,11 @@ test_platform_authentication() {
         echo
         log_info "Reproduce locally:"
         echo "curl -i -s --max-time 10 --header 'Authorization: Bearer ***' '$NEW_JFROG_URL/artifactory/api/system/ping'"
+        if [[ "${CONTINUE_ON_AUTH_FAILURE:-0}" == "1" ]]; then
+            AUTH_FAILED=1
+            log_warning "Continuing despite authentication failure to update GitHub repo secrets/variables"
+            return 0
+        fi
         exit 1
     fi
     
@@ -185,6 +192,11 @@ test_platform_services() {
         "$NEW_JFROG_URL/artifactory/api/system/ping" > /dev/null; then
         log_error "Artifactory service is not available"
         if [[ $was_xtrace -eq 1 ]]; then set -x; fi
+        if [[ "${CONTINUE_ON_AUTH_FAILURE:-0}" == "1" ]]; then
+            SERVICES_FAILED=1
+            log_warning "Continuing despite service check failure to update GitHub repo secrets/variables"
+            return 0
+        fi
         exit 1
     fi
     

@@ -21,7 +21,7 @@ echo ""
 OIDC_CONFIGS=(
     "inventory|frank.inventory@bookverse.com|BookVerse Inventory"
     "recommendations|grace.ai@bookverse.com|BookVerse Recommendations" 
-    "checkout|henry.checkout@bookverse.com|BookVerse Checkout"
+    "checkout|pipeline.checkout@bookverse.com|BookVerse Checkout"
     "platform|diana.architect@bookverse.com|BookVerse Platform"
     "web|alice.developer@bookverse.com|BookVerse Web"
 )
@@ -69,7 +69,8 @@ create_oidc_integration() {
     local service_name="$1"
     local username="$2"
     local display_name="$3"
-    local integration_name="github-${PROJECT_KEY}-${service_name}"
+    # Integration name should have 'github' at the end per requirements
+    local integration_name="${PROJECT_KEY}-${service_name}-github"
     
     echo "Creating OIDC integration: $integration_name"
     echo "  Service: $service_name"
@@ -82,13 +83,13 @@ create_oidc_integration() {
     local integration_payload_github=$(jq -n \
         --arg name "$integration_name" \
         --arg issuer_url "https://token.actions.githubusercontent.com" \
-        --arg provider_type "GITHUB" \
-        --arg organization "$org_name" \
+        --arg provider_type "github" \
+        --arg organization_name "$org_name" \
         '{
             "name": $name,
             "issuer_url": $issuer_url,
             "provider_type": $provider_type,
-            "organization": $organization
+            "organization_name": $organization_name
         }')
     local integration_payload_minimal=$(jq -n \
         --arg name "$integration_name" \
@@ -232,7 +233,7 @@ create_oidc_integration() {
     echo "Creating identity mapping for: $integration_name → $username"
     
     # Build identity mapping payload
-    # Variant 1: criteria at mapping level with claims_json
+    # Variant 1: criteria at mapping level with claims and token mapped to project role when possible
     local mapping_payload_v1=$(jq -n \
         --arg name "$integration_name" \
         --arg priority "1" \
@@ -249,7 +250,7 @@ create_oidc_integration() {
             },
             "token_spec": ($token_spec | fromjson)
         }')
-    # Variant 2: rule-level criteria with claims_json
+    # Variant 2: rule-level criteria with claims
     local mapping_payload_v2=$(jq -n \
         --arg name "$integration_name" \
         --arg priority "1" \
@@ -383,7 +384,7 @@ echo ""
 echo "🔐 OIDC Integrations Summary:"
 for oidc_data in "${OIDC_CONFIGS[@]}"; do
     IFS='|' read -r service_name username display_name <<< "$oidc_data"
-    echo "   - github-${PROJECT_KEY}-${service_name} → $username"
+    echo "   - ${PROJECT_KEY}-${service_name}-github → $username"
 done
 
 echo ""

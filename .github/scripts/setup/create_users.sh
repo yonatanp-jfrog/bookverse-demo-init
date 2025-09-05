@@ -201,6 +201,87 @@ for user_data in "${BOOKVERSE_USERS[@]}"; do
 done
 
 echo ""
+echo "🔧 Ensuring project role 'cicd_pipeline' exists..."
+
+# Idempotently create or update the cicd_pipeline project role with broad permissions
+ensure_cicd_pipeline_role() {
+    local role_name="cicd_pipeline"
+    local tmp=$(mktemp)
+
+    # Best-effort existence check
+    local list_code=$(curl -s \
+        --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+        --header "Accept: application/json" \
+        -w "%{http_code}" -o "$tmp" \
+        "${JFROG_URL}/access/api/v1/projects/${PROJECT_KEY}/roles")
+    if [[ "$list_code" -ge 200 && "$list_code" -lt 300 ]] && grep -q '"name"\s*:\s*"'"$role_name"'"' "$tmp" 2>/dev/null; then
+        echo "✅ Project role '$role_name' already exists"
+        rm -f "$tmp"
+        return 0
+    fi
+    rm -f "$tmp"
+
+    echo "🛠️  Creating project role '$role_name' with all actions and DEV/PROD environments"
+
+    # Try multiple payload variants for compatibility across JFrog versions
+    local payload_v1=$(jq -n \
+        --arg name "$role_name" \
+        --arg desc "CI/CD pipeline role with broad permissions for DEV/PROD and all project environments" \
+        '{
+            name: $name,
+            description: $desc,
+            actions: ["*"],
+            environments: { global: ["DEV","PROD"], project: ["*"] }
+        }')
+
+    local payload_v2=$(jq -n \
+        --arg name "$role_name" \
+        --arg desc "CI/CD pipeline role with broad permissions for DEV/PROD and all project environments" \
+        '{
+            name: $name,
+            description: $desc,
+            actions: ["ALL"],
+            environments: { global: ["DEV","PROD"], project: ["*"] }
+        }')
+
+    local payload_v3=$(jq -n \
+        --arg name "$role_name" \
+        --arg desc "CI/CD pipeline role with broad permissions for DEV/PROD and all project environments" \
+        '{
+            name: $name,
+            description: $desc,
+            actions: ["*"],
+            environments: ["DEV","PROD"],
+            all_project_environments: true
+        }')
+
+    local attempt_payload; local code; local resp
+    for attempt_payload in "$payload_v1" "$payload_v2" "$payload_v3"; do
+        resp=$(mktemp)
+        code=$(curl -s \
+            --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+            --header "Content-Type: application/json" \
+            --write-out "%{http_code}" -o "$resp" \
+            -X POST \
+            -d "$attempt_payload" \
+            "${JFROG_URL}/access/api/v1/projects/${PROJECT_KEY}/roles")
+        if [[ "$code" == "409" ]]; then
+            echo "⚠️  Project role '$role_name' already exists (HTTP $code)"
+            rm -f "$resp"
+            break
+        elif [[ "$code" =~ ^20 ]]; then
+            echo "✅ Project role '$role_name' created (HTTP $code)"
+            rm -f "$resp"
+            break
+        else
+            echo "⚠️  Attempt to create role returned HTTP $code; response: $(cat "$resp")"
+            rm -f "$resp"
+        fi
+    done
+}
+
+ensure_cicd_pipeline_role
+
 echo "🚀 Processing ${#BOOKVERSE_USERS[@]} users..."
 
 # Process each user
@@ -225,6 +306,17 @@ for user_data in "${BOOKVERSE_USERS[@]}"; do
         done
         if [[ "$needs_admin" == true ]]; then
             project_roles+=("Project Admin")
+        fi
+    fi
+
+    # Ensure checkout pipeline user receives cicd_pipeline role membership
+    if [[ "$username" == "pipeline.checkout@bookverse.com" ]]; then
+        already=false
+        for r in "${project_roles[@]}"; do
+            if [[ "$r" == "cicd_pipeline" ]]; then already=true; break; fi
+        done
+        if [[ "$already" == false ]]; then
+            project_roles+=("cicd_pipeline")
         fi
     fi
 

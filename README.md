@@ -311,6 +311,52 @@ export VERBOSITY=2
 ./cleanup_local.sh
 ```
 
+### Identity Mappings (OIDC) — Discovery and Cleanup
+
+Project deletion can fail if OIDC identity mappings still reference the project (e.g., provider- or repo-scoped claims containing the project key). Use the script below to discover and remove such mappings before deleting the project.
+
+```bash
+# Discover identity mappings related to a project
+export JFROG_URL="https://your-jfrog-instance.com"
+export JFROG_ADMIN_TOKEN="your-admin-token"
+python scripts/identity_mappings.py discover --project bookverse
+
+# Cleanup related mappings (dry run)
+python scripts/identity_mappings.py cleanup --project bookverse --dry-run
+
+# Cleanup related mappings (execute)
+python scripts/identity_mappings.py cleanup --project bookverse
+
+# Then delete the project
+curl -X DELETE "${JFROG_URL}/access/api/v1/projects/bookverse" \
+  --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}"
+```
+
+In GitHub Actions, the script writes a concise section to `$GITHUB_STEP_SUMMARY` under headings:
+- "Identity Mappings (Discovery)"
+- "Identity Mappings (Cleanup)"
+
+### Project Roles — Discovery and Cleanup
+
+Project-scoped roles created by the demo should be removed before deleting the project. Built-in roles are skipped automatically.
+
+```bash
+# Discover project roles
+export JFROG_URL="https://your-jfrog-instance.com"
+export JFROG_ADMIN_TOKEN="your-admin-token"
+python scripts/project_roles.py discover --project bookverse
+
+# Cleanup project roles created by the demo (dry run)
+python scripts/project_roles.py cleanup --project bookverse --dry-run --role-prefix bookverse-
+
+# Cleanup project roles created by the demo (execute)
+python scripts/project_roles.py cleanup --project bookverse --role-prefix bookverse-
+```
+
+The script writes a concise section to `$GITHUB_STEP_SUMMARY` under headings:
+- "Project Roles (Discovery)"
+- "Project Roles (Cleanup)"
+
 ### GitHub Actions Cleanup
 - Use the cleanup workflow in GitHub Actions
 - Requires typing "DELETE" to confirm
@@ -385,6 +431,8 @@ curl -X DELETE "${JFROG_URL}/access/api/v1/projects/bookverse"
 #### Project Deletion Fails
 - Ensure all stages are removed from lifecycle first
 - Delete applications, repositories, and users before project
+- Delete OIDC identity mappings that reference the project (use `scripts/identity_mappings.py`)
+- Delete non-built-in project roles for the project (use `scripts/project_roles.py`)
 
 ### Debug Commands
 

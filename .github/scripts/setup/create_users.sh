@@ -225,65 +225,60 @@ ensure_cicd_pipeline_role() {
     fi
     rm -f "$tmp"
 
-    echo "🛠️  Creating project role '$role_name' with all actions and DEV/PROD environments"
+    echo "🛠️  Creating project role '$role_name' with validated CUSTOM schema"
 
-    # Try multiple payload variants for compatibility across JFrog versions
-    local payload_v1=$(jq -n \
+    # Build validated payload based on working example
+    local payload=$(jq -n \
         --arg name "$role_name" \
-        --arg desc "CI/CD pipeline role with broad permissions for DEV/PROD and all project environments" \
+        --arg desc "Role for QA and testing activities, allowing read access to dev repositories." \
+        --arg proj "$PROJECT_KEY" \
         '{
             name: $name,
             description: $desc,
-            actions: ["*"],
-            environments: { global: ["DEV","PROD"], project: ["*"] }
+            type: "CUSTOM",
+            actions: [
+                "ANNOTATE_BUILD",
+                "ANNOTATE_RELEASE_BUNDLE",
+                "ANNOTATE_REPOSITORY",
+                "BIND_APPLICATION",
+                "CREATE_APPLICATION",
+                "CREATE_RELEASE_BUNDLE",
+                "DELETE_APPLICATION",
+                "DELETE_BUILD",
+                "DELETE_OVERWRITE_REPOSITORY",
+                "DELETE_RELEASE_BUNDLE",
+                "DEPLOY_BUILD",
+                "DEPLOY_CACHE_REPOSITORY",
+                "PROMOTE_APPLICATION",
+                "READ_APPLICATION",
+                "READ_BUILD",
+                "READ_RELEASE_BUNDLE",
+                "READ_REPOSITORY"
+            ],
+            environments: [
+                ($proj + "-DEV"),
+                ($proj + "-QA"),
+                ($proj + "-STAGING"),
+                "PROD",
+                "DEV"
+            ]
         }')
 
-    local payload_v2=$(jq -n \
-        --arg name "$role_name" \
-        --arg desc "CI/CD pipeline role with broad permissions for DEV/PROD and all project environments" \
-        '{
-            name: $name,
-            description: $desc,
-            actions: ["ALL"],
-            environments: { global: ["DEV","PROD"], project: ["*"] }
-        }')
-
-    local payload_v3=$(jq -n \
-        --arg name "$role_name" \
-        --arg desc "CI/CD pipeline role with broad permissions for DEV/PROD and all project environments" \
-        '{
-            name: $name,
-            description: $desc,
-            actions: ["*"],
-            environments: ["DEV","PROD"],
-            all_project_environments: true
-        }')
-
-    local attempt_payload; local code; local resp
-    for attempt_payload in "$payload_v1" "$payload_v2" "$payload_v3"; do
-        resp=$(mktemp)
-        code=$(curl -s \
-            --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
-            --header "Content-Type: application/json" \
-            --write-out "%{http_code}" -o "$resp" \
-            -X POST \
-            -d "$attempt_payload" \
-            "${JFROG_URL}/access/api/v1/projects/${PROJECT_KEY}/roles")
-        if [[ "$code" == "409" ]]; then
-            echo "⚠️  Project role '$role_name' already exists (HTTP $code)"
-            CICD_PIPELINE_ROLE_AVAILABLE=true
-            rm -f "$resp"
-            break
-        elif [[ "$code" =~ ^20 ]]; then
-            echo "✅ Project role '$role_name' created (HTTP $code)"
-            CICD_PIPELINE_ROLE_AVAILABLE=true
-            rm -f "$resp"
-            break
-        else
-            echo "⚠️  Attempt to create role returned HTTP $code; response: $(cat "$resp")"
-            rm -f "$resp"
-        fi
-    done
+    local resp=$(mktemp)
+    local code=$(curl -s \
+        --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+        --header "Content-Type: application/json" \
+        --write-out "%{http_code}" -o "$resp" \
+        -X POST \
+        -d "$payload" \
+        "${JFROG_URL}/access/api/v1/projects/${PROJECT_KEY}/roles")
+    if [[ "$code" == "409" || "$code" =~ ^20 ]]; then
+        echo "✅ Project role '$role_name' ensured (HTTP $code)"
+        CICD_PIPELINE_ROLE_AVAILABLE=true
+    else
+        echo "⚠️  Role creation returned HTTP $code; response: $(cat "$resp")"
+    fi
+    rm -f "$resp"
 }
 
 ensure_cicd_pipeline_role

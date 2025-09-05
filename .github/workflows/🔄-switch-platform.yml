@@ -72,12 +72,8 @@ jobs:
       - name: Switch JFrog Platform
         run: |
           export NEW_JFROG_URL='${{ github.event.inputs.jpd_host }}'
-          # Prefer secret if available, otherwise use dispatch input
-          if [[ -n "${{ secrets.JFROG_ADMIN_TOKEN }}" ]]; then
-            export NEW_JFROG_ADMIN_TOKEN='${{ secrets.JFROG_ADMIN_TOKEN }}'
-          else
-            export NEW_JFROG_ADMIN_TOKEN='${{ github.event.inputs.admin_token }}'
-          fi
+          # Always use the provided input token to avoid stale secrets
+          export NEW_JFROG_ADMIN_TOKEN='${{ github.event.inputs.admin_token }}'
           # Disable ANSI colors for cleaner job summary snippets
           export NO_COLOR=1
           echo "🔄 Starting JFrog Platform Switch"
@@ -116,11 +112,7 @@ jobs:
       - name: Validate New Platform
         run: |
           export NEW_JFROG_URL='${{ github.event.inputs.jpd_host }}'
-          if [[ -n "${{ secrets.JFROG_ADMIN_TOKEN }}" ]]; then
-            export NEW_JFROG_ADMIN_TOKEN='${{ secrets.JFROG_ADMIN_TOKEN }}'
-          else
-            export NEW_JFROG_ADMIN_TOKEN='${{ github.event.inputs.admin_token }}'
-          fi
+          export NEW_JFROG_ADMIN_TOKEN='${{ github.event.inputs.admin_token }}'
           echo "🔍 Validating new platform connectivity..."
           
           # Test the new platform is accessible

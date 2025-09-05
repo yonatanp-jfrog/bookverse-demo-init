@@ -203,6 +203,9 @@ done
 echo ""
 echo "🔧 Ensuring project role 'cicd_pipeline' exists..."
 
+# Global flag set by ensure_cicd_pipeline_role to indicate availability
+CICD_PIPELINE_ROLE_AVAILABLE=false
+
 # Idempotently create or update the cicd_pipeline project role with broad permissions
 ensure_cicd_pipeline_role() {
     local role_name="cicd_pipeline"
@@ -216,6 +219,7 @@ ensure_cicd_pipeline_role() {
         "${JFROG_URL}/access/api/v1/projects/${PROJECT_KEY}/roles")
     if [[ "$list_code" -ge 200 && "$list_code" -lt 300 ]] && grep -q '"name"\s*:\s*"'"$role_name"'"' "$tmp" 2>/dev/null; then
         echo "✅ Project role '$role_name' already exists"
+        CICD_PIPELINE_ROLE_AVAILABLE=true
         rm -f "$tmp"
         return 0
     fi
@@ -267,10 +271,12 @@ ensure_cicd_pipeline_role() {
             "${JFROG_URL}/access/api/v1/projects/${PROJECT_KEY}/roles")
         if [[ "$code" == "409" ]]; then
             echo "⚠️  Project role '$role_name' already exists (HTTP $code)"
+            CICD_PIPELINE_ROLE_AVAILABLE=true
             rm -f "$resp"
             break
         elif [[ "$code" =~ ^20 ]]; then
             echo "✅ Project role '$role_name' created (HTTP $code)"
+            CICD_PIPELINE_ROLE_AVAILABLE=true
             rm -f "$resp"
             break
         else
@@ -281,6 +287,10 @@ ensure_cicd_pipeline_role() {
 }
 
 ensure_cicd_pipeline_role
+
+if [[ "$CICD_PIPELINE_ROLE_AVAILABLE" != true ]]; then
+    echo "⚠️  Proceeding without custom role 'cicd_pipeline' (fallback will assign 'Project Admin' to pipeline.checkout@bookverse.com)"
+fi
 
 echo "🚀 Processing ${#BOOKVERSE_USERS[@]} users..."
 
@@ -309,14 +319,25 @@ for user_data in "${BOOKVERSE_USERS[@]}"; do
         fi
     fi
 
-    # Ensure checkout pipeline user receives cicd_pipeline role membership
+    # Ensure checkout pipeline user receives the right role membership
     if [[ "$username" == "pipeline.checkout@bookverse.com" ]]; then
-        already=false
-        for r in "${project_roles[@]}"; do
-            if [[ "$r" == "cicd_pipeline" ]]; then already=true; break; fi
-        done
-        if [[ "$already" == false ]]; then
-            project_roles+=("cicd_pipeline")
+        if [[ "$CICD_PIPELINE_ROLE_AVAILABLE" == true ]]; then
+            already=false
+            for r in "${project_roles[@]}"; do
+                if [[ "$r" == "cicd_pipeline" ]]; then already=true; break; fi
+            done
+            if [[ "$already" == false ]]; then
+                project_roles+=("cicd_pipeline")
+            fi
+        else
+            # Fallback to Project Admin to unblock CI while custom role is unavailable
+            has_admin=false
+            for r in "${project_roles[@]}"; do
+                if [[ "$r" == "Project Admin" ]]; then has_admin=true; break; fi
+            done
+            if [[ "$has_admin" == false ]]; then
+                project_roles+=("Project Admin")
+            fi
         fi
     fi
 

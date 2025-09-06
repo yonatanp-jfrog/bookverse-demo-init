@@ -20,9 +20,15 @@ permissions:
 jobs:
   cleanup:
     runs-on: ubuntu-latest
+    env:
+      DEMO_MODE: "false"
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Ensure DEMO_MODE default
+        run: |
+          echo "DEMO_MODE=${DEMO_MODE:-false}" >> $GITHUB_ENV
 
       - name: Apply DEMO_MODE settings
         if: ${{ env.DEMO_MODE == 'true' || (github.event_name == 'workflow_dispatch' && (inputs.DEMO_MODE || 'false') == 'true') }}

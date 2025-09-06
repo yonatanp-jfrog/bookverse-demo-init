@@ -25,7 +25,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Apply DEMO_MODE settings
-        if: ${{ inputs.DEMO_MODE == 'true' || env.DEMO_MODE == 'true' }}
+        if: ${{ env.DEMO_MODE == 'true' || (github.event_name == 'workflow_dispatch' && (inputs.DEMO_MODE || 'false') == 'true') }}
         run: |
           echo "🔔 DEMO_MODE enabled"
           echo "ACTIONS_STEP_DEBUG=true" >> $GITHUB_ENV

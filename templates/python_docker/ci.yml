@@ -36,7 +36,7 @@ jobs:
 
       - name: Configure JFrog CLI
         run: |
-          jf c add --interactive=false --url "${{ vars.JFROG_URL }}" --access-token "${{ secrets.JFROG_ACCESS_TOKEN }}"
+          jf c add --interactive=false --url "${{ vars.JFROG_URL }}" --access-token ""
           jf c show
 
       - name: Set up Python
@@ -200,18 +200,25 @@ jobs:
           SERVICE_NAME=$(echo ${{ github.event.repository.name }} | sed 's/bookverse-//')
           IMAGE_TAG=$(echo $GITHUB_SHA | head -c7)
           REGISTRY_URL=$(echo "${{ vars.JFROG_URL }}" | sed 's|https://||' | sed 's|http://||')
-          IMAGE_NAME="$REGISTRY_URL/${{ vars.PROJECT_KEY }}-${SERVICE_NAME}-docker-internal-local/${SERVICE_NAME}:${IMAGE_TAG}"
+          # Determine repository visibility: platform is public; others are internal
+          VISIBILITY=$([ "$SERVICE_NAME" = "platform" ] && echo "public" || echo "internal")
+          REPO_BASE="${{ vars.PROJECT_KEY }}-${SERVICE_NAME}-${VISIBILITY}-docker"
+          REPO_NONPROD="${REPO_BASE}-nonprod-local"
+          IMAGE_NAME="$REGISTRY_URL/${REPO_NONPROD}/${SERVICE_NAME}:${IMAGE_TAG}"
           echo "SERVICE_NAME=$SERVICE_NAME" >> $GITHUB_ENV
           echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
           echo "REGISTRY_URL=$REGISTRY_URL" >> $GITHUB_ENV
           echo "IMAGE_NAME=$IMAGE_NAME" >> $GITHUB_ENV
           echo "BUILD_NAME=$SERVICE_NAME" >> $GITHUB_ENV
           echo "BUILD_NUMBER=$IMAGE_TAG" >> $GITHUB_ENV
+          echo "VISIBILITY=$VISIBILITY" >> $GITHUB_ENV
+          echo "REPO_BASE=$REPO_BASE" >> $GITHUB_ENV
+          echo "REPO_NONPROD=$REPO_NONPROD" >> $GITHUB_ENV
 
       - name: Build and push Docker image via JFrog CLI
         run: |
           jf docker build --pull -t ${{ env.IMAGE_NAME }} .
-          jf rt dp ${{ env.IMAGE_NAME }} ${{ vars.PROJECT_KEY }}-${{ env.SERVICE_NAME }}-docker-internal-local \
+          jf rt dp ${{ env.IMAGE_NAME }} ${{ env.REPO_NONPROD }} \
             --build-name=${{ env.BUILD_NAME }} --build-number=${{ env.BUILD_NUMBER }}
           echo "✅ Built and pushed Docker image via JFrog CLI"
 
@@ -291,7 +298,7 @@ jobs:
             --markdown coverage-evidence.md \
             --predicate-type "Test Coverage" \
             --package-name "${{ env.SERVICE_NAME }}" \
-            --package-repo-name "${{ vars.PROJECT_KEY }}-${{ env.SERVICE_NAME }}-docker-internal-local" \
+            --package-repo-name "${{ env.REPO_NONPROD }}" \
             --package-version "${{ env.IMAGE_TAG }}" \
             --project "${{ vars.PROJECT_KEY }}" \
             # --key-alias "${{ vars.EVIDENCE_KEY_ALIAS || 'BookVerse-Evidence-Key' }}" \
@@ -347,7 +354,7 @@ jobs:
             --markdown sast-summary.md \
             --predicate-type "SAST Scan" \
             --package-name "${{ env.SERVICE_NAME }}" \
-            --package-repo-name "${{ vars.PROJECT_KEY }}-${{ env.SERVICE_NAME }}-docker-internal-local" \
+            --package-repo-name "${{ env.REPO_NONPROD }}" \
             --package-version "${{ env.IMAGE_TAG }}" \
             --project "${{ vars.PROJECT_KEY }}" \
             # --key-alias "${{ vars.EVIDENCE_KEY_ALIAS || 'BookVerse-Evidence-Key' }}" \
@@ -373,8 +380,17 @@ jobs:
 
       - name: Configure JFrog CLI
         run: |
-          jf c add --interactive=false --url "${{ vars.JFROG_URL }}" --access-token "${{ secrets.JFROG_ACCESS_TOKEN }}"
+          jf c add --interactive=false --url "${{ vars.JFROG_URL }}" --access-token ""
           jf c show
+
+      # TODO(apptrust-oidc): Replace AppTrust REST calls (token-required) with OIDC-capable CLI,
+      # then remove this validation and the JFROG_ACCESS_TOKEN requirement.
+      - name: Validate JFrog token for AppTrust API
+        run: |
+          if [[ -z "${{ secrets.JFROG_ACCESS_TOKEN }}" ]]; then
+            echo "❌ JFROG_ACCESS_TOKEN is required for AppTrust REST operations. Configure the secret and rerun."
+            exit 1
+          fi
 
       - name: Set AppTrust variables and determine version
         run: |
@@ -383,7 +399,8 @@ jobs:
           APPLICATION_KEY="bookverse-$SERVICE_NAME"
           
           echo "🔍 Checking for existing application versions..."
-          
+          # TODO(apptrust-oidc): Replace this REST GET with an OIDC-capable CLI call
+          # to read the latest version, and remove the token dependency.
           # Get latest version from AppTrust API (explicit sort + limit)
           LATEST_VERSION=$(curl -s \
             "${{ vars.JFROG_URL }}/apptrust/api/v1/applications/$APPLICATION_KEY/versions?limit=1&order_by=created&order_asc=false" \
@@ -423,7 +440,6 @@ jobs:
       - name: Create application version
         run: |
           echo "🚀 Creating AppTrust application version: ${{ env.APP_VERSION }}"
-          
           # Create application version with build sources
           APP_VERSION_PAYLOAD=$(cat << EOF
           {
@@ -440,6 +456,8 @@ jobs:
           EOF
           )
           
+          # TODO(apptrust-oidc): Replace this REST POST with an OIDC-capable CLI call
+          # to create the application version, and remove the token dependency.
           # Create the application version
           curl -X POST \
             "${{ vars.JFROG_URL }}/apptrust/api/v1/applications/${{ env.APPLICATION_KEY }}/versions/" \
@@ -454,7 +472,6 @@ jobs:
       - name: Attach SDLC evidence to application version
         run: |
           echo "📋 Attaching SDLC evidence to application version"
-          
           # Generate realistic JIRA tickets
           JIRA_TICKETS=("BOOK-$(((RANDOM % 900) + 100))" "BOOK-$(((RANDOM % 900) + 100))" "BOOK-$(((RANDOM % 900) + 100))")
           TICKET_TYPES=("Bug Fix" "Feature" "Improvement")

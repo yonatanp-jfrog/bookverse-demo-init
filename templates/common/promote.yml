@@ -9,6 +9,10 @@ on:
         type: choice
         default: 'PROD'
         options: [ QA, STAGING, PROD ]
+      version:
+        description: 'Application version to promote'
+        required: true
+        type: string
 
 jobs:
   promote:
@@ -27,6 +31,68 @@ jobs:
         run: |
           jf c add --interactive=false --url "${{ vars.JFROG_URL }}" --access-token ""
 
+      - name: Compute service and repository constraints
+        run: |
+          SERVICE_NAME=$(echo ${{ github.event.repository.name }} | sed 's/bookverse-//')
+          # Visibility policy: platform is public; all others are internal
+          VISIBILITY=$([ "$SERVICE_NAME" = "platform" ] && echo "public" || echo "internal")
+          REPO_PREFIX="${{ vars.PROJECT_KEY }}-${SERVICE_NAME}-${VISIBILITY}-"
+          # Allowed repo keys per stage
+          NONPROD_SUFFIXES=(
+            docker-nonprod-local
+            python-nonprod-local
+            generic-nonprod-local
+            npm-nonprod-local
+            maven-nonprod-local
+            helm-nonprod-local
+          )
+          RELEASE_SUFFIXES=(
+            docker-release-local
+            python-release-local
+            generic-release-local
+            npm-release-local
+            maven-release-local
+            helm-release-local
+          )
+          if [ "${{ inputs.target_stage }}" = "PROD" ]; then
+            STAGE_GROUP="release"
+            ALLOWED_SUFFIXES=("${RELEASE_SUFFIXES[@]}")
+          else
+            STAGE_GROUP="nonprod"
+            ALLOWED_SUFFIXES=("${NONPROD_SUFFIXES[@]}")
+          fi
+          # Materialize allowed repo keys for info and downstream use
+          ALLOWED_REPOS=()
+          for s in "${ALLOWED_SUFFIXES[@]}"; do
+            ALLOWED_REPOS+=("${REPO_PREFIX}${s}")
+          done
+          # Export key variables
+          echo "SERVICE_NAME=$SERVICE_NAME" >> $GITHUB_ENV
+          echo "VISIBILITY=$VISIBILITY" >> $GITHUB_ENV
+          echo "REPO_PREFIX=$REPO_PREFIX" >> $GITHUB_ENV
+          echo "STAGE_GROUP=$STAGE_GROUP" >> $GITHUB_ENV
+          printf '%s\n' "${ALLOWED_REPOS[@]}" | paste -sd, - | sed 's/^/ALLOWED_REPOS=/' >> $GITHUB_ENV
+          echo "✅ Computed repository constraints"
+
+      - name: Enforce repository policy
+        run: |
+          # Enforce visibility by service type
+          if [ "${{ env.SERVICE_NAME }}" = "platform" ] && [ "${{ env.VISIBILITY }}" != "public" ]; then
+            echo "❌ Platform must use public repositories"; exit 1; fi
+          if [ "${{ env.SERVICE_NAME }}" != "platform" ] && [ "${{ env.VISIBILITY }}" != "internal" ]; then
+            echo "❌ Non-platform services must use internal repositories"; exit 1; fi
+          # Enforce stage group
+          case "${{ inputs.target_stage }}" in
+            QA|STAGING)
+              if [ "${{ env.STAGE_GROUP }}" != "nonprod" ]; then echo "❌ QA/STAGING must use nonprod repos"; exit 1; fi
+              ;;
+            PROD)
+              if [ "${{ env.STAGE_GROUP }}" != "release" ]; then echo "❌ PROD must use release repos"; exit 1; fi
+              ;;
+            *) echo "❌ Invalid stage"; exit 1;;
+          esac
+          echo "✅ Repository policy satisfied"
+
       - name: Attach promotion evidence (synthetic)
         run: |
           echo "qa_summary=All critical tests passed" >> $GITHUB_ENV
@@ -35,6 +101,7 @@ jobs:
 
       - name: Promote artifact (placeholder)
         run: |
-          echo "(placeholder) promote artifact to ${{ inputs.target_stage }} with evidence"
+          echo "(placeholder) promote '${{ env.SERVICE_NAME }}' version '${{ inputs.version }}' to ${{ inputs.target_stage }} with evidence"
+          echo "Allowed repositories for this action: ${{ env.ALLOWED_REPOS }}"
 
 

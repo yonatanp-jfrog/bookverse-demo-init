@@ -19,9 +19,9 @@ Link: Plan of Action (`docs/PLAN_OF_ACTION.md`) and the BookVerse playbook (`htt
 Optional: bookverse-infra (if infra automation is split).
 
 ### Artifactory repository keys (local)
-- Internal (project stages): `${PROJECT_KEY}-{name}-{package}-internal-local`
+- Internal (project stages): `${PROJECT_KEY}-{name}-internal-{package}-nonprod-local`
   - environments: `["bookverse-DEV","bookverse-QA","bookverse-STAGING"]`
-- Release (PROD): `${PROJECT_KEY}-{name}-{package}-release-local`
+- Release (PROD): `${PROJECT_KEY}-{name}-internal-{package}-release-local` (web/platform visibility varies)
   - environments: `["PROD"]` (PROD is global and not included in lifecycle APIs)
 
 Where:
@@ -30,11 +30,11 @@ Where:
 - `package ∈ {docker,python,npm,maven,helm}`
 
 Examples:
-- Docker: `bookverse-inventory-docker-internal-local`, `bookverse-inventory-docker-release-local`
-- Python (pypi): `bookverse-recommendations-python-internal-local`
-- npm (web): `bookverse-web-npm-internal-local`, `bookverse-web-npm-release-local`
-- Maven (java): `bookverse-platform-maven-internal-local`
-- Helm charts: `bookverse-helm-helm-internal-local`
+- Docker: `bookverse-inventory-internal-docker-nonprod-local`, `bookverse-inventory-internal-docker-release-local`
+- Python (pypi): `bookverse-recommendations-internal-python-nonprod-local`
+- npm (web): `bookverse-web-internal-npm-nonprod-local`, `bookverse-web-internal-npm-release-local`
+- Maven (java): `bookverse-platform-public-maven-nonprod-local`
+- Helm charts: `bookverse-helm-internal-helm-nonprod-local`
 
 ### Stage and lifecycle
 - Project stages: `bookverse-DEV`, `bookverse-QA`, `bookverse-STAGING`

@@ -84,49 +84,40 @@ expected_users=(
   "pipeline.inventory@bookverse.com"
   "pipeline.recommendations@bookverse.com"
   "pipeline.checkout@bookverse.com"
+  "pipeline.web@bookverse.com"
   "pipeline.platform@bookverse.com"
 )
 
-declare -A found_users_map
+found_users=()
+missing_users=()
 
-# Try list endpoints first (structure varies across versions)
+# Build a consolidated candidate list from list endpoints (portable to bash 3.2)
+all_candidates=""
 for endpoint in "/access/api/v1/users" "/artifactory/api/security/users" "/access/api/v2/users"; do
   resp=$(curl -s -w "%{http_code}" -H "Authorization: Bearer $JFROG_ADMIN_TOKEN" "${JFROG_URL}${endpoint}")
   code="${resp: -3}"; body="${resp%???}"
   if [[ "$code" =~ ^[23] ]]; then
-    # Collect candidates from multiple possible fields
-    # Normalize to one-per-line list of possible identifiers
-    candidates=$(echo "$body" | jq -r '[.[]? | (.email? // empty), (.name? // empty), (.username? // empty)] | .[]' 2>/dev/null || echo "")
-    if [[ -n "$candidates" ]]; then
-      while IFS= read -r cand; do
-        for exp in "${expected_users[@]}"; do
-          if [[ "$cand" == "$exp" ]]; then found_users_map["$exp"]=1; fi
-        done
-      done <<< "$candidates"
+    c=$(echo "$body" | jq -r '[.[]? | (.email? // empty), (.name? // empty), (.username? // empty)] | .[]' 2>/dev/null || echo "")
+    if [[ -n "$c" ]]; then
+      all_candidates="$all_candidates"$'\n'"$c"
     fi
   fi
 done
+# Deduplicate
+all_candidates=$(printf "%s\n" "$all_candidates" | awk 'NF' | sort -u)
 
-# If still missing, verify per expected user (fallback)
+# For each expected user, check presence in candidate list; otherwise use per-user endpoints
 for exp in "${expected_users[@]}"; do
-  if [[ -z "${found_users_map[$exp]:-}" ]]; then
-    # Try both Access and Artifactory user endpoints
+  if printf "%s\n" "$all_candidates" | grep -qx "$exp"; then
+    found_users+=("$exp")
+  else
     u1=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $JFROG_ADMIN_TOKEN" "${JFROG_URL}/access/api/v1/users/${exp}")
     u2=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $JFROG_ADMIN_TOKEN" "${JFROG_URL}/artifactory/api/security/users/${exp}")
     if [[ "$u1" == "200" || "$u2" == "200" ]]; then
-      found_users_map["$exp"]=1
+      found_users+=("$exp")
+    else
+      missing_users+=("$exp")
     fi
-  fi
-done
-
-# Build lists
-found_users=()
-missing_users=()
-for exp in "${expected_users[@]}"; do
-  if [[ -n "${found_users_map[$exp]:-}" ]]; then
-    found_users+=("$exp")
-  else
-    missing_users+=("$exp")
   fi
 done
 
@@ -283,7 +274,7 @@ echo ""
 echo "📋 Resource Counts:"
 echo "   • Project: $PROJECT_KEY $([ -n "$project_response" ] && echo '✅' || echo '❌')"
 echo "   • Repositories: $repo_count (expected: 14+)"
-echo "   • Users: $user_count (expected: 12)"
+echo "   • Users: $user_count (expected: 13)"
 echo "   • Applications: $app_count (expected: 4)"
 echo "   • Stages: $stage_count (expected: 3)"  
 echo "   • OIDC Integrations: $oidc_count (expected: 5)"

@@ -32,8 +32,8 @@ Each service repo includes:
 - OIDC to JFrog per repo; identity mapping in JFrog
 
 ### Artifactory Repository Model
-- Internal (DEV/QA/STAGING): `${PROJECT_KEY}-{service}-{package}-internal-local` with `"environments": ["bookverse-DEV","bookverse-QA","bookverse-STAGING"]`
-- Release (PROD): `${PROJECT_KEY}-{service}-{package}-release-local` with `"environments": ["PROD"]`
+- Internal (DEV/QA/STAGING): `${PROJECT_KEY}-{service}-internal-{package}-nonprod-local` with `"environments": ["bookverse-DEV","bookverse-QA","bookverse-STAGING"]`
+- Release (PROD): `${PROJECT_KEY}-{service}-internal-{package}-release-local` with `"environments": ["PROD"]` (platform visibility is `public`; others `internal`)
 - Batch creation via `PUT /artifactory/api/v2/repositories/batch`
 
 ### AppTrust Stages & Lifecycle
@@ -54,20 +54,20 @@ Each service repo includes:
 
 ### Website Packaging & Runtime Images
 - Web UI is built from the platform/web project and served via a container image (e.g., NGINX).
-- Add web Docker repos (if not present): `${PROJECT_KEY}-web-docker-internal-local` (DEV/QA/STAGING), `${PROJECT_KEY}-web-docker-release-local` (PROD).
+- Add web Docker repos (if not present): `${PROJECT_KEY}-web-internal-docker-nonprod-local` (DEV/QA/STAGING), `${PROJECT_KEY}-web-internal-docker-release-local` (PROD).
 - CI builds `bookverse-web` image, tags with commit SHA/semver, and pushes to the internal Docker repo. Promotion/publish to release repo on PROD.
 
 ### Helm Charts & Release
 - Primary chart: `platform` (includes and pins all microservice images used by the platform release).
 - Optional internal charts: per-service charts may exist for testing but are NOT deployed to clusters.
-- Charts are versioned and packaged in CI, then pushed to `${PROJECT_KEY}-helm-helm-internal-local` (and to `-release-local` for PROD).
+- Charts are versioned and packaged in CI, then pushed to `${PROJECT_KEY}-helm-internal-helm-nonprod-local` (and to `${PROJECT_KEY}-helm-internal-helm-release-local` for PROD).
 - Provide per-environment values files (DEV/QA/STAGING/PROD) overriding image tags, resources, and config.
 
 ### GitOps with ArgoCD
 - Store ArgoCD app manifests in `bookverse-demo-assets` under `gitops/`:
   - `projects/` definitions (e.g., `bookverse-dev`, `bookverse-qa`, `bookverse-staging`, `bookverse-prod`).
   - `apps/` per environment that deploy ONLY the `platform` chart and values.
-- ArgoCD integrates with the JFrog Helm repo (`${JFROG_URL}/artifactory/${PROJECT_KEY}-helm-helm-internal-local`) and the Docker registry for image pulls.
+- ArgoCD integrates with the JFrog Helm repo (`${JFROG_URL}/artifactory/${PROJECT_KEY}-helm-internal-helm-nonprod-local`) and the Docker registry for image pulls.
 - A webhook from AppTrust triggers a GitHub workflow to update the platform Helm chart values (image tags) when the `platform` application version is promoted to PROD.
 
 ### Kubernetes Cluster Prerequisites

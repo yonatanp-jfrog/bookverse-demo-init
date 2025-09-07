@@ -23,7 +23,7 @@ OIDC_CONFIGS=(
     "recommendations|grace.ai@bookverse.com|BookVerse Recommendations" 
     "checkout|pipeline.checkout@bookverse.com|BookVerse Checkout"
     "platform|diana.architect@bookverse.com|BookVerse Platform"
-    "web|alice.developer@bookverse.com|BookVerse Web"
+    "web|pipeline.web@bookverse.com|BookVerse Web"
 )
 
 # Helper: check if an OIDC integration already exists (best-effort via list API)

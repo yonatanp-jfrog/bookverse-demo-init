@@ -134,7 +134,7 @@ done
 
 **Show in JFrog Platform:**
 1. **Published Artifacts**
-   - Navigate to `bookverse-inventory-docker-internal-local`
+   - Navigate to `bookverse-inventory-internal-docker-nonprod-local`
    - Show Docker images with metadata
    - Display build info and provenance
 

@@ -17,13 +17,34 @@ echo "🔧 Project: $PROJECT_KEY"
 echo "🔧 JFrog URL: $JFROG_URL"
 echo ""
 
+# Determine visibility for a given service (defaults to internal)
+get_visibility_for_service() {
+    local service_name="$1"
+    case "$service_name" in
+        web)
+            echo "public"
+            ;;
+        *)
+            echo "internal"
+            ;;
+    esac
+}
+
 # Repository creation function
 create_repository() {
     local service="$1"
     local package_type="$2"
     local repo_type="$3"
     
-    local repo_key="${PROJECT_KEY}-${service}-${package_type}-${repo_type}-local"
+    local visibility
+    visibility=$(get_visibility_for_service "$service")
+    local stage_group
+    if [[ "$repo_type" == "internal" ]]; then
+        stage_group="nonprod"
+    else
+        stage_group="release"
+    fi
+    local repo_key="${PROJECT_KEY}-${service}-${visibility}-${package_type}-${stage_group}-local"
     
     # Build repository configuration (release repos don't need environment restrictions)
     if [[ "$repo_type" == "internal" ]]; then
@@ -182,7 +203,11 @@ echo ""
 
 # Create project-level generic repo for shared artifacts (internal)
 {
-    repo_key="${PROJECT_KEY}-generic-internal-local"
+    service_name="generic"
+    visibility="internal"
+    package_type="generic"
+    stage_group="nonprod"
+    repo_key="${PROJECT_KEY}-${service_name}-${visibility}-${package_type}-${stage_group}-local"
     echo "Creating repository: $repo_key"
     environments="\"${PROJECT_KEY}-DEV\", \"${PROJECT_KEY}-QA\", \"${PROJECT_KEY}-STAGING\""
     repo_config=$(jq -n \

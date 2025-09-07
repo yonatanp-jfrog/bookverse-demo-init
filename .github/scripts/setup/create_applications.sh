@@ -297,3 +297,59 @@ echo "🎯 BookVerse applications setup completed"
 echo "   Successfully created applications are available in AppTrust"
 echo "   Any applications with HTTP 500 errors may require manual setup"
 echo ""
+
+# -----------------------------------------------------------------------------
+# Update service repositories with the correct JFrog application key
+# -----------------------------------------------------------------------------
+
+# Update .jfrog/config.yml in a service repository to set the application key
+update_repo_jfrog_config() {
+    local app_key="$1"
+    local repo_name="$app_key"    # repo names match application keys (e.g., bookverse-inventory)
+    local owner="${GITHUB_REPOSITORY_OWNER:-yonatanp-jfrog}"
+
+    # Ensure GitHub CLI is available
+    if ! command -v gh >/dev/null 2>&1; then
+        echo "⚠️  GitHub CLI (gh) not found; skipping .jfrog/config.yml update for $owner/$repo_name"
+        return 0
+    fi
+
+    echo "🔧 Updating .jfrog/config.yml in $owner/$repo_name"
+
+    # Determine default branch (fallback to main)
+    local branch
+    branch=$(gh api "repos/$owner/$repo_name" -q .default_branch 2>/dev/null || echo "main")
+
+    # Prepare file content and base64 encode it
+    local file_content
+    file_content=$(printf "application:\n  key: \"%s\"\n" "$app_key")
+    local b64
+    b64=$(printf "%s" "$file_content" | base64 | tr -d '\n')
+
+    # Fetch existing file SHA if present
+    local sha
+    sha=$(gh api -X GET "repos/$owner/$repo_name/contents/.jfrog/config.yml" -f ref="$branch" -q .sha 2>/dev/null || echo "")
+
+    # Build payload (include sha only if file exists)
+    local payload
+    payload=$(jq -n \
+        --arg message "chore: set JFrog application key ($app_key)" \
+        --arg content "$b64" \
+        --arg branch "$branch" \
+        --arg sha "$sha" \
+        'if ($sha | length) > 0 then {message:$message, content:$content, branch:$branch, sha:$sha} else {message:$message, content:$content, branch:$branch} end')
+
+    if echo "$payload" | gh api -X PUT -H "Accept: application/vnd.github+json" "repos/$owner/$repo_name/contents/.jfrog/config.yml" --input - >/dev/null 2>&1; then
+        echo "✅ .jfrog/config.yml updated in $owner/$repo_name@$branch"
+    else
+        echo "⚠️  Failed to update .jfrog/config.yml in $owner/$repo_name (continuing)"
+    fi
+}
+
+echo "🔧 Propagating application keys to service repositories (.jfrog/config.yml)"
+for app_data in "${BOOKVERSE_APPLICATIONS[@]}"; do
+    IFS='|' read -r app_key _rest <<< "$app_data"
+    update_repo_jfrog_config "$app_key"
+done
+
+echo "✅ Repository configuration updates completed"

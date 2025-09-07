@@ -30,6 +30,7 @@ BOOKVERSE_USERS=(
     "pipeline.inventory@bookverse.com|pipeline.inventory@bookverse.com|Pipeline2024!|Pipeline User"
     "pipeline.recommendations@bookverse.com|pipeline.recommendations@bookverse.com|Pipeline2024!|Pipeline User"
     "pipeline.checkout@bookverse.com|pipeline.checkout@bookverse.com|Pipeline2024!|Pipeline User"
+    "pipeline.web@bookverse.com|pipeline.web@bookverse.com|Pipeline2024!|Pipeline User"
     "pipeline.platform@bookverse.com|pipeline.platform@bookverse.com|Pipeline2024!|Pipeline User"
 )
 
@@ -51,6 +52,12 @@ is_platform_owner() {
         [[ "$username" == "$owner" ]] && return 0
     done
     return 1
+}
+
+# Function to check if user is a pipeline automation user
+is_pipeline_user() {
+    local username="$1"
+    [[ "$username" == pipeline.*@* ]]
 }
 
 # Map human-friendly titles to valid JFrog Project roles
@@ -287,7 +294,7 @@ ensure_cicd_pipeline_role() {
 ensure_cicd_pipeline_role
 
 if [[ "$CICD_PIPELINE_ROLE_AVAILABLE" != true ]]; then
-    echo "⚠️  Proceeding without custom role 'cicd_pipeline' (fallback will assign 'Project Admin' to pipeline.checkout@bookverse.com)"
+    echo "⚠️  Proceeding without custom role 'cicd_pipeline' (fallback will assign 'Project Admin' to pipeline users)"
 fi
 
 echo "🚀 Processing ${#BOOKVERSE_USERS[@]} users..."
@@ -317,8 +324,17 @@ for user_data in "${BOOKVERSE_USERS[@]}"; do
         fi
     fi
 
-    # Ensure checkout pipeline user receives the right role membership
-    if [[ "$username" == "pipeline.checkout@bookverse.com" ]]; then
+    # Ensure all pipeline users receive the right role membership
+    if is_pipeline_user "$username"; then
+        # Remove Developer role for pipeline users (not needed)
+        cleaned_roles=()
+        for r in "${project_roles[@]}"; do
+            if [[ "$r" != "Developer" && -n "$r" ]]; then
+                cleaned_roles+=("$r")
+            fi
+        done
+        project_roles=("${cleaned_roles[@]}")
+
         if [[ "$CICD_PIPELINE_ROLE_AVAILABLE" == true ]]; then
             already=false
             for r in "${project_roles[@]}"; do

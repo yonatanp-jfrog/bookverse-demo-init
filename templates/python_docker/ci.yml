@@ -419,10 +419,10 @@ jobs:
             echo "⬆️ Incrementing to: $APP_VERSION"
           else
             echo "🆕 No existing versions found, starting fresh"
-            # Generate initial version between 1.0.0 to 2.5.9
-            MAJOR=1
-            MINOR=$((RANDOM % 6))  # 0-5
-            PATCH=$((RANDOM % 10)) # 0-9
+            # Generate initial random SemVer: major 1-5, minor 1-50, patch 1-50
+            MAJOR=$(( (RANDOM % 5) + 1 ))
+            MINOR=$(( (RANDOM % 50) + 1 ))
+            PATCH=$(( (RANDOM % 50) + 1 ))
             APP_VERSION="$MAJOR.$MINOR.$PATCH"
             echo "🎯 Generated initial version: $APP_VERSION"
           fi

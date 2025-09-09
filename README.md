@@ -93,7 +93,7 @@ curl -i \
   -H "Accept: application/vnd.github+json" \
   https://api.github.com/repos/yonatanp-jfrog/bookverse-helm/dispatches \
   -d '{
-        "event_type": "platform_release_completed",
+        "event_type": "release_completed",
         "client_payload": { "dry_run": true, "source": "init-validate" }
       }'
 # Expect: HTTP/1.1 204 No Content
@@ -114,7 +114,7 @@ RESP=$(curl -s -o /dev/null -w '%{http_code}' \
   -H "Authorization: Bearer ${GH_REPO_DISPATCH_TOKEN}" \
   -H "Accept: application/vnd.github+json" \
   https://api.github.com/repos/yonatanp-jfrog/bookverse-helm/dispatches \
-  -d '{"event_type":"platform_release_completed","client_payload":{"dry_run":true,"source":"init-validate"}}')
+  -d '{"event_type":"release_completed","client_payload":{"dry_run":true,"source":"init-validate"}}')
 if [[ "$RESP" == "204" ]]; then
   STATUS="✅ Token validated (204)"
 else

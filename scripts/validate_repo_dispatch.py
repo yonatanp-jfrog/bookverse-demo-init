@@ -6,7 +6,7 @@ Usage:
   export GH_REPO_DISPATCH_TOKEN=...  # required
   export GITHUB_OWNER=yonatanp-jfrog   # optional (default)
   export GITHUB_REPO=bookverse-helm    # optional (default)
-  export REPO_DISPATCH_EVENT=platform_release  # optional (default)
+  export REPO_DISPATCH_EVENT=release_completed  # optional (default)
   python scripts/validate_repo_dispatch.py
 
 Exits 0 on HTTP 204; non-zero otherwise.
@@ -24,7 +24,7 @@ def main() -> int:
         return 2
     owner = os.environ.get("GITHUB_OWNER", "yonatanp-jfrog")
     repo = os.environ.get("GITHUB_REPO", "bookverse-helm")
-    event_type = os.environ.get("REPO_DISPATCH_EVENT", "platform_release")
+    event_type = os.environ.get("REPO_DISPATCH_EVENT", "release_completed")
     body = {"event_type": event_type, "client_payload": {"dry_run": True, "source": "validate-script"}}
     req = urllib.request.Request(
         url=f"https://api.github.com/repos/{owner}/{repo}/dispatches",

@@ -73,6 +73,13 @@ jobs:
           disable-job-summary: false
           oidc-audience: ${{ vars.JFROG_URL }}
 
+      - name: "[Preflight] require JFROG_URL"
+        run: |
+          if [[ -z "${{ vars.JFROG_URL }}" ]]; then
+            echo "❌ Missing vars.JFROG_URL. Set repository variable JFROG_URL before running." >&2
+            exit 1
+          fi
+
       - name: "[Resolve] App & version"
         id: app
         run: |

@@ -37,6 +37,13 @@ jobs:
         with:
           version: latest
 
+      - name: "Preflight: require JFROG_URL"
+        run: |
+          if [[ -z "${{ env.JFROG_URL }}" ]]; then
+            echo "❌ Missing vars.JFROG_URL. Set repository variable JFROG_URL before running." >&2
+            exit 1
+          fi
+
       - name: Initialize JFrog Platform
         run: |
           # Configure JFrog CLI for admin access

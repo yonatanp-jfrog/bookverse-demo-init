@@ -11,8 +11,12 @@
 export PROJECT_KEY="bookverse"
 export PROJECT_DISPLAY_NAME="BookVerse"
 
-# JFrog Platform Configuration
-export JFROG_URL="${JFROG_URL:-https://apptrustswampupc.jfrog.io}"
+# JFrog Platform Configuration (required)
+if [[ -z "${JFROG_URL:-}" ]]; then
+  echo "JFROG_URL is required (no default)." >&2
+  exit 2
+fi
+export JFROG_URL
 export JFROG_ADMIN_TOKEN="${JFROG_ADMIN_TOKEN}"
 
 # Repository Configuration

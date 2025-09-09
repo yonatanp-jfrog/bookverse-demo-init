@@ -372,6 +372,45 @@ update_all_repositories() {
         if update_repository_secrets_and_variables "$repo"; then
             ((++success_count))
         fi
+
+        # After variables are updated, open a PR in each repo to replace hardcoded host strings
+        # Best-effort only; skips if clone or PR fails
+        local default_branch
+        default_branch=$(gh repo view "$GITHUB_ORG/$repo" --json defaultBranchRef --jq .defaultBranchRef.name 2>/dev/null || echo "main")
+
+        local workdir
+        workdir=$(mktemp -d)
+        pushd "$workdir" >/dev/null
+        if gh repo clone "$GITHUB_ORG/$repo" repo >/dev/null 2>&1; then
+            cd repo
+            git checkout -b chore/switch-platform-$(date +%Y%m%d%H%M%S) >/dev/null 2>&1 || true
+
+            local new_registry
+            new_registry=$(extract_docker_registry)
+
+            # Replace occurrences of the old host
+            if rg -l "evidencetrial\\.jfrog\\.io" >/dev/null 2>&1; then
+                rg -l "evidencetrial\\.jfrog\\.io" | xargs sed -i '' -e "s|evidencetrial\\.jfrog\\.io|${new_registry}|g"
+            fi
+
+            if rg -l "https://evidencetrial\\.jfrog\\.io" >/dev/null 2>&1; then
+                rg -l "https://evidencetrial\\.jfrog\\.io" | xargs sed -i '' -e "s|https://evidencetrial\\.jfrog\\.io|${NEW_JFROG_URL}|g"
+            fi
+
+            if ! git diff --quiet; then
+                git add -A
+                git commit -m "chore: switch platform host to ${new_registry}" >/dev/null 2>&1 || true
+                git push -u origin HEAD >/dev/null 2>&1 || true
+                gh pr create --title "chore: switch platform host to ${new_registry}" \
+                  --body "Automated replacement of old host with ${NEW_JFROG_URL}." \
+                  --base "$default_branch" >/dev/null 2>&1 || true
+                log_success "  → Opened PR with host replacements in $repo"
+            else
+                log_info "  → No host replacements needed in $repo"
+            fi
+        fi
+        popd >/dev/null || true
+        rm -rf "$workdir"
     done
 
     log_info "Repository update results:"

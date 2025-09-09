@@ -12,11 +12,7 @@ Implements:
     backing up its current tag to `original_tag_before_latest`.
 
 CLI usage:
-  python apptrust_rollback.py --app APP_KEY --version 1.2.3 [--base-url URL] [--token TOKEN] [--dry-run]
-
-Environment fallbacks:
-  - APPTRUST_BASE_URL
-  - APPTRUST_ACCESS_TOKEN
+  python apptrust_rollback.py --app APP_KEY --version 1.2.3 [--dry-run]
 
 Exit codes:
   0 on success; non-zero on error.
@@ -36,6 +32,8 @@ import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
+import shutil
+import subprocess
 
 
 # ------------------------- SemVer helpers -------------------------
@@ -206,6 +204,59 @@ class AppTrustClient:
         return self._request("PATCH", path, body=body)
 
 
+class AppTrustClientCLI:
+    """AppTrust client backed by JFrog CLI (OIDC-enabled).
+
+    Requires `jf` on PATH and a configured server context (e.g., via
+    `jf c add --interactive=false --url "$JFROG_URL" --access-token ""`).
+    """
+
+    def __init__(self, timeout_seconds: int = 30) -> None:
+        self.timeout_seconds = timeout_seconds
+
+    @staticmethod
+    def _ensure_cli_available() -> None:
+        if shutil.which("jf") is None:
+            raise RuntimeError("JFrog CLI (jf) not found on PATH. Install/configure it for OIDC.")
+
+    @staticmethod
+    def _run_jf(method: str, path: str, body: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        AppTrustClientCLI._ensure_cli_available()
+        args: List[str] = ["jf", "curl", "-X", method.upper(), path]
+        if body is not None:
+            args += ["-H", "Content-Type: application/json", "-d", json.dumps(body)]
+        try:
+            proc = subprocess.run(args, check=True, capture_output=True, text=True)
+        except subprocess.CalledProcessError as e:
+            raise RuntimeError(f"jf curl failed: {e.stderr.strip() or e}")
+        raw = (proc.stdout or "").strip()
+        if not raw:
+            return {}
+        try:
+            return json.loads(raw)
+        except Exception:
+            return {"raw": raw}
+
+    def list_application_versions(self, app_key: str, limit: int = 1000) -> Dict[str, Any]:
+        path = f"/apptrust/api/v1/applications/{urllib.parse.quote(app_key)}/versions"
+        return self._run_jf("GET", path + f"?limit={limit}&order_by=created&order_asc=false")
+
+    def patch_application_version(self, app_key: str, version: str, tag: Optional[str] = None, properties: Optional[Dict[str, List[str]]] = None, delete_properties: Optional[List[str]] = None) -> Dict[str, Any]:
+        path = f"/apptrust/api/v1/applications/{urllib.parse.quote(app_key)}/versions/{urllib.parse.quote(version)}"
+        body: Dict[str, Any] = {}
+        if tag is not None:
+            body["tag"] = tag
+        if properties is not None:
+            body["properties"] = properties
+        if delete_properties is not None:
+            body["delete_properties"] = delete_properties
+        return self._run_jf("PATCH", path, body=body)
+
+    def get_version_content(self, app_key: str, version: str) -> Dict[str, Any]:
+        path = f"/apptrust/api/v1/applications/{urllib.parse.quote(app_key)}/versions/{urllib.parse.quote(version)}/content"
+        return self._run_jf("GET", path)
+
+
 # ------------------------- Rollback logic -------------------------
 
 TRUSTED = "TRUSTED_RELEASE"
@@ -361,19 +412,15 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="AppTrust PROD rollback utility")
     parser.add_argument("--app", required=True, help="Application key")
     parser.add_argument("--version", required=True, help="Target version to rollback (SemVer)")
-    parser.add_argument("--base-url", default=_env("APPTRUST_BASE_URL"), help="Base API URL, e.g. https://<host>/apptrust/api/v1 (env: APPTRUST_BASE_URL)")
-    parser.add_argument("--token", default=_env("APPTRUST_ACCESS_TOKEN"), help="Access token (env: APPTRUST_ACCESS_TOKEN)")
+    # OIDC-only path: no base-url or token arguments
     parser.add_argument("--dry-run", action="store_true", help="Log intended changes without mutating")
     args = parser.parse_args()
 
-    if not args.base_url:
-        print("Missing --base-url or APPTRUST_BASE_URL", file=sys.stderr)
+    try:
+        client = AppTrustClientCLI()
+    except Exception as e:
+        print(f"OIDC (CLI) auth not available: {e}", file=sys.stderr)
         return 2
-    if not args.token:
-        print("Missing --token or APPTRUST_ACCESS_TOKEN", file=sys.stderr)
-        return 2
-
-    client = AppTrustClient(args.base_url, args.token)
 
     try:
         start = time.time()

@@ -65,7 +65,7 @@ prompt_for_admin_token() {
 
 confirm_switch() {
     local jpd_host="$1"
-    local current_host="${JFROG_URL:-https://apptrustswampupc.jfrog.io}"
+    local current_host="${JFROG_URL:-}"
     
     echo ""
     echo "🔄 JFrog Platform Switch Confirmation"
@@ -351,15 +351,14 @@ update_repository() {
         local new_registry
         new_registry=$(echo "$jpd_host" | sed 's|https://||')
 
-        # Replace common occurrences in tracked files
-        # Replace evidencetrial.jfrog.io with new host
-        if rg -l "evidencetrial\.jfrog\.io" >/dev/null 2>&1; then
-            rg -l "evidencetrial\\.jfrog\\.io" | xargs sed -i '' -e "s|evidencetrial\\.jfrog\\.io|${new_registry}|g"
+        # Replace any https://<host>.jfrog.io with the new URL
+        if grep -RIl --exclude-dir=.git -e "https://[A-Za-z0-9.-]*\\.jfrog\\.io" . >/dev/null 2>&1; then
+            grep -RIl --exclude-dir=.git -e "https://[A-Za-z0-9.-]*\\.jfrog\\.io" . | xargs sed -i '' -E "s|https://[A-Za-z0-9.-]+\\.jfrog\\.io|${jpd_host}|g"
         fi
 
-        # Replace https://evidencetrial.jfrog.io with new URL
-        if rg -l "https://evidencetrial\.jfrog\.io" >/dev/null 2>&1; then
-            rg -l "https://evidencetrial\\.jfrog\\.io" | xargs sed -i '' -e "s|https://evidencetrial\\.jfrog\\.io|${jpd_host}|g"
+        # Replace any bare <host>.jfrog.io with the new registry host
+        if grep -RIl --exclude-dir=.git -e "[A-Za-z0-9.-]*\\.jfrog\\.io" . >/dev/null 2>&1; then
+            grep -RIl --exclude-dir=.git -e "[A-Za-z0-9.-]*\\.jfrog\\.io" . | xargs sed -i '' -E "s|\b[A-Za-z0-9.-]+\\.jfrog\\.io\b|${new_registry}|g"
         fi
 
         # Commit if changes

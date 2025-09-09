@@ -58,8 +58,10 @@ jf docker push registry.com/image:tag
 For CI/CD workflows, use JFrog CLI's OIDC integration:
 
 ```yaml
+# Temporary workaround: using forked action until upstream fix
 - name: Setup JFrog CLI
-  uses: jfrog/setup-jfrog-cli@v4
+  # uses: jfrog/setup-jfrog-cli@v4
+  uses: EyalDelarea/setup-jfrog-cli@swampUpAppTrust
   with:
     version: latest
 
@@ -107,8 +109,10 @@ Update workflows to use JFrog CLI commands:
   run: echo "${{ secrets.TOKEN }}" | docker login registry.com -u username --password-stdin
 
 # After (secure)
+# Temporary workaround: using forked action until upstream fix
 - name: Setup JFrog CLI
-  uses: jfrog/setup-jfrog-cli@v4
+  # uses: jfrog/setup-jfrog-cli@v4
+  uses: EyalDelarea/setup-jfrog-cli@swampUpAppTrust
 
 - name: Docker operations
   run: |

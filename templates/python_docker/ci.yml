@@ -30,7 +30,9 @@ jobs:
           echo "🕐 Timestamp: $(date -u)"
 
       - name: Setup JFrog CLI
-        uses: jfrog/setup-jfrog-cli@v4
+        # Temporary workaround: using forked action until upstream fix
+        # uses: jfrog/setup-jfrog-cli@v4
+        uses: EyalDelarea/setup-jfrog-cli@swampUpAppTrust
         with:
           version: latest
 
@@ -374,7 +376,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup JFrog CLI
-        uses: jfrog/setup-jfrog-cli@v4
+        # Temporary workaround: using forked action until upstream fix
+        # uses: jfrog/setup-jfrog-cli@v4
+        uses: EyalDelarea/setup-jfrog-cli@swampUpAppTrust
         with:
           version: latest
 

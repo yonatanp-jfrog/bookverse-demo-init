@@ -29,6 +29,18 @@ SERVICE_REPOS=(
     "yonatanp-jfrog/bookverse-helm"
 )
 
+# Optional: Configure GH_REPO_DISPATCH_TOKEN for platform repo (for CI validation)
+if [[ -n "${GH_REPO_DISPATCH_TOKEN:-}" ]]; then
+    echo "🔐 Configuring GH_REPO_DISPATCH_TOKEN for bookverse-platform (optional)"
+    if echo -n "$GH_REPO_DISPATCH_TOKEN" | gh secret set GH_REPO_DISPATCH_TOKEN --repo "yonatanp-jfrog/bookverse-platform"; then
+        echo "✅ bookverse-platform: GH_REPO_DISPATCH_TOKEN configured"
+    else
+        echo "⚠️  Failed to set GH_REPO_DISPATCH_TOKEN in bookverse-platform (continuing)"
+    fi
+else
+    echo "ℹ️ GH_REPO_DISPATCH_TOKEN not provided; skipping repo secret configuration"
+fi
+
 # Configure secret for each repository
 for repo in "${SERVICE_REPOS[@]}"; do
     echo "📦 Configuring ${repo}..."

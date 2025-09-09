@@ -61,7 +61,9 @@ jobs:
           sudo apt-get install -y jq
 
       - name: "[Setup] JFrog CLI"
-        uses: jfrog/setup-jfrog-cli@v4
+        # Temporary workaround: using forked action until upstream fix
+        # uses: jfrog/setup-jfrog-cli@v4
+        uses: EyalDelarea/setup-jfrog-cli@swampUpAppTrust
         env:
           JF_URL: ${{ vars.JFROG_URL }}
           JF_PROJECT: ${{ vars.PROJECT_KEY }}

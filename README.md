@@ -40,6 +40,98 @@ bash scripts/set_actions_vars.sh
 This will set `PROJECT_KEY`, `JFROG_URL`, and `DOCKER_REGISTRY` as Actions variables in:
 `bookverse-inventory`, `bookverse-recommendations`, `bookverse-checkout`, `bookverse-platform`, `bookverse-demo-assets`.
 
+## 🔐 GitHub PAT for repository_dispatch (Option A)
+
+For the platform webhook flow, the `bookverse-platform` service needs to call GitHub `repository_dispatch` on `bookverse-helm`. For the demo, we use a fine-grained Personal Access Token (PAT). Create it once, then pass it to the init so it can be validated and stored as a secret.
+
+### 1) Create a fine‑grained PAT
+
+Follow these steps in GitHub (first time only):
+
+1. Sign in to GitHub with the account that owns or has access to the `bookverse-helm` repository (a bot account is ideal).
+2. Go to: Profile menu → Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token.
+3. Name: "BookVerse Helm Dispatch (platform)".
+4. Expiration: pick an expiration (e.g., 90 days). For demo convenience only, you may choose "No expiration" (not recommended for production).
+5. Resource owner: choose your organization or user that owns `bookverse-helm`.
+6. Repository access: "Only select repositories" → select `bookverse-helm`.
+7. Repository permissions: set "Contents" to "Read and write". Leave others as default. Only add "Actions: Read and write" if your workflow actually needs it.
+8. Click "Generate token" and copy the token value. Store it securely.
+
+We will refer to this value as `GH_REPO_DISPATCH_TOKEN`.
+
+### 2) Provide the token to the init flow
+
+Before running the init, export the token as an environment variable so scripts can read and validate it:
+
+```bash
+export GH_REPO_DISPATCH_TOKEN="<paste your fine-grained PAT here>"
+```
+
+Optionally, set it as a GitHub repository secret for the `bookverse-platform` repo to enable CI-based validation:
+
+```bash
+# Requires GitHub CLI (gh) authenticated as a user with repo admin rights
+gh secret set GH_REPO_DISPATCH_TOKEN --repo yonatanp-jfrog/bookverse-platform < <(echo -n "$GH_REPO_DISPATCH_TOKEN")
+```
+
+Create a Kubernetes Secret for the platform service so it can call `repository_dispatch` at runtime:
+
+```bash
+kubectl -n bookverse create secret generic platform-repo-dispatch \
+  --from-literal=GITHUB_TOKEN="$GH_REPO_DISPATCH_TOKEN"
+```
+
+If you re-run, use `kubectl -n bookverse delete secret platform-repo-dispatch` first, or add `--dry-run=client -o yaml | kubectl apply -f -` to make it idempotent.
+
+### 3) Validate the token (dry‑run dispatch)
+
+Run a one-shot validation to ensure the token can dispatch to `bookverse-helm`:
+
+```bash
+curl -i \
+  -H "Authorization: Bearer $GH_REPO_DISPATCH_TOKEN" \
+  -H "Accept: application/vnd.github+json" \
+  https://api.github.com/repos/yonatanp-jfrog/bookverse-helm/dispatches \
+  -d '{
+        "event_type": "platform_release_completed",
+        "client_payload": { "dry_run": true, "source": "init-validate" }
+      }'
+# Expect: HTTP/1.1 204 No Content
+```
+
+If you see 401/403, verify the token is fine‑grained, scoped only to `bookverse-helm`, and has "Contents: Read and write" permission.
+
+### 4) Init and job summary behavior
+
+- The init flow should fail fast if `GH_REPO_DISPATCH_TOKEN` is missing or empty.
+- During validation, it can write a short summary to the GitHub job summary (if running in Actions):
+
+```bash
+if [[ -z "${GH_REPO_DISPATCH_TOKEN:-}" ]]; then
+  echo "❌ Missing GH_REPO_DISPATCH_TOKEN"; exit 1
+fi
+RESP=$(curl -s -o /dev/null -w '%{http_code}' \
+  -H "Authorization: Bearer ${GH_REPO_DISPATCH_TOKEN}" \
+  -H "Accept: application/vnd.github+json" \
+  https://api.github.com/repos/yonatanp-jfrog/bookverse-helm/dispatches \
+  -d '{"event_type":"platform_release_completed","client_payload":{"dry_run":true,"source":"init-validate"}}')
+if [[ "$RESP" == "204" ]]; then
+  STATUS="✅ Token validated (204)"
+else
+  STATUS="❌ Token validation failed ($RESP)"
+fi
+{
+  echo '### GitHub PAT Validation';
+  echo "";
+  echo "- Result: $STATUS";
+  echo "- Repository: yonatanp-jfrog/bookverse-helm";
+  echo "- Event: repository_dispatch platform_release_completed";
+} >> "$GITHUB_STEP_SUMMARY"
+[[ "$RESP" == "204" ]] || exit 1
+```
+
+With the token created and validated, you can proceed to run the initialization steps. The platform webhook handler will use this token (mounted from the Kubernetes Secret) to create `repository_dispatch` events when it receives the AppTrust `release_completed` webhook.
+
 ### 📦 Provision Artifactory Repositories (Steady State)
 
 Provision the required repositories once during initialization using the setup script (CI will not create repos dynamically):

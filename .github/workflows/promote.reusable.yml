@@ -61,9 +61,7 @@ jobs:
           sudo apt-get install -y jq
 
       - name: "[Setup] JFrog CLI"
-        # Temporary workaround: using forked action until upstream fix
-        # uses: jfrog/setup-jfrog-cli@v4
-        uses: EyalDelarea/setup-jfrog-cli@swampUpAppTrust
+        uses: jfrog/setup-jfrog-cli@v4
         env:
           JF_URL: ${{ vars.JFROG_URL }}
           JF_PROJECT: ${{ vars.PROJECT_KEY }}
@@ -72,13 +70,6 @@ jobs:
           oidc-provider-name: ${{ inputs.oidc_provider_name }}
           disable-job-summary: false
           oidc-audience: ${{ vars.JFROG_URL }}
-
-      - name: "[Preflight] require JFROG_URL"
-        run: |
-          if [[ -z "${{ vars.JFROG_URL }}" ]]; then
-            echo "❌ Missing vars.JFROG_URL. Set repository variable JFROG_URL before running." >&2
-            exit 1
-          fi
 
       - name: "[Resolve] App & version"
         id: app

@@ -65,7 +65,7 @@ prompt_for_admin_token() {
 
 confirm_switch() {
     local jpd_host="$1"
-    local current_host="${JFROG_URL:-https://evidencetrial.jfrog.io}"
+    local current_host="${JFROG_URL:-https://apptrustswampupc.jfrog.io}"
     
     echo ""
     echo "🔄 JFrog Platform Switch Confirmation"
@@ -333,6 +333,55 @@ update_repository() {
         log_warning "  → $full_repo partially updated"
     fi
     
+    # Optional: open a PR to replace hardcoded old hostnames in repo files
+    # Detect default branch
+    local default_branch
+    default_branch=$(gh repo view "$full_repo" --json defaultBranchRef --jq .defaultBranchRef.name 2>/dev/null || echo "main")
+
+    # Create a working dir
+    local workdir
+    workdir=$(mktemp -d)
+    pushd "$workdir" >/dev/null
+
+    if gh repo clone "$full_repo" repo >/dev/null 2>&1; then
+        cd repo
+        git checkout -b chore/switch-platform-$(date +%Y%m%d%H%M%S) >/dev/null 2>&1 || true
+
+        # Compute new registry (host without scheme)
+        local new_registry
+        new_registry=$(echo "$jpd_host" | sed 's|https://||')
+
+        # Replace common occurrences in tracked files
+        # Replace evidencetrial.jfrog.io with new host
+        if rg -l "evidencetrial\.jfrog\.io" >/dev/null 2>&1; then
+            rg -l "evidencetrial\\.jfrog\\.io" | xargs sed -i '' -e "s|evidencetrial\\.jfrog\\.io|${new_registry}|g"
+        fi
+
+        # Replace https://evidencetrial.jfrog.io with new URL
+        if rg -l "https://evidencetrial\.jfrog\.io" >/dev/null 2>&1; then
+            rg -l "https://evidencetrial\\.jfrog\\.io" | xargs sed -i '' -e "s|https://evidencetrial\\.jfrog\\.io|${jpd_host}|g"
+        fi
+
+        # Commit if changes
+        if ! git diff --quiet; then
+            git add -A
+            git commit -m "chore: switch platform host to ${new_registry}" >/dev/null 2>&1 || true
+            git push -u origin HEAD >/dev/null 2>&1 || true
+            # Open PR
+            gh pr create --title "chore: switch platform host to ${new_registry}" \
+              --body "Automated replacement of old host with ${jpd_host}." \
+              --base "$default_branch" >/dev/null 2>&1 || true
+            log_success "  → Opened PR with host replacements in $full_repo"
+        else
+            log_info "  → No host replacements needed in $full_repo"
+        fi
+    else
+        log_warning "  → Could not clone $full_repo for in-repo replacements"
+    fi
+
+    popd >/dev/null || true
+    rm -rf "$workdir"
+
     return 0
 }
 

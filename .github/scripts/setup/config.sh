@@ -12,7 +12,7 @@ export PROJECT_KEY="bookverse"
 export PROJECT_DISPLAY_NAME="BookVerse"
 
 # JFrog Platform Configuration
-export JFROG_URL="${JFROG_URL:-https://evidencetrial.jfrog.io}"
+export JFROG_URL="${JFROG_URL:-https://apptrustswampupc.jfrog.io}"
 export JFROG_ADMIN_TOKEN="${JFROG_ADMIN_TOKEN}"
 
 # Repository Configuration

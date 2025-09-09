@@ -111,7 +111,7 @@ Both methods perform comprehensive validation:
 
 ```bash
 # From trial platform
-FROM: https://evidencetrial.jfrog.io
+FROM: https://apptrustswampupc.jfrog.io
 
 # To production platform  
 TO: https://acme.jfrog.io

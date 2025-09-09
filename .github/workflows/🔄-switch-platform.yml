@@ -85,7 +85,7 @@ jobs:
           echo "LOG_FILE=$LOG_FILE" >> "$GITHUB_ENV"
           echo "🔄 Starting JFrog Platform Switch"
           echo "=================================================="
-          echo "From: ${{ vars.JFROG_URL || 'https://evidencetrial.jfrog.io' }}"
+          echo "From: ${{ vars.JFROG_URL || 'https://apptrustswampupc.jfrog.io' }}"
           echo "To: ${{ github.event.inputs.jpd_host }}"
           echo ""
 
@@ -153,7 +153,7 @@ jobs:
             echo "🎯 **BookVerse is now configured for the new platform**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "### 📋 Migration details:" >> $GITHUB_STEP_SUMMARY
-            echo "- 🔗 **From**: \`${{ vars.JFROG_URL || 'https://evidencetrial.jfrog.io' }}\`" >> $GITHUB_STEP_SUMMARY
+            echo "- 🔗 **From**: \`${{ vars.JFROG_URL || 'https://apptrustswampupc.jfrog.io' }}\`" >> $GITHUB_STEP_SUMMARY
             echo "- 🎯 **To**: \`${{ github.event.inputs.jpd_host }}\`" >> $GITHUB_STEP_SUMMARY
             echo "- 📦 **Updated repositories**: All BookVerse service repositories" >> $GITHUB_STEP_SUMMARY
             echo "- 🔐 **Environment variables**: JFROG_URL, DOCKER_REGISTRY updated" >> $GITHUB_STEP_SUMMARY

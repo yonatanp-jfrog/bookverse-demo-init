@@ -9,7 +9,7 @@ set -e
 # Need to find what discovery methods actually work
 
 PROJECT_KEY="bookverse"
-JFROG_URL="${JFROG_URL:-https://evidencetrial.jfrog.io}"
+JFROG_URL="${JFROG_URL:-https://apptrustswampupc.jfrog.io}"
 TEMP_DIR="/tmp/resource_investigation_$$"
 
 mkdir -p "$TEMP_DIR"

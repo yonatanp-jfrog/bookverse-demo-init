@@ -19,9 +19,9 @@ The following repositories need `JFROG_ACCESS_TOKEN` configured:
 
 ### ✅ All Repositories Have Required Variables
 All repositories are properly configured with:
-- `JFROG_URL`: `https://evidencetrial.jfrog.io`
+- `JFROG_URL`: `https://apptrustswampupc.jfrog.io`
 - `PROJECT_KEY`: `bookverse`
-- `DOCKER_REGISTRY`: `evidencetrial.jfrog.io`
+- `DOCKER_REGISTRY`: `apptrustswampupc.jfrog.io`
 
 ## Configuration Options
 

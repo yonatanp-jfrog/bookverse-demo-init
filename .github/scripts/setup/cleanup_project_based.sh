@@ -185,22 +185,22 @@ jfrog_api_call() {
         if [[ "$endpoint" == /artifactory/* ]]; then
             if [[ -n "$data_payload" ]]; then
                 if $include_project_header; then
-                    code=$(echo "$data_payload" | jf rt curl -X "$method" -H "X-JFrog-Project: ${PROJECT_KEY}" "$endpoint" --write-out "%{http_code}" --output "$output_file" --silent --data @-)
+                    code=$(echo "$data_payload" | jf curl -X "$method" -H "X-JFrog-Project: ${PROJECT_KEY}" "$endpoint" --write-out "%{http_code}" --output "$output_file" --silent --data @-)
                 else
-                    code=$(echo "$data_payload" | jf rt curl -X "$method" "$endpoint" --write-out "%{http_code}" --output "$output_file" --silent --data @-)
+                    code=$(echo "$data_payload" | jf curl -X "$method" "$endpoint" --write-out "%{http_code}" --output "$output_file" --silent --data @-)
                 fi
             else
                 if $include_project_header; then
-                    code=$(jf rt curl -X "$method" -H "X-JFrog-Project: ${PROJECT_KEY}" "$endpoint" --write-out "%{http_code}" --output "$output_file" --silent)
+                    code=$(jf curl -X "$method" -H "X-JFrog-Project: ${PROJECT_KEY}" "$endpoint" --write-out "%{http_code}" --output "$output_file" --silent)
                 else
-                    code=$(jf rt curl -X "$method" "$endpoint" --write-out "%{http_code}" --output "$output_file" --silent)
+                    code=$(jf curl -X "$method" "$endpoint" --write-out "%{http_code}" --output "$output_file" --silent)
                 fi
             fi
         else
             if [[ -n "$data_payload" ]]; then
-                code=$(echo "$data_payload" | jf rt curl -X "$method" "$endpoint" --write-out "%{http_code}" --output "$output_file" --silent --data @-)
+                code=$(echo "$data_payload" | jf curl -X "$method" "$endpoint" --write-out "%{http_code}" --output "$output_file" --silent --data @-)
             else
-                code=$(jf rt curl -X "$method" "$endpoint" --write-out "%{http_code}" --output "$output_file" --silent)
+                code=$(jf curl -X "$method" "$endpoint" --write-out "%{http_code}" --output "$output_file" --silent)
             fi
         fi
     else
@@ -286,7 +286,7 @@ jf c add bookverse-admin --url="${JFROG_URL}" --access-token="${JFROG_ADMIN_TOKE
 jf c use bookverse-admin
 
 # Test authentication
-auth_test_code=$(jf rt curl -X GET "/api/system/ping" --write-out "%{http_code}" --output /dev/null --silent)
+auth_test_code=$(jf curl -X GET "/api/system/ping" --write-out "%{http_code}" --output /dev/null --silent)
 if [ "$auth_test_code" -eq 200 ]; then
     echo "✅ Authentication successful"
 else

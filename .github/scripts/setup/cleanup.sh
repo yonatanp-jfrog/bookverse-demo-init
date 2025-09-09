@@ -100,7 +100,7 @@ jf c use bookverse-admin
 
 # Test authentication
 echo "Testing authentication..."
-auth_test_code=$(jf rt curl -X GET "/api/system/ping" --write-out "%{http_code}" --output /dev/null --silent)
+auth_test_code=$(jf curl -X GET "/api/system/ping" --write-out "%{http_code}" --output /dev/null --silent)
 if [ "$auth_test_code" -eq 200 ]; then
     echo "Authentication successful"
 else
@@ -129,9 +129,9 @@ jfrog_api_call() {
     if [[ "$client" == "jf" ]]; then
         # Add project header automatically for Artifactory endpoints
         if [[ "$endpoint" == /artifactory/* ]]; then
-            code=$(jf rt curl -X "$method" -H "X-JFrog-Project: ${PROJECT_KEY}" "$endpoint" --write-out "%{http_code}" --output "$output_file" --silent $extra_args)
+            code=$(jf curl -X "$method" -H "X-JFrog-Project: ${PROJECT_KEY}" "$endpoint" --write-out "%{http_code}" --output "$output_file" --silent $extra_args)
         else
-            code=$(jf rt curl -X "$method" "$endpoint" --write-out "%{http_code}" --output "$output_file" --silent $extra_args)
+            code=$(jf curl -X "$method" "$endpoint" --write-out "%{http_code}" --output "$output_file" --silent $extra_args)
         fi
         echo "[HTTP] $client $method $endpoint -> $code (project=${PROJECT_KEY})" | tee -a "$HTTP_DEBUG_LOG" >/dev/null
         if [[ "$code" != 2* && -s "$output_file" ]]; then
@@ -394,7 +394,7 @@ delete_resource() {
                             # Verify deletion for repositories
                             if [[ "$resource_type" == "repositories" ]]; then
                                 sleep 1
-                                local verify_code=$(jf rt curl -X GET "/api/repositories/$item" --write-out "%{http_code}" --output /dev/null --silent)
+                                local verify_code=$(jf curl -X GET "/api/repositories/$item" --write-out "%{http_code}" --output /dev/null --silent)
                                 if [[ "$verify_code" -eq $HTTP_NOT_FOUND ]] || [[ "$verify_code" -eq $HTTP_BAD_REQUEST ]]; then
                                     echo "Deletion confirmed - repository no longer exists (HTTP $verify_code)"
                                 else

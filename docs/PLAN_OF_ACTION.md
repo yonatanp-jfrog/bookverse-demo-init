@@ -61,7 +61,7 @@ Each service repo includes:
 - Primary chart: `platform` (includes and pins all microservice images used by the platform release).
 - Optional internal charts: per-service charts may exist for testing but are NOT deployed to clusters.
 - Charts are versioned and packaged in CI, then pushed to `${PROJECT_KEY}-helm-internal-helm-nonprod-local` (and to `${PROJECT_KEY}-helm-internal-helm-release-local` for PROD).
-- Provide per-environment values files (DEV/QA/STAGING/PROD) overriding image tags, resources, and config.
+- Use a single `values.yaml` to control image tags, resources, and config; no per-environment overlays.
 
 ### GitOps with ArgoCD
 - Store ArgoCD app manifests in `bookverse-demo-assets` under `gitops/`:
@@ -147,7 +147,7 @@ Each service repo includes:
 17) Helm charts (platform-centric) and publish to Helm repos
    17.1) Create Helm chart skeleton for `platform` (and optional `web`)
    17.2) Define values.yaml (per microservice image repo/tag, resources, env, probes)
-   17.3) Create per-env values: `values-dev.yaml`, `values-qa.yaml`, `values-staging.yaml`, `values-prod.yaml`
+   17.3) Use single `values.yaml` (no per-env overlays)
    17.4) Add CI packaging step (helm package) and push to Helm internal repo
    17.5) Implement chart version bumping tied to platform app/image versions
    17.6) Add NOTES.txt and standard templates (deployment, service, ingress)
@@ -181,7 +181,7 @@ Completed:
 - 16.5) Runtime config entrypoint ✅
 - 16.6) SBOM/sign placeholders ✅
 - 16.7) Web README ✅
-- 17) Helm charts (platform-centric) ✅ (chart, env values, CI placeholder)
+- 17) Helm charts (platform-centric) ✅ (chart, values.yaml, CI placeholder)
 - 18) ArgoCD GitOps (platform-only) ✅ (projects/apps scaffolding)
 
 Pending/Skipped:

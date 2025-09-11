@@ -178,16 +178,6 @@ def compute_next_build_number(app_key: str, vm: Dict[str, Any], jfrog_url: str, 
 
 
 def compute_next_package_tag(app_key: str, package_name: str, vm: Dict[str, Any], jfrog_url: str, token: str, project_key: Optional[str]) -> str:
-    # Query Artifactory Docker tags list via REST API. Prefer AQL/Tag list if available.
-    # For the demo, we assume tags are stored under repos named like: <PROJECT>-<service>-docker-internal-local/<image>:<tag>
-    # We will attempt to fetch tags; if unavailable, fallback to seed.
-    base = jfrog_url.rstrip("/") + "/artifactory/api"
-    headers = {"Authorization": f"Bearer {token}", "Accept": "application/json"}
-    
-    # Try to query existing tags for this package (implementation depends on registry structure)
-    # For now, this is a placeholder for future Docker registry API integration
-    # TODO: Implement proper tag listing via Docker v2 API or Artifactory AQL
-    
     # Find package configuration and seed
     entry = find_app_entry(vm, app_key)
     pkg = None
@@ -195,15 +185,79 @@ def compute_next_package_tag(app_key: str, package_name: str, vm: Dict[str, Any]
         if (it.get("name") or "").strip() == package_name:
             pkg = it
             break
-    seed = (pkg or {}).get("seed")
-
-    # If we had existing versions, we would bump the latest one here
-    # Since tag listing is not implemented yet, fallback to seed
-    # Future: implement proper version bumping when tag listing is available
     
-    if seed and parse_semver(str(seed)):
-        return str(seed)
-    raise SystemExit(f"No valid seed for package {app_key}/{package_name}")
+    if not pkg:
+        raise SystemExit(f"Package {package_name} not found in version map for {app_key}")
+    
+    seed = pkg.get("seed")
+    package_type = pkg.get("type", "")
+    
+    if not seed or not parse_semver(str(seed)):
+        raise SystemExit(f"No valid seed for package {app_key}/{package_name}")
+    
+    headers = {"Authorization": f"Bearer {token}", "Accept": "application/json"}
+    
+    # Try to find existing versions to bump from
+    existing_versions = []
+    
+    if package_type == "docker":
+        # For Docker packages, query Docker registry API
+        try:
+            # Extract service name from app_key (bookverse-web -> web)
+            service_name = app_key.replace("bookverse-", "")
+            repo_key = f"{project_key or 'bookverse'}-{service_name}-docker-internal-nonprod-local"
+            docker_url = f"{jfrog_url.rstrip('/')}/artifactory/api/docker/{repo_key}/v2/{package_name}/tags/list"
+            
+            resp = http_get(docker_url, headers)
+            if isinstance(resp, dict) and "tags" in resp:
+                # Filter to valid semver tags only
+                for tag in resp.get("tags", []):
+                    if isinstance(tag, str) and parse_semver(tag):
+                        existing_versions.append(tag)
+        except Exception:
+            # If Docker API fails, continue with fallback logic
+            pass
+    
+    elif package_type == "generic":
+        # For generic packages, try to query via AQL to find existing versions
+        try:
+            # Extract service name from app_key (bookverse-web -> web)
+            service_name = app_key.replace("bookverse-", "")
+            # Generic repo pattern: bookverse-{service}-internal-generic-nonprod-local
+            repo_key = f"{project_key or 'bookverse'}-{service_name}-internal-generic-nonprod-local"
+            
+            # AQL query to find artifacts in the repository with version patterns
+            aql_query = f'''items.find({{"repo":"{repo_key}","type":"file"}}).include("name","path","actual_sha1")'''
+            aql_url = f"{jfrog_url.rstrip('/')}/artifactory/api/search/aql"
+            
+            resp = http_get(aql_url, headers)
+            if isinstance(resp, dict) and "results" in resp:
+                # Extract version numbers from paths/names
+                for item in resp.get("results", []):
+                    path = item.get("path", "")
+                    name = item.get("name", "")
+                    
+                    # Look for version patterns in path (e.g., /web/assets/1.6.14/)
+                    import re
+                    version_pattern = r'/(\d+\.\d+\.\d+)/'
+                    match = re.search(version_pattern, path)
+                    if match:
+                        version = match.group(1)
+                        if parse_semver(version):
+                            existing_versions.append(version)
+        except Exception:
+            # If AQL fails, continue with fallback logic
+            pass
+    
+    # If we found existing versions, bump the latest one
+    if existing_versions:
+        latest = max_semver(existing_versions)
+        if latest:
+            return bump_patch(latest)
+    
+    # Fallback: bump the seed version to avoid conflicts
+    # This ensures we don't reuse the exact seed version which may already exist
+    return bump_patch(str(seed))
 
 
 def main():

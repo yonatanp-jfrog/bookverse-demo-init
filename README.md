@@ -123,6 +123,7 @@ gh run watch
 - ✅ Multiple Artifactory repositories for all services and package types
 - ✅ AppTrust lifecycle stages (DEV → QA → STAGING → PROD)
 - ✅ AppTrust applications with ownership and criticality settings (inventory, recommendations, checkout, platform, web)
+- ✅ Custom roles with specific permissions (including `bookverse-k8s-image-pull` for container deployment)
 - ✅ Demo users with appropriate role assignments
 - ✅ OIDC integrations for passwordless GitHub Actions
 - ✅ Evidence keys for cryptographic signing and verification
@@ -497,7 +498,7 @@ export REGISTRY_PASSWORD='BookVerse2024!'  # Default demo password
 Your user needs these **minimum permissions**:
 - **Read access** to BookVerse Docker repositories:
   - `bookverse-*-docker-release-local` (PROD images only)
-- **Project membership** in the `bookverse` project (Viewer role minimum)
+- **Project membership** in the `bookverse` project (custom `bookverse-k8s-image-pull` role or Viewer minimum)
 
 **Using Access Tokens (Recommended for Production)**
 Instead of passwords, use JFrog access tokens:

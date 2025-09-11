@@ -74,7 +74,7 @@ map_role_to_project_role() {
         # Service managers should be members with elevated release capabilities
         "Inventory Manager"|"AI/ML Manager"|"Checkout Manager") echo "Release Manager" ;;
         "Pipeline User") echo "Developer" ;;
-        "K8s Pull User") echo "Viewer" ;;
+        "K8s Pull User") echo "bookverse-k8s-image-pull" ;;
         *) echo "Viewer" ;;
     esac
 }

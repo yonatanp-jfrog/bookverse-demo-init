@@ -21,11 +21,13 @@ Use the automated GitHub Actions workflow for a seamless switch:
    - **Platform Host**: Your new platform URL (e.g., `https://mycompany.jfrog.io`)
    - **Admin Token**: Admin token for the new platform
    - **Confirmation**: Type `SWITCH` to confirm
+   - **Update Kubernetes**: ✅ Check to automatically update K8s cluster registry (optional)
 
 **Features:**
 - ✅ Automated validation of host format and connectivity
 - ✅ Service availability testing
 - ✅ Updates all 8 BookVerse repositories automatically
+- ✅ Optional Kubernetes cluster registry update
 - ✅ Comprehensive error handling and rollback capability
 - ✅ Full audit trail in GitHub Actions logs
 
@@ -158,6 +160,71 @@ TO: https://acme-eu.jfrog.io
 - **Cause**: BookVerse repository doesn't exist in GitHub org
 - **Solution**: Repository is skipped automatically (expected behavior)
 
+## Kubernetes Cluster Updates
+
+When switching JFrog platforms, your Kubernetes cluster needs to be updated to pull images from the new registry.
+
+### Automatic Update (Recommended)
+
+The GitHub Actions workflow can automatically update your K8s cluster:
+
+1. **Check "Update Kubernetes"** when running the switch workflow
+2. **Ensure cluster access**: GitHub Actions runner must have kubectl access to your cluster
+3. **Automatic process**:
+   - Generates new access token for `k8s.pull@bookverse.com` user
+   - Updates docker registry secret in `bookverse-prod` namespace
+   - Restarts deployments to pull from new registry
+
+### Manual Update
+
+If automatic update isn't available, update manually:
+
+```bash
+# Set environment variables for new platform
+export NEW_JFROG_URL='https://your-new-platform.jfrog.io'
+export NEW_JFROG_ADMIN_TOKEN='your-admin-token'
+
+# Run the update script
+cd bookverse-demo-init
+./scripts/k8s/update-registry.sh --restart-deployments
+```
+
+**Options:**
+- `--dry-run`: Preview changes without applying them
+- `--restart-deployments`: Restart deployments after updating registry
+
+### Manual Alternative
+
+If the script is not available, update manually with kubectl:
+
+```bash
+# 1. Generate access token for K8s user
+ACCESS_TOKEN=$(curl -s -X POST \
+  --header "Authorization: Bearer ${NEW_JFROG_ADMIN_TOKEN}" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "username": "k8s.pull@bookverse.com",
+    "scope": "applied-permissions/user", 
+    "expires_in": 31536000,
+    "description": "K8s image pull token"
+  }' \
+  "${NEW_JFROG_URL}/access/api/v1/tokens" | jq -r '.access_token')
+
+# 2. Extract registry hostname
+NEW_REGISTRY=$(echo "$NEW_JFROG_URL" | sed 's|https://||')
+
+# 3. Update Kubernetes secret
+kubectl -n bookverse-prod create secret docker-registry jfrog-docker-pull \
+  --docker-server="$NEW_REGISTRY" \
+  --docker-username="k8s.pull@bookverse.com" \
+  --docker-password="$ACCESS_TOKEN" \
+  --docker-email="k8s.pull@bookverse.com" \
+  --dry-run=client -o yaml | kubectl apply -f -
+
+# 4. Restart deployments
+kubectl -n bookverse-prod rollout restart deployment --all
+```
+
 ## Post-Switch Verification
 
 After switching platforms, verify the configuration:
@@ -177,6 +244,18 @@ gh variable list --repo yonatanp-jfrog/bookverse-inventory
 - Ensure OIDC integrations work (if configured)
 - Test AppTrust application mappings
 - Verify repository and project access
+
+### 4. Verify Kubernetes Cluster (if applicable)
+```bash
+# Check registry secret
+kubectl -n bookverse-prod get secret jfrog-docker-pull -o yaml
+
+# Verify deployments are running with new images
+kubectl -n bookverse-prod get pods
+
+# Check recent events for image pull issues
+kubectl -n bookverse-prod get events --sort-by='.lastTimestamp'
+```
 
 ## Security Considerations
 

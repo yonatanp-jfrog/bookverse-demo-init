@@ -15,6 +15,11 @@ on:
         description: 'Type "SWITCH" to confirm platform migration'
         required: true
         type: string
+      update_k8s:
+        description: 'Update Kubernetes cluster registry (requires kubectl access)'
+        required: false
+        type: boolean
+        default: false
 
 env:
   # GitHub token for updating other repositories
@@ -129,6 +134,43 @@ jobs:
           echo ""
           echo "🚀 BookVerse is now configured for the new platform!"
 
+      - name: Update Kubernetes Cluster Registry
+        if: github.event.inputs.update_k8s == 'true'
+        run: |
+          echo "🔧 Updating Kubernetes cluster registry configuration..."
+          echo ""
+          
+          # Check if kubectl is available
+          if ! command -v kubectl >/dev/null 2>&1; then
+            echo "❌ kubectl not found. Installing kubectl..."
+            curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+            chmod +x kubectl
+            sudo mv kubectl /usr/local/bin/
+          fi
+          
+          # Check cluster connectivity
+          if ! kubectl cluster-info >/dev/null 2>&1; then
+            echo "❌ Cannot connect to Kubernetes cluster"
+            echo "   Make sure your cluster is accessible and kubeconfig is configured"
+            echo "   Skipping K8s update - you'll need to update manually"
+            exit 0
+          fi
+          
+          # Run the K8s registry update script
+          export NEW_JFROG_URL='${{ github.event.inputs.jpd_host }}'
+          export NEW_JFROG_ADMIN_TOKEN='${{ github.event.inputs.admin_token }}'
+          
+          if ./scripts/k8s/update-registry.sh --restart-deployments; then
+            echo ""
+            echo "✅ Kubernetes cluster updated successfully!"
+            echo "   - Registry secret updated with new platform credentials"
+            echo "   - Deployments restarted to pull from new registry"
+          else
+            echo ""
+            echo "⚠️  Kubernetes update failed - you'll need to update manually"
+            echo "   See the manual update instructions in the documentation"
+          fi
+
       - name: 📋 Switch Platform Summary
         if: always()
         run: |
@@ -153,6 +195,9 @@ jobs:
             echo "2. 🧪 **Test CI/CD workflows** to verify integration" >> $GITHUB_STEP_SUMMARY
             echo "3. 🔍 **Check service repositories** for updated configurations" >> $GITHUB_STEP_SUMMARY
             echo "4. ⚙️ **Verify platform-specific settings** (OIDC, webhooks, etc.)" >> $GITHUB_STEP_SUMMARY
+            if [[ "${{ github.event.inputs.update_k8s }}" != "true" ]]; then
+              echo "5. 🔧 **Update Kubernetes cluster** manually (see documentation)" >> $GITHUB_STEP_SUMMARY
+            fi
           else
             echo "❌ **Platform switch failed**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY

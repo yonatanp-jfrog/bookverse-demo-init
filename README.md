@@ -27,13 +27,22 @@ BookVerse is a complete SaaS solution demonstrating secure software delivery wit
 
 ### Prerequisites Checklist
 
-Before starting, ensure you have:
+**Core Demo Requirements** (JFrog Platform + CI/CD Pipeline):
 
 - [ ] **JFrog Platform access** with admin privileges
 - [ ] **GitHub organization** with repository creation permissions
 - [ ] **GitHub CLI (`gh`)** installed and authenticated
 - [ ] **Basic tools**: `curl`, `jq`, `bash`
 - [ ] **15-30 minutes** for complete setup
+
+**Optional Kubernetes Extension** (Runtime Deployment Demo):
+
+- [ ] **Kubernetes cluster** (Docker Desktop, Rancher Desktop, minikube, etc.)
+- [ ] **kubectl** and **helm** installed
+- [ ] **Container registry credentials** for image pulling
+- [ ] **Additional 10-15 minutes** for K8s setup
+
+> 💡 **Note**: The core BookVerse demo (JFrog Platform setup, CI/CD pipelines, artifact promotion) works completely **without Kubernetes**. The K8s deployment is an optional extension that demonstrates runtime deployment with GitOps.
 
 ### Step 1: Environment Setup
 
@@ -279,7 +288,9 @@ openssl rsa -in private.pem -pubout -out public.pem
 
 ---
 
-## ⎈ Kubernetes Deployment (Optional)
+## ⎈ Optional: Kubernetes Runtime Deployment
+
+**This section is completely optional!** The core BookVerse demo (JFrog Platform, CI/CD, artifact promotion) works without Kubernetes. This extension adds runtime deployment demonstration.
 
 Deploy BookVerse to a local Kubernetes cluster with Argo CD:
 

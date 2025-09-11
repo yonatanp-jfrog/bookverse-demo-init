@@ -37,7 +37,7 @@ BookVerse is a complete SaaS solution demonstrating secure software delivery wit
 
 **Optional Kubernetes Extension** (Runtime Deployment Demo):
 
-- [ ] **Kubernetes cluster access** (local: Docker Desktop, Rancher Desktop, minikube, or cloud: EKS, GKE, AKS, etc.)
+- [ ] **Kubernetes cluster access** (Rancher Desktop recommended for JFrog employees, or any other local/cloud cluster)
 - [ ] **kubectl** and **helm** installed and configured for your cluster
 - [ ] **JFrog Artifactory credentials** for pulling BookVerse Docker images (demo user or project member with read access)
 - [ ] **Additional 10-15 minutes** for K8s setup
@@ -343,61 +343,40 @@ Deploy BookVerse to any Kubernetes cluster with Argo CD:
 
 ### Prerequisites
 
-**Choose one of these Kubernetes options:**
+**Rancher Desktop (Recommended for JFrog Employees)**
 
-**Local Clusters:**
-- Docker Desktop Kubernetes
-- Rancher Desktop  
-- minikube
-- kind (Kubernetes in Docker)
-- k3s/k3d
+Rancher Desktop is provided to JFrog employees and includes everything needed:
 
-**Cloud Clusters:**
-- Amazon EKS
-- Google GKE  
-- Azure AKS
-- DigitalOcean DOKS
-- Any other managed Kubernetes service
+1. **Download Rancher Desktop** from your company software catalog or [rancherdesktop.io](https://rancherdesktop.io)
 
-**Required tools:**
-- `kubectl` configured for your target cluster
-- `helm` installed
-- Cluster admin permissions (for Argo CD installation)
+2. **Install and Configure**:
+   - Install Rancher Desktop
+   - Launch the application
+   - Go to **Preferences** → **Kubernetes**
+   - Enable Kubernetes
+   - Set memory to at least **4GB** (8GB recommended)
+   - Wait for Kubernetes to start (green status indicator)
 
-### Cluster Configuration Examples
+3. **Verify Installation**:
+   ```bash
+   # Check Rancher Desktop Kubernetes context
+   kubectl config current-context
+   # Should show: rancher-desktop
+   
+   # Verify cluster is running
+   kubectl get nodes
+   # Should show your local node as Ready
+   ```
 
-**Local clusters:**
-```bash
-# Docker Desktop - enable Kubernetes in settings
-kubectl config use-context docker-desktop
-
-# minikube
-minikube start
-kubectl config use-context minikube
-
-# kind
-kind create cluster --name bookverse
-kubectl config use-context kind-bookverse
-```
-
-**Cloud clusters:**
-```bash
-# AWS EKS
-aws eks update-kubeconfig --region us-west-2 --name your-cluster-name
-
-# Google GKE  
-gcloud container clusters get-credentials your-cluster-name --zone us-central1-a
-
-# Azure AKS
-az aks get-credentials --resource-group your-rg --name your-cluster-name
-```
+**Alternative Options**
+If you prefer a different setup, you can use any local or cloud Kubernetes cluster instead (Docker Desktop, minikube, EKS, GKE, AKS, etc.). Just ensure `kubectl` and `helm` are configured for your cluster.
 
 ### Bootstrap Deployment
 
 ```bash
-# 1. Verify cluster access
-kubectl cluster-info
-kubectl get nodes
+# 1. Verify Rancher Desktop cluster access
+kubectl config current-context  # Should show: rancher-desktop
+kubectl get nodes              # Should show local node as Ready
 
 # 2. Set JFrog Artifactory registry credentials for pulling BookVerse images
 export REGISTRY_SERVER="${JFROG_URL#https://}"  # Extract hostname from JFROG_URL

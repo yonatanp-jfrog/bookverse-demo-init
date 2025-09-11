@@ -39,7 +39,7 @@ BookVerse is a complete SaaS solution demonstrating secure software delivery wit
 
 - [ ] **Kubernetes cluster access** (local: Docker Desktop, Rancher Desktop, minikube, or cloud: EKS, GKE, AKS, etc.)
 - [ ] **kubectl** and **helm** installed and configured for your cluster
-- [ ] **Container registry credentials** for image pulling from JFrog Platform
+- [ ] **JFrog Artifactory credentials** for pulling BookVerse Docker images (demo user or project member with read access)
 - [ ] **Additional 10-15 minutes** for K8s setup
 
 > 💡 **Note**: The core BookVerse demo (JFrog Platform setup, CI/CD pipelines, artifact promotion) works completely **without Kubernetes**. The K8s deployment is an optional extension that demonstrates runtime deployment with GitOps.
@@ -399,11 +399,11 @@ az aks get-credentials --resource-group your-rg --name your-cluster-name
 kubectl cluster-info
 kubectl get nodes
 
-# 2. Set registry credentials for pulling images from JFrog Platform
-export REGISTRY_SERVER='your-jfrog-instance.jfrog.io'
-export REGISTRY_USERNAME='your-username'
-export REGISTRY_PASSWORD='your-password-or-token'
-export REGISTRY_EMAIL='your-email@example.com'  # optional
+# 2. Set JFrog Artifactory registry credentials for pulling BookVerse images
+export REGISTRY_SERVER="${JFROG_URL#https://}"  # Extract hostname from JFROG_URL
+export REGISTRY_USERNAME='your-jfrog-username'  # JFrog Platform user (see permissions below)
+export REGISTRY_PASSWORD='your-jfrog-password'  # User password or access token
+export REGISTRY_EMAIL='your-email@example.com'  # Optional: JFrog user email
 
 # 3. Bootstrap Argo CD and deploy BookVerse
 ./scripts/k8s/bootstrap.sh --port-forward
@@ -412,6 +412,40 @@ export REGISTRY_EMAIL='your-email@example.com'  # optional
 # Argo CD UI: https://localhost:8081
 # BookVerse Web: http://localhost:8080
 ```
+
+### JFrog Registry User Requirements
+
+**Option 1: Use BookVerse Project User (Recommended)**
+Use one of the demo users created during setup:
+```bash
+# Example with a demo user that has project access
+export REGISTRY_USERNAME='alice.developer@bookverse.com'
+export REGISTRY_PASSWORD='password'  # Default demo password
+```
+
+**Option 2: Use Your JFrog Platform User**
+Your user needs these **minimum permissions**:
+- **Read access** to BookVerse Docker repositories:
+  - `bookverse-*-docker-release-local` (PROD images)
+  - `bookverse-*-docker-nonprod-local` (if testing non-PROD)
+- **Project membership** in the `bookverse` project (Reader role minimum)
+
+**Option 3: Create Dedicated Pull User**
+```bash
+# Create a dedicated user for Kubernetes image pulling
+# User: 'k8s-pull@bookverse.com' 
+# Role: Reader on bookverse project
+# Permissions: Read access to Docker repositories only
+```
+
+**Using Access Tokens (Recommended for Production)**
+Instead of passwords, use JFrog access tokens:
+```bash
+# Generate access token in JFrog Platform UI: User Profile → Access Tokens
+export REGISTRY_PASSWORD='your-access-token'  # Instead of password
+```
+
+> ⚠️ **Important**: Do **NOT** use your admin token (`JFROG_ADMIN_TOKEN`) for Kubernetes registry access. The admin token is for platform setup only. Use a regular user account or dedicated pull user with minimal read permissions for security.
 
 **For Cloud Clusters:**
 If deploying to a cloud cluster, you may want to expose services differently:

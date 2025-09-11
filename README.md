@@ -44,6 +44,35 @@ BookVerse is a complete SaaS solution demonstrating secure software delivery wit
 
 > 💡 **Note**: The core BookVerse demo (JFrog Platform setup, CI/CD pipelines, artifact promotion) works completely **without Kubernetes**. The K8s deployment is an optional extension that demonstrates runtime deployment with GitOps.
 
+### Tool Installation (Mac)
+
+If you need to install the required tools on macOS:
+
+```bash
+# Install Homebrew (if not already installed)
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# Install core tools
+brew install curl jq
+
+# Install GitHub CLI
+brew install gh
+
+# Optional: Kubernetes tools (if using K8s extension)
+brew install kubectl helm
+```
+
+**Verify installations:**
+```bash
+gh --version      # GitHub CLI
+curl --version    # Should be installed by default on macOS
+jq --version      # JSON processor
+kubectl version   # Kubernetes CLI (if installed)
+helm version      # Helm package manager (if installed)
+```
+
+> 💡 **Other platforms**: For Linux/Windows, see [GitHub CLI](https://cli.github.com/), [kubectl](https://kubernetes.io/docs/tasks/tools/), and [Helm](https://helm.sh/docs/intro/install/) installation guides.
+
 ### Step 1: Environment Setup
 
 Set up your deployment environment:

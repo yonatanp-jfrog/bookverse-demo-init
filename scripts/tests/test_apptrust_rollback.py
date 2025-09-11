@@ -21,7 +21,7 @@ class FakeClient:
         } for v in versions}
         self.patched = []
 
-    def list_application_versions(self, app_key, limit=1000):
+    def list_application_versions(self, app_key, limit=200):
         return {"versions": list(self._versions.values())}
 
     def patch_application_version(self, app_key, version, tag=None, properties=None, delete_properties=None):

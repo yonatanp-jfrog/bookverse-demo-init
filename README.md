@@ -37,9 +37,9 @@ BookVerse is a complete SaaS solution demonstrating secure software delivery wit
 
 **Optional Kubernetes Extension** (Runtime Deployment Demo):
 
-- [ ] **Kubernetes cluster** (Docker Desktop, Rancher Desktop, minikube, etc.)
-- [ ] **kubectl** and **helm** installed
-- [ ] **Container registry credentials** for image pulling
+- [ ] **Kubernetes cluster access** (local: Docker Desktop, Rancher Desktop, minikube, or cloud: EKS, GKE, AKS, etc.)
+- [ ] **kubectl** and **helm** installed and configured for your cluster
+- [ ] **Container registry credentials** for image pulling from JFrog Platform
 - [ ] **Additional 10-15 minutes** for K8s setup
 
 > 💡 **Note**: The core BookVerse demo (JFrog Platform setup, CI/CD pipelines, artifact promotion) works completely **without Kubernetes**. The K8s deployment is an optional extension that demonstrates runtime deployment with GitOps.
@@ -339,28 +339,92 @@ openssl rsa -in private.pem -pubout -out public.pem
 
 **This section is completely optional!** The core BookVerse demo (JFrog Platform, CI/CD, artifact promotion) works without Kubernetes. This extension adds runtime deployment demonstration.
 
-Deploy BookVerse to a local Kubernetes cluster with Argo CD:
+Deploy BookVerse to any Kubernetes cluster with Argo CD:
 
 ### Prerequisites
 
-- Local Kubernetes cluster (Docker Desktop, Rancher Desktop, etc.)
-- `kubectl` and `helm` installed
+**Choose one of these Kubernetes options:**
+
+**Local Clusters:**
+- Docker Desktop Kubernetes
+- Rancher Desktop  
+- minikube
+- kind (Kubernetes in Docker)
+- k3s/k3d
+
+**Cloud Clusters:**
+- Amazon EKS
+- Google GKE  
+- Azure AKS
+- DigitalOcean DOKS
+- Any other managed Kubernetes service
+
+**Required tools:**
+- `kubectl` configured for your target cluster
+- `helm` installed
+- Cluster admin permissions (for Argo CD installation)
+
+### Cluster Configuration Examples
+
+**Local clusters:**
+```bash
+# Docker Desktop - enable Kubernetes in settings
+kubectl config use-context docker-desktop
+
+# minikube
+minikube start
+kubectl config use-context minikube
+
+# kind
+kind create cluster --name bookverse
+kubectl config use-context kind-bookverse
+```
+
+**Cloud clusters:**
+```bash
+# AWS EKS
+aws eks update-kubeconfig --region us-west-2 --name your-cluster-name
+
+# Google GKE  
+gcloud container clusters get-credentials your-cluster-name --zone us-central1-a
+
+# Azure AKS
+az aks get-credentials --resource-group your-rg --name your-cluster-name
+```
 
 ### Bootstrap Deployment
 
 ```bash
-# Set registry credentials
+# 1. Verify cluster access
+kubectl cluster-info
+kubectl get nodes
+
+# 2. Set registry credentials for pulling images from JFrog Platform
 export REGISTRY_SERVER='your-jfrog-instance.jfrog.io'
 export REGISTRY_USERNAME='your-username'
 export REGISTRY_PASSWORD='your-password-or-token'
-export REGISTRY_EMAIL='your-email@example.com'
+export REGISTRY_EMAIL='your-email@example.com'  # optional
 
-# Bootstrap Argo CD and deploy BookVerse
+# 3. Bootstrap Argo CD and deploy BookVerse
 ./scripts/k8s/bootstrap.sh --port-forward
 
-# Access applications
+# 4. Access applications (for local clusters with port-forward)
 # Argo CD UI: https://localhost:8081
 # BookVerse Web: http://localhost:8080
+```
+
+**For Cloud Clusters:**
+If deploying to a cloud cluster, you may want to expose services differently:
+
+```bash
+# Deploy without port-forward for cloud clusters
+./scripts/k8s/bootstrap.sh
+
+# Check service endpoints
+kubectl -n argocd get svc argocd-server
+kubectl -n bookverse-prod get svc bookverse-web
+
+# For cloud clusters, consider using LoadBalancer or Ingress instead of port-forward
 ```
 
 **What this creates:**

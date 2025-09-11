@@ -405,13 +405,67 @@ export REGISTRY_USERNAME='your-jfrog-username'  # JFrog Platform user (see permi
 export REGISTRY_PASSWORD='your-jfrog-password'  # User password or access token
 export REGISTRY_EMAIL='your-email@example.com'  # Optional: JFrog user email
 
-# 3. Bootstrap Argo CD and deploy BookVerse
+# 3. Bootstrap Argo CD and deploy BookVerse (this will take 3-5 minutes)
 ./scripts/k8s/bootstrap.sh --port-forward
 
 # 4. Access applications (for local clusters with port-forward)
 # Argo CD UI: https://localhost:8081
 # BookVerse Web: http://localhost:8080
 ```
+
+### What the Bootstrap Script Does
+
+The `bootstrap.sh` script automates the complete Kubernetes deployment setup:
+
+**1. Installs Argo CD**
+- Creates `argocd` namespace
+- Deploys Argo CD manifests from the official repository
+- Waits for Argo CD server to be ready
+
+**2. Sets Up BookVerse Namespace**
+- Creates `bookverse-prod` namespace for the application
+- Configures the namespace for production deployment
+
+**3. Configures Image Pull Secrets**
+- Creates a Docker registry secret (`jfrog-docker-pull`) with your JFrog credentials
+- Attaches the secret to the default ServiceAccount
+- Enables Kubernetes to pull BookVerse images from JFrog Artifactory
+
+**4. Deploys GitOps Configuration**
+- Applies Argo CD AppProject: `gitops/projects/bookverse-prod.yaml`
+- Applies Argo CD Application: `gitops/apps/prod/platform.yaml`
+- Sets up GitOps automation for continuous deployment
+
+**5. Waits for Application Health**
+- Monitors Argo CD application status until it's "Synced" and "Healthy"
+- Ensures all BookVerse services are deployed and running
+
+**6. Sets Up Access (with --port-forward flag)**
+- Creates local port forwards for easy access:
+  - Argo CD UI: `https://localhost:8081`
+  - BookVerse Web: `http://localhost:8080`
+
+**Why This is Needed:**
+- **GitOps Integration**: Demonstrates how BookVerse integrates with GitOps workflows
+- **Production Simulation**: Shows real-world Kubernetes deployment patterns
+- **Continuous Deployment**: Argo CD will automatically sync changes from the Git repository
+- **Complete Demo**: Provides a running application to demonstrate the full BookVerse platform
+
+**What You'll See During Execution:**
+```text
+==> Ensuring Argo CD installed in namespace argocd
+==> Creating namespace bookverse-prod
+==> Creating/updating docker-registry secret in bookverse-prod
+==> Applying AppProject (PROD-only)
+==> Applying Application for PROD
+==> Waiting for Argo CD app to become Synced/Healthy
+   Sync=Synced Health=Progressing
+   Sync=Synced Health=Healthy
+==> Application platform-prod is Synced and Healthy
+==> Starting port forwards (Ctrl+C to stop)
+```
+
+The script will pause at "Waiting for Argo CD app" while Kubernetes pulls images and starts services. This is normal and may take 2-3 minutes depending on your internet connection and cluster performance.
 
 ### JFrog Registry User Requirements
 

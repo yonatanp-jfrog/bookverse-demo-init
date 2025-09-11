@@ -560,6 +560,34 @@ export REGISTRY_PASSWORD='your-access-token'  # Instead of password
 # - BookVerse Web: http://localhost:8080
 ```
 
+> ⚠️ **Port-Forward Behavior**: 
+> - **Blocks terminal**: The script will keep running and block your terminal while port-forwarding is active
+> - **Stops on exit**: Press `Ctrl+C` to stop port-forwarding and return to terminal
+> - **Not persistent**: Port-forwarding stops when you close the terminal or restart your Mac
+> 
+> **To restart port-forwarding after interruption:**
+> ```bash
+> # You don't need to run bootstrap again - just restart port-forwarding
+> kubectl -n argocd port-forward svc/argocd-server 8081:443 &
+> kubectl -n bookverse-prod port-forward svc/bookverse-web 8080:8080 &
+> 
+> # Or run bootstrap again (will skip installation, just restart port-forwarding)
+> ./scripts/k8s/bootstrap.sh --port-forward
+> ```
+> 
+> **Alternative for background access:**
+> ```bash
+> # Run port-forwards in background (terminal remains available)
+> kubectl -n argocd port-forward svc/argocd-server 8081:443 &
+> kubectl -n bookverse-prod port-forward svc/bookverse-web 8080:8080 &
+> 
+> # Check background processes
+> jobs
+> 
+> # Stop background port-forwards when done
+> killall kubectl
+> ```
+
 **Option 2: Cloud Clusters or Remote Access**
 ```bash
 # Deploy without port-forward 

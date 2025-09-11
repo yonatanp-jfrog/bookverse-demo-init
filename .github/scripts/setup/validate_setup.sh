@@ -86,6 +86,7 @@ expected_users=(
   "pipeline.checkout@bookverse.com"
   "pipeline.web@bookverse.com"
   "pipeline.platform@bookverse.com"
+  "k8s.pull@bookverse.com"
 )
 
 found_users=()

@@ -477,28 +477,27 @@ The script will pause at "Waiting for Argo CD app" while Kubernetes pulls images
 
 ### JFrog Registry User Requirements
 
-**Option 1: Use BookVerse Project User (Recommended)**
+**Option 1: Use Dedicated K8s Pull User (Recommended)**
+The setup automatically creates a dedicated Kubernetes user:
+```bash
+# Use the dedicated K8s pull user created during setup
+export REGISTRY_USERNAME='k8s.pull@bookverse.com'
+export REGISTRY_PASSWORD='K8sPull2024!'  # Default password
+```
+
+**Option 2: Use BookVerse Project User**
 Use one of the demo users created during setup:
 ```bash
 # Example with a demo user that has project access
 export REGISTRY_USERNAME='alice.developer@bookverse.com'
-export REGISTRY_PASSWORD='password'  # Default demo password
+export REGISTRY_PASSWORD='BookVerse2024!'  # Default demo password
 ```
 
-**Option 2: Use Your JFrog Platform User**
+**Option 3: Use Your JFrog Platform User**
 Your user needs these **minimum permissions**:
 - **Read access** to BookVerse Docker repositories:
-  - `bookverse-*-docker-release-local` (PROD images)
-  - `bookverse-*-docker-nonprod-local` (if testing non-PROD)
-- **Project membership** in the `bookverse` project (Reader role minimum)
-
-**Option 3: Create Dedicated Pull User**
-```bash
-# Create a dedicated user for Kubernetes image pulling
-# User: 'k8s-pull@bookverse.com' 
-# Role: Reader on bookverse project
-# Permissions: Read access to Docker repositories only
-```
+  - `bookverse-*-docker-release-local` (PROD images only)
+- **Project membership** in the `bookverse` project (Viewer role minimum)
 
 **Using Access Tokens (Recommended for Production)**
 Instead of passwords, use JFrog access tokens:

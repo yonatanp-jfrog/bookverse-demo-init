@@ -11,11 +11,6 @@ on:
         description: 'Application version (SemVer). If empty, use latest.'
         required: false
         type: string
-      DEMO_MODE:
-        description: 'Enable demo mode (verbose logs, request tracing)'
-        required: false
-        type: string
-        default: 'false'
       service_name:
         description: 'Service name (e.g., inventory, checkout, recommendations, web)'
         required: false
@@ -39,21 +34,10 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    env:
-      DEMO_MODE: "${{ inputs.DEMO_MODE }}"
     steps:
       - name: "[Setup] Checkout"
         uses: actions/checkout@v4
 
-      - name: "[Setup] DEMO_MODE"
-        if: ${{ inputs.DEMO_MODE == 'true' || env.DEMO_MODE == 'true' }}
-        run: |
-          echo "🔔 DEMO_MODE enabled"
-          echo "ACTIONS_STEP_DEBUG=true" >> $GITHUB_ENV
-          echo "ACTIONS_RUNNER_DEBUG=true" >> $GITHUB_ENV
-          echo "HTTP_DEBUG_LEVEL=verbose" >> $GITHUB_ENV
-          echo "BASH_XTRACE_ENABLED=1" >> $GITHUB_ENV
-          echo "LOG_LEVEL=DEBUG" >> $GITHUB_ENV
 
       - name: "[Setup] Prereqs (jq)"
         run: |
@@ -108,7 +92,6 @@ jobs:
           echo "APPLICATION_KEY=${{ steps.app.outputs.application_key }}" >> $GITHUB_ENV
           echo "APP_VERSION=${{ steps.app.outputs.app_version }}" >> $GITHUB_ENV
           echo "TARGET_STAGE=${{ steps.app.outputs.target_stage }}" >> $GITHUB_ENV
-          if [[ -n "${HTTP_DEBUG_LEVEL:-}" ]]; then :; else export HTTP_DEBUG_LEVEL=basic; fi
           export JFROG_URL='${{ vars.JFROG_URL }}'
           export PROJECT_KEY='${{ vars.PROJECT_KEY }}'
           export JFROG_ADMIN_TOKEN='${{ secrets.JFROG_ADMIN_TOKEN }}'
@@ -120,7 +103,6 @@ jobs:
           CODE=$(curl -sS -L -o "$LC_FILE" -w "%{http_code}" "$JFROG_URL/access/api/v2/lifecycle/?project_key=$PROJECT_KEY" -H "Authorization: Bearer $JFROG_ADMIN_TOKEN" -H "Accept: application/json" || echo 000)
           if [[ "$CODE" -lt 200 || "$CODE" -ge 300 ]]; then
             echo "❌ Failed to fetch lifecycles list for project '$PROJECT_KEY' (HTTP $CODE)" >&2
-            print_request_debug "GET" "$JFROG_URL/access/api/v2/lifecycle/?project_key=$PROJECT_KEY"
             cat "$LC_FILE" || true
             rm -f "$LC_FILE"
             exit 1

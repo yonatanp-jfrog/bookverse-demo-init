@@ -7,12 +7,6 @@ on:
         description: 'Type "DELETE" to confirm cleanup (this action cannot be undone)'
         required: true
         type: string
-      DEMO_MODE:
-        description: 'Enable demo mode (verbose logs, request tracing)'
-        required: false
-        default: 'false'
-        type: choice
-        options: ['false', 'true']
 
 permissions:
   contents: write
@@ -20,24 +14,11 @@ permissions:
 jobs:
   cleanup:
     runs-on: ubuntu-latest
-    env:
-      DEMO_MODE: "false"
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Ensure DEMO_MODE default
-        run: |
-          echo "DEMO_MODE=${DEMO_MODE:-false}" >> $GITHUB_ENV
 
-      - name: Apply DEMO_MODE settings
-        if: ${{ env.DEMO_MODE == 'true' || (github.event_name == 'workflow_dispatch' && (inputs.DEMO_MODE || 'false') == 'true') }}
-        run: |
-          echo "🔔 DEMO_MODE enabled"
-          echo "ACTIONS_STEP_DEBUG=true" >> $GITHUB_ENV
-          echo "ACTIONS_RUNNER_DEBUG=true" >> $GITHUB_ENV
-          echo "HTTP_DEBUG_LEVEL=verbose" >> $GITHUB_ENV
-          echo "BASH_XTRACE_ENABLED=1" >> $GITHUB_ENV
 
       - name: Setup JFrog CLI
         uses: jfrog/setup-jfrog-cli@v4

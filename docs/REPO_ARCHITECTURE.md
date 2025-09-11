@@ -1,6 +1,6 @@
 ### Repository Architecture and Naming (BookVerse)
 
-Link: Plan of Action (`docs/PLAN_OF_ACTION.md`) and the BookVerse playbook (`https://docs.google.com/document/d/1IJZDSFB_AtP4JDqHjWQ6z_geb--fngAnqup2TTGRNrw/edit?usp=sharing`).
+Link: BookVerse playbook (`https://docs.google.com/document/d/1IJZDSFB_AtP4JDqHjWQ6z_geb--fngAnqup2TTGRNrw/edit?usp=sharing`).
 
 ### Goals
 - Clear, repeatable structure for four services and shared assets

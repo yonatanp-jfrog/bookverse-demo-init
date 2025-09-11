@@ -60,10 +60,6 @@ export JFROG_ADMIN_TOKEN="your-admin-token"
   --generate \
   --dry-run
 
-# Verbose output
-./update_evidence_keys.sh \
-  --generate \
-  --verbose
 
 # Help
 ./update_evidence_keys.sh --help
@@ -78,7 +74,6 @@ export JFROG_ADMIN_TOKEN="your-admin-token"
 - `--org <name>` - GitHub organization (default: yonatanp-jfrog)
 - `--no-jfrog` - Skip JFrog Platform update
 - `--dry-run` - Show what would be done without making changes
-- `--verbose` - Show detailed output
 - `--help` - Show usage information
 
 **Repositories Updated:**

@@ -104,10 +104,6 @@ gh auth login
   --generate \
   --dry-run
 
-# Verbose output
-./scripts/update_evidence_keys.sh \
-  --generate \
-  --verbose
 ```
 
 ### Script Features
@@ -223,15 +219,6 @@ Run a test build to ensure:
 - Verify JFrog URL format
 - Ensure trusted keys API is accessible
 
-### Debug Mode
-
-Use verbose mode for detailed output:
-
-```bash
-./scripts/update_evidence_keys.sh \
-  --generate \
-  --verbose
-```
 
 ### Recovery
 

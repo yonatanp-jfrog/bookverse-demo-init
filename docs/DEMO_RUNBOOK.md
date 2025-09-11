@@ -285,7 +285,6 @@ gh workflow run 🚀-setup-platform.yml
 - Sample SBOMs and reports
 
 ### Supporting Documentation
-- `PLAN_OF_ACTION.md` - Complete implementation details
 - `REPO_ARCHITECTURE.md` - Technical architecture
 - `CONSTRAINTS.md` - Demo limitations and assumptions
 

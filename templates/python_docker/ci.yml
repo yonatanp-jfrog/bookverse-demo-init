@@ -422,13 +422,37 @@ jobs:
             APP_VERSION="$MAJOR.$MINOR.$NEW_PATCH"
             echo "⬆️ Incrementing to: $APP_VERSION"
           else
-            echo "🆕 No existing versions found, starting fresh"
-            # Generate initial random SemVer: major 1-5, minor 1-50, patch 1-50
-            MAJOR=$(( (RANDOM % 5) + 1 ))
-            MINOR=$(( (RANDOM % 50) + 1 ))
-            PATCH=$(( (RANDOM % 50) + 1 ))
-            APP_VERSION="$MAJOR.$MINOR.$PATCH"
-            echo "🎯 Generated initial version: $APP_VERSION"
+            echo "🆕 No existing versions found, using seed from version-map.yaml"
+            # Download version-map.yaml for seed versions
+            curl -sS -H "Authorization: Bearer ${{ github.token }}" \
+              -H "Accept: application/vnd.github.v3.raw" \
+              "https://api.github.com/repos/${{ github.repository_owner }}/bookverse-demo-init/contents/config/version-map.yaml" \
+              -o version-map.yaml || echo "⚠️ Failed to download version-map.yaml"
+            
+            # Use seed version from version-map.yaml instead of random generation
+            if [[ -f version-map.yaml ]]; then
+              # Parse YAML using awk to find application seed
+              APP_SEED=$(awk -v key="$APPLICATION_KEY" '
+                /^  - key:/ { current_key = $3 }
+                current_key == key && /application:/ { 
+                  gsub(/^[ \t]+/, ""); 
+                  gsub(/application:[ \t]*/, ""); 
+                  print $0; 
+                  exit 
+                }
+              ' version-map.yaml 2>/dev/null || echo "")
+              if [[ -n "$APP_SEED" && "$APP_SEED" != "null" ]]; then
+                APP_VERSION="$APP_SEED"
+                echo "✅ Using application seed version from version-map.yaml: $APP_VERSION"
+              else
+                echo "⚠️ No seed found for $APPLICATION_KEY in version-map.yaml, using fallback"
+                APP_VERSION="1.0.0"
+              fi
+            else
+              echo "⚠️ version-map.yaml not available, using fallback"
+              APP_VERSION="1.0.0"
+            fi
+            echo "🎯 Initial version set: $APP_VERSION"
           fi
           
           echo "SERVICE_NAME=$SERVICE_NAME" >> $GITHUB_ENV

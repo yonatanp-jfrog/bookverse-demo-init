@@ -9,8 +9,8 @@ set -Eeuo pipefail
 # repositories with new JFROG_URL, JFROG_ADMIN_TOKEN, and DOCKER_REGISTRY values
 # =============================================================================
 
-# Enable xtrace when requested (useful in CI with DEMO_MODE/BASH_XTRACE_ENABLED)
-if [[ "${BASH_XTRACE_ENABLED:-0}" == "1" || "${DEMO_MODE:-false}" == "true" ]]; then
+# Enable xtrace when requested (useful in CI with BASH_XTRACE_ENABLED)
+if [[ "${BASH_XTRACE_ENABLED:-0}" == "1" ]]; then
     set -x
 fi
 

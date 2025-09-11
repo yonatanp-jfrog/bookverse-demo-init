@@ -42,7 +42,6 @@ PUBLIC_KEY_FILE=""
 KEY_ALIAS="bookverse_evidence_key"
 GITHUB_ORG="yonatanp-jfrog"
 DRY_RUN=false
-VERBOSE=false
 GENERATE_KEYS=false
 KEY_TYPE="rsa"  # Uses DEFAULT_RSA_KEY_SIZE from config.sh
 TEMP_DIR=""
@@ -93,7 +92,6 @@ OPTIONAL ARGUMENTS:
     --org <name>            GitHub organization (default: yonatanp-jfrog)
     --no-jfrog              Skip JFrog Platform update
     --dry-run               Show what would be done without making changes
-    --verbose               Show detailed output
     --help                  Show this help message
 
 EXAMPLES:
@@ -159,10 +157,6 @@ parse_arguments() {
                 ;;
             --dry-run)
                 DRY_RUN=true
-                shift
-                ;;
-            --verbose)
-                VERBOSE=true
                 shift
                 ;;
             --help|-h)
@@ -549,10 +543,6 @@ upload_public_key_to_jfrog() {
     
     if [[ "$http_code" == "200" ]] || [[ "$http_code" == "201" ]]; then
         log_success "✅ Public key uploaded to JFrog Platform"
-        if [[ "$VERBOSE" == true ]]; then
-            log_info "Response:"
-            cat "$response_file" | jq '.' 2>/dev/null || cat "$response_file"
-        fi
         return 0
     elif [[ "$http_code" == "409" ]]; then
         log_warning "⚠️ Trusted key with alias '$KEY_ALIAS' already exists"

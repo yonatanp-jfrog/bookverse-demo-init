@@ -181,6 +181,14 @@ def compute_next_package_tag(app_key: str, package_name: str, vm: Dict[str, Any]
     # Query Artifactory Docker tags list via REST API. Prefer AQL/Tag list if available.
     # For the demo, we assume tags are stored under repos named like: <PROJECT>-<service>-docker-internal-local/<image>:<tag>
     # We will attempt to fetch tags; if unavailable, fallback to seed.
+    base = jfrog_url.rstrip("/") + "/artifactory/api"
+    headers = {"Authorization": f"Bearer {token}", "Accept": "application/json"}
+    
+    # Try to query existing tags for this package (implementation depends on registry structure)
+    # For now, this is a placeholder for future Docker registry API integration
+    # TODO: Implement proper tag listing via Docker v2 API or Artifactory AQL
+    
+    # Find package configuration and seed
     entry = find_app_entry(vm, app_key)
     pkg = None
     for it in (entry.get("packages") or []):
@@ -189,8 +197,10 @@ def compute_next_package_tag(app_key: str, package_name: str, vm: Dict[str, Any]
             break
     seed = (pkg or {}).get("seed")
 
-    # Without a consistent tag listing endpoint, fallback to seed
-    # Future: implement jf rt s or Docker v2 tags listing
+    # If we had existing versions, we would bump the latest one here
+    # Since tag listing is not implemented yet, fallback to seed
+    # Future: implement proper version bumping when tag listing is available
+    
     if seed and parse_semver(str(seed)):
         return str(seed)
     raise SystemExit(f"No valid seed for package {app_key}/{package_name}")

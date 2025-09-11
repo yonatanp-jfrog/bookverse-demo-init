@@ -15,12 +15,6 @@ on:
         description: 'Type "SWITCH" to confirm platform migration'
         required: true
         type: string
-      DEMO_MODE:
-        description: 'Enable demo mode (verbose logs, request tracing)'
-        required: false
-        default: 'false'
-        type: choice
-        options: ['false', 'true']
 
 env:
   # GitHub token for updating other repositories
@@ -39,15 +33,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Apply DEMO_MODE settings
-        if: ${{ inputs.DEMO_MODE == 'true' || env.DEMO_MODE == 'true' }}
-        run: |
-          echo "🔔 DEMO_MODE enabled"
-          echo "ACTIONS_STEP_DEBUG=true" >> $GITHUB_ENV
-          echo "ACTIONS_RUNNER_DEBUG=true" >> $GITHUB_ENV
-          echo "HTTP_DEBUG_LEVEL=verbose" >> $GITHUB_ENV
-          # Keep logs readable in summary by disabling ANSI colors
-          echo "NO_COLOR=1" >> $GITHUB_ENV
         
       - name: Setup JFrog CLI
         uses: jfrog/setup-jfrog-cli@v4

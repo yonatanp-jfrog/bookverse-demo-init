@@ -3,12 +3,6 @@ name: '🔍 Discover Cleanup'
 on:
   workflow_dispatch:
     inputs:
-      DEMO_MODE:
-        description: 'Enable demo mode (verbose logs, request tracing)'
-        required: false
-        default: 'false'
-        type: choice
-        options: ['false', 'true']
   push:
     paths:
       - '.github/workflows/🔍-discover-cleanup.yml'
@@ -24,14 +18,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Apply DEMO_MODE settings
-        if: ${{ inputs.DEMO_MODE == 'true' || env.DEMO_MODE == 'true' }}
-        run: |
-          echo "🔔 DEMO_MODE enabled"
-          echo "ACTIONS_STEP_DEBUG=true" >> $GITHUB_ENV
-          echo "ACTIONS_RUNNER_DEBUG=true" >> $GITHUB_ENV
-          echo "HTTP_DEBUG_LEVEL=verbose" >> $GITHUB_ENV
-          echo "BASH_XTRACE_ENABLED=1" >> $GITHUB_ENV
 
       - name: Install jq
         run: |

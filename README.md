@@ -518,7 +518,26 @@ ACCESS_TOKEN=$(curl -s -X POST \
   }' \
   "${JFROG_URL}/access/api/v1/tokens" | jq -r '.access_token')
 
+# Validate token generation was successful
+if [[ -z "$ACCESS_TOKEN" || "$ACCESS_TOKEN" == "null" ]]; then
+  echo "❌ Failed to generate access token"
+  echo "Check your JFROG_ADMIN_TOKEN and ensure k8s.pull@bookverse.com user exists"
+  exit 1
+fi
+
+echo "✅ Access token generated successfully"
+
+# Test the token works by authenticating with it
+if curl -s --fail --header "Authorization: Bearer $ACCESS_TOKEN" \
+   "${JFROG_URL}/artifactory/api/system/ping" >/dev/null; then
+  echo "✅ Token authentication verified"
+else
+  echo "⚠️  Token generated but authentication test failed"
+  echo "Token may have limited permissions (expected for K8s pull user)"
+fi
+
 export REGISTRY_PASSWORD="$ACCESS_TOKEN"  # Use token instead of password
+echo "🔐 REGISTRY_PASSWORD set to generated access token"
 ```
 
 **Option B: Generate via UI**

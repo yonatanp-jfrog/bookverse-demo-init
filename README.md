@@ -79,20 +79,23 @@ gh secret set JFROG_ADMIN_TOKEN --body "$JFROG_ADMIN_TOKEN"
 # 3. Set GitHub token for repository management
 gh secret set GH_TOKEN --body "$(gh auth token)"
 
-# 4. Run the complete setup workflow
+# 4. If this is a different JFrog instance, run switch platform first (optional)
+# gh workflow run "🔄 Switch Platform" -f jfrog_url="$JFROG_URL" -f confirmation="SWITCH"
+
+# 5. Run the complete setup workflow
 gh workflow run "🚀 Setup Platform"
 
-# 5. Monitor progress
+# 6. Monitor progress
 gh run watch
 ```
 
 **What this creates:**
 - ✅ JFrog project `bookverse` with full configuration
-- ✅ 14+ Artifactory repositories for all services and package types
+- ✅ Multiple Artifactory repositories for all services and package types
 - ✅ AppTrust lifecycle stages (DEV → QA → STAGING → PROD)
-- ✅ 4 AppTrust applications with ownership and criticality settings
-- ✅ 13 users with appropriate role assignments
-- ✅ 5 OIDC integrations for passwordless GitHub Actions
+- ✅ AppTrust applications with ownership and criticality settings (inventory, recommendations, checkout, platform, web)
+- ✅ Demo users with appropriate role assignments
+- ✅ OIDC integrations for passwordless GitHub Actions
 - ✅ Evidence keys for cryptographic signing and verification
 
 ### Step 3: Set Up Service Repositories
@@ -102,13 +105,15 @@ Configure variables across all BookVerse service repositories:
 ```bash
 # Set common variables for all service repositories
 export GH_TOKEN=$(gh auth token)
-export ORG=your-github-org              # Default: your username
+export ORG=your-github-org              # Default: your username  
 export PROJECT_KEY=bookverse
-export DOCKER_REGISTRY=${JFROG_URL#https://}  # Extract hostname
+export DOCKER_REGISTRY=${JFROG_URL#https://}  # Remove https:// prefix to get hostname
 
 # Run the batch variable setup
 bash scripts/set_actions_vars.sh
 ```
+
+> 💡 **Note**: The `${JFROG_URL#https://}` syntax removes the `https://` prefix from your JFrog URL to extract just the hostname (e.g., `your-instance.jfrog.io`) which is needed for Docker registry configuration.
 
 This configures the following repositories:
 - `bookverse-inventory`, `bookverse-recommendations`, `bookverse-checkout`
@@ -144,20 +149,23 @@ Verify your complete deployment:
 
 # Expected validation results:
 # ✅ Project 'bookverse' exists
-# ✅ Found 14+ repositories  
-# ✅ Found 4 applications
-# ✅ Found 5 OIDC integrations
-# ✅ Found 13 users
+# ✅ Found multiple repositories for all services
+# ✅ Found AppTrust applications (inventory, recommendations, checkout, platform, web)
+# ✅ Found OIDC integrations for passwordless authentication
+# ✅ Found demo users with appropriate roles
 # ✅ GitHub repositories accessible
 ```
 
 ### Step 6: Test the CI/CD Pipeline
 
-Trigger a test build to verify everything works:
+First, you'll need access to the BookVerse service repositories. These should be created as part of your organization setup:
 
 ```bash
-# Clone a service repository
-gh repo clone yonatanp-jfrog/bookverse-inventory
+# Verify service repositories exist (replace 'your-org' with your GitHub organization)
+gh repo list your-org --topic bookverse
+
+# Clone a service repository to test
+gh repo clone your-org/bookverse-inventory
 
 # Make a test change
 cd bookverse-inventory
@@ -169,6 +177,8 @@ git push origin main
 # Watch the workflow execution
 gh run watch
 ```
+
+> 💡 **Note**: If the service repositories don't exist yet, you'll need to create them from the BookVerse service templates or fork them from the reference repositories.
 
 **What to expect:**
 - ✅ OIDC authentication to JFrog Platform (no stored tokens)
@@ -461,11 +471,11 @@ export VERBOSITY=2
 |---------------|-------|----------|
 | **JFrog Projects** | 1 | `bookverse` |
 | **AppTrust Stages** | 3 | `bookverse-DEV`, `bookverse-QA`, `bookverse-STAGING` |
-| **Repositories** | 14+ | Service repos for Docker, Python, npm, Maven, Helm |
-| **Applications** | 4 | inventory, recommendations, checkout, platform |
-| **Users** | 13 | Developers, managers, pipeline users |
-| **OIDC Integrations** | 5 | GitHub Actions authentication for each service |
-| **GitHub Repositories** | 7 | All service repos + helm + demo assets |
+| **Repositories** | Multiple | Service repos for Docker, Python, npm, Maven, Helm |
+| **Applications** | 5 | inventory, recommendations, checkout, platform, web |
+| **Users** | Multiple | Developers, managers, pipeline users with different roles |
+| **OIDC Integrations** | Multiple | GitHub Actions authentication for each service |
+| **GitHub Repositories** | Multiple | All service repos + helm + demo assets |
 
 ### Repository Structure
 

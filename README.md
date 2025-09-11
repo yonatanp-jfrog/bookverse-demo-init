@@ -1,550 +1,615 @@
-# BookVerse JFrog Platform Demo
+# BookVerse JFrog Platform Demo - Complete Deployment Guide
 
-A comprehensive demo setup for the BookVerse microservices platform using JFrog Platform (Artifactory + AppTrust).
+A comprehensive demo setup for the BookVerse microservices platform using JFrog Platform (Artifactory + AppTrust). This guide provides step-by-step instructions to deploy a complete microservices demonstration environment.
 
-## 🏗️ Architecture
+## 🏗️ Architecture Overview
 
-BookVerse is a SaaS solution comprising three microservices and a combined Platform solution:
+BookVerse is a complete SaaS solution demonstrating secure software delivery with microservices:
 
-- **Inventory Service** - Manages book inventory and availability
-- **Recommendations Service** - Provides personalized book recommendations  
-- **Checkout Service** - Handles purchase transactions and order processing
-- **Platform Solution** - Combined solution integrating all microservices
+- **📦 Inventory Service** - Manages book inventory and availability
+- **🤖 Recommendations Service** - Provides AI-powered book recommendations  
+- **💳 Checkout Service** - Handles payment processing and order management
+- **🌐 Web UI** - Modern frontend application consuming microservice APIs
+- **⎈ Helm Charts** - Kubernetes deployment charts with GitOps integration
+- **🚀 Platform Solution** - Combined platform aggregating all microservices
 
-## 🚀 Quick Start
+**Key Features:**
+- ✅ Zero-trust CI/CD with OIDC authentication (no stored tokens)
+- ✅ Automated SBOM generation and vulnerability scanning
+- ✅ End-to-end artifact traceability from code to production
+- ✅ Multi-stage promotion workflows (DEV → QA → STAGING → PROD)
+- ✅ Cryptographic evidence signing and verification
+- ✅ GitOps deployment automation
 
-### Prerequisites
-- JFrog Platform access with admin privileges
-- `curl` and `jq` installed
-- Bash shell
+---
 
-### Environment Variables
+## 🚀 Quick Deployment Guide
+
+### Prerequisites Checklist
+
+Before starting, ensure you have:
+
+- [ ] **JFrog Platform access** with admin privileges
+- [ ] **GitHub organization** with repository creation permissions
+- [ ] **GitHub CLI (`gh`)** installed and authenticated
+- [ ] **Basic tools**: `curl`, `jq`, `bash`
+- [ ] **15-30 minutes** for complete setup
+
+### Step 1: Environment Setup
+
+Set up your deployment environment:
+
 ```bash
-export JFROG_URL="https://your-jfrog-instance.com"
+# 1. Configure JFrog Platform connection
+export JFROG_URL="https://your-jfrog-instance.jfrog.io"
 export JFROG_ADMIN_TOKEN="your-admin-token"
+
+# 2. Verify connectivity
+curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+  "${JFROG_URL}/artifactory/api/system/ping"
+# Expected output: OK
+
+# 3. Configure GitHub CLI (if not already done)
+gh auth login
+gh auth status  # Verify authentication
 ```
 
-### GitHub Actions Variables (CI/CD bootstrap)
+### Step 2: Deploy Using GitHub Actions (Recommended)
 
-Set common variables across all BookVerse repos (requires a GitHub token with repo scope):
+The easiest deployment method uses our automated GitHub Actions workflow:
 
 ```bash
-export GH_TOKEN=ghp_your_token
-export ORG=your-org              # optional; falls back to user if unset
+# 1. Clone this repository
+git clone https://github.com/yonatanp-jfrog/bookverse-demo-init.git
+cd bookverse-demo-init
+
+# 2. Set repository variables
+gh variable set JFROG_URL --body "$JFROG_URL"
+gh secret set JFROG_ADMIN_TOKEN --body "$JFROG_ADMIN_TOKEN"
+
+# 3. Set GitHub token for repository management
+gh secret set GH_TOKEN --body "$(gh auth token)"
+
+# 4. Run the complete setup workflow
+gh workflow run "🚀 Setup Platform"
+
+# 5. Monitor progress
+gh run watch
+```
+
+**What this creates:**
+- ✅ JFrog project `bookverse` with full configuration
+- ✅ 14+ Artifactory repositories for all services and package types
+- ✅ AppTrust lifecycle stages (DEV → QA → STAGING → PROD)
+- ✅ 4 AppTrust applications with ownership and criticality settings
+- ✅ 13 users with appropriate role assignments
+- ✅ 5 OIDC integrations for passwordless GitHub Actions
+- ✅ Evidence keys for cryptographic signing and verification
+
+### Step 3: Set Up Service Repositories
+
+Configure variables across all BookVerse service repositories:
+
+```bash
+# Set common variables for all service repositories
+export GH_TOKEN=$(gh auth token)
+export ORG=your-github-org              # Default: your username
 export PROJECT_KEY=bookverse
-export JFROG_URL=https://your-jfrog-instance.com
-export DOCKER_REGISTRY=registry.example.com/bookverse
+export DOCKER_REGISTRY=${JFROG_URL#https://}  # Extract hostname
+
+# Run the batch variable setup
 bash scripts/set_actions_vars.sh
 ```
 
-This will set `PROJECT_KEY`, `JFROG_URL`, and `DOCKER_REGISTRY` as Actions variables in:
-`bookverse-inventory`, `bookverse-recommendations`, `bookverse-checkout`, `bookverse-platform`, `bookverse-demo-init`.
+This configures the following repositories:
+- `bookverse-inventory`, `bookverse-recommendations`, `bookverse-checkout`
+- `bookverse-platform`, `bookverse-web`, `bookverse-helm`
 
-## 🔐 GitHub PAT for repository_dispatch (Option A)
+### Step 4: Configure Evidence Keys
 
-For the platform webhook flow, the `bookverse-platform` service needs to call GitHub `repository_dispatch` on `bookverse-helm`. For the demo, we use a fine-grained Personal Access Token (PAT). Create it once, then pass it to the init so it can be validated and stored as a secret.
-
-### 1) Create a fine‑grained PAT
-
-Follow these steps in GitHub (first time only):
-
-1. Sign in to GitHub with the account that owns or has access to the `bookverse-helm` repository (a bot account is ideal).
-2. Go to: Profile menu → Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token.
-3. Name: "BookVerse Helm Dispatch (platform)".
-4. Expiration: pick an expiration (e.g., 90 days). For demo convenience only, you may choose "No expiration" (not recommended for production).
-5. Resource owner: choose your organization or user that owns `bookverse-helm`.
-6. Repository access: "Only select repositories" → select `bookverse-helm`.
-7. Repository permissions: set "Contents" to "Read and write". Leave others as default. Only add "Actions: Read and write" if your workflow actually needs it.
-8. Click "Generate token" and copy the token value. Store it securely.
-
-We will refer to this value as `GH_REPO_DISPATCH_TOKEN`.
-
-### 2) Provide the token to the init flow
-
-Before running the init, export the token as an environment variable so scripts can read and validate it:
+Set up cryptographic keys for artifact signing and verification:
 
 ```bash
-export GH_REPO_DISPATCH_TOKEN="<paste your fine-grained PAT here>"
+# Generate new keys and deploy to all repositories (recommended)
+./scripts/update_evidence_keys.sh --generate
+
+# Alternative: Use existing keys
+./scripts/update_evidence_keys.sh \
+  --private-key path/to/private.pem \
+  --public-key path/to/public.pem
 ```
 
-Optionally, set it as a GitHub repository secret for the `bookverse-platform` repo to enable CI-based validation:
+**What this does:**
+- 🔐 Generates ED25519 key pair (or uses your existing keys)
+- 📤 Updates all service repositories with evidence keys
+- 🔑 Uploads public key to JFrog Platform trusted keys
+- ✅ Validates key format and deployment
+
+### Step 5: Validation and Testing
+
+Verify your complete deployment:
 
 ```bash
-# Requires GitHub CLI (gh) authenticated as a user with repo admin rights
-gh secret set GH_REPO_DISPATCH_TOKEN --repo yonatanp-jfrog/bookverse-platform < <(echo -n "$GH_REPO_DISPATCH_TOKEN")
+# Run comprehensive validation
+./.github/scripts/setup/validate_setup.sh
+
+# Expected validation results:
+# ✅ Project 'bookverse' exists
+# ✅ Found 14+ repositories  
+# ✅ Found 4 applications
+# ✅ Found 5 OIDC integrations
+# ✅ Found 13 users
+# ✅ GitHub repositories accessible
 ```
 
-Create a Kubernetes Secret for the platform service so it can call `repository_dispatch` at runtime:
+### Step 6: Test the CI/CD Pipeline
+
+Trigger a test build to verify everything works:
 
 ```bash
+# Clone a service repository
+gh repo clone yonatanp-jfrog/bookverse-inventory
+
+# Make a test change
+cd bookverse-inventory
+echo "# Test deployment $(date)" >> README.md
+git add README.md
+git commit -m "Test: Verify CI/CD pipeline"
+git push origin main
+
+# Watch the workflow execution
+gh run watch
+```
+
+**What to expect:**
+- ✅ OIDC authentication to JFrog Platform (no stored tokens)
+- ✅ Docker image build and push to internal repository
+- ✅ SBOM generation and vulnerability scanning
+- ✅ Evidence generation and cryptographic signing
+- ✅ AppTrust application version creation
+
+---
+
+## 🛠️ Manual Deployment (Alternative)
+
+If you prefer manual control or need to customize the deployment:
+
+### Step 1: Create JFrog Project and Lifecycle
+
+```bash
+# Load configuration
+source .github/scripts/setup/config.sh
+
+# Create the BookVerse project
+./.github/scripts/setup/create_project.sh
+
+# Create AppTrust stages (DEV, QA, STAGING)
+./.github/scripts/setup/create_stages.sh
+```
+
+### Step 2: Create Repositories
+
+```bash
+# Create service repositories (Docker, Python, etc.)
+./.github/scripts/setup/create_repositories.sh
+
+# Create dependency repositories and caches
+./.github/scripts/setup/create_dependency_repos.sh
+./.github/scripts/setup/prepopulate_dependencies.sh
+```
+
+### Step 3: Create Users and Applications
+
+```bash
+# Create demo users with appropriate roles
+./.github/scripts/setup/create_users.sh
+
+# Create AppTrust applications
+./.github/scripts/setup/create_applications.sh
+```
+
+### Step 4: Configure Security Integration
+
+```bash
+# Set up OIDC integrations for GitHub Actions
+./.github/scripts/setup/create_oidc.sh
+
+# Configure evidence keys
+./.github/scripts/setup/evidence_keys_setup.sh
+```
+
+---
+
+## 🔐 Security Configuration
+
+### GitHub PAT for Repository Dispatch
+
+The platform webhook flow requires a GitHub Personal Access Token:
+
+#### 1. Create Fine-Grained PAT
+
+1. Go to GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens
+2. Create token with:
+   - **Name**: "BookVerse Helm Dispatch"
+   - **Repository access**: Only `bookverse-helm`
+   - **Permissions**: Contents (Read and write)
+
+#### 2. Configure the Token
+
+```bash
+# Set the token as environment variable
+export GH_REPO_DISPATCH_TOKEN="your-fine-grained-pat"
+
+# Create Kubernetes secret for platform service
 kubectl -n bookverse create secret generic platform-repo-dispatch \
   --from-literal=GITHUB_TOKEN="$GH_REPO_DISPATCH_TOKEN"
 ```
 
-If you re-run, use `kubectl -n bookverse delete secret platform-repo-dispatch` first, or add `--dry-run=client -o yaml | kubectl apply -f -` to make it idempotent.
-
-### 3) Validate the token (dry‑run dispatch)
-
-Run a one-shot validation to ensure the token can dispatch to `bookverse-helm`:
+#### 3. Validate Token
 
 ```bash
+# Test repository dispatch capability
 curl -i \
   -H "Authorization: Bearer $GH_REPO_DISPATCH_TOKEN" \
   -H "Accept: application/vnd.github+json" \
-  https://api.github.com/repos/yonatanp-jfrog/bookverse-helm/dispatches \
-  -d '{
-        "event_type": "release_completed",
-        "client_payload": { "dry_run": true, "source": "init-validate" }
-      }'
-# Expect: HTTP/1.1 204 No Content
+  https://api.github.com/repos/your-org/bookverse-helm/dispatches \
+  -d '{"event_type": "release_completed", "client_payload": {"dry_run": true}}'
+# Expected: HTTP/1.1 204 No Content
 ```
 
-If you see 401/403, verify the token is fine‑grained, scoped only to `bookverse-helm`, and has "Contents: Read and write" permission.
+### Evidence Key Management
 
-### 4) Init and job summary behavior
-
-- The init flow should fail fast if `GH_REPO_DISPATCH_TOKEN` is missing or empty.
-- During validation, it can write a short summary to the GitHub job summary (if running in Actions):
+Generate and manage cryptographic keys for evidence signing:
 
 ```bash
-if [[ -z "${GH_REPO_DISPATCH_TOKEN:-}" ]]; then
-  echo "❌ Missing GH_REPO_DISPATCH_TOKEN"; exit 1
-fi
-RESP=$(curl -s -o /dev/null -w '%{http_code}' \
-  -H "Authorization: Bearer ${GH_REPO_DISPATCH_TOKEN}" \
-  -H "Accept: application/vnd.github+json" \
-  https://api.github.com/repos/yonatanp-jfrog/bookverse-helm/dispatches \
-  -d '{"event_type":"release_completed","client_payload":{"dry_run":true,"source":"init-validate"}}')
-if [[ "$RESP" == "204" ]]; then
-  STATUS="✅ Token validated (204)"
-else
-  STATUS="❌ Token validation failed ($RESP)"
-fi
-{
-  echo '### GitHub PAT Validation';
-  echo "";
-  echo "- Result: $STATUS";
-  echo "- Repository: yonatanp-jfrog/bookverse-helm";
-  echo "- Event: repository_dispatch platform_release_completed";
-} >> "$GITHUB_STEP_SUMMARY"
-[[ "$RESP" == "204" ]] || exit 1
+# Generate ED25519 keys (recommended)
+openssl genpkey -algorithm ed25519 -out private.pem
+openssl pkey -in private.pem -pubout -out public.pem
+
+# Alternative: RSA 2048-bit
+openssl genrsa -out private.pem 2048
+openssl rsa -in private.pem -pubout -out public.pem
+
+# Deploy keys to all repositories
+./scripts/update_evidence_keys.sh \
+  --private-key private.pem \
+  --public-key public.pem \
+  --alias "bookverse_evidence_key"
 ```
 
-With the token created and validated, you can proceed to run the initialization steps. The platform webhook handler will use this token (mounted from the Kubernetes Secret) to create `repository_dispatch` events when it receives the AppTrust `release_completed` webhook.
+---
 
-### 📦 Provision Artifactory Repositories (Steady State)
+## ⎈ Kubernetes Deployment (Optional)
 
-Provision the required repositories once during initialization using the setup script (CI will not create repos dynamically):
+Deploy BookVerse to a local Kubernetes cluster with Argo CD:
+
+### Prerequisites
+
+- Local Kubernetes cluster (Docker Desktop, Rancher Desktop, etc.)
+- `kubectl` and `helm` installed
+
+### Bootstrap Deployment
 
 ```bash
-cd bookverse-demo-init/.github/scripts/setup
-export JFROG_URL="https://your-jfrog-instance.com"
-export JFROG_ADMIN_TOKEN="your-admin-token"
-export PROJECT_KEY=bookverse
-./create_repositories.sh
-# Optionally create dependency repos and pre-populate caches:
-./create_dependency_repos.sh
-./prepopulate_dependencies.sh
+# Set registry credentials
+export REGISTRY_SERVER='your-jfrog-instance.jfrog.io'
+export REGISTRY_USERNAME='your-username'
+export REGISTRY_PASSWORD='your-password-or-token'
+export REGISTRY_EMAIL='your-email@example.com'
+
+# Bootstrap Argo CD and deploy BookVerse
+./scripts/k8s/bootstrap.sh --port-forward
+
+# Access applications
+# Argo CD UI: https://localhost:8081
+# BookVerse Web: http://localhost:8080
 ```
 
-Creates/ensures (among others):
-- `${PROJECT_KEY}-generic-internal-local`
-- `${PROJECT_KEY}-helm-helm-internal-local`
-- `${PROJECT_KEY}-{service}-docker-internal-local` for `inventory`, `recommendations`, `checkout`, `platform`, `web`
+**What this creates:**
+- ⎈ Argo CD installation in `argocd` namespace
+- 📦 BookVerse PROD deployment in `bookverse-prod` namespace
+- 🔗 GitOps integration with automated deployments
+- 🌐 Port forwards for easy access
 
-### 🔄 Switch Platform
+### Get Argo CD Admin Password
+
+```bash
+kubectl -n argocd get secret argocd-initial-admin-secret \
+  -o jsonpath='{.data.password}' | base64 -d; echo
+```
+
+---
+
+## 🔄 Platform Management
+
+### Switch JFrog Platform
 
 To switch to a different JFrog Platform instance:
 
-#### Option 1: GitHub Actions Workflow (Recommended)
-1. Go to Actions → "🔄 Switch Platform"
-2. Provide new platform URL and admin token
-3. Type `SWITCH` to confirm
-4. All repositories updated automatically
-
-#### Option 2: Interactive Script
 ```bash
+# Option 1: Interactive script
 ./scripts/switch_jfrog_platform_interactive.sh
+
+# Option 2: GitHub Actions workflow
+gh workflow run "🔄 Switch Platform" \
+  -f jfrog_url="https://new-instance.jfrog.io" \
+  -f admin_token="new-admin-token" \
+  -f confirmation="SWITCH"
 ```
 
-See [SWITCH_JFROG_PLATFORM.md](docs/SWITCH_JFROG_PLATFORM.md) for detailed instructions.
+### Update Evidence Keys
 
-## 🔑 Evidence Key Management
-
-### Replace Evidence Keys
-Replace evidence keys across all BookVerse repositories with custom key pairs:
-
-1. Generate key pair locally:
-   ```bash
-   # ED25519 (Recommended)
-   openssl genpkey -algorithm ed25519 -out private.pem
-   openssl pkey -in private.pem -pubout -out public.pem
-   
-   # RSA 2048-bit
-   openssl genrsa -out private.pem 2048
-   openssl rsa -in private.pem -pubout -out public.pem
-   
-   # Elliptic Curve (secp256r1)
-   openssl ecparam -name secp256r1 -genkey -noout -out private.pem
-   openssl ec -in private.pem -pubout > public.pem
-   ```
-
-2. Go to **Actions** → **Replace Evidence Keys**
-3. Paste the private and public key contents
-4. The workflow will update all repositories and JFrog Platform
-
-See [REPLACE_EVIDENCE_KEYS.md](docs/REPLACE_EVIDENCE_KEYS.md) for detailed instructions.
-
-### Easy Verbosity Control with Wrapper Scripts
-
-For convenience, we've created wrapper scripts that automatically set the correct verbosity level:
-
-#### Silent Execution (No Output)
-```bash
-./init_silent.sh
-# Runs completely silently, only shows success/failure at the end
-```
-
-#### Normal Feedback (Default)
-```bash
-./init_feedback.sh
-# Shows progress and results, no interaction needed
-```
-
-#### Interactive Debug
-```bash
-./init_debug.sh
-# Shows each command, asks for confirmation, displays full output
-```
-
-### Manual Verbosity Control
-
-You can also set verbosity manually and run the main script:
+Replace evidence keys across all repositories:
 
 ```bash
-# Silent mode
-export VERBOSITY=0
-./init_local.sh
+# Generate new keys and update everything
+./scripts/update_evidence_keys.sh --generate --key-type ed25519
 
-# Feedback mode (default)
-export VERBOSITY=1
-./init_local.sh
+# Use existing keys with custom alias
+./scripts/update_evidence_keys.sh \
+  --private-key new-private.pem \
+  --public-key new-public.pem \
+  --alias "bookverse_2024_key"
 
-# Debug mode
-export VERBOSITY=2
-./init_local.sh
+# Dry run to preview changes
+./scripts/update_evidence_keys.sh --generate --dry-run
 ```
 
-## 🎛️ Verbosity Control
+---
 
-All scripts now include a **verbosity control system** for flexible output management.
+## 🧹 Cleanup and Maintenance
 
-### Set Verbosity Level
-
-Set the `VERBOSITY` environment variable:
+### Complete Environment Cleanup
 
 ```bash
-# Silent mode - no output, just execute
-export VERBOSITY=0
+# Option 1: GitHub Actions workflow (recommended)
+gh workflow run "🗑️ Execute Cleanup" -f confirm_cleanup=DELETE
 
-# Feedback mode - show progress and results (default)
-export VERBOSITY=1
+# Option 2: Local cleanup script
+./scripts/cleanup_local.sh
 
-# Debug mode - show commands, confirmations, and full output
-export VERBOSITY=2
+# Option 3: Kubernetes cleanup
+./scripts/k8s/cleanup.sh --all
 ```
 
-### Verbosity Levels
+### Identity Mappings Cleanup
 
-#### Level 0: Silent Mode
-- 🔇 **No output** will be shown
-- 🚀 **Commands execute silently**
-- ❌ **Only errors** will be displayed
-- 🤖 **Perfect for automation** and CI/CD pipelines
-
-#### Level 1: Feedback Mode (Default)
-- 📢 **Progress and results** will be shown
-- 🔧 **Commands execute automatically**
-- ✅ **No user interaction** required
-- 📊 **Summary information** displayed
-
-#### Level 2: Debug Mode
-- 🐛 **Each step shown** before execution
-- 🔍 **Commands displayed verbosely**
-- ⏸️ **User confirmation** required for each step
-- 📋 **Full output** from all commands
-- 🛠️ **Perfect for troubleshooting** and development
-
-### Usage Examples
-
-#### Silent Execution (Automation)
-```bash
-export VERBOSITY=0
-./init_local.sh
-# Runs completely silently, only shows errors
-```
-
-#### Normal Feedback (Default)
-```bash
-export VERBOSITY=1
-./init_local.sh
-# Shows progress and results, no interaction needed
-```
-
-#### Interactive Debug
-```bash
-export VERBOSITY=2
-./init_local.sh
-# Shows each command, asks for confirmation, displays full output
-```
-
-### What You'll See in Each Mode
-
-#### Silent Mode (VERBOSITY=0)
-```
-🚀 BookVerse JFrog Platform Initialization - Local Runner
-========================================================
-🔇 SILENT MODE ENABLED
-   - No output will be shown
-   - Commands will execute silently
-   - Only errors will be displayed
-
-✅ Environment variables validated
-📋 Configuration loaded
-🔄 Starting initialization sequence...
-[Silent execution - no further output until completion or error]
-```
-
-#### Feedback Mode (VERBOSITY=1)
-```
-🚀 BookVerse JFrog Platform Initialization - Local Runner
-========================================================
-📢 FEEDBACK MODE ENABLED
-   - Progress and results will be shown
-   - Commands will execute automatically
-   - No user interaction required
-
-✅ Environment variables validated
-📋 Configuration loaded
-🔄 Starting initialization sequence...
-
-📁 Step 1/7: Creating Project...
-   🔧 Creating BookVerse project...
-   ✅ Creating BookVerse project completed
-   📊 Step 1 Summary: Project creation process completed
-
-🎭 Step 2/7: Creating AppTrust Stages...
-   🔧 Creating bookverse-DEV stage...
-   ✅ Creating bookverse-DEV stage completed
-   🔧 Creating bookverse-QA stage...
-   ✅ Creating bookverse-QA stage completed
-   [Continues with progress updates...]
-```
-
-#### Debug Mode (VERBOSITY=2)
-```
-🚀 BookVerse JFrog Platform Initialization - Local Runner
-========================================================
-🐛 DEBUG MODE ENABLED
-   - Each step will be shown before execution
-   - Commands will be displayed verbosely
-   - User confirmation required for each step
-   - Full output will be shown
-
-✅ Environment variables validated
-📋 Configuration loaded
-🔄 Starting initialization sequence...
-
-📁 Step 1/7: Creating Project...
-🔍 DEBUG MODE: Create BookVerse project
-   Command to execute:
-   curl -v -w 'HTTP_CODE: %{http_code}' --header 'Authorization: Bearer ***' ...
-
-   Press Enter to execute this command, or 'q' to quit: 
-
-   🚀 Executing command...
-   =========================================
-   [Full curl output with headers, request, response]
-   =========================================
-   ✅ Command completed.
-
-   Press Enter to continue to next step: 
-```
-
-### Use Cases for Each Level
-
-#### VERBOSITY=0 (Silent)
-- **CI/CD Pipelines** - Automated execution
-- **Background Scripts** - Non-interactive runs
-- **Bulk Operations** - When you don't need feedback
-- **Testing** - Focus on results, not process
-
-#### VERBOSITY=1 (Feedback) - **Recommended for Most Users**
-- **Daily Development** - See what's happening
-- **Troubleshooting** - Understand progress
-- **Learning** - Follow the process
-- **Production** - Balanced output
-
-#### VERBOSITY=2 (Debug)
-- **Development** - Step-by-step debugging
-- **Troubleshooting** - See exact commands and responses
-- **Learning** - Understand every detail
-- **Testing** - Verify individual steps
-
-## 🧹 Cleanup
-
-### Local Cleanup
-```bash
-# Interactive cleanup with confirmation
-./cleanup_local.sh
-
-# Debug mode cleanup
-export VERBOSITY=2
-./cleanup_local.sh
-```
-
-### Identity Mappings (OIDC) — Discovery and Cleanup
-
-Project deletion can fail if OIDC identity mappings still reference the project (e.g., provider- or repo-scoped claims containing the project key). Use the script below to discover and remove such mappings before deleting the project.
+If project deletion fails due to OIDC identity mappings:
 
 ```bash
-# Discover identity mappings related to a project
-export JFROG_URL="https://your-jfrog-instance.com"
-export JFROG_ADMIN_TOKEN="your-admin-token"
+# Discover problematic mappings
 python scripts/identity_mappings.py discover --project bookverse
 
-# Cleanup related mappings (dry run)
+# Clean up mappings (dry run first)
 python scripts/identity_mappings.py cleanup --project bookverse --dry-run
-
-# Cleanup related mappings (execute)
 python scripts/identity_mappings.py cleanup --project bookverse
 
-# Then delete the project
-curl -X DELETE "${JFROG_URL}/access/api/v1/projects/bookverse" \
-  --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}"
-```
-
-In GitHub Actions, the script writes a concise section to `$GITHUB_STEP_SUMMARY` under headings:
-- "Identity Mappings (Discovery)"
-- "Identity Mappings (Cleanup)"
-
-### Project Roles — Discovery and Cleanup
-
-Project-scoped roles created by the demo should be removed before deleting the project. Built-in roles are skipped automatically.
-
-```bash
-# Discover project roles
-export JFROG_URL="https://your-jfrog-instance.com"
-export JFROG_ADMIN_TOKEN="your-admin-token"
-python scripts/project_roles.py discover --project bookverse
-
-# Cleanup project roles created by the demo (dry run)
-python scripts/project_roles.py cleanup --project bookverse --dry-run --role-prefix bookverse-
-
-# Cleanup project roles created by the demo (execute)
+# Clean up project roles
 python scripts/project_roles.py cleanup --project bookverse --role-prefix bookverse-
 ```
 
-The script writes a concise section to `$GITHUB_STEP_SUMMARY` under headings:
-- "Project Roles (Discovery)"
-- "Project Roles (Cleanup)"
+---
 
-### GitHub Actions Cleanup
-- Use the cleanup workflow in GitHub Actions
-- Requires typing "DELETE" to confirm
+## 🎭 Demo Usage
 
-### Manual Cleanup
+### Running a Live Demo
+
+Follow the [Demo Runbook](docs/DEMO_RUNBOOK.md) for step-by-step demo instructions:
+
+1. **Platform Overview** (5 min) - Show BookVerse architecture and JFrog project
+2. **CI/CD and OIDC** (10 min) - Demonstrate passwordless authentication and workflows
+3. **Artifact Management** (10 min) - Show SBOM generation and vulnerability scanning
+4. **AppTrust Lifecycle** (15 min) - Demonstrate promotion workflows DEV→QA→STAGING→PROD
+5. **Platform Aggregation** (10 min) - Show microservice coordination and GitOps
+6. **Security & Compliance** (10 min) - Highlight audit trails and compliance reporting
+
+### Test Promotion Workflow
+
 ```bash
-# Delete specific resources manually
-curl -X DELETE "${JFROG_URL}/access/api/v1/projects/bookverse"
+# Trigger promotion from DEV to QA
+gh workflow run promote.yml -R yonatanp-jfrog/bookverse-inventory \
+  -f target_stage=QA \
+  -f version=1.0.0
+
+# Monitor promotion progress
+gh run watch -R yonatanp-jfrog/bookverse-inventory
 ```
+
+---
+
+## 🎛️ Verbosity Control
+
+All scripts support flexible verbosity levels:
+
+```bash
+# Silent mode (automation/CI)
+export VERBOSITY=0
+./scripts/any_script.sh
+
+# Feedback mode (default) - shows progress
+export VERBOSITY=1  
+./scripts/any_script.sh
+
+# Debug mode - shows all commands and responses
+export VERBOSITY=2
+./scripts/any_script.sh
+```
+
+**Verbosity Levels:**
+- **Level 0 (Silent)**: No output, commands execute silently, perfect for automation
+- **Level 1 (Feedback)**: Shows progress and results, no user interaction required
+- **Level 2 (Debug)**: Shows each command before execution, full output, requires confirmations
+
+---
 
 ## 📋 What Gets Created
 
-### Projects
-- 1 JFrog Project: `bookverse`
+### Complete Resource Inventory
 
-### Stages  
-- 3 Local Stages: `bookverse-DEV`, `bookverse-QA`, `bookverse-STAGING`
-- 1 Global Stage: `PROD` (always present)
+| Resource Type | Count | Examples |
+|---------------|-------|----------|
+| **JFrog Projects** | 1 | `bookverse` |
+| **AppTrust Stages** | 3 | `bookverse-DEV`, `bookverse-QA`, `bookverse-STAGING` |
+| **Repositories** | 14+ | Service repos for Docker, Python, npm, Maven, Helm |
+| **Applications** | 4 | inventory, recommendations, checkout, platform |
+| **Users** | 13 | Developers, managers, pipeline users |
+| **OIDC Integrations** | 5 | GitHub Actions authentication for each service |
+| **GitHub Repositories** | 7 | All service repos + helm + demo assets |
 
-### Repositories
-- 16 Artifactory repositories (4 services × 2 package types × 2 stages)
-- Naming: `{project}-{service}-{package}-{stage}-local`
+### Repository Structure
 
-### Users
-- 8 Human users with different roles
-- 4 Pipeline automation users
+**Naming Convention**: `{project}-{service}-{package}-{stage}-local`
 
-### Applications
-- 4 Microservice applications (inventory, recommendations, checkout, platform)
-- Each with proper ownership and lifecycle management
+**Examples:**
+- `bookverse-inventory-internal-docker-nonprod-local` (DEV/QA/STAGING)
+- `bookverse-inventory-internal-docker-release-local` (PROD)
+- `bookverse-recommendations-internal-python-nonprod-local`
+- `bookverse-helm-internal-helm-nonprod-local`
 
-### OIDC Integrations
-- Secure authentication for GitHub Actions pipelines
-- Team-based access control
-
-## 🔐 Role Mapping
-
-| Business Role | JFrog Role | Description |
-|---------------|------------|-------------|
-| Developer | Developer | Code development and testing |
-| Release Manager | Release Manager | Release management and deployment |
-| Project Manager | Project Admin | Project administration |
-| AppTrust Admin | Application Admin | Application lifecycle management |
-
-## 📝 Naming Conventions
-
-- **Project**: `bookverse`
-- **Stages**: `bookverse-{STAGE}` (DEV, QA, STAGING)
-- **Repositories**: `{project}-{service}-{package}-{stage}-local`
-- **Applications**: `BookVerse {Service} Service`
-- **Users**: `{firstname}.{lastname}@bookverse.com`
-
-## ⚠️ Important Notes
-
-- **PROD stage** is system-managed and cannot be deleted
-- **Cleanup is irreversible** - all data will be permanently deleted
-- **Admin token required** - ensure proper permissions before running
-- **Stages must be removed from lifecycle** before deletion
+---
 
 ## 🔧 Troubleshooting
 
-### Common Issues
+### Common Issues and Solutions
 
-#### HTTP 401 (Unauthorized)
-- Check if `JFROG_ADMIN_TOKEN` is valid and not expired
-- Verify token has admin permissions
+#### Authentication Problems
 
-#### HTTP 409 (Conflict)
-- Resource already exists - this is normal for re-runs
-- Scripts handle this gracefully
+**Problem**: HTTP 401 (Unauthorized)
+```bash
+# Check token validity
+curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+  "${JFROG_URL}/artifactory/api/system/ping"
 
-#### Project Deletion Fails
-- Ensure all stages are removed from lifecycle first
-- Delete applications, repositories, and users before project
-- Delete OIDC identity mappings that reference the project (use `scripts/identity_mappings.py`)
-- Delete non-built-in project roles for the project (use `scripts/project_roles.py`)
+# Verify token has admin permissions
+curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+  "${JFROG_URL}/access/api/v1/projects" | jq .
+```
+
+**Problem**: GitHub CLI not authenticated
+```bash
+gh auth login
+gh auth status
+gh auth refresh  # If token expired
+```
+
+#### Resource Creation Issues
+
+**Problem**: HTTP 409 (Conflict) - Resource already exists
+- This is normal for re-runs and scripts handle it gracefully
+- Scripts are designed to be idempotent
+
+**Problem**: Project deletion fails
+```bash
+# Check for OIDC identity mappings
+python scripts/identity_mappings.py discover --project bookverse
+
+# Clean up mappings first, then retry project deletion
+python scripts/identity_mappings.py cleanup --project bookverse
+```
+
+#### Pipeline Issues
+
+**Problem**: OIDC authentication fails in GitHub Actions
+- Verify repository variables are set: `PROJECT_KEY`, `JFROG_URL`
+- Check OIDC integration exists in JFrog Platform
+- Ensure subject claims match repository patterns
+
+**Problem**: Evidence signing fails
+```bash
+# Check evidence keys are properly deployed
+gh variable list -R yonatanp-jfrog/bookverse-inventory
+gh secret list -R yonatanp-jfrog/bookverse-inventory
+
+# Re-deploy evidence keys if needed
+./scripts/update_evidence_keys.sh --generate
+```
 
 ### Debug Commands
 
 ```bash
-# Check lifecycle status
-curl "${JFROG_URL}/access/api/v2/lifecycle/?project_key=bookverse"
+# Check project status
+curl "${JFROG_URL}/access/api/v1/projects/bookverse" \
+  --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}"
 
-# Check project stages
-curl "${JFROG_URL}/access/api/v2/stages/?project_key=bookverse"
+# List all repositories
+curl "${JFROG_URL}/artifactory/api/repositories" \
+  --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" | \
+  jq -r '.[] | select(.key | startswith("bookverse")) | .key'
 
-# Check project details
-curl "${JFROG_URL}/access/api/v1/projects/bookverse"
+# Check lifecycle configuration
+curl "${JFROG_URL}/access/api/v2/lifecycle/?project_key=bookverse" \
+  --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}"
+
+# List OIDC integrations
+curl "${JFROG_URL}/access/api/v1/oidc" \
+  --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" | \
+  jq -r '.[] | select(.name | startswith("bookverse")) | .name'
 ```
+
+### Reset Complete Environment
+
+If you need to start fresh:
+
+```bash
+# 1. Clean up everything
+gh workflow run "🗑️ Execute Cleanup" -f confirm_cleanup=DELETE
+
+# 2. Wait for cleanup to complete (check in Actions tab)
+sleep 60
+
+# 3. Re-run complete setup
+gh workflow run "🚀 Setup Platform"
+
+# 4. Verify new setup
+./.github/scripts/setup/validate_setup.sh
+```
+
+---
 
 ## 📚 Additional Resources
 
-- [JFrog REST API Documentation](https://jfrog.com/help/r/jfrog-rest-apis)
-- [JFrog CLI Documentation](https://jfrog.com/help/r/jfrog-cli)
-- [AppTrust Lifecycle Management](https://jfrog.com/help/r/jfrog-apptrust-lifecycle-management)
+### Documentation
 
-### 🧭 Kubernetes & Argo CD (Local, PROD-only)
+- **[Demo Runbook](docs/DEMO_RUNBOOK.md)** - Complete demo presentation guide
+- **[Repository Architecture](docs/REPO_ARCHITECTURE.md)** - Technical architecture details
+- **[Evidence Key Generation](docs/EVIDENCE_KEY_GENERATION.md)** - Cryptographic key management
+- **[Evidence Key Deployment](docs/EVIDENCE_KEY_DEPLOYMENT.md)** - Key deployment procedures
+- **[Kubernetes Bootstrap](docs/K8S_ARGO_BOOTSTRAP.md)** - Local K8s deployment guide
+- **[Script Documentation](scripts/README.md)** - Detailed script reference
 
-For a complete clean‑slate bootstrap of a local Kubernetes cluster with Argo CD managing only the PROD environment, see `docs/K8S_ARGO_BOOTSTRAP.md`.
+### External Resources
+
+- **[JFrog REST API Documentation](https://jfrog.com/help/r/jfrog-rest-apis)**
+- **[JFrog CLI Documentation](https://jfrog.com/help/r/jfrog-cli)**
+- **[AppTrust Lifecycle Management](https://jfrog.com/help/r/jfrog-apptrust-lifecycle-management)**
+- **[GitHub CLI Documentation](https://cli.github.com/manual/)**
+
+### Support
+
+For issues with this demo:
+1. Check the troubleshooting section above
+2. Review the validation output for specific errors
+3. Consult the detailed documentation in the `docs/` directory
+4. Check GitHub Actions logs for workflow failures
+
+---
+
+## ✨ Success Metrics
+
+After successful deployment, you should have:
+
+- ✅ **Zero-trust CI/CD** - No stored secrets, OIDC authentication working
+- ✅ **Automated Security** - SBOM generation, vulnerability scanning active
+- ✅ **Complete Traceability** - Full audit trail from code commit to production
+- ✅ **Promotion Workflows** - DEV→QA→STAGING→PROD lifecycle operational
+- ✅ **Evidence Signing** - Cryptographic verification of all artifacts
+- ✅ **GitOps Integration** - Automated Kubernetes deployments
+- ✅ **Platform Aggregation** - Microservice coordination via AppTrust
+
+**Ready for Demo**: The environment is now ready for live demonstrations, POCs, or development work!
+
+---
+
+*Last Updated: September 2024*  
+*Maintainer: DevRel Team*  
+*Version: 2.0*

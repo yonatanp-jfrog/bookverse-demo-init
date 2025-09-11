@@ -5,7 +5,7 @@ This guide lets anyone install and run the BookVerse demo on a local Kubernetes 
 #### Prerequisites
 - kubectl and helm installed
 - A local cluster (Rancher Desktop recommended)
-- Container registry credentials (hostname, username, password/token, email)
+- Container registry credentials (hostname, username, password/token; email optional)
 
 #### 1) Start from a clean slate (optional)
 ```bash
@@ -19,13 +19,13 @@ cd bookverse-demo-init
 export REGISTRY_SERVER='your-tenant.jfrog.io'         # JFrog SaaS (host only)
 export REGISTRY_USERNAME='<jfrog-username>'
 export REGISTRY_PASSWORD='<jfrog-password-or-token>'
-export REGISTRY_EMAIL='you@example.com'
+export REGISTRY_EMAIL='you@example.com'   # optional; your JFrog user email is fine
 ./scripts/k8s/bootstrap.sh --port-forward
 # Or local JFrog (example)
 export REGISTRY_SERVER='localhost:8082'
 export REGISTRY_USERNAME='admin'
 export REGISTRY_PASSWORD='<admin-password-or-token>'
-export REGISTRY_EMAIL='admin@local'
+# REGISTRY_EMAIL optional
 ./scripts/k8s/bootstrap.sh --port-forward
 # Argo CD UI: https://localhost:8081 (accept self-signed cert)
 kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d; echo

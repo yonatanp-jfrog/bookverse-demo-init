@@ -548,19 +548,37 @@ export REGISTRY_PASSWORD='your-access-token'  # Instead of password
 
 > ⚠️ **Important**: Do **NOT** use your admin token (`JFROG_ADMIN_TOKEN`) for Kubernetes registry access. The admin token is for platform setup only. Use a regular user account or dedicated pull user with minimal read permissions for security.
 
-**For Cloud Clusters:**
-If deploying to a cloud cluster, you may want to expose services differently:
+**Kubernetes Deployment Options:**
 
+**Option 1: Local Development (Rancher Desktop, Docker Desktop, etc.)**
 ```bash
-# Deploy without port-forward for cloud clusters
+# Deploy with automatic port-forwarding for local access
+./scripts/k8s/bootstrap.sh --port-forward
+
+# This will start local tunnels:
+# - Argo CD: https://localhost:8081
+# - BookVerse Web: http://localhost:8080
+```
+
+**Option 2: Cloud Clusters or Remote Access**
+```bash
+# Deploy without port-forward 
 ./scripts/k8s/bootstrap.sh
 
 # Check service endpoints
 kubectl -n argocd get svc argocd-server
 kubectl -n bookverse-prod get svc bookverse-web
 
-# For cloud clusters, consider using LoadBalancer or Ingress instead of port-forward
+# Access via cluster-specific methods:
+# - LoadBalancer: External IP assigned by cloud provider
+# - NodePort: Access via cluster node IP and port
+# - Ingress: Configure ingress controller for domain access
 ```
+
+**Access Methods Summary:**
+- **Local clusters** (Rancher Desktop): Use `--port-forward` for easy localhost access
+- **Cloud clusters**: Use LoadBalancer, NodePort, or Ingress based on your setup
+- **Both**: The bootstrap script works the same way, only access method differs
 
 **What this creates:**
 - ⎈ Argo CD installation in `argocd` namespace

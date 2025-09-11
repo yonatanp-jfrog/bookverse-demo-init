@@ -28,10 +28,18 @@ Behavior:
   - With --port-forward, starts local tunnels: Argo CD (https://localhost:8081), Web (http://localhost:8080)
 
 Examples:
-  export REGISTRY_SERVER='registry.example.com'
+  # JFrog SaaS
+  export REGISTRY_SERVER='your-tenant.jfrog.io'
   export REGISTRY_USERNAME='alice'
   export REGISTRY_PASSWORD='***'
   export REGISTRY_EMAIL='alice@example.com'
+  ./scripts/k8s/bootstrap.sh --port-forward
+
+  # Local JFrog (default platform port)
+  export REGISTRY_SERVER='localhost:8082'
+  export REGISTRY_USERNAME='admin'
+  export REGISTRY_PASSWORD='***'
+  export REGISTRY_EMAIL='admin@local'
   ./scripts/k8s/bootstrap.sh --port-forward
 EOF
 }

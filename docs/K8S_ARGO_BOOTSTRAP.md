@@ -16,10 +16,16 @@ cd bookverse-demo-init
 #### 2) Bootstrap Argo CD and deploy BookVerse (PROD)
 ```bash
 cd bookverse-demo-init
-export REGISTRY_SERVER='your.registry.example.com'   # host only, no path
+export REGISTRY_SERVER='your-tenant.jfrog.io'         # JFrog SaaS (host only)
 export REGISTRY_USERNAME='<jfrog-username>'
 export REGISTRY_PASSWORD='<jfrog-password-or-token>'
 export REGISTRY_EMAIL='you@example.com'
+./scripts/k8s/bootstrap.sh --port-forward
+# Or local JFrog (example)
+export REGISTRY_SERVER='localhost:8082'
+export REGISTRY_USERNAME='admin'
+export REGISTRY_PASSWORD='<admin-password-or-token>'
+export REGISTRY_EMAIL='admin@local'
 ./scripts/k8s/bootstrap.sh --port-forward
 # Argo CD UI: https://localhost:8081 (accept self-signed cert)
 kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d; echo

@@ -14,7 +14,7 @@ Usage: ./scripts/k8s/bootstrap.sh [--port-forward] [--help]
 PROD-only bootstrap for local Kubernetes + Argo CD. No defaults are assumed.
 
 Environment variables (required to create image pull secret):
-  REGISTRY_SERVER     Container registry hostname/path (e.g., registry.example.com/bookverse)
+  REGISTRY_SERVER     Container registry hostname (no repo path), e.g., registry.example.com
   REGISTRY_USERNAME   Registry username
   REGISTRY_PASSWORD   Registry password or token
   REGISTRY_EMAIL      Email for the registry secret
@@ -28,7 +28,7 @@ Behavior:
   - With --port-forward, starts local tunnels: Argo CD (https://localhost:8081), Web (http://localhost:8080)
 
 Examples:
-  export REGISTRY_SERVER='registry.example.com/bookverse'
+  export REGISTRY_SERVER='registry.example.com'
   export REGISTRY_USERNAME='alice'
   export REGISTRY_PASSWORD='***'
   export REGISTRY_EMAIL='alice@example.com'

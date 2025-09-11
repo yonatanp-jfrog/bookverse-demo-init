@@ -95,12 +95,13 @@ create_role \
 
 echo "📋 Role creation summary:"
 echo ""
-echo "✅ bookverse-k8s-image-pull"
-echo "   • Purpose: Kubernetes container image pulling"
+echo "✅ bookverse-k8s-image-pull (Global Custom Role)"
+echo "   • Purpose: Legacy global role (superseded by project role)"
 echo "   • Permissions: READ_REPOSITORY, READ_RELEASE_BUNDLE"
 echo "   • Environments: PROD only"
-echo "   • Use case: Container runtime image access"
+echo "   • Note: K8s users now use 'k8s_image_pull' project role instead"
 echo ""
 
 echo "🎯 Custom roles are now available for assignment to users"
+echo "ℹ️  Note: K8s users receive project-scoped roles via create_users.sh"
 echo ""

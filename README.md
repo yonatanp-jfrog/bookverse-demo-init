@@ -123,7 +123,7 @@ gh run watch
 - ✅ Multiple Artifactory repositories for all services and package types
 - ✅ AppTrust lifecycle stages (DEV → QA → STAGING → PROD)
 - ✅ AppTrust applications with ownership and criticality settings (inventory, recommendations, checkout, platform, web)
-- ✅ Custom roles with specific permissions (including `bookverse-k8s-image-pull` for container deployment)
+- ✅ Custom project roles with specific permissions (including `k8s_image_pull` for container deployment)
 - ✅ Demo users with appropriate role assignments
 - ✅ OIDC integrations for passwordless GitHub Actions
 - ✅ Evidence keys for cryptographic signing and verification
@@ -479,12 +479,13 @@ The script will pause at "Waiting for Argo CD app" while Kubernetes pulls images
 ### JFrog Registry User Requirements
 
 **Option 1: Use Dedicated K8s Pull User (Recommended)**
-The setup automatically creates a dedicated Kubernetes user:
+The setup automatically creates a dedicated Kubernetes user with minimal permissions:
 ```bash
 # Use the dedicated K8s pull user created during setup
 export REGISTRY_USERNAME='k8s.pull@bookverse.com'
 export REGISTRY_PASSWORD='K8sPull2024!'  # Default password
 ```
+This user has the `k8s_image_pull` project role with read-only access to PROD repositories.
 
 **Option 2: Use BookVerse Project User**
 Use one of the demo users created during setup:
@@ -498,10 +499,29 @@ export REGISTRY_PASSWORD='BookVerse2024!'  # Default demo password
 Your user needs these **minimum permissions**:
 - **Read access** to BookVerse Docker repositories:
   - `bookverse-*-docker-release-local` (PROD images only)
-- **Project membership** in the `bookverse` project (custom `bookverse-k8s-image-pull` role or Viewer minimum)
+- **Project membership** in the `bookverse` project (custom `k8s_image_pull` project role or Viewer minimum)
 
 **Using Access Tokens (Recommended for Production)**
 Instead of passwords, use JFrog access tokens:
+
+**Option A: Generate via API (Recommended)**
+```bash
+# Generate access token for k8s user programmatically
+ACCESS_TOKEN=$(curl -s -X POST \
+  --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "username": "k8s.pull@bookverse.com",
+    "scope": "applied-permissions/user",
+    "expires_in": 31536000,
+    "description": "K8s image pull token"
+  }' \
+  "${JFROG_URL}/access/api/v1/tokens" | jq -r '.access_token')
+
+export REGISTRY_PASSWORD="$ACCESS_TOKEN"  # Use token instead of password
+```
+
+**Option B: Generate via UI**
 ```bash
 # Generate access token in JFrog Platform UI: User Profile → Access Tokens
 export REGISTRY_PASSWORD='your-access-token'  # Instead of password

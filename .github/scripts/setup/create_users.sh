@@ -74,7 +74,7 @@ map_role_to_project_role() {
         # Service managers should be members with elevated release capabilities
         "Inventory Manager"|"AI/ML Manager"|"Checkout Manager") echo "Release Manager" ;;
         "Pipeline User") echo "Developer" ;;
-        "K8s Pull User") echo "bookverse-k8s-image-pull" ;;
+        "K8s Pull User") echo "Viewer" ;;
         *) echo "Viewer" ;;
     esac
 }
@@ -299,6 +299,68 @@ if [[ "$CICD_PIPELINE_ROLE_AVAILABLE" != true ]]; then
     echo "⚠️  Proceeding without custom role 'cicd_pipeline' (fallback will assign 'Project Admin' to pipeline users)"
 fi
 
+# Function to ensure K8s image pull project role exists
+ensure_k8s_image_pull_role() {
+    local role_name="k8s_image_pull"
+    local tmp=$(mktemp)
+
+    # Best-effort existence check
+    local list_code=$(curl -s \
+        --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+        --header "Accept: application/json" \
+        -w "%{http_code}" -o "$tmp" \
+        "${JFROG_URL}/access/api/v1/projects/${PROJECT_KEY}/roles")
+    if [[ "$list_code" -ge 200 && "$list_code" -lt 300 ]] && grep -q '"name"\s*:\s*"'"$role_name"'"' "$tmp" 2>/dev/null; then
+        echo "✅ Project role '$role_name' already exists"
+        K8S_IMAGE_PULL_ROLE_AVAILABLE=true
+        rm -f "$tmp"
+        return 0
+    fi
+    rm -f "$tmp"
+
+    echo "🛠️  Creating project role '$role_name' with minimal read permissions for K8s image pulling"
+
+    # Build K8s role payload with minimal read permissions
+    local payload=$(jq -n \
+        --arg name "$role_name" \
+        --arg desc "Kubernetes Image Pull - Minimal read access to PROD repositories for container deployment" \
+        --arg proj "$PROJECT_KEY" \
+        '{
+            name: $name,
+            description: $desc,
+            type: "CUSTOM",
+            actions: [
+                "READ_REPOSITORY",
+                "READ_RELEASE_BUNDLE"
+            ],
+            environments: [
+                "PROD"
+            ]
+        }')
+
+    local resp=$(mktemp)
+    local code=$(curl -s \
+        --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+        --header "Content-Type: application/json" \
+        --write-out "%{http_code}" -o "$resp" \
+        -X POST \
+        -d "$payload" \
+        "${JFROG_URL}/access/api/v1/projects/${PROJECT_KEY}/roles")
+    if [[ "$code" == "409" || "$code" =~ ^20 ]]; then
+        echo "✅ Project role '$role_name' ensured (HTTP $code)"
+        K8S_IMAGE_PULL_ROLE_AVAILABLE=true
+    else
+        echo "⚠️  K8s role creation returned HTTP $code; response: $(cat "$resp")"
+    fi
+    rm -f "$resp"
+}
+
+ensure_k8s_image_pull_role
+
+if [[ "$K8S_IMAGE_PULL_ROLE_AVAILABLE" != true ]]; then
+    echo "⚠️  Proceeding without custom role 'k8s_image_pull' (fallback will assign 'Viewer' to K8s users)"
+fi
+
 echo "🚀 Processing ${#BOOKVERSE_USERS[@]} users..."
 
 # Process each user
@@ -353,6 +415,37 @@ for user_data in "${BOOKVERSE_USERS[@]}"; do
             done
             if [[ "$has_admin" == false ]]; then
                 project_roles+=("Project Admin")
+            fi
+        fi
+    fi
+
+    # Ensure K8s users receive the right role membership
+    if [[ "$username" == k8s.*@* ]]; then
+        # Remove default Viewer role for K8s users if custom role is available
+        cleaned_roles=()
+        for r in "${project_roles[@]}"; do
+            if [[ "$r" != "Viewer" && -n "$r" ]]; then
+                cleaned_roles+=("$r")
+            fi
+        done
+        project_roles=("${cleaned_roles[@]}")
+
+        if [[ "$K8S_IMAGE_PULL_ROLE_AVAILABLE" == true ]]; then
+            already=false
+            for r in "${project_roles[@]}"; do
+                if [[ "$r" == "k8s_image_pull" ]]; then already=true; break; fi
+            done
+            if [[ "$already" == false ]]; then
+                project_roles+=("k8s_image_pull")
+            fi
+        else
+            # Fallback to Viewer role if custom K8s role is unavailable
+            has_viewer=false
+            for r in "${project_roles[@]}"; do
+                if [[ "$r" == "Viewer" ]]; then has_viewer=true; break; fi
+            done
+            if [[ "$has_viewer" == false ]]; then
+                project_roles+=("Viewer")
             fi
         fi
     fi

@@ -5,7 +5,7 @@ This guide lets anyone install and run the BookVerse demo on a local Kubernetes 
 #### Prerequisites
 - kubectl and helm installed
 - A local cluster (Rancher Desktop recommended)
-- JFrog registry credentials for `apptrustswampupc.jfrog.io` (username/password or token)
+- Container registry credentials (hostname, username, password/token, email)
 
 #### 1) Start from a clean slate (optional)
 ```bash
@@ -16,6 +16,7 @@ cd bookverse-demo-init
 #### 2) Bootstrap Argo CD and deploy BookVerse (PROD)
 ```bash
 cd bookverse-demo-init
+export REGISTRY_SERVER='your.registry.example.com/bookverse'
 export REGISTRY_USERNAME='<jfrog-username>'
 export REGISTRY_PASSWORD='<jfrog-password-or-token>'
 export REGISTRY_EMAIL='you@example.com'
@@ -28,7 +29,7 @@ kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.pas
 What the bootstrap does:
 - Installs Argo CD in `argocd` namespace
 - Creates `bookverse-prod` namespace
-- Adds `imagePullSecrets` if registry env vars are provided
+- Adds `imagePullSecrets` if all REGISTRY_* vars are provided (no defaults assumed)
 - Applies `gitops/projects/bookverse-prod.yaml` and `gitops/apps/prod/platform.yaml`
 - Waits for the Argo CD Application to be Synced and Healthy
 - Optionally starts port-forwards for Argo CD and the web app

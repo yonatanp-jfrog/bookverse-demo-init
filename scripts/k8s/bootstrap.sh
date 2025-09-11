@@ -5,13 +5,34 @@ set -euo pipefail
 ENV="prod"
 PORT_FORWARD=false
 ARGO_NS="argocd"
-REGISTRY_SERVER="${REGISTRY_SERVER:-apptrustswampupc.jfrog.io}"
+REGISTRY_SERVER="${REGISTRY_SERVER:-}"
 
 usage() {
-  cat <<EOF
-Usage: $0 [--port-forward]
-PROD-only bootstrap. Optional --port-forward starts local tunnels for Argo CD (8081) and Web (8080).
-Exports used: REGISTRY_USERNAME, REGISTRY_PASSWORD, REGISTRY_EMAIL, REGISTRY_SERVER (optional)
+  cat <<'EOF'
+Usage: ./scripts/k8s/bootstrap.sh [--port-forward] [--help]
+
+PROD-only bootstrap for local Kubernetes + Argo CD. No defaults are assumed.
+
+Environment variables (required to create image pull secret):
+  REGISTRY_SERVER     Container registry hostname/path (e.g., registry.example.com/bookverse)
+  REGISTRY_USERNAME   Registry username
+  REGISTRY_PASSWORD   Registry password or token
+  REGISTRY_EMAIL      Email for the registry secret
+
+Behavior:
+  - Installs/updates Argo CD in namespace "argocd"
+  - Creates namespace "bookverse-prod"
+  - If all REGISTRY_* are set, creates/updates imagePullSecret "jfrog-docker-pull" and attaches it to the default ServiceAccount
+  - Applies GitOps: gitops/projects/bookverse-prod.yaml and gitops/apps/prod/platform.yaml
+  - Waits for Argo CD Application to be Synced/Healthy
+  - With --port-forward, starts local tunnels: Argo CD (https://localhost:8081), Web (http://localhost:8080)
+
+Examples:
+  export REGISTRY_SERVER='registry.example.com/bookverse'
+  export REGISTRY_USERNAME='alice'
+  export REGISTRY_PASSWORD='***'
+  export REGISTRY_EMAIL='alice@example.com'
+  ./scripts/k8s/bootstrap.sh --port-forward
 EOF
 }
 
@@ -36,7 +57,7 @@ kubectl -n "${ARGO_NS}" rollout status deploy/argocd-server --timeout=180s || tr
 echo "==> Creating namespace ${NS}"
 kubectl get ns "${NS}" >/dev/null 2>&1 || kubectl create ns "${NS}"
 
-if [[ -n "${REGISTRY_USERNAME:-}" && -n "${REGISTRY_PASSWORD:-}" && -n "${REGISTRY_EMAIL:-}" ]]; then
+if [[ -n "${REGISTRY_SERVER:-}" && -n "${REGISTRY_USERNAME:-}" && -n "${REGISTRY_PASSWORD:-}" && -n "${REGISTRY_EMAIL:-}" ]]; then
   echo "==> Creating/updating docker-registry secret in ${NS}"
   kubectl -n "${NS}" create secret docker-registry jfrog-docker-pull \
     --docker-server="${REGISTRY_SERVER}" \
@@ -47,7 +68,8 @@ if [[ -n "${REGISTRY_USERNAME:-}" && -n "${REGISTRY_PASSWORD:-}" && -n "${REGIST
   kubectl -n "${NS}" patch serviceaccount default \
     -p '{"imagePullSecrets":[{"name":"jfrog-docker-pull"}]}' >/dev/null
 else
-  echo "WARN: REGISTRY_USERNAME / REGISTRY_PASSWORD / REGISTRY_EMAIL not set; images may fail to pull."
+  echo "WARN: REGISTRY_SERVER / REGISTRY_USERNAME / REGISTRY_PASSWORD / REGISTRY_EMAIL not all set;"
+  echo "      Skipping imagePullSecret creation. Images may fail to pull until you configure credentials."
 fi
 
 echo "==> Applying AppProject (PROD-only)"

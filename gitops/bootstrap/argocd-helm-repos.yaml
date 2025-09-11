@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: bookverse-helm-internal
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+type: Opaque
+stringData:
+  name: bookverse-helm-internal
+  type: helm
+  url: https://evidencetrial.jfrog.io/artifactory/bookverse-helm-internal-helm-nonprod-local
+  # Set one of the following auth methods before applying:
+  # username: <jfrog-username>
+  # password: <jfrog-password-or-api-key>
+  # OR for token-based auth (if supported by your ArgoCD version):
+  # bearerToken: <jfrog-access-token>
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: bookverse-helm-release
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+type: Opaque
+stringData:
+  name: bookverse-helm-release
+  type: helm
+  url: https://evidencetrial.jfrog.io/artifactory/bookverse-helm-internal-helm-release-local
+  # Set one of the following auth methods before applying:
+  # username: <jfrog-username>
+  # password: <jfrog-password-or-api-key>
+  # OR for token-based auth (if supported by your ArgoCD version):
+  # bearerToken: <jfrog-access-token>
+
+

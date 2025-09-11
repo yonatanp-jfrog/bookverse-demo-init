@@ -38,7 +38,7 @@ bash scripts/set_actions_vars.sh
 ```
 
 This will set `PROJECT_KEY`, `JFROG_URL`, and `DOCKER_REGISTRY` as Actions variables in:
-`bookverse-inventory`, `bookverse-recommendations`, `bookverse-checkout`, `bookverse-platform`, `bookverse-demo-assets`.
+`bookverse-inventory`, `bookverse-recommendations`, `bookverse-checkout`, `bookverse-platform`, `bookverse-demo-init`.
 
 ## 🔐 GitHub PAT for repository_dispatch (Option A)
 
@@ -544,3 +544,7 @@ curl "${JFROG_URL}/access/api/v1/projects/bookverse"
 - [JFrog REST API Documentation](https://jfrog.com/help/r/jfrog-rest-apis)
 - [JFrog CLI Documentation](https://jfrog.com/help/r/jfrog-cli)
 - [AppTrust Lifecycle Management](https://jfrog.com/help/r/jfrog-apptrust-lifecycle-management)
+
+### 🧭 Kubernetes & Argo CD (Local, PROD-only)
+
+For a complete clean‑slate bootstrap of a local Kubernetes cluster with Argo CD managing only the PROD environment, see `docs/K8S_ARGO_BOOTSTRAP.md`.

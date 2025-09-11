@@ -1,0 +1,38 @@
+name: Validate GitOps Manifests
+
+on:
+  push:
+    paths:
+      - 'gitops/**.yaml'
+      - 'gitops/**/**.yaml'
+      - '.github/workflows/validate-gitops.yml'
+  pull_request:
+    paths:
+      - 'gitops/**.yaml'
+      - 'gitops/**/**.yaml'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install kubeconform
+        run: |
+          curl -L -o kubeconform.tar.gz https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz
+          tar -xzf kubeconform.tar.gz
+          sudo mv kubeconform /usr/local/bin/
+
+      - name: Validate Kubernetes manifests
+        run: |
+          kubeconform -summary -output pretty -strict -ignore-missing-schemas \
+            -schema-location default \
+            -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{ .Group }}/{{ .ResourceKind }}_{{ .ResourceAPIVersion }}.json' \
+            $(find gitops -name '*.yaml')
+
+      - name: Lint YAML
+        run: |
+          pipx install yamllint
+          yamllint -d "{extends: default, rules: {line-length: disable}}" gitops
+
+

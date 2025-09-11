@@ -1,0 +1,18 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: bookverse-prod
+  namespace: argocd
+spec:
+  description: BookVerse PROD environment (PROD-only GitOps)
+  sourceRepos:
+    - 'https://github.com/yonatanp-jfrog/bookverse-helm.git'
+    - 'https://github.com/yonatanp-jfrog/bookverse-demo-init.git'
+  destinations:
+    - namespace: 'bookverse-prod'
+      server: 'https://kubernetes.default.svc'
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+
+

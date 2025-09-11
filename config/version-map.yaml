@@ -1,0 +1,51 @@
+applications:
+  - key: bookverse-inventory
+    seeds:
+      application: 2.7.13
+      build: 3.14.22
+    packages:
+      - type: docker
+        name: inventory-api
+        seed: 1.5.11
+
+  - key: bookverse-recommendations
+    seeds:
+      application: 1.12.4
+      build: 2.9.18
+    packages:
+      - type: docker
+        name: recommendations-api
+        seed: 2.10.5
+      - type: docker
+        name: recommendations-worker
+        seed: 1.4.22
+
+  - key: bookverse-checkout
+    seeds:
+      application: 2.0.7
+      build: 3.28.44
+    packages:
+      - type: docker
+        name: checkout-api
+        seed: 1.17.22
+      - type: docker
+        name: checkout-worker
+        seed: 3.4.11
+      - type: docker
+        name: checkout-mock-payment
+        seed: 3.6.9
+
+  - key: bookverse-web
+    seeds:
+      application: 1.7.2
+      build: 2.18.9
+    packages:
+      - type: docker
+        name: web
+        seed: 1.8.15
+
+  - key: bookverse-platform
+    seeds:
+      application: 1.5.6
+      build: 1.10.3
+    packages: []

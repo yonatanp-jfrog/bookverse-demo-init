@@ -1,0 +1,24 @@
+# BookVerse Demo — PROD-only Argo CD Application
+# Deployment is driven by AppTrust platform release_complete webhook → GitHub Actions.
+# The workflow fetches the platform version content, validates 'latest', updates per-service
+# image tags in charts/platform/values.yaml, and pushes directly to main; Argo CD auto-syncs.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: platform-prod
+  namespace: argocd
+spec:
+  project: bookverse-prod
+  source:
+    repoURL: https://github.com/yonatanp-jfrog/bookverse-helm.git
+    targetRevision: main
+    path: charts/platform
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: bookverse-prod
+  syncPolicy:
+    automated: {}
+    syncOptions:
+      - CreateNamespace=true
+
+

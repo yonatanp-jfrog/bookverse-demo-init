@@ -238,6 +238,50 @@ curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
   jq -r '.[] | select(.key | contains("bookverse")) | .key'
 ```
 
+**4. BookVerse Web Application Issues**
+
+*Problem*: Website shows broken design or can't connect to backend services
+
+*Symptoms*:
+- Empty pages or missing content
+- Network errors in browser console
+- Service connectivity indicators show "n/a"
+
+*Diagnosis*:
+```bash
+# Check web service status
+kubectl -n bookverse-prod get deployment platform-web
+kubectl -n bookverse-prod get pods -l app=platform-web
+
+# Verify configuration
+kubectl -n bookverse-prod exec deploy/platform-web -- cat /usr/share/nginx/html/config.js
+
+# Test backend connectivity (from local machine)
+curl -s http://localhost:8001/api/v1/books | jq '.books | length'  # Should return 20
+curl -s http://localhost:8003/health  # Should return {"status":"ok"}
+curl -s http://localhost:8002/health  # Should return {"status":"ok"}
+```
+
+*Solution for Local Development*:
+```bash
+# Fix backend URLs for local port-forwarding
+kubectl -n bookverse-prod exec deploy/platform-web -- sh -c 'cat > /usr/share/nginx/html/config.js <<EOF
+window.__BOOKVERSE_CONFIG__ = {
+  env: "DEV",
+  inventoryBaseUrl: "http://localhost:8001",
+  recommendationsBaseUrl: "http://localhost:8003", 
+  checkoutBaseUrl: "http://localhost:8002"
+};
+EOF'
+
+# Verify fix
+curl -s http://localhost:8080/config.js
+```
+
+*Root Cause*: The web application was configured to use internal Kubernetes service names (`http://inventory`) which are not accessible from the browser. For local development with port-forwarding, localhost URLs must be used.
+
+*Permanent Fix*: The `entrypoint.sh` script in bookverse-web has been updated to properly substitute environment variables. Ensure the heredoc uses `<<CFG` (not `<<'CFG'`) to enable variable expansion.
+
 ### Reset Demo Environment
 
 If needed, reset the entire environment:
@@ -287,6 +331,7 @@ gh workflow run 🚀-setup-platform.yml
 ### Supporting Documentation
 - `REPO_ARCHITECTURE.md` - Technical architecture
 - `CONSTRAINTS.md` - Demo limitations and assumptions
+- `WEB_APPLICATION_TROUBLESHOOTING.md` - Web application configuration and troubleshooting guide
 
 ## Success Metrics
 

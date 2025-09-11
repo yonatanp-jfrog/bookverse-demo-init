@@ -7,6 +7,15 @@ This guide lets anyone install and run the BookVerse demo on a local Kubernetes 
 - A local cluster (Rancher Desktop recommended)
 - Container registry credentials (hostname, username, password/token; email optional)
 
+#### Important Configuration Notes
+
+⚠️ **Web Application Backend URLs**: The BookVerse web application requires different backend URL configurations:
+
+- **Production/Kubernetes**: Uses internal service names (`http://inventory`, `http://recommendations`, `http://checkout`)
+- **Local Development**: Requires localhost URLs with port-forwarding (`http://localhost:8001`, `http://localhost:8003`, `http://localhost:8002`)
+
+For local testing with port-forwarding, you may need to update the web configuration manually. See the troubleshooting section in DEMO_RUNBOOK.md for details.
+
 #### 1) Start from a clean slate (optional)
 ```bash
 cd bookverse-demo-init

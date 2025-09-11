@@ -119,7 +119,47 @@ This configures the following repositories:
 - `bookverse-inventory`, `bookverse-recommendations`, `bookverse-checkout`
 - `bookverse-platform`, `bookverse-web`, `bookverse-helm`
 
-### Step 4: Configure Evidence Keys
+### Step 4: Clone BookVerse Repositories
+
+Clone all the BookVerse service repositories to your local environment:
+
+```bash
+# Create a workspace directory for all BookVerse repositories
+mkdir -p ~/bookverse-workspace
+cd ~/bookverse-workspace
+
+# Clone all BookVerse service repositories
+# Replace 'your-org' with your actual GitHub organization
+ORG=your-org  # or use: ORG=$(gh api user --jq .login) for personal account
+
+gh repo clone $ORG/bookverse-inventory
+gh repo clone $ORG/bookverse-recommendations  
+gh repo clone $ORG/bookverse-checkout
+gh repo clone $ORG/bookverse-platform
+gh repo clone $ORG/bookverse-web
+gh repo clone $ORG/bookverse-helm
+
+# Optional: Clone demo assets and this init repository
+gh repo clone $ORG/bookverse-demo-assets
+gh repo clone $ORG/bookverse-demo-init
+
+# Verify all repositories are cloned
+ls -la
+```
+
+**Repository Overview:**
+- 📦 **bookverse-inventory** - Inventory management microservice
+- 🤖 **bookverse-recommendations** - AI recommendation engine
+- 💳 **bookverse-checkout** - Payment processing service
+- 🚀 **bookverse-platform** - Platform aggregation service
+- 🌐 **bookverse-web** - Frontend web application
+- ⎈ **bookverse-helm** - Kubernetes deployment charts
+- 📁 **bookverse-demo-assets** - Demo materials and GitOps configs
+- 🔧 **bookverse-demo-init** - Setup and initialization scripts
+
+> 💡 **Note**: If any repositories don't exist in your organization yet, you'll need to create them from templates or fork them from the reference repositories.
+
+### Step 5: Configure Evidence Keys
 
 Set up cryptographic keys for artifact signing and verification:
 
@@ -139,7 +179,7 @@ Set up cryptographic keys for artifact signing and verification:
 - 🔑 Uploads public key to JFrog Platform trusted keys
 - ✅ Validates key format and deployment
 
-### Step 5: Validation and Testing
+### Step 6: Validation and Testing
 
 Verify your complete deployment:
 
@@ -156,29 +196,26 @@ Verify your complete deployment:
 # ✅ GitHub repositories accessible
 ```
 
-### Step 6: Test the CI/CD Pipeline
+### Step 7: Test the CI/CD Pipeline
 
-First, you'll need access to the BookVerse service repositories. These should be created as part of your organization setup:
+Now that you have all repositories cloned, test the CI/CD pipeline:
 
 ```bash
-# Verify service repositories exist (replace 'your-org' with your GitHub organization)
-gh repo list your-org --topic bookverse
+# Navigate to one of the service repositories
+cd ~/bookverse-workspace/bookverse-inventory
 
-# Clone a service repository to test
-gh repo clone your-org/bookverse-inventory
-
-# Make a test change
-cd bookverse-inventory
+# Make a test change to trigger CI
 echo "# Test deployment $(date)" >> README.md
 git add README.md
-git commit -m "Test: Verify CI/CD pipeline"
+git commit -m "Test: Verify CI/CD pipeline deployment"
 git push origin main
 
 # Watch the workflow execution
 gh run watch
-```
 
-> 💡 **Note**: If the service repositories don't exist yet, you'll need to create them from the BookVerse service templates or fork them from the reference repositories.
+# You can also check the workflow status
+gh run list --limit 5
+```
 
 **What to expect:**
 - ✅ OIDC authentication to JFrog Platform (no stored tokens)

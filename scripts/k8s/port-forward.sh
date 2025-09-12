@@ -2,17 +2,17 @@
 set -euo pipefail
 
 # =============================================================================
-# KUBERNETES PORT-FORWARDING SCRIPT
+# KUBERNETES PORT-FORWARDING SCRIPT (SIMPLIFIED)
 # =============================================================================
 # Dedicated script to start/stop port-forwarding for BookVerse services
-# Can be run independently of bootstrap for convenience
+# Use port-forward-monitor.sh for monitoring
 # =============================================================================
 
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
+CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # Disable colors when NO_COLOR is set or stdout is not a TTY
@@ -20,12 +20,12 @@ if [[ -n "${NO_COLOR:-}" || ! -t 1 ]]; then
     RED=''
     GREEN=''
     YELLOW=''
-    BLUE=''
+    CYAN=''
     NC=''
 fi
 
 # Logging functions
-log_info() { echo -e "${BLUE}ℹ️  $1${NC}"; }
+log_info() { echo -e "${CYAN}ℹ️  $1${NC}"; }
 log_success() { echo -e "${GREEN}✅ $1${NC}"; }
 log_warning() { echo -e "${YELLOW}⚠️  $1${NC}"; }
 log_error() { echo -e "${RED}❌ $1${NC}"; }
@@ -58,12 +58,22 @@ Default behavior:
   - Runs in foreground (blocks terminal)
   - Press Ctrl+C to stop
 
+Monitoring:
+  - Use './scripts/k8s/port-forward-monitor.sh' for status monitoring
+  - Use './scripts/k8s/port-forward-monitor.sh --status' for quick status
+
 Examples:
   # Standard foreground mode
   ./scripts/k8s/port-forward.sh
 
-  # Background mode (keeps terminal available)
+  # Background mode
   ./scripts/k8s/port-forward.sh --background
+
+  # Start monitoring (in another terminal)
+  ./scripts/k8s/port-forward-monitor.sh
+
+  # Check status
+  ./scripts/k8s/port-forward-monitor.sh --status
 
   # Only web app
   ./scripts/k8s/port-forward.sh --web-only
@@ -128,6 +138,12 @@ stop_port_forwards() {
         log_success "Existing port-forwards stopped"
     else
         log_info "No existing port-forwards found"
+    fi
+    
+    # Also stop any monitoring processes
+    if pgrep -f "port-forward-monitor" >/dev/null; then
+        pkill -f "port-forward-monitor" || true
+        log_info "Stopped monitoring processes"
     fi
 }
 
@@ -204,7 +220,7 @@ main() {
             start_port_forward "$NAMESPACE" "platform-web" "8080" "80" "BookVerse Web"
             echo
             log_success "All port-forwards started in background"
-            log_info "Use 'jobs' to see running processes"
+            log_info "Use './scripts/k8s/port-forward-monitor.sh' to monitor status"
             log_info "Use '$0 --stop' to stop all port-forwards"
             log_info "Access URLs:"
             log_info "  - Argo CD:        https://localhost:8081"

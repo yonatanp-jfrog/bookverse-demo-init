@@ -185,22 +185,22 @@ jfrog_api_call() {
         if [[ "$endpoint" == /artifactory/* ]]; then
             if [[ -n "$data_payload" ]]; then
                 if $include_project_header; then
-                    code=$(echo "$data_payload" | jf curl -X "$method" -H "X-JFrog-Project: ${PROJECT_KEY}" "$endpoint" --write-out "%{http_code}" --output "$output_file" --silent --data @-)
+                    code=$(echo "$data_payload" | curl -s -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" -H "X-JFrog-Project: ${PROJECT_KEY}" -X "$method" "${JFROG_URL%/}$endpoint" --write-out "%{http_code}" --output "$output_file" --data @-)
                 else
-                    code=$(echo "$data_payload" | jf curl -X "$method" "$endpoint" --write-out "%{http_code}" --output "$output_file" --silent --data @-)
+                    code=$(echo "$data_payload" | curl -s -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" -X "$method" "${JFROG_URL%/}$endpoint" --write-out "%{http_code}" --output "$output_file" --data @-)
                 fi
             else
                 if $include_project_header; then
-                    code=$(jf curl -X "$method" -H "X-JFrog-Project: ${PROJECT_KEY}" "$endpoint" --write-out "%{http_code}" --output "$output_file" --silent)
+                    code=$(curl -s -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" -H "X-JFrog-Project: ${PROJECT_KEY}" -X "$method" "${JFROG_URL%/}$endpoint" --write-out "%{http_code}" --output "$output_file")
                 else
-                    code=$(jf curl -X "$method" "$endpoint" --write-out "%{http_code}" --output "$output_file" --silent)
+                    code=$(curl -s -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" -X "$method" "${JFROG_URL%/}$endpoint" --write-out "%{http_code}" --output "$output_file")
                 fi
             fi
         else
             if [[ -n "$data_payload" ]]; then
-                code=$(echo "$data_payload" | jf curl -X "$method" "$endpoint" --write-out "%{http_code}" --output "$output_file" --silent --data @-)
+                code=$(echo "$data_payload" | curl -s -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" -X "$method" "${JFROG_URL%/}$endpoint" --write-out "%{http_code}" --output "$output_file" --data @-)
             else
-                code=$(jf curl -X "$method" "$endpoint" --write-out "%{http_code}" --output "$output_file" --silent)
+                code=$(curl -s -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" -X "$method" "${JFROG_URL%/}$endpoint" --write-out "%{http_code}" --output "$output_file")
             fi
         fi
     else
@@ -286,7 +286,7 @@ jf c add bookverse-admin --url="${JFROG_URL}" --access-token="${JFROG_ADMIN_TOKE
 jf c use bookverse-admin
 
 # Test authentication
-auth_test_code=$(jf curl -X GET "/api/system/ping" --write-out "%{http_code}" --output /dev/null --silent)
+auth_test_code=$(curl -s -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" -X GET "${JFROG_URL%/}/api/system/ping" --write-out "%{http_code}" --output /dev/null)
 if [ "$auth_test_code" -eq 200 ]; then
     echo "✅ Authentication successful"
 else

@@ -387,14 +387,42 @@ jobs:
           jf c add --interactive=false --url "${{ vars.JFROG_URL }}" --access-token ""
           jf c show
 
-      # TODO(apptrust-oidc): Replace AppTrust REST calls (token-required) with OIDC-capable CLI,
-      # then remove this validation and the JFROG_ACCESS_TOKEN requirement.
-      - name: Validate JFrog token for AppTrust API
+      - name: "[Auth] Exchange OIDC and persist JF access token"
+        env:
+          JF_URL: ${{ vars.JFROG_URL }}
+          PROJECT: ${{ vars.PROJECT_KEY }}
+          PROVIDER_NAME: bookverse-SERVICENAME-github
         run: |
-          if [[ -z "${{ secrets.JFROG_ACCESS_TOKEN }}" ]]; then
-            echo "❌ JFROG_ACCESS_TOKEN is required for AppTrust REST operations. Configure the secret and rerun."
-            exit 1
-          fi
+          set -euo pipefail
+          if ! command -v jq >/dev/null 2>&1; then sudo apt-get update -y && sudo apt-get install -y jq; fi
+          if [[ -z "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" || -z "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}" ]]; then
+            echo "❌ Missing GitHub OIDC request env vars" >&2; exit 1; fi
+          GH_ID_TOKEN=$(curl -sS -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${JF_URL}" | jq -r .value)
+          if [[ -z "$GH_ID_TOKEN" || "$GH_ID_TOKEN" == "null" ]]; then echo "❌ Failed to fetch GitHub ID token" >&2; exit 1; fi
+          PAYLOAD=$(jq -n --arg jwt "$GH_ID_TOKEN" \
+            --arg provider_name "$PROVIDER_NAME" \
+            --arg project_key "$PROJECT" \
+            --arg job_id "${{ github.job }}" \
+            --arg run_id "${{ github.run_id }}" \
+            --arg repo "https://github.com/${{ github.repository }}" \
+            --arg revision "${{ github.sha }}" \
+            --arg branch "${{ github.ref_name }}" \
+            '{
+              grant_type:"urn:ietf:params:oauth:grant-type:token-exchange",
+              subject_token_type:"urn:ietf:params:oauth:token-type:id_token",
+              subject_token:$jwt,
+              provider_name:$provider_name,
+              project_key:$project_key,
+              job_id:$job_id,
+              run_id:$run_id,
+              repo:$repo,
+              revision:$revision,
+              branch:$branch
+            }')
+          TOKEN=$(curl -sS -X POST -H "Content-Type: application/json" -d "$PAYLOAD" "$JF_URL/access/api/v1/oidc/token" | jq -r .access_token)
+          if [[ -z "$TOKEN" || "$TOKEN" == "null" ]]; then echo "❌ Failed to exchange OIDC token" >&2; exit 1; fi
+          echo "JF_ACCESS_TOKEN=$TOKEN" >> $GITHUB_ENV
 
       - name: Set AppTrust variables and determine version
         run: |
@@ -403,12 +431,10 @@ jobs:
           APPLICATION_KEY="bookverse-$SERVICE_NAME"
           
           echo "🔍 Checking for existing application versions..."
-          # TODO(apptrust-oidc): Replace this REST GET with an OIDC-capable CLI call
-          # to read the latest version, and remove the token dependency.
-          # Get latest version from AppTrust API (explicit sort + limit)
+          # Get latest version from AppTrust API using OIDC token
           LATEST_VERSION=$(curl -s \
             "${{ vars.JFROG_URL }}/apptrust/api/v1/applications/$APPLICATION_KEY/versions?limit=1&order_by=created&order_asc=false" \
-            -H "Authorization: Bearer ${{ secrets.JFROG_ACCESS_TOKEN }}" \
+            -H "Authorization: Bearer $JF_ACCESS_TOKEN" \
             -H "Content-Type: application/json" | \
             jq -r '.versions[0].version // empty' 2>/dev/null || echo "")
           
@@ -484,12 +510,10 @@ jobs:
           EOF
           )
           
-          # TODO(apptrust-oidc): Replace this REST POST with an OIDC-capable CLI call
-          # to create the application version, and remove the token dependency.
-          # Create the application version
+          # Create the application version using OIDC token
           curl -X POST \
             "${{ vars.JFROG_URL }}/apptrust/api/v1/applications/${{ env.APPLICATION_KEY }}/versions/" \
-            -H "Authorization: Bearer ${{ secrets.JFROG_ACCESS_TOKEN }}" \
+            -H "Authorization: Bearer $JF_ACCESS_TOKEN" \
             -H "Content-Type: application/json" \
             -d "$APP_VERSION_PAYLOAD" \
             --fail-with-body || echo "⚠️ Application version may already exist"

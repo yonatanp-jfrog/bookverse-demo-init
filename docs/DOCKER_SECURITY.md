@@ -58,19 +58,20 @@ jf docker push registry.com/image:tag
 For CI/CD workflows, use JFrog CLI's OIDC integration:
 
 ```yaml
-# Temporary workaround: using forked action until upstream fix
 - name: Setup JFrog CLI
-  # uses: jfrog/setup-jfrog-cli@v4
-  uses: EyalDelarea/setup-jfrog-cli@swampUpAppTrust
+  uses: jfrog/setup-jfrog-cli@v4
+  env:
+    JF_URL: ${{ vars.JFROG_URL }}
+    JF_PROJECT: ${{ vars.PROJECT_KEY }}
   with:
     version: latest
+    oidc-provider-name: your-oidc-provider
+    oidc-audience: ${{ vars.JFROG_URL }}
 
-- name: Configure JFrog CLI with OIDC
+- name: Docker operations with OIDC authentication
   run: |
-    jf config add --interactive=false \
-      --url "${{ vars.JFROG_URL }}" \
-      --access-token ""
-    # OIDC authentication happens automatically
+    jf docker build -t "$IMAGE_NAME" .
+    jf docker push "$IMAGE_NAME"
 ```
 
 ### 3. Local Development
@@ -109,15 +110,20 @@ Update workflows to use JFrog CLI commands:
   run: echo "${{ secrets.TOKEN }}" | docker login registry.com -u username --password-stdin
 
 # After (secure)
-# Temporary workaround: using forked action until upstream fix
-- name: Setup JFrog CLI
-  # uses: jfrog/setup-jfrog-cli@v4
-  uses: EyalDelarea/setup-jfrog-cli@swampUpAppTrust
+- name: Setup JFrog CLI with OIDC
+  uses: jfrog/setup-jfrog-cli@v4
+  env:
+    JF_URL: ${{ vars.JFROG_URL }}
+    JF_PROJECT: ${{ vars.PROJECT_KEY }}
+  with:
+    version: latest
+    oidc-provider-name: your-github-oidc-provider
+    oidc-audience: ${{ vars.JFROG_URL }}
 
 - name: Docker operations
   run: |
-    jf docker login registry.com
-    jf docker push registry.com/image:tag
+    jf docker build -t "$IMAGE_NAME" .
+    jf docker push "$IMAGE_NAME"
 ```
 
 ## 🚨 Security Warnings to Watch For

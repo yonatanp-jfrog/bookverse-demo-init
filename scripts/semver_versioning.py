@@ -44,6 +44,17 @@ def http_get(url: str, headers: Dict[str, str], timeout: int = 30) -> Any:
         return data
 
 
+def http_post(url: str, headers: Dict[str, str], data: str, timeout: int = 30) -> Any:
+    """HTTP POST method for AQL queries"""
+    req = urllib.request.Request(url, data=data.encode('utf-8'), headers=headers, method='POST')
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        response_data = resp.read().decode("utf-8")
+    try:
+        return json.loads(response_data)
+    except Exception:
+        return response_data
+
+
 def load_version_map(path: str) -> Dict[str, Any]:
     import yaml  # type: ignore
     with open(path, "r", encoding="utf-8") as f:
@@ -117,12 +128,13 @@ def compute_next_application_version(app_key: str, vm: Dict[str, Any], jfrog_url
     if latest:
         return bump_patch(latest)
 
-    # 3) Fallback to seed
+    # 3) Fallback to seed - IMPORTANT: bump the seed to avoid conflicts with promoted artifacts
     entry = find_app_entry(vm, app_key)
     seed = ((entry.get("seeds") or {}).get("application")) if entry else None
     if not seed or not parse_semver(str(seed)):
         raise SystemExit(f"No valid seed for application {app_key}")
-    return str(seed)
+    # Always bump the seed to prevent conflicts with existing promoted Release Bundles
+    return bump_patch(str(seed))
 
 
 def compute_next_build_number(app_key: str, vm: Dict[str, Any], jfrog_url: str, token: str) -> str:
@@ -169,12 +181,13 @@ def compute_next_build_number(app_key: str, vm: Dict[str, Any], jfrog_url: str, 
         if isinstance(num, str) and parse_semver(num):
             return bump_patch(num)
 
-    # Fallback to seed
+    # Fallback to seed - IMPORTANT: bump the seed to avoid conflicts with promoted artifacts
     entry = find_app_entry(vm, app_key)
     seed = ((entry.get("seeds") or {}).get("build")) if entry else None
     if not seed or not parse_semver(str(seed)):
         raise SystemExit(f"No valid build seed for application {app_key}")
-    return str(seed)
+    # Always bump the seed to prevent conflicts with existing promoted Release Bundles
+    return bump_patch(str(seed))
 
 
 def compute_next_package_tag(app_key: str, package_name: str, vm: Dict[str, Any], jfrog_url: str, token: str, project_key: Optional[str]) -> str:
@@ -205,7 +218,8 @@ def compute_next_package_tag(app_key: str, package_name: str, vm: Dict[str, Any]
         try:
             # Extract service name from app_key (bookverse-web -> web)
             service_name = app_key.replace("bookverse-", "")
-            repo_key = f"{project_key or 'bookverse'}-{service_name}-docker-internal-nonprod-local"
+            # Fix Docker repo pattern to match actual naming convention
+            repo_key = f"{project_key or 'bookverse'}-{service_name}-internal-docker-nonprod-local"
             docker_url = f"{jfrog_url.rstrip('/')}/artifactory/api/docker/{repo_key}/v2/{package_name}/tags/list"
             
             resp = http_get(docker_url, headers)
@@ -229,8 +243,10 @@ def compute_next_package_tag(app_key: str, package_name: str, vm: Dict[str, Any]
             # AQL query to find artifacts in the repository with version patterns
             aql_query = f'''items.find({{"repo":"{repo_key}","type":"file"}}).include("name","path","actual_sha1")'''
             aql_url = f"{jfrog_url.rstrip('/')}/artifactory/api/search/aql"
+            aql_headers = headers.copy()
+            aql_headers["Content-Type"] = "text/plain"
             
-            resp = http_get(aql_url, headers)
+            resp = http_post(aql_url, aql_headers, aql_query)
             if isinstance(resp, dict) and "results" in resp:
                 # Extract version numbers from paths/names
                 for item in resp.get("results", []):

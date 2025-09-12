@@ -303,8 +303,8 @@ jobs:
             --package-repo-name "${{ env.REPO_NONPROD }}" \
             --package-version "${{ env.IMAGE_TAG }}" \
             --project "${{ vars.PROJECT_KEY }}" \
-            # --key-alias "${{ vars.EVIDENCE_KEY_ALIAS || 'BookVerse-Evidence-Key' }}" \
-            --key "${{ secrets.EVIDENCE_PRIVATE_KEY }}" || echo "⚠️ Coverage evidence attachment failed"
+            --key "${{ secrets.EVIDENCE_PRIVATE_KEY }}" \
+            --key-alias "${{ vars.EVIDENCE_KEY_ALIAS }}" || echo "⚠️ Coverage evidence attachment failed"
           
           echo "✅ Coverage evidence attached to Docker image"
 
@@ -359,8 +359,8 @@ jobs:
             --package-repo-name "${{ env.REPO_NONPROD }}" \
             --package-version "${{ env.IMAGE_TAG }}" \
             --project "${{ vars.PROJECT_KEY }}" \
-            # --key-alias "${{ vars.EVIDENCE_KEY_ALIAS || 'BookVerse-Evidence-Key' }}" \
-            --key "${{ secrets.EVIDENCE_PRIVATE_KEY }}" || echo "⚠️ SAST evidence attachment failed"
+            --key "${{ secrets.EVIDENCE_PRIVATE_KEY }}" \
+            --key-alias "${{ vars.EVIDENCE_KEY_ALIAS }}" || echo "⚠️ SAST evidence attachment failed"
           
           echo "✅ SAST evidence attached to Docker image"
 
@@ -610,8 +610,8 @@ jobs:
             --release-bundle "${{ env.APPLICATION_KEY }}" \
             --release-bundle-version "${{ env.APP_VERSION }}" \
             --project "${{ vars.PROJECT_KEY }}" \
-            # --key-alias "${{ vars.EVIDENCE_KEY_ALIAS || 'BookVerse-Evidence-Key' }}" \
-            --key "${{ secrets.EVIDENCE_PRIVATE_KEY }}" || echo "⚠️ SDLC evidence attachment failed"
+            --key "${{ secrets.EVIDENCE_PRIVATE_KEY }}" \
+            --key-alias "${{ vars.EVIDENCE_KEY_ALIAS }}" || echo "⚠️ SDLC evidence attachment failed"
           
           echo "✅ SDLC evidence attached to application version"
 

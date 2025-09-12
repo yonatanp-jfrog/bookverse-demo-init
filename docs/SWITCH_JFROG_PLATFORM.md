@@ -113,14 +113,14 @@ Both methods perform comprehensive validation:
 
 ```bash
 # From trial platform
-FROM: https://apptrustswampupc.jfrog.io
+FROM: https://old-instance.jfrog.io
 
 # To production platform  
-TO: https://acme.jfrog.io
+TO: https://new-instance.jfrog.io
 
 # All repositories automatically updated with:
-JFROG_URL: https://acme.jfrog.io
-DOCKER_REGISTRY: acme.jfrog.io
+JFROG_URL: https://new-instance.jfrog.io
+DOCKER_REGISTRY: new-instance.jfrog.io
 JFROG_ADMIN_TOKEN: <new-production-token>
 ```
 

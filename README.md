@@ -569,7 +569,7 @@ export REGISTRY_PASSWORD='your-access-token'  # Instead of password
 > ```bash
 > # You don't need to run bootstrap again - just restart port-forwarding
 > kubectl -n argocd port-forward svc/argocd-server 8081:443 &
-> kubectl -n bookverse-prod port-forward svc/bookverse-web 8080:8080 &
+> kubectl -n bookverse-prod port-forward svc/platform-web 8080:80 &
 > 
 > # Or run bootstrap again (will skip installation, just restart port-forwarding)
 > ./scripts/k8s/bootstrap.sh --port-forward
@@ -579,7 +579,7 @@ export REGISTRY_PASSWORD='your-access-token'  # Instead of password
 > ```bash
 > # Run port-forwards in background (terminal remains available)
 > kubectl -n argocd port-forward svc/argocd-server 8081:443 &
-> kubectl -n bookverse-prod port-forward svc/bookverse-web 8080:8080 &
+> kubectl -n bookverse-prod port-forward svc/platform-web 8080:80 &
 > 
 > # Check background processes
 > jobs
@@ -595,7 +595,7 @@ export REGISTRY_PASSWORD='your-access-token'  # Instead of password
 
 # Check service endpoints
 kubectl -n argocd get svc argocd-server
-kubectl -n bookverse-prod get svc bookverse-web
+kubectl -n bookverse-prod get svc platform-web
 
 # Access via cluster-specific methods:
 # - LoadBalancer: External IP assigned by cloud provider

@@ -25,7 +25,7 @@ cd bookverse-demo-init
 #### 2) Bootstrap Argo CD and deploy BookVerse (PROD)
 ```bash
 cd bookverse-demo-init
-export REGISTRY_SERVER='your-tenant.jfrog.io'         # JFrog SaaS (host only)
+export REGISTRY_SERVER='your-instance.jfrog.io'       # JFrog hostname (without https://)
 export REGISTRY_USERNAME='<jfrog-username>'
 export REGISTRY_PASSWORD='<jfrog-password-or-token>'
 export REGISTRY_EMAIL='you@example.com'   # optional; your JFrog user email is fine

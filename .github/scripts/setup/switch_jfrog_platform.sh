@@ -388,25 +388,48 @@ update_all_repositories() {
             local new_registry
             new_registry=$(extract_docker_registry)
 
-            # Replace occurrences of the old host
-            if rg -l "evidencetrial\\.jfrog\\.io" >/dev/null 2>&1; then
-                rg -l "evidencetrial\\.jfrog\\.io" | xargs sed -i '' -e "s|evidencetrial\\.jfrog\\.io|${new_registry}|g"
-            fi
-
-            if rg -l "https://evidencetrial\\.jfrog\\.io" >/dev/null 2>&1; then
-                rg -l "https://evidencetrial\\.jfrog\\.io" | xargs sed -i '' -e "s|https://evidencetrial\\.jfrog\\.io|${NEW_JFROG_URL}|g"
-            fi
+            # Replace occurrences of hardcoded JFrog hosts with the new registry
+            # This handles various patterns of JFrog URLs that might be hardcoded
+            
+            # Common hardcoded patterns to replace (add more as needed)
+            local old_patterns=(
+                "evidencetrial\\.jfrog\\.io"
+                "apptrustswampupc\\.jfrog\\.io"
+                "releases\\.jfrog\\.io"
+                # Add any other known hardcoded patterns here
+            )
+            
+            local changes_made=false
+            
+            # Replace hostname-only patterns (for DOCKER_REGISTRY)
+            for pattern in "${old_patterns[@]}"; do
+                if rg -l "$pattern" >/dev/null 2>&1; then
+                    rg -l "$pattern" | xargs sed -i '' -e "s|$pattern|${new_registry}|g"
+                    changes_made=true
+                    log_info "  → Replaced $pattern with ${new_registry}"
+                fi
+            done
+            
+            # Replace full URL patterns (for JFROG_URL)
+            for pattern in "${old_patterns[@]}"; do
+                local url_pattern="https://$pattern"
+                if rg -l "$url_pattern" >/dev/null 2>&1; then
+                    rg -l "$url_pattern" | xargs sed -i '' -e "s|$url_pattern|${NEW_JFROG_URL}|g"
+                    changes_made=true
+                    log_info "  → Replaced $url_pattern with ${NEW_JFROG_URL}"
+                fi
+            done
 
             if ! git diff --quiet; then
                 git add -A
                 git commit -m "chore: switch platform host to ${new_registry}" >/dev/null 2>&1 || true
                 git push -u origin HEAD >/dev/null 2>&1 || true
                 gh pr create --title "chore: switch platform host to ${new_registry}" \
-                  --body "Automated replacement of old host with ${NEW_JFROG_URL}." \
+                  --body "Automated replacement of hardcoded JFrog hosts with ${NEW_JFROG_URL}." \
                   --base "$default_branch" >/dev/null 2>&1 || true
                 log_success "  → Opened PR with host replacements in $repo"
             else
-                log_info "  → No host replacements needed in $repo"
+                log_info "  → No hardcoded host replacements needed in $repo"
             fi
         fi
         popd >/dev/null || true

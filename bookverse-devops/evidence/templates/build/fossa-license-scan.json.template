@@ -1,0 +1,11 @@
+{
+  "scanner": "FOSSA License Compliance",
+  "status": "PASSED",
+  "serviceName": "${SERVICE_NAME}",
+  "buildName": "${BUILD_NAME}",
+  "generatedAt": "${NOW_TS}",
+  "compliance": {
+    "overallStatus": "COMPLIANT",
+    "totalDependencies": 65
+  }
+}

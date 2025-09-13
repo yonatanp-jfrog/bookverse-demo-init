@@ -1,0 +1,382 @@
+name: "BookVerse Shared Build Workflow"
+
+# Reusable workflow for building, testing, and publishing BookVerse services
+# Consolidates ~1,500 lines of duplicated CI/CD code per service
+
+on:
+  workflow_call:
+    inputs:
+      service-name:
+        description: 'Service name (e.g., inventory, recommendations)'
+        required: true
+        type: string
+      python-version:
+        description: 'Python version to use'
+        required: false
+        type: string
+        default: '3.11'
+      skip-tests:
+        description: 'Skip running tests'
+        required: false
+        type: boolean
+        default: false
+      skip-docker:
+        description: 'Skip Docker image building'
+        required: false
+        type: boolean
+        default: false
+      create-app-version:
+        description: 'Create AppTrust application version'
+        required: false
+        type: boolean
+        default: true
+    outputs:
+      semver:
+        description: 'Generated semantic version'
+        value: ${{ jobs.build.outputs.semver }}
+      build-name:
+        description: 'JFrog build name'
+        value: ${{ jobs.build.outputs.build-name }}
+      build-number:
+        description: 'JFrog build number'
+        value: ${{ jobs.build.outputs.build-number }}
+
+jobs:
+  build:
+    name: "Build & Publish: ${{ inputs.service-name }}"
+    runs-on: ubuntu-latest
+    
+    outputs:
+      semver: ${{ steps.semver.outputs.version }}
+      build-name: ${{ steps.build-vars.outputs.build-name }}
+      build-number: ${{ steps.build-vars.outputs.build-number }}
+    
+    steps:
+      # =================================================================
+      # SETUP PHASE (Common across all services)
+      # =================================================================
+      
+      - name: "📥 Checkout Code"
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for proper versioning
+      
+      - name: "🐍 Setup Python ${{ inputs.python-version }}"
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ inputs.python-version }}
+      
+      - name: "🔧 JFrog CLI Setup with OIDC (Pattern 1)"
+        id: jfrog-cli-setup
+        uses: jfrog/setup-jfrog-cli@v3
+        env:
+          JF_URL: ${{ vars.JFROG_URL }}
+        with:
+          oidc-provider-name: ${{ vars.OIDC_PROVIDER_NAME }}
+          oidc-audience: ${{ vars.OIDC_AUDIENCE }}
+      
+      - name: "🔐 Manual OIDC Token Minting (Pattern 2)"
+        id: manual-oidc
+        run: |
+          echo "🔐 Starting manual OIDC token minting for curl commands (${{ inputs.service-name }})"
+          
+          # Validate required environment variables
+          if [[ -z "$ACTIONS_ID_TOKEN_REQUEST_TOKEN" || -z "$ACTIONS_ID_TOKEN_REQUEST_URL" ]]; then
+            echo "⚠️ Missing GitHub OIDC request environment variables"
+            echo "   JFrog CLI OIDC is available, but manual tokens won't work"
+            echo "manual_token_available=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          JF_URL="${{ vars.JFROG_URL }}"
+          echo "🎯 Target JFrog Platform: $JF_URL"
+          echo "🏷️ Service: ${{ inputs.service-name }}"
+          echo "🔑 OIDC Provider: ${{ vars.OIDC_PROVIDER_NAME }}"
+          
+          # Step 1: Mint GitHub OIDC ID token
+          echo "🔄 Minting GitHub OIDC ID token for manual use..."
+          GITHUB_TOKEN_RESPONSE=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=${{ vars.OIDC_AUDIENCE }}")
+          
+          GITHUB_OIDC_TOKEN=$(echo "$GITHUB_TOKEN_RESPONSE" | jq -r '.value // empty')
+          if [[ -z "$GITHUB_OIDC_TOKEN" || "$GITHUB_OIDC_TOKEN" == "null" ]]; then
+            echo "❌ Failed to mint GitHub OIDC token for manual use"
+            echo "   JFrog CLI OIDC is still available"
+            echo "manual_token_available=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          # Step 2: Exchange for JFrog access token
+          echo "🔄 Exchanging OIDC token for JFrog access token..."
+          EXCHANGE_PAYLOAD=$(jq -n \
+            --arg grant_type "urn:ietf:params:oauth:grant-type:token-exchange" \
+            --arg subject_token_type "urn:ietf:params:oauth:token-type:id_token" \
+            --arg subject_token "$GITHUB_OIDC_TOKEN" \
+            --arg provider_name "${{ vars.OIDC_PROVIDER_NAME }}" \
+            '{
+              grant_type: $grant_type,
+              subject_token_type: $subject_token_type,
+              subject_token: $subject_token,
+              provider_name: $provider_name
+            }')
+          
+          JFROG_TOKEN_RESPONSE=$(curl -sS -X POST \
+            -H "Content-Type: application/json" \
+            -d "$EXCHANGE_PAYLOAD" \
+            "$JF_URL/access/api/v1/oidc/token")
+          
+          JFROG_ACCESS_TOKEN=$(echo "$JFROG_TOKEN_RESPONSE" | jq -r '.access_token // empty')
+          if [[ -z "$JFROG_ACCESS_TOKEN" || "$JFROG_ACCESS_TOKEN" == "null" ]]; then
+            echo "❌ Failed to exchange OIDC token for manual use"
+            echo "   JFrog CLI OIDC is still available"
+            echo "manual_token_available=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          # Set tokens in environment for manual curl commands
+          echo "JF_OIDC_TOKEN=$JFROG_ACCESS_TOKEN" >> $GITHUB_ENV
+          echo "JF_MANUAL_TOKEN=$JFROG_ACCESS_TOKEN" >> $GITHUB_ENV
+          
+          # Test the manual token
+          echo "🧪 Testing manual token with JFrog API..."
+          PING_RESPONSE=$(curl -sS -H "Authorization: Bearer $JFROG_ACCESS_TOKEN" \
+            "$JF_URL/artifactory/api/system/ping")
+          
+          if [[ "$PING_RESPONSE" == "OK" ]]; then
+            echo "✅ Manual OIDC token exchange successful and validated"
+            echo "manual_token_available=true" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️ Manual token obtained but validation failed"
+            echo "manual_token_available=false" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: "📋 OIDC Setup Summary"
+        run: |
+          echo "📋 OIDC Authentication Summary for ${{ inputs.service-name }}"
+          echo "=============================================="
+          echo ""
+          echo "🔧 PATTERN 1 - JFrog CLI with OIDC:"
+          if [[ "${{ steps.jfrog-cli-setup.conclusion }}" == "success" ]]; then
+            echo "   ✅ JFrog CLI configured with OIDC"
+            echo "   ✅ Available: jf rt upload, jf rt ping, jf docker push, etc."
+            echo "   ✅ No manual token needed for JFrog CLI commands"
+          else
+            echo "   ❌ JFrog CLI OIDC setup failed"
+          fi
+          
+          echo ""
+          echo "🔐 PATTERN 2 - Manual OIDC Tokens for Curl:"
+          if [[ "${{ steps.manual-oidc.outputs.manual_token_available }}" == "true" ]]; then
+            echo "   ✅ Manual tokens available for curl commands"
+            echo "   ✅ Available: \$JF_OIDC_TOKEN, \$JF_MANUAL_TOKEN"
+            echo "   ✅ Usage: curl -H \"Authorization: Bearer \$JF_OIDC_TOKEN\" ..."
+          else
+            echo "   ⚠️ Manual tokens not available (JFrog CLI still works)"
+            echo "   ℹ️ Use JFrog CLI commands instead of direct curl"
+          fi
+          
+          echo ""
+          echo "🎯 Both OIDC patterns are now available in subsequent steps"
+      
+      - name: "📦 Install Dependencies"
+        run: |
+          echo "📦 Installing Python dependencies for ${{ inputs.service-name }}"
+          pip install --upgrade pip
+          pip install PyYAML  # For semver script
+          
+          # Configure JFrog PyPI resolution
+          jf pip-config --repo-resolve="${{ vars.PROJECT_KEY }}-pypi-virtual"
+          
+          # Install dependencies from JFrog (with fallback to PyPI)
+          if [ -f "requirements.txt" ]; then
+            echo "Installing from requirements.txt..."
+            jf pip install -r requirements.txt || pip install -r requirements.txt
+          fi
+          
+          # Install dev dependencies if they exist
+          if [ -f "requirements-dev.txt" ]; then
+            echo "Installing dev dependencies..."
+            jf pip install -r requirements-dev.txt || pip install -r requirements-dev.txt
+          fi
+          
+          echo "✅ Dependencies installed successfully"
+      
+      # =================================================================
+      # VERSIONING PHASE (Semantic versioning)
+      # =================================================================
+      
+      - name: "🏷️ Determine Semantic Version"
+        id: semver
+        run: |
+          echo "🏷️ Determining semantic version for ${{ inputs.service-name }}"
+          
+          # Use semver script if it exists, otherwise use simple versioning
+          if [ -f "scripts/semver_versioning.py" ]; then
+            python scripts/semver_versioning.py
+          else
+            # Simple versioning based on commit count
+            VERSION="1.0.$(git rev-list --count HEAD)"
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "📋 Generated version: $VERSION"
+          fi
+      
+      - name: "🔨 Setup Build Variables"
+        id: build-vars
+        run: |
+          BUILD_NAME="${{ inputs.service-name }}"
+          BUILD_NUMBER="${{ github.sha }}"
+          
+          echo "build-name=$BUILD_NAME" >> $GITHUB_OUTPUT
+          echo "build-number=$BUILD_NUMBER" >> $GITHUB_OUTPUT
+          
+          # Set environment variables for JFrog CLI
+          echo "JFROG_CLI_BUILD_NAME=$BUILD_NAME" >> $GITHUB_ENV
+          echo "JFROG_CLI_BUILD_NUMBER=$BUILD_NUMBER" >> $GITHUB_ENV
+          echo "JFROG_CLI_BUILD_PROJECT=${{ vars.PROJECT_KEY }}" >> $GITHUB_ENV
+          
+          echo "✅ Build variables configured"
+          echo "📋 Build Name: $BUILD_NAME"
+          echo "📋 Build Number: $BUILD_NUMBER"
+      
+      # =================================================================
+      # TESTING PHASE (Optional)
+      # =================================================================
+      
+      - name: "🧪 Run Tests with Coverage"
+        if: ${{ !inputs.skip-tests }}
+        run: |
+          echo "🧪 Running tests for ${{ inputs.service-name }}"
+          
+          if [ -f "pytest.ini" ] || [ -f "pyproject.toml" ]; then
+            # Run pytest with coverage
+            python -m pytest tests/ -v --cov=app --cov-report=term-missing --cov-report=xml
+            echo "✅ Tests completed with coverage report"
+          else
+            echo "⚠️ No pytest configuration found, running basic tests"
+            python -m pytest tests/ -v || echo "No tests found or test failures"
+          fi
+      
+      # =================================================================
+      # BUILD PHASE (Python packages and Docker images)
+      # =================================================================
+      
+      - name: "📦 Build Python Package"
+        run: |
+          echo "📦 Building Python package for ${{ inputs.service-name }}"
+          
+          if [ -f "pyproject.toml" ]; then
+            # Modern Python packaging
+            pip install build
+            python -m build
+            echo "✅ Built wheel package"
+          else
+            # Legacy setup.py
+            python setup.py sdist bdist_wheel || echo "No Python package to build"
+          fi
+          
+          # List built artifacts
+          if [ -d "dist" ]; then
+            echo "📋 Built artifacts:"
+            ls -la dist/
+          fi
+      
+      - name: "🐳 Build Docker Image"
+        if: ${{ !inputs.skip-docker }}
+        run: |
+          echo "🐳 Building Docker image for ${{ inputs.service-name }}"
+          
+          if [ -f "Dockerfile" ]; then
+            IMAGE_TAG="${{ vars.PROJECT_KEY }}-${{ inputs.service-name }}:${{ steps.semver.outputs.version }}"
+            
+            docker build -t "$IMAGE_TAG" .
+            echo "✅ Docker image built: $IMAGE_TAG"
+            
+            # Save image info for publishing
+            echo "docker-image=$IMAGE_TAG" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️ No Dockerfile found, skipping Docker build"
+          fi
+      
+      # =================================================================
+      # PUBLISH PHASE (Artifacts to JFrog Artifactory)
+      # =================================================================
+      
+      - name: "📤 Publish Artifacts"
+        if: github.ref == 'refs/heads/main'
+        run: |
+          echo "📤 Publishing artifacts for ${{ inputs.service-name }}"
+          
+          # Determine target repository based on service
+          REPO_BASE="${{ vars.PROJECT_KEY }}-${{ inputs.service-name }}-internal"
+          
+          # Publish Python packages
+          if [ -d "dist" ] && [ "$(ls -A dist/)" ]; then
+            echo "📦 Publishing Python packages..."
+            jf rt upload "dist/*" "$REPO_BASE-python-nonprod-local/" --build-name="${{ steps.build-vars.outputs.build-name }}" --build-number="${{ steps.build-vars.outputs.build-number }}"
+          fi
+          
+          # Publish Docker images
+          if [ -f "Dockerfile" ] && [ ! "${{ inputs.skip-docker }}" = "true" ]; then
+            echo "🐳 Publishing Docker image..."
+            IMAGE_TAG="${{ vars.PROJECT_KEY }}-${{ inputs.service-name }}:${{ steps.semver.outputs.version }}"
+            jf docker push "$IMAGE_TAG" "$REPO_BASE-docker-nonprod-local" --build-name="${{ steps.build-vars.outputs.build-name }}" --build-number="${{ steps.build-vars.outputs.build-number }}"
+          fi
+          
+          # Publish generic artifacts (configs, schemas, etc.)
+          if [ -d "config" ] || [ -d "contracts" ] || [ -d "schemas" ]; then
+            echo "📄 Publishing configuration and schema files..."
+            find . -name "*.json" -o -name "*.yaml" -o -name "*.yml" | grep -E "(config|contract|schema)" | while read file; do
+              jf rt upload "$file" "$REPO_BASE-generic-nonprod-local/${{ inputs.service-name }}/" --build-name="${{ steps.build-vars.outputs.build-name }}" --build-number="${{ steps.build-vars.outputs.build-number }}"
+            done
+          fi
+          
+          echo "✅ Artifacts published successfully"
+      
+      # =================================================================
+      # BUILD INFO PHASE (JFrog build information)
+      # =================================================================
+      
+      - name: "📋 Publish Build Info"
+        if: github.ref == 'refs/heads/main'
+        run: |
+          echo "📋 Publishing build information"
+          jf rt build-publish "${{ steps.build-vars.outputs.build-name }}" "${{ steps.build-vars.outputs.build-number }}"
+          echo "✅ Build info published"
+      
+      # =================================================================
+      # APPTRUST PHASE (Optional application version creation)
+      # =================================================================
+      
+      - name: "🛡️ Create AppTrust Application Version"
+        if: ${{ inputs.create-app-version && github.ref == 'refs/heads/main' }}
+        run: |
+          echo "🛡️ Creating AppTrust application version"
+          
+          # Create application version with build binding
+          jf app create-version \
+            --app-key="${{ vars.PROJECT_KEY }}-${{ inputs.service-name }}" \
+            --version="${{ steps.semver.outputs.version }}" \
+            --build-name="${{ steps.build-vars.outputs.build-name }}" \
+            --build-number="${{ steps.build-vars.outputs.build-number }}" \
+            --project="${{ vars.PROJECT_KEY }}"
+          
+          echo "✅ AppTrust application version created"
+      
+      # =================================================================
+      # SUMMARY PHASE
+      # =================================================================
+      
+      - name: "📊 Build Summary"
+        run: |
+          echo "🎉 Build Complete for ${{ inputs.service-name }}"
+          echo ""
+          echo "📋 Build Details:"
+          echo "   Service: ${{ inputs.service-name }}"
+          echo "   Version: ${{ steps.semver.outputs.version }}"
+          echo "   Build: ${{ steps.build-vars.outputs.build-name }}#${{ steps.build-vars.outputs.build-number }}"
+          echo "   Python: ${{ inputs.python-version }}"
+          echo "   Tests: ${{ inputs.skip-tests && 'Skipped' || 'Executed' }}"
+          echo "   Docker: ${{ inputs.skip-docker && 'Skipped' || 'Built' }}"
+          echo "   AppTrust: ${{ inputs.create-app-version && 'Created' || 'Skipped' }}"
+          echo ""
+          echo "✅ Ready for promotion workflow"

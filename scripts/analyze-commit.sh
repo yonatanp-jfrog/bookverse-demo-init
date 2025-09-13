@@ -69,58 +69,69 @@ build_info_only() {
 # Rule 1: Explicit version control tags
 if [[ "$COMMIT_MSG" =~ \[skip-version\] ]] || [[ "$COMMIT_MSG" =~ \[build-only\] ]]; then
     build_info_only "Explicit [skip-version] or [build-only] tag"
+    exit 0
 fi
 
 if [[ "$COMMIT_MSG" =~ \[release\] ]] || [[ "$COMMIT_MSG" =~ \[version\] ]]; then
     create_app_version "Explicit [release] or [version] tag"
+    exit 0
 fi
 
 # Rule 2: Conventional Commit prefixes (release-ready)
 if [[ "$COMMIT_MSG" =~ ^(feat|fix|perf|refactor)(\(.+\))?!?: ]]; then
     create_app_version "Conventional commit: $(echo "$COMMIT_MSG" | grep -o '^[^:]*:')"
+    exit 0
 fi
 
 # Rule 3: Hotfix and release branches
 if [[ "$GITHUB_REF" =~ ^refs/heads/(release|hotfix)/ ]]; then
     create_app_version "Release/hotfix branch: $(echo "$GITHUB_REF" | sed 's|refs/heads/||')"
+    exit 0
 fi
 
 # Rule 4: Work-in-progress commits (build-only)
 if [[ "$COMMIT_MSG" =~ ^(wip|WIP): ]] || [[ "$COMMIT_MSG" =~ \[WIP\] ]]; then
     build_info_only "Work-in-progress commit"
+    exit 0
 fi
 
 # Rule 5: Documentation-only changes
 if [[ "$COMMIT_MSG" =~ ^docs?: ]] || [[ "$CHANGED_FILES" =~ ^[[:space:]]*$ ]] || \
    [[ -n "$CHANGED_FILES" && $(echo "$CHANGED_FILES" | grep -v '\.md$\|^docs/\|^README' | wc -l) -eq 0 ]]; then
     build_info_only "Documentation-only changes"
+    exit 0
 fi
 
 # Rule 6: CI/CD configuration changes only
 if [[ "$COMMIT_MSG" =~ ^(ci|build)?: ]] || \
    [[ -n "$CHANGED_FILES" && $(echo "$CHANGED_FILES" | grep -v '^\.github/\|^ci/\|^scripts/.*\.yml$\|^scripts/.*\.yaml$' | wc -l) -eq 0 ]]; then
     build_info_only "CI/CD configuration changes only"
+    exit 0
 fi
 
 # Rule 7: Test-only changes
 if [[ "$COMMIT_MSG" =~ ^test?: ]] || \
    [[ -n "$CHANGED_FILES" && $(echo "$CHANGED_FILES" | grep -v '^tests\?/\|.*_test\.\|.*\.test\.' | wc -l) -eq 0 ]]; then
     build_info_only "Test-only changes"
+    exit 0
 fi
 
 # Rule 8: Dependency updates (usually build-only unless breaking)
 if [[ "$COMMIT_MSG" =~ ^(deps|chore)?: ]] && [[ ! "$COMMIT_MSG" =~ BREAKING ]]; then
     build_info_only "Dependency/chore update (non-breaking)"
+    exit 0
 fi
 
 # Rule 9: Main branch pushes (default to release-ready)
 if [[ "$GITHUB_REF" == "refs/heads/main" ]] && [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
     create_app_version "Direct push to main branch"
+    exit 0
 fi
 
 # Rule 10: Pull request merges to main (release-ready)
 if [[ "$GITHUB_BASE_REF" == "main" ]] && [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
     create_app_version "Pull request merge to main"
+    exit 0
 fi
 
 # =============================================================================

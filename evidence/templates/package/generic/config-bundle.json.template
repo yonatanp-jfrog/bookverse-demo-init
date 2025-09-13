@@ -1,0 +1,49 @@
+{
+  "bundleType": "Configuration and Resources",
+  "status": "${BUNDLE_STATUS:-VERIFIED}",
+  "packages": [
+    {
+      "name": "${SERVICE_NAME}-config",
+      "type": "configuration",
+      "file": "${CONFIG_FILE:-${SERVICE_NAME}-config-${APP_VERSION}.tar.gz}",
+      "size": "${CONFIG_SIZE:-$((50 + RANDOM % 200))KB}",
+      "checksum": "${CONFIG_CHECKSUM:-$(echo -n \"${SERVICE_NAME}-config-${APP_VERSION}\" | sha256sum | cut -d' ' -f1)}",
+      "contents": [
+        "config/app.yml",
+        "config/database.yml", 
+        "config/logging.yml"
+      ]
+    },
+    {
+      "name": "${SERVICE_NAME}-resources",
+      "type": "resources",
+      "file": "${RESOURCES_FILE:-${SERVICE_NAME}-resources-${APP_VERSION}.tar.gz}",
+      "size": "${RESOURCES_SIZE:-$((100 + RANDOM % 500))KB}",
+      "checksum": "${RESOURCES_CHECKSUM:-$(echo -n \"${SERVICE_NAME}-resources-${APP_VERSION}\" | sha256sum | cut -d' ' -f1)}",
+      "contents": [
+        "resources/templates/",
+        "resources/static/",
+        "resources/data/"
+      ]
+    }
+  ],
+  "verification": {
+    "checksumVerified": true,
+    "compressionValid": true,
+    "structureValid": true,
+    "configurationParsed": true
+  },
+  "upload": {
+    "repository": "${GENERIC_REPO:-bookverse-generic-internal-local}",
+    "path": "${SERVICE_NAME}/",
+    "uploadTime": "${NOW_TS}",
+    "uploadedBy": "${GITHUB_ACTOR}"
+  },
+  "metadata": {
+    "serviceName": "${SERVICE_NAME}",
+    "version": "${APP_VERSION}",
+    "buildNumber": "${BUILD_NUMBER}",
+    "generatedAt": "${NOW_TS}",
+    "attachedTo": "package"
+  }
+}

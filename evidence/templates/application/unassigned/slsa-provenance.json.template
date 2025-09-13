@@ -1,0 +1,18 @@
+{
+  "provenance": {
+    "framework": "SLSA",
+    "level": "v1",
+    "generatedAt": "${NOW_TS}",
+    "attachStage": "UNASSIGNED",
+    "gateForPromotionTo": "DEV"
+  },
+  "subject": {
+    "name": "${APPLICATION_KEY}",
+    "version": "${APP_VERSION}"
+  },
+  "metadata": {
+    "serviceName": "${SERVICE_NAME}",
+    "buildNumber": "${BUILD_NUMBER}",
+    "generatedAt": "${NOW_TS}"
+  }
+}

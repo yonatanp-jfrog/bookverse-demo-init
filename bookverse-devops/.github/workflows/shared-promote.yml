@@ -1,0 +1,401 @@
+name: "BookVerse Shared Promotion Workflow"
+
+# Reusable workflow for promoting artifacts through stages (DEV → QA → STAGING → PROD)
+# Consolidates promotion logic across all BookVerse services
+
+on:
+  workflow_call:
+    inputs:
+      service-name:
+        description: 'Service name (e.g., inventory, recommendations)'
+        required: true
+        type: string
+      source-stage:
+        description: 'Source stage for promotion'
+        required: true
+        type: string
+      target-stage:
+        description: 'Target stage for promotion'
+        required: true
+        type: string
+      app-version:
+        description: 'Application version to promote'
+        required: true
+        type: string
+      build-name:
+        description: 'JFrog build name'
+        required: false
+        type: string
+      build-number:
+        description: 'JFrog build number'
+        required: false
+        type: string
+      dry-run:
+        description: 'Perform dry run without actual promotion'
+        required: false
+        type: boolean
+        default: false
+    outputs:
+      promotion-status:
+        description: 'Status of the promotion'
+        value: ${{ jobs.promote.outputs.status }}
+      promoted-artifacts:
+        description: 'List of promoted artifacts'
+        value: ${{ jobs.promote.outputs.artifacts }}
+
+jobs:
+  promote:
+    name: "Promote ${{ inputs.service-name }}: ${{ inputs.source-stage }} → ${{ inputs.target-stage }}"
+    runs-on: ubuntu-latest
+    
+    outputs:
+      status: ${{ steps.promotion.outputs.status }}
+      artifacts: ${{ steps.promotion.outputs.artifacts }}
+    
+    steps:
+      # =================================================================
+      # SETUP PHASE
+      # =================================================================
+      
+      - name: "📥 Checkout Code"
+        uses: actions/checkout@v4
+      
+      - name: "🔧 JFrog CLI Setup with OIDC (Pattern 1)"
+        id: jfrog-cli-setup
+        uses: jfrog/setup-jfrog-cli@v3
+        env:
+          JF_URL: ${{ vars.JFROG_URL }}
+        with:
+          oidc-provider-name: ${{ vars.OIDC_PROVIDER_NAME }}
+          oidc-audience: ${{ vars.OIDC_AUDIENCE }}
+      
+      - name: "🔐 Manual OIDC Token Minting (Pattern 2)"
+        id: manual-oidc
+        run: |
+          echo "🔐 Starting manual OIDC token minting for promotion curl commands"
+          echo "🔄 Promotion: ${{ inputs.service-name }} (${{ inputs.source-stage }} → ${{ inputs.target-stage }})"
+          
+          # Validate required environment variables
+          if [[ -z "$ACTIONS_ID_TOKEN_REQUEST_TOKEN" || -z "$ACTIONS_ID_TOKEN_REQUEST_URL" ]]; then
+            echo "⚠️ Missing GitHub OIDC request environment variables"
+            echo "   JFrog CLI OIDC is available, but manual tokens won't work"
+            echo "manual_token_available=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          JF_URL="${{ vars.JFROG_URL }}"
+          echo "🎯 Target JFrog Platform: $JF_URL"
+          echo "🏷️ Service: ${{ inputs.service-name }}"
+          echo "🔑 OIDC Provider: ${{ vars.OIDC_PROVIDER_NAME }}"
+          
+          # Step 1: Mint GitHub OIDC ID token
+          echo "🔄 Minting GitHub OIDC ID token for manual promotion operations..."
+          GITHUB_TOKEN_RESPONSE=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=${{ vars.OIDC_AUDIENCE }}")
+          
+          GITHUB_OIDC_TOKEN=$(echo "$GITHUB_TOKEN_RESPONSE" | jq -r '.value // empty')
+          if [[ -z "$GITHUB_OIDC_TOKEN" || "$GITHUB_OIDC_TOKEN" == "null" ]]; then
+            echo "❌ Failed to mint GitHub OIDC token for manual use"
+            echo "   JFrog CLI OIDC is still available for promotions"
+            echo "manual_token_available=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          # Step 2: Exchange for JFrog access token
+          echo "🔄 Exchanging OIDC token for JFrog access token..."
+          EXCHANGE_PAYLOAD=$(jq -n \
+            --arg grant_type "urn:ietf:params:oauth:grant-type:token-exchange" \
+            --arg subject_token_type "urn:ietf:params:oauth:token-type:id_token" \
+            --arg subject_token "$GITHUB_OIDC_TOKEN" \
+            --arg provider_name "${{ vars.OIDC_PROVIDER_NAME }}" \
+            '{
+              grant_type: $grant_type,
+              subject_token_type: $subject_token_type,
+              subject_token: $subject_token,
+              provider_name: $provider_name
+            }')
+          
+          JFROG_TOKEN_RESPONSE=$(curl -sS -X POST \
+            -H "Content-Type: application/json" \
+            -d "$EXCHANGE_PAYLOAD" \
+            "$JF_URL/access/api/v1/oidc/token")
+          
+          JFROG_ACCESS_TOKEN=$(echo "$JFROG_TOKEN_RESPONSE" | jq -r '.access_token // empty')
+          if [[ -z "$JFROG_ACCESS_TOKEN" || "$JFROG_ACCESS_TOKEN" == "null" ]]; then
+            echo "❌ Failed to exchange OIDC token for manual use"
+            echo "   JFrog CLI OIDC is still available for promotions"
+            echo "manual_token_available=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          # Set tokens in environment for manual curl commands
+          echo "JF_OIDC_TOKEN=$JFROG_ACCESS_TOKEN" >> $GITHUB_ENV
+          echo "JF_MANUAL_TOKEN=$JFROG_ACCESS_TOKEN" >> $GITHUB_ENV
+          
+          echo "✅ Manual OIDC token exchange successful for promotion workflow"
+          echo "manual_token_available=true" >> $GITHUB_OUTPUT
+      
+      - name: "📋 OIDC Setup Summary (Promotion)"
+        run: |
+          echo "📋 OIDC Authentication Summary for ${{ inputs.service-name }} Promotion"
+          echo "======================================================================"
+          echo ""
+          echo "🔧 PATTERN 1 - JFrog CLI with OIDC:"
+          if [[ "${{ steps.jfrog-cli-setup.conclusion }}" == "success" ]]; then
+            echo "   ✅ JFrog CLI configured with OIDC for promotions"
+            echo "   ✅ Available: jf rt copy, jf rt move, jf app promote, etc."
+            echo "   ✅ No manual token needed for JFrog CLI promotion commands"
+          else
+            echo "   ❌ JFrog CLI OIDC setup failed"
+          fi
+          
+          echo ""
+          echo "🔐 PATTERN 2 - Manual OIDC Tokens for Promotion Curl:"
+          if [[ "${{ steps.manual-oidc.outputs.manual_token_available }}" == "true" ]]; then
+            echo "   ✅ Manual tokens available for promotion curl commands"
+            echo "   ✅ Available: \$JF_OIDC_TOKEN, \$JF_MANUAL_TOKEN"
+            echo "   ✅ Usage: curl -H \"Authorization: Bearer \$JF_OIDC_TOKEN\" ..."
+          else
+            echo "   ⚠️ Manual tokens not available (JFrog CLI still works)"
+            echo "   ℹ️ Use JFrog CLI promotion commands instead of direct curl"
+          fi
+          
+          echo ""
+          echo "🚀 Both OIDC patterns ready for promotion operations"
+      
+      # =================================================================
+      # VALIDATION PHASE
+      # =================================================================
+      
+      - name: "🔍 Validate Promotion Request"
+        id: validation
+        run: |
+          echo "🔍 Validating promotion request"
+          echo "   Service: ${{ inputs.service-name }}"
+          echo "   Version: ${{ inputs.app-version }}"
+          echo "   Route: ${{ inputs.source-stage }} → ${{ inputs.target-stage }}"
+          echo "   Dry Run: ${{ inputs.dry-run }}"
+          
+          # Validate stage progression
+          case "${{ inputs.source-stage }}" in
+            "DEV")
+              if [ "${{ inputs.target-stage }}" != "QA" ]; then
+                echo "❌ Invalid promotion: DEV can only promote to QA"
+                exit 1
+              fi
+              ;;
+            "QA")
+              if [ "${{ inputs.target-stage }}" != "STAGING" ]; then
+                echo "❌ Invalid promotion: QA can only promote to STAGING"
+                exit 1
+              fi
+              ;;
+            "STAGING")
+              if [ "${{ inputs.target-stage }}" != "PROD" ]; then
+                echo "❌ Invalid promotion: STAGING can only promote to PROD"
+                exit 1
+              fi
+              ;;
+            *)
+              echo "❌ Invalid source stage: ${{ inputs.source-stage }}"
+              exit 1
+              ;;
+          esac
+          
+          echo "✅ Promotion route validated"
+          echo "valid=true" >> $GITHUB_OUTPUT
+      
+      - name: "🛡️ Check AppTrust Application Version"
+        id: apptrust-check
+        run: |
+          echo "🛡️ Checking AppTrust application version"
+          
+          APP_KEY="${{ vars.PROJECT_KEY }}-${{ inputs.service-name }}"
+          VERSION="${{ inputs.app-version }}"
+          
+          # Check if application version exists
+          if jf app get-version --app-key="$APP_KEY" --version="$VERSION" --project="${{ vars.PROJECT_KEY }}"; then
+            echo "✅ AppTrust application version found: $APP_KEY v$VERSION"
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ AppTrust application version not found: $APP_KEY v$VERSION"
+            echo "exists=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+      
+      # =================================================================
+      # EVIDENCE COLLECTION PHASE
+      # =================================================================
+      
+      - name: "📋 Collect Promotion Evidence"
+        id: evidence
+        run: |
+          echo "📋 Collecting evidence for promotion"
+          
+          # Create evidence directory
+          mkdir -p evidence
+          
+          # Collect build information
+          if [ -n "${{ inputs.build-name }}" ] && [ -n "${{ inputs.build-number }}" ]; then
+            echo "📦 Collecting build information"
+            jf rt build-info "${{ inputs.build-name }}" "${{ inputs.build-number }}" > evidence/build-info.json
+          fi
+          
+          # Collect test results (if available)
+          if [ -f "coverage.xml" ]; then
+            echo "🧪 Collecting test coverage"
+            cp coverage.xml evidence/
+          fi
+          
+          # Create promotion metadata
+          cat > evidence/promotion-metadata.json << EOF
+          {
+            "service": "${{ inputs.service-name }}",
+            "version": "${{ inputs.app-version }}",
+            "source_stage": "${{ inputs.source-stage }}",
+            "target_stage": "${{ inputs.target-stage }}",
+            "promoted_by": "${{ github.actor }}",
+            "promotion_time": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "commit_sha": "${{ github.sha }}",
+            "workflow_run": "${{ github.run_id }}"
+          }
+          EOF
+          
+          echo "✅ Evidence collected"
+          ls -la evidence/
+      
+      # =================================================================
+      # PROMOTION PHASE
+      # =================================================================
+      
+      - name: "🚀 Execute Promotion"
+        id: promotion
+        run: |
+          echo "🚀 Executing promotion"
+          
+          if [ "${{ inputs.dry-run }}" = "true" ]; then
+            echo "🔍 DRY RUN MODE - No actual promotion will occur"
+          fi
+          
+          # Determine repository mappings
+          SERVICE_NAME="${{ inputs.service-name }}"
+          PROJECT_KEY="${{ vars.PROJECT_KEY }}"
+          
+          # Source repositories (based on source stage)
+          case "${{ inputs.source-stage }}" in
+            "DEV"|"QA"|"STAGING")
+              SOURCE_SUFFIX="nonprod-local"
+              ;;
+            *)
+              echo "❌ Unsupported source stage: ${{ inputs.source-stage }}"
+              exit 1
+              ;;
+          esac
+          
+          # Target repositories (based on target stage)
+          case "${{ inputs.target-stage }}" in
+            "QA"|"STAGING")
+              TARGET_SUFFIX="nonprod-local"
+              ;;
+            "PROD")
+              TARGET_SUFFIX="release-local"
+              ;;
+            *)
+              echo "❌ Unsupported target stage: ${{ inputs.target-stage }}"
+              exit 1
+              ;;
+          esac
+          
+          # Promote artifacts by type
+          PROMOTED_ARTIFACTS=""
+          
+          for PACKAGE_TYPE in python docker generic; do
+            SOURCE_REPO="${PROJECT_KEY}-${SERVICE_NAME}-internal-${PACKAGE_TYPE}-${SOURCE_SUFFIX}"
+            TARGET_REPO="${PROJECT_KEY}-${SERVICE_NAME}-internal-${PACKAGE_TYPE}-${TARGET_SUFFIX}"
+            
+            echo "📦 Promoting $PACKAGE_TYPE artifacts: $SOURCE_REPO → $TARGET_REPO"
+            
+            if [ "${{ inputs.dry-run }}" = "true" ]; then
+              echo "   🔍 DRY RUN: Would promote from $SOURCE_REPO to $TARGET_REPO"
+            else
+              # Use JFrog CLI to promote artifacts
+              if jf rt copy "$SOURCE_REPO/*" "$TARGET_REPO/" --flat=false; then
+                echo "   ✅ $PACKAGE_TYPE artifacts promoted successfully"
+                PROMOTED_ARTIFACTS="$PROMOTED_ARTIFACTS $PACKAGE_TYPE"
+              else
+                echo "   ⚠️ No $PACKAGE_TYPE artifacts found or promotion failed"
+              fi
+            fi
+          done
+          
+          # Set outputs
+          if [ "${{ inputs.dry-run }}" = "true" ]; then
+            echo "status=dry-run-success" >> $GITHUB_OUTPUT
+          else
+            echo "status=success" >> $GITHUB_OUTPUT
+          fi
+          echo "artifacts=$PROMOTED_ARTIFACTS" >> $GITHUB_OUTPUT
+          
+          echo "✅ Promotion completed"
+      
+      # =================================================================
+      # APPTRUST PROMOTION PHASE
+      # =================================================================
+      
+      - name: "🛡️ Promote AppTrust Application Version"
+        if: ${{ !inputs.dry-run }}
+        run: |
+          echo "🛡️ Promoting AppTrust application version"
+          
+          APP_KEY="${{ vars.PROJECT_KEY }}-${{ inputs.service-name }}"
+          VERSION="${{ inputs.app-version }}"
+          
+          # Map stage names to AppTrust stage format
+          case "${{ inputs.target-stage }}" in
+            "QA")
+              APPTRUST_STAGE="${{ vars.PROJECT_KEY }}-QA"
+              ;;
+            "STAGING")
+              APPTRUST_STAGE="${{ vars.PROJECT_KEY }}-STAGING"
+              ;;
+            "PROD")
+              APPTRUST_STAGE="PROD"
+              ;;
+            *)
+              echo "❌ Unsupported AppTrust stage: ${{ inputs.target-stage }}"
+              exit 1
+              ;;
+          esac
+          
+          # Promote application version
+          jf app promote \
+            --app-key="$APP_KEY" \
+            --version="$VERSION" \
+            --stage="$APPTRUST_STAGE" \
+            --project="${{ vars.PROJECT_KEY }}"
+          
+          echo "✅ AppTrust application version promoted to $APPTRUST_STAGE"
+      
+      # =================================================================
+      # NOTIFICATION PHASE
+      # =================================================================
+      
+      - name: "📢 Promotion Summary"
+        run: |
+          echo "🎉 Promotion Summary"
+          echo ""
+          echo "📋 Details:"
+          echo "   Service: ${{ inputs.service-name }}"
+          echo "   Version: ${{ inputs.app-version }}"
+          echo "   Route: ${{ inputs.source-stage }} → ${{ inputs.target-stage }}"
+          echo "   Status: ${{ steps.promotion.outputs.status }}"
+          echo "   Artifacts: ${{ steps.promotion.outputs.artifacts }}"
+          echo "   Dry Run: ${{ inputs.dry-run }}"
+          echo ""
+          
+          if [ "${{ inputs.dry-run }}" = "true" ]; then
+            echo "🔍 This was a dry run - no actual changes were made"
+          else
+            echo "✅ Promotion completed successfully"
+            echo "🚀 Artifacts are now available in ${{ inputs.target-stage }} stage"
+          fi

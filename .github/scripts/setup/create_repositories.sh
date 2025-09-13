@@ -189,10 +189,13 @@ create_repository() {
 }
 
 # Services and their package types (portable across older Bash versions)
-SERVICES=("inventory" "recommendations" "checkout" "platform" "web" "helm")
+SERVICES=("core" "inventory" "recommendations" "checkout" "platform" "web" "helm")
 
 get_packages_for_service() {
     case "$1" in
+        core)
+            echo "python docker pypi"
+            ;;
         inventory|recommendations|checkout)
             echo "python docker generic"
             ;;

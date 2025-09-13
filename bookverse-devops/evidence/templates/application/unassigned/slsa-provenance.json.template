@@ -1,0 +1,12 @@
+{
+  "provenance": {
+    "framework": "SLSA",
+    "level": "v1",
+    "attachStage": "UNASSIGNED"
+  },
+  "subject": {
+    "name": "${APPLICATION_KEY}",
+    "version": "${APP_VERSION}"
+  },
+  "generatedAt": "${NOW_TS}"
+}

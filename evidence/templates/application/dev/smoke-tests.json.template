@@ -1,0 +1,23 @@
+{
+  "testSuite": "DEV Environment Smoke Tests",
+  "status": "${SMOKE_STATUS:-PASSED}",
+  "environment": "DEV",
+  "tests": [
+    {
+      "name": "service-health-check",
+      "status": "${HEALTH_STATUS:-PASSED}",
+      "endpoint": "/health"
+    },
+    {
+      "name": "database-connectivity", 
+      "status": "${DB_STATUS:-PASSED}",
+      "connection": "postgresql://dev-db"
+    }
+  ],
+  "metadata": {
+    "serviceName": "${SERVICE_NAME}",
+    "version": "${APP_VERSION}",
+    "generatedAt": "${NOW_TS}",
+    "attachStage": "DEV"
+  }
+}

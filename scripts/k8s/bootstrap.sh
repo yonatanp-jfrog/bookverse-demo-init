@@ -4,12 +4,13 @@ set -euo pipefail
 # PROD-only defaults
 ENV="prod"
 PORT_FORWARD=false
+RESILIENT_DEMO=false
 ARGO_NS="argocd"
 REGISTRY_SERVER="${REGISTRY_SERVER:-}"
 
 usage() {
   cat <<'EOF'
-Usage: ./scripts/k8s/bootstrap.sh [--port-forward] [--help]
+Usage: ./scripts/k8s/bootstrap.sh [--port-forward|--resilient-demo] [--help]
 
 PROD-only bootstrap for local Kubernetes + Argo CD. No defaults are assumed.
 
@@ -26,6 +27,7 @@ Behavior:
   - Applies GitOps: gitops/projects/bookverse-prod.yaml and gitops/apps/prod/platform.yaml
   - Waits for Argo CD Application to be Synced/Healthy
   - With --port-forward, starts local tunnels: Argo CD (https://localhost:8081), Web (http://localhost:8080)
+  - With --resilient-demo, configures professional demo URLs: Argo CD (https://argocd.demo), Web (http://bookverse.demo)
 
 Examples:
   # JFrog SaaS
@@ -35,18 +37,27 @@ Examples:
   export REGISTRY_EMAIL='alice@example.com'   # optional
   ./scripts/k8s/bootstrap.sh --port-forward
 
+  # Resilient demo setup (recommended)
+  export JFROG_URL='https://apptrustswampupc.jfrog.io'
+  export REGISTRY_SERVER="${JFROG_URL#https://}"  # Extract hostname
+  export REGISTRY_USERNAME='k8s.pull@bookverse.com'
+  export REGISTRY_PASSWORD='K8sPull2024!'
+  export REGISTRY_EMAIL='k8s.pull@bookverse.com'
+  ./scripts/k8s/bootstrap.sh --resilient-demo
+
   # Local JFrog (default platform port)
   export REGISTRY_SERVER='localhost:8082'
   export REGISTRY_USERNAME='admin'
   export REGISTRY_PASSWORD='***'
   # REGISTRY_EMAIL optional (e.g., 'admin@local')
-  ./scripts/k8s/bootstrap.sh --port-forward
+  ./scripts/k8s/bootstrap.sh --resilient-demo
 EOF
 }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --port-forward) PORT_FORWARD=true; shift;;
+    --resilient-demo) RESILIENT_DEMO=true; shift;;
     -h|--help) usage; exit 0;;
     *) echo "Unknown arg: $1"; usage; exit 1;;
   esac
@@ -109,8 +120,75 @@ if [[ "${PORT_FORWARD}" == "true" ]]; then
   (kubectl -n "${ARGO_NS}" port-forward svc/argocd-server 8081:443 >/dev/null 2>&1) &
   (kubectl -n "${NS}" port-forward svc/platform-web 8080:80 >/dev/null 2>&1) &
   wait
+elif [[ "${RESILIENT_DEMO}" == "true" ]]; then
+  echo "==> Setting up resilient demo with professional URLs"
+  
+  # Create ingress resources
+  echo "Creating BookVerse ingress..."
+  cat <<EOF | kubectl apply -f -
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bookverse-ingress
+  namespace: ${NS}
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+    traefik.ingress.kubernetes.io/redirect-to-https: "false"
+spec:
+  ingressClassName: traefik
+  rules:
+  - host: bookverse.demo
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: platform-web
+            port:
+              number: 80
+EOF
+
+  echo "Creating Argo CD ingress..."
+  cat <<EOF | kubectl apply -f -
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: argocd-ingress
+  namespace: ${ARGO_NS}
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+    traefik.ingress.kubernetes.io/redirect-to-https: "false"
+    traefik.ingress.kubernetes.io/router.tls: "true"
+spec:
+  ingressClassName: traefik
+  rules:
+  - host: argocd.demo
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: argocd-server
+            port:
+              number: 443
+EOF
+
+  # Note: /etc/hosts modification is now handled by demo-setup.sh early in the process
+
+  # Start resilient port-forward to ingress controller
+  echo "==> Starting resilient ingress port-forward (Ctrl-C to stop)"
+  kubectl -n kube-system port-forward svc/traefik 80:80 443:443 >/dev/null 2>&1 &
+  wait
 fi
 
-echo "Done. Web: http://localhost:8080  |  Argo CD: https://localhost:8081"
+if [[ "${PORT_FORWARD}" == "true" ]]; then
+  echo "Done. Web: http://localhost:8080  |  Argo CD: https://localhost:8081"
+elif [[ "${RESILIENT_DEMO}" == "true" ]]; then
+  echo "Done. Web: http://bookverse.demo  |  Argo CD: https://argocd.demo"
+else
+  echo "Done. Use kubectl port-forward or configure ingress for access."
+fi
 
 

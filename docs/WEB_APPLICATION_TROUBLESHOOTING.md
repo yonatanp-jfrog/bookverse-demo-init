@@ -133,24 +133,26 @@ window.__BOOKVERSE_CONFIG__ = {
 };
 ```
 
-### Port-Forward Setup
+### Access Setup
 
 ```bash
-# Start all necessary port-forwards
-kubectl -n bookverse-prod port-forward svc/platform-web 8080:80 &
-kubectl -n bookverse-prod port-forward svc/inventory 8001:80 &
-kubectl -n bookverse-prod port-forward svc/recommendations 8003:80 &
-kubectl -n bookverse-prod port-forward svc/checkout 8002:80 &
+# Use resilient demo setup (recommended)
+./scripts/quick-demo.sh
+# Access via: http://bookverse.demo
 
-# Or use the provided script
-./scripts/k8s/port-forward.sh --background
+# Legacy manual port-forward (not recommended)
+kubectl -n bookverse-prod port-forward svc/platform-web 8080:80 &
+# Access via: http://localhost:8080
 ```
 
 ## Testing and Validation
 
 ### Basic Connectivity Test
 ```bash
-# Test web application
+# Test web application (resilient demo)
+curl -s http://bookverse.demo | grep "<title>"
+
+# Test web application (legacy localhost)
 curl -s http://localhost:8080 | grep "<title>"
 
 # Test configuration loading

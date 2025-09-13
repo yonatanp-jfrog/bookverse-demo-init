@@ -11,7 +11,7 @@ set -euo pipefail
 #   ./determine-semver.sh --application-key bookverse-web \
 #                        --version-map ./config/version-map.yaml \
 #                        --jfrog-url "$JFROG_URL" \
-#                        --jfrog-token "$JF_ACCESS_TOKEN" \
+#                        --jfrog-token "$JF_OIDC_TOKEN" \
 #                        --project-key "$PROJECT_KEY" \
 #                        --packages "web,web-assets.tar.gz"
 #

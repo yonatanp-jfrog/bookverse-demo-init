@@ -422,7 +422,7 @@ jobs:
             }')
           TOKEN=$(curl -sS -X POST -H "Content-Type: application/json" -d "$PAYLOAD" "$JF_URL/access/api/v1/oidc/token" | jq -r .access_token)
           if [[ -z "$TOKEN" || "$TOKEN" == "null" ]]; then echo "❌ Failed to exchange OIDC token" >&2; exit 1; fi
-          echo "JF_ACCESS_TOKEN=$TOKEN" >> $GITHUB_ENV
+          echo "JF_OIDC_TOKEN=$TOKEN" >> $GITHUB_ENV
 
       - name: Set AppTrust variables and determine version
         run: |
@@ -434,7 +434,7 @@ jobs:
           # Get latest version from AppTrust API using OIDC token
           LATEST_VERSION=$(curl -s \
             "${{ vars.JFROG_URL }}/apptrust/api/v1/applications/$APPLICATION_KEY/versions?limit=1&order_by=created&order_asc=false" \
-            -H "Authorization: Bearer $JF_ACCESS_TOKEN" \
+            -H "Authorization: Bearer $JF_OIDC_TOKEN" \
             -H "Content-Type: application/json" | \
             jq -r '.versions[0].version // empty' 2>/dev/null || echo "")
           
@@ -513,7 +513,7 @@ jobs:
           # Create the application version using OIDC token
           curl -X POST \
             "${{ vars.JFROG_URL }}/apptrust/api/v1/applications/${{ env.APPLICATION_KEY }}/versions/" \
-            -H "Authorization: Bearer $JF_ACCESS_TOKEN" \
+            -H "Authorization: Bearer $JF_OIDC_TOKEN" \
             -H "Content-Type: application/json" \
             -d "$APP_VERSION_PAYLOAD" \
             --fail-with-body || echo "⚠️ Application version may already exist"

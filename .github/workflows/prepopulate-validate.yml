@@ -1,0 +1,35 @@
+name: prepopulate-validate
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/scripts/setup/prepopulate_dependencies.sh'
+      - '.github/workflows/prepopulate-validate.yml'
+
+jobs:
+  dry-run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup jfrog cli
+        uses: jfrog/setup-jfrog-cli@v4
+        with:
+          version: latest
+
+      - name: Dry run prepopulate script
+        env:
+          PROJECT_KEY: bookverse
+          JF_URL: ${{ vars.JFROG_URL }}
+          DRY_RUN: "1"
+        run: |
+          bash ./.github/scripts/setup/prepopulate_dependencies.sh | tee prepopulate.log
+
+      - name: Verify output contains AQL keys
+        run: |
+          grep -q '"$or"' prepopulate.log
+          grep -q '"$and"' prepopulate.log
+          grep -q '"$match"' prepopulate.log
+

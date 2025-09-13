@@ -408,23 +408,26 @@ If you prefer a different setup, you can use any local or cloud Kubernetes clust
 kubectl config current-context  # Should show: rancher-desktop
 kubectl get nodes              # Should show local node as Ready
 
-# 2. Set JFrog Artifactory registry credentials for pulling BookVerse images
-export REGISTRY_SERVER="${JFROG_URL#https://}"  # Extract hostname from JFROG_URL
-export REGISTRY_USERNAME='your-jfrog-username'  # JFrog Platform user (see permissions below)
-export REGISTRY_PASSWORD='your-jfrog-password'  # User password or access token
-export REGISTRY_EMAIL='your-email@example.com'  # Optional: JFrog user email
+# 2. One-time setup (first time only - modifies /etc/hosts)
+./scripts/quick-demo.sh --setup
 
-# 3. Bootstrap Argo CD and deploy BookVerse (this will take 3-5 minutes)
-./scripts/k8s/bootstrap.sh --port-forward
+# 3. Regular usage (restart after interruption)  
+./scripts/quick-demo.sh
 
-# 4. Access applications (for local clusters with port-forward)
-# Argo CD UI: https://localhost:8081
-# BookVerse Web: http://localhost:8080
+# The setup automatically:
+# - Uses your existing JFROG_URL environment variable
+# - Sets up K8s pull user credentials (k8s.pull@bookverse.com)
+# - Creates professional demo URLs with ingress
+# - First-time setup takes 3-5 minutes, restarts take ~10 seconds
+
+# 4. Access applications via professional demo URLs
+# Argo CD UI: https://argocd.demo
+# BookVerse Web: http://bookverse.demo
 ```
 
-### What the Bootstrap Script Does
+### What the Quick Demo Setup Does
 
-The `bootstrap.sh` script automates the complete Kubernetes deployment setup:
+The `quick-demo.sh` script provides one-command resilient demo setup:
 
 **1. Installs Argo CD**
 - Creates `argocd` namespace
@@ -449,10 +452,14 @@ The `bootstrap.sh` script automates the complete Kubernetes deployment setup:
 - Monitors Argo CD application status until it's "Synced" and "Healthy"
 - Ensures all BookVerse services are deployed and running
 
-**6. Sets Up Access (with --port-forward flag)**
-- Creates local port forwards for easy access:
-  - Argo CD UI: `https://localhost:8081`
-  - BookVerse Web: `http://localhost:8080`
+**6. Sets Up Resilient Demo Access**
+- Uses your existing `JFROG_URL` environment variable
+- Automatically configures K8s pull user credentials
+- Creates ingress resources for professional demo URLs:
+  - Argo CD UI: `https://argocd.demo`
+  - BookVerse Web: `http://bookverse.demo`
+- Adds domains to /etc/hosts for local resolution
+- Sets up single resilient port-forward to ingress controller (75% fewer failure points)
 
 **Why This is Needed:**
 - **GitOps Integration**: Demonstrates how BookVerse integrates with GitOps workflows
@@ -552,40 +559,50 @@ export REGISTRY_PASSWORD='your-access-token'  # Instead of password
 
 **Option 1: Local Development (Rancher Desktop, Docker Desktop, etc.)**
 ```bash
-# Deploy with automatic port-forwarding for local access
-./scripts/k8s/bootstrap.sh --port-forward
+# First-time setup (one-time only)
+./scripts/quick-demo.sh --setup
 
-# This will start local tunnels:
-# - Argo CD: https://localhost:8081
-# - BookVerse Web: http://localhost:8080
+# Regular usage (restart after interruption)
+./scripts/quick-demo.sh
+
+# This automatically configures professional demo URLs:
+# - Argo CD: https://argocd.demo
+# - BookVerse Web: http://bookverse.demo
+
+# Alternative: Manual setup with custom credentials
+export REGISTRY_USERNAME='k8s.pull@bookverse.com'
+export REGISTRY_PASSWORD='K8sPull2024!'
+./scripts/demo-setup.sh --setup  # or --steady for restart
 ```
 
-> ⚠️ **Port-Forward Behavior**: 
-> - **Blocks terminal**: The script will keep running and block your terminal while port-forwarding is active
-> - **Stops on exit**: Press `Ctrl+C` to stop port-forwarding and return to terminal
-> - **Not persistent**: Port-forwarding stops when you close the terminal or restart your Mac
+> ✅ **Resilient Demo Setup**: 
+> - **Professional URLs**: Uses `bookverse.demo` and `argocd.demo` instead of localhost
+> - **Single point of failure**: One ingress port-forward instead of multiple service port-forwards
+> - **Automatic recovery**: Kubernetes ingress handles service routing internally
+> - **Demo-ready**: Professional appearance for presentations
 > 
-> **To restart port-forwarding after interruption:**
+> **Setup vs Steady Mode:**
+> - **Setup Mode** (`--setup`): One-time setup that modifies `/etc/hosts` (prompts for sudo password early)
+> - **Steady Mode** (default): Fast restart that only ensures port-forward is running (no sudo needed)
+> 
+> **To restart access after interruption:**
 > ```bash
-> # You don't need to run bootstrap again - just restart port-forwarding
-> kubectl -n argocd port-forward svc/argocd-server 8081:443 &
-> kubectl -n bookverse-prod port-forward svc/platform-web 8080:80 &
+> # Fast restart (steady mode - recommended)
+> ./scripts/quick-demo.sh
 > 
-> # Or run bootstrap again (will skip installation, just restart port-forwarding)
-> ./scripts/k8s/bootstrap.sh --port-forward
+> # Or manually restart just the ingress port-forward
+> kubectl port-forward svc/traefik 80:80 -n kube-system &
 > ```
 > 
-> **Alternative for background access:**
+> **Manual verification:**
 > ```bash
-> # Run port-forwards in background (terminal remains available)
-> kubectl -n argocd port-forward svc/argocd-server 8081:443 &
-> kubectl -n bookverse-prod port-forward svc/platform-web 8080:80 &
+> # Test the demo URLs
+> curl http://bookverse.demo/health
+> curl http://bookverse.demo/api/v1/books
 > 
-> # Check background processes
-> jobs
-> 
-> # Stop background port-forwards when done
-> killall kubectl
+> # Open in browser
+> open http://bookverse.demo
+> open https://argocd.demo
 > ```
 
 **Option 2: Cloud Clusters or Remote Access**
@@ -604,9 +621,9 @@ kubectl -n bookverse-prod get svc platform-web
 ```
 
 **Access Methods Summary:**
-- **Local clusters** (Rancher Desktop): Use `--port-forward` for easy localhost access
+- **Local clusters** (Rancher Desktop): Use `./scripts/quick-demo.sh` for one-command professional demo setup
 - **Cloud clusters**: Use LoadBalancer, NodePort, or Ingress based on your setup
-- **Both**: The bootstrap script works the same way, only access method differs
+- **Both**: The setup scripts work the same way, only access method differs
 
 **What this creates:**
 - ⎈ Argo CD installation in `argocd` namespace

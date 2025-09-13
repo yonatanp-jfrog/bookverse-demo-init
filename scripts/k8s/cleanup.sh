@@ -17,6 +17,19 @@ done
 echo "==> Deleting BookVerse namespaces (ignore-not-found)"
 kubectl delete ns bookverse-prod bookverse --ignore-not-found
 
+echo "==> Cleaning up demo domains from /etc/hosts"
+if grep -q "bookverse.demo" /etc/hosts 2>/dev/null; then
+  sudo sed -i '' '/bookverse.demo/d' /etc/hosts 2>/dev/null || true
+  echo "Removed bookverse.demo from /etc/hosts"
+fi
+if grep -q "argocd.demo" /etc/hosts 2>/dev/null; then
+  sudo sed -i '' '/argocd.demo/d' /etc/hosts 2>/dev/null || true
+  echo "Removed argocd.demo from /etc/hosts"
+fi
+
+echo "==> Stopping any running port-forwards"
+pkill -f "kubectl.*port-forward" 2>/dev/null || true
+
 if $ALL; then
   echo "==> Deleting Argo CD namespace and CRDs (ignore-not-found)"
   kubectl delete ns argocd --ignore-not-found

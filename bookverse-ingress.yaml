@@ -1,0 +1,28 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bookverse-ingress
+  namespace: bookverse-prod
+  annotations:
+    # Traefik-specific annotations
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+    # Optional: redirect to HTTPS (disable for demo)
+    # traefik.ingress.kubernetes.io/redirect-to-https: "true"
+spec:
+  ingressClassName: traefik
+  rules:
+  - host: bookverse.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: platform-web
+            port:
+              number: 80
+  # Optional: TLS configuration (not needed for demo)
+  # tls:
+  # - hosts:
+  #   - bookverse.local
+  #   secretName: bookverse-tls

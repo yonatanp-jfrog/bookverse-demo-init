@@ -67,7 +67,7 @@ Each service CI workflow now uses:
   --application-key "$APPLICATION_KEY" \
   --version-map "./config/version-map.yaml" \
   --jfrog-url "$JFROG_URL" \
-  --jfrog-token "$JF_ACCESS_TOKEN" \
+  --jfrog-token "$JF_OIDC_TOKEN" \
   --project-key "$PROJECT_KEY" \
   --packages "service-name,package-name" \
   --verbose
@@ -188,7 +188,7 @@ pip install PyYAML
   --application-key "bookverse-{service}" \
   --version-map "./config/version-map.yaml" \
   --jfrog-url "$JFROG_URL" \
-  --jfrog-token "$JF_ACCESS_TOKEN" \
+  --jfrog-token "$JF_OIDC_TOKEN" \
   --project-key "$PROJECT_KEY" \
   --packages "{package-list}" \
   --verbose

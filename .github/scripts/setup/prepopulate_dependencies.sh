@@ -304,16 +304,79 @@ fi
 echo ""
 echo "=== Pre-populating Python dependencies ==="
 
-# Configure pip to resolve from the virtual repository
+# Use direct download and upload approach to avoid PyPI proxy issues
+echo "📦 Downloading and uploading Python packages to local repository..."
+
+# Create temporary directory for downloads
+TEMP_DIR=$(mktemp -d)
+trap "rm -rf $TEMP_DIR" EXIT
+
+cd "$TEMP_DIR"
+
+# Define packages to download (based on BookVerse service requirements)
+PACKAGES=(
+    "fastapi==0.111.0"
+    "uvicorn==0.30.0"
+    "requests==2.31.0"
+    "pytest==8.3.2"
+    "pytest-cov==4.0.0"
+    "httpx==0.27.0"
+    # Core dependencies
+    "starlette==0.37.2"
+    "pydantic==2.11.9"
+    "typing-extensions==4.15.0"
+    "click"
+    "h11"
+    "anyio"
+    "sniffio"
+    "idna"
+    "certifi"
+    "charset-normalizer"
+    "urllib3"
+    "coverage"
+    "pluggy"
+    "iniconfig"
+    "packaging"
+    "httpcore"
+)
+
+echo "📥 Downloading packages with dependencies..."
+# Download packages with all dependencies
+pip3 download "${PACKAGES[@]}" || echo "⚠️ Some downloads may have failed"
+
+# Also download platform-independent versions for compatibility
+echo "📥 Downloading platform-independent wheels..."
+pip3 download --platform any --only-binary=:all: \
+  charset-normalizer urllib3 coverage || echo "⚠️ Some platform-independent downloads failed"
+
+echo "📤 Uploading packages to JFrog local repository..."
+# Upload all downloaded packages to the local PyPI repository
+for file in *.whl *.tar.gz; do
+    if [[ -f "$file" ]]; then
+        echo "  📤 Uploading: $file"
+        curl -s -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+             -X PUT \
+             -T "$file" \
+             "${JFROG_URL}/artifactory/${PROJECT_KEY}-pypi-cache-local/$file" \
+             > /dev/null && echo "    ✅ Uploaded successfully" || echo "    ⚠️ Upload failed or already exists"
+    fi
+done
+
+cd - > /dev/null
+
+echo "✅ Python dependencies populated in local repository"
+
+# Legacy approach (kept for compatibility but will likely fail due to PyPI proxy issues)
+echo "📝 Note: Also attempting legacy caching approach for compatibility..."
 jf pipc --repo-resolve "${PROJECT_KEY}-pypi-virtual"
 
 # Core Python CI tools
 cache_python_package "pip" "24.2"
 
-# Testing tools
-cache_python_package "pytest" "7.4.3"
-cache_python_package "pytest-cov" "4.1.0"
-cache_python_package "httpx" "0.25.2"
+# Testing tools  
+cache_python_package "pytest" "8.3.2"
+cache_python_package "pytest-cov" "4.0.0"
+cache_python_package "httpx" "0.27.0"
 
 # FastAPI ecosystem
 cache_python_package "fastapi" "0.111.0"

@@ -27,6 +27,7 @@ SERVICE_REPOS=(
     "yonatanp-jfrog/bookverse-platform"
     "yonatanp-jfrog/bookverse-web"
     "yonatanp-jfrog/bookverse-helm"
+    "yonatanp-jfrog/bookverse-infra"
 )
 
 # Optional: Configure GH_REPO_DISPATCH_TOKEN for platform repo (for CI validation)

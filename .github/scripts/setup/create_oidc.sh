@@ -24,6 +24,7 @@ OIDC_CONFIGS=(
     "checkout|pipeline.checkout@bookverse.com|BookVerse Checkout"
     "platform|diana.architect@bookverse.com|BookVerse Platform"
     "web|pipeline.web@bookverse.com|BookVerse Web"
+    "infra|pipeline.infra@bookverse.com|BookVerse Infrastructure"
 )
 
 # Helper: check if an OIDC integration already exists (best-effort via list API)

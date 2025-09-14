@@ -19,8 +19,7 @@ echo ""
 
 # Application definitions: app_key|app_name|description|criticality|maturity|team|owner
 BOOKVERSE_APPLICATIONS=(
-    "bookverse-infra|BookVerse Infrastructure|Consolidated infrastructure libraries and DevOps tooling including bookverse-core (Python commons) and bookverse-devops (CI/CD workflows, scripts, evidence templates)|high|production|platform|diana.architect@bookverse.com"
-    "bookverse-core|BookVerse Core Library|Shared libraries and utilities providing common functionality (authentication, configuration, API utilities) used across all BookVerse microservices|high|production|platform|diana.architect@bookverse.com"
+    "bookverse-infra|BookVerse Infrastructure|Consolidated infrastructure repository containing multiple packages: bookverse-core (Python commons library), bookverse-devops (CI/CD workflows and scripts), and evidence templates for the entire BookVerse platform|high|production|platform|diana.architect@bookverse.com"
     "bookverse-inventory|BookVerse Inventory Service|Microservice responsible for managing book inventory, stock levels, and availability tracking across all BookVerse locations|high|production|inventory-team|frank.inventory@bookverse.com"
     "bookverse-recommendations|BookVerse Recommendations Service|AI-powered microservice that provides personalized book recommendations based on user preferences, reading history, and collaborative filtering|medium|production|ai-ml-team|grace.ai@bookverse.com"
     "bookverse-checkout|BookVerse Checkout Service|Secure microservice handling payment processing, order fulfillment, and transaction management for book purchases|high|production|checkout-team|henry.checkout@bookverse.com"

@@ -25,6 +25,7 @@ OIDC_CONFIGS=(
     "platform|diana.architect@bookverse.com|BookVerse Platform"
     "web|pipeline.web@bookverse.com|BookVerse Web"
     "infra|pipeline.infra@bookverse.com|BookVerse Infrastructure"
+    "helm|pipeline.helm@bookverse.com|BookVerse Helm Charts"
 )
 
 # Helper: check if an OIDC integration already exists (best-effort via list API)

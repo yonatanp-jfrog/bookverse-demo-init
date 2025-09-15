@@ -92,50 +92,11 @@ jobs:
 
       - name: Run tests with coverage
         run: |
-          # Run tests with coverage
-          if python -m pytest tests/ -v --cov=app --cov-report=xml --cov-report=html; then
-            echo "✅ Tests passed with coverage reports generated"
-            echo "TESTS_PASSED=true" >> $GITHUB_ENV
-          else
-            # DEMO PURPOSE: Create fallback coverage reports when tests fail to keep demo flow consistent
-            echo "⚠️ Tests failed - creating fallback coverage reports"
-            echo "TESTS_PASSED=false" >> $GITHUB_ENV
-            
-            # Create fake coverage.xml
-            cat <<EOF > coverage.xml
-          <?xml version="1.0" ?>
-          <coverage version="7.4.3" timestamp="$(date +%s)000" lines-valid="150" lines-covered="135" line-rate="0.9" branches-covered="45" branches-valid="50" branch-rate="0.9" complexity="0">
-            <sources><source>$(pwd)</source></sources>
-            <packages>
-              <package name="app" line-rate="0.9" branch-rate="0.9" complexity="0">
-                <classes>
-                  <class name="main.py" filename="app/main.py" complexity="0" line-rate="0.95" branch-rate="1.0">
-                    <methods></methods>
-                    <lines>
-                      <line number="10" hits="1"/>
-                      <line number="15" hits="1"/>
-                      <line number="20" hits="1"/>
-                    </lines>
-                  </class>
-                </classes>
-              </package>
-            </packages>
-          </coverage>
-          EOF
-            
-            # Create fake HTML coverage directory
-            mkdir -p htmlcov
-            cat <<EOF > htmlcov/index.html
-          <!DOCTYPE html>
-          <html><head><title>Coverage Report</title></head>
-          <body>
-          <h1>Coverage Report (Demo Fallback)</h1>
-          <p><strong>Coverage:</strong> 90% (135/150 lines)</p>
-          <p><strong>Status:</strong> Tests failed - using fallback data for demo</p>
-          <p><strong>Generated:</strong> $(date)</p>
-          </body></html>
-          EOF
-          fi
+          # Run tests with coverage - FAIL FAST on test failures
+          echo "🧪 Running tests with coverage (fail-fast mode)"
+          python -m pytest tests/ -v --cov=app --cov-report=xml --cov-report=html
+          echo "✅ Tests passed with coverage reports generated"
+          echo "TESTS_PASSED=true" >> $GITHUB_ENV
 
       - name: Generate SAST scan results
         run: |

@@ -241,14 +241,29 @@ create_oidc_integration() {
     echo "Creating identity mapping for: $integration_name → $username"
     
     # Build identity mapping payload with roles-based token scope
+    # Special handling for platform service - grant cross-service access
+    local repo_claim
+    local mapping_description
+    if [[ "$service_name" == "platform" ]]; then
+        # Platform gets wildcard access to all service repositories
+        repo_claim="${org_name}/bookverse-*"
+        mapping_description="Platform identity mapping with cross-service access"
+        echo "🔧 Platform service detected - granting cross-service repository access: $repo_claim"
+    else
+        # Individual services get access only to their own repository
+        repo_claim="${org_name}/bookverse-${service_name}"
+        mapping_description="Identity mapping for $integration_name"
+    fi
+    
     local mapping_payload=$(jq -n \
         --arg name "$integration_name" \
         --arg priority "1" \
-        --arg repo "${org_name}/bookverse-${service_name}" \
+        --arg repo "$repo_claim" \
         --arg scope "applied-permissions/roles:${PROJECT_KEY}:cicd_pipeline" \
+        --arg description "$mapping_description" \
         '{
             "name": $name,
-            "description": ("Identity mapping for " + $name),
+            "description": $description,
             "priority": ($priority | tonumber),
             "claims": {"repository": $repo},
             "token_spec": {"scope": $scope}

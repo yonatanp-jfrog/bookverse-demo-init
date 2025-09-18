@@ -31,7 +31,7 @@ jobs:
 
       - name: Setup JFrog CLI
         # Temporary workaround: using forked action until upstream fix
-        # uses: jfrog/setup-jfrog-cli@v4
+        # uses: EyalDelarea/setup-jfrog-cli@swampUpAppTrust
         uses: EyalDelarea/setup-jfrog-cli@swampUpAppTrust
         with:
           version: latest
@@ -361,7 +361,7 @@ jobs:
 
       - name: Setup JFrog CLI
         # Temporary workaround: using forked action until upstream fix
-        # uses: jfrog/setup-jfrog-cli@v4
+        # uses: EyalDelarea/setup-jfrog-cli@swampUpAppTrust
         uses: EyalDelarea/setup-jfrog-cli@swampUpAppTrust
         with:
           version: latest

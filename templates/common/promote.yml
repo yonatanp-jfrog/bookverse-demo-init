@@ -26,7 +26,7 @@ jobs:
 
       - name: JFrog OIDC login
         # Temporary workaround: using forked action until upstream fix
-        # uses: jfrog/setup-jfrog-cli@v4
+        # uses: EyalDelarea/setup-jfrog-cli@swampUpAppTrust
         uses: EyalDelarea/setup-jfrog-cli@swampUpAppTrust
 
       - name: Configure JFrog URL

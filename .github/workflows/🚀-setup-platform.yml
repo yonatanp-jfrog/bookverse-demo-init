@@ -19,7 +19,7 @@ jobs:
 
 
       - name: Setup JFrog CLI
-        uses: jfrog/setup-jfrog-cli@v4
+        uses: EyalDelarea/setup-jfrog-cli@swampUpAppTrust
         with:
           version: latest
 

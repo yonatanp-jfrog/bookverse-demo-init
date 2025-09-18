@@ -67,7 +67,7 @@ The following repositories are automatically updated:
 - `bookverse-platform` - Platform aggregation service
 - `bookverse-web` - Frontend web application
 - `bookverse-helm` - Kubernetes deployment charts
-- `bookverse-demo-assets` - GitOps and demo materials
+- `bookverse-demo-assets` - GitOps and demo materials (integrated as subfolder in bookverse-demo-init)
 - `bookverse-demo-init` - Setup and initialization scripts
 
 ## Validation Process

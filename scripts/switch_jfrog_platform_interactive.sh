@@ -282,7 +282,7 @@ get_bookverse_repos() {
         "bookverse-platform"
         "bookverse-web"
         "bookverse-helm"
-        "bookverse-demo-assets"
+        "repos/bookverse-demo-assets"
         "bookverse-demo-init"
     )
     

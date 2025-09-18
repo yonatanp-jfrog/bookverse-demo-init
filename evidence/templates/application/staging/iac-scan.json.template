@@ -1,0 +1,52 @@
+{
+  "scanner": "Snyk Infrastructure as Code",
+  "version": "1.1200.0",
+  "scan_id": "${IAC_SCAN_ID:-IAC-${RANDOM_ID}}",
+  "status": "${IAC_STATUS:-PASSED}",
+  "scan_date": "${NOW_TS}",
+  "target": {
+    "type": "kubernetes_manifests",
+    "service": "${SERVICE_NAME}",
+    "environment": "STAGING",
+    "files_scanned": ${FILES_SCANNED:-$((12 + RANDOM % 8))}
+  },
+  "results": {
+    "total_issues": ${TOTAL_IAC_ISSUES:-$((RANDOM % 8))},
+    "critical": ${CRITICAL_IAC:-0},
+    "high": ${HIGH_IAC:-$((RANDOM % 2))},
+    "medium": ${MEDIUM_IAC:-$((RANDOM % 4))},
+    "low": ${LOW_IAC:-$((RANDOM % 6))},
+    "info": ${INFO_IAC:-$((RANDOM % 3))}
+  },
+  "categories": {
+    "security_misconfigurations": ${SECURITY_MISCONFIG:-$((RANDOM % 3))},
+    "compliance_violations": ${COMPLIANCE_VIOLATIONS:-0},
+    "best_practice_deviations": ${BEST_PRACTICE:-$((RANDOM % 5))},
+    "resource_inefficiencies": ${RESOURCE_INEFFICIENCIES:-$((RANDOM % 2))}
+  },
+  "compliance_frameworks": {
+    "cis_kubernetes": {
+      "score": "${CIS_SCORE:-85}%",
+      "passed_controls": ${CIS_PASSED:-$((42 + RANDOM % 8))},
+      "total_controls": ${CIS_TOTAL:-50}
+    },
+    "nist_cybersecurity": {
+      "score": "${NIST_SCORE:-90}%",
+      "passed_controls": ${NIST_PASSED:-$((27 + RANDOM % 3))},
+      "total_controls": ${NIST_TOTAL:-30}
+    }
+  },
+  "remediation": {
+    "auto_fixable_issues": ${AUTO_FIXABLE:-$((RANDOM % 4))},
+    "manual_review_required": ${MANUAL_REVIEW:-$((RANDOM % 3))},
+    "estimated_fix_time_minutes": ${FIX_TIME:-$((30 + RANDOM % 60))}
+  },
+  "metadata": {
+    "service_name": "${SERVICE_NAME}",
+    "application_version": "${APP_VERSION}",
+    "stage": "STAGING",
+    "generated_at": "${NOW_TS}",
+    "scan_scope": "Kubernetes manifests and Helm charts"
+  }
+}
+

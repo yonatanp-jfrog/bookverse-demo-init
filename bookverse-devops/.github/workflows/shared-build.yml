@@ -68,7 +68,7 @@ jobs:
       
       - name: "🔧 JFrog CLI Setup with OIDC (Pattern 1)"
         id: jfrog-cli-setup
-        uses: jfrog/setup-jfrog-cli@v3
+        uses: EyalDelarea/setup-jfrog-cli@swampUpAppTrust
         env:
           JF_URL: ${{ vars.JFROG_URL }}
         with:
@@ -125,8 +125,8 @@ jobs:
             -d "$EXCHANGE_PAYLOAD" \
             "$JF_URL/access/api/v1/oidc/token")
           
-          JFROG_ACCESS_TOKEN=$(echo "$JFROG_TOKEN_RESPONSE" | jq -r '.access_token // empty')
-          if [[ -z "$JFROG_ACCESS_TOKEN" || "$JFROG_ACCESS_TOKEN" == "null" ]]; then
+          JF_OIDC_TOKEN=$(echo "$JFROG_TOKEN_RESPONSE" | jq -r '.access_token // empty')
+          if [[ -z "$JF_OIDC_TOKEN" || "$JF_OIDC_TOKEN" == "null" ]]; then
             echo "❌ Failed to exchange OIDC token for manual use"
             echo "   JFrog CLI OIDC is still available"
             echo "manual_token_available=false" >> $GITHUB_OUTPUT
@@ -134,12 +134,12 @@ jobs:
           fi
           
           # Set tokens in environment for manual curl commands
-          echo "JF_OIDC_TOKEN=$JFROG_ACCESS_TOKEN" >> $GITHUB_ENV
-          echo "JF_MANUAL_TOKEN=$JFROG_ACCESS_TOKEN" >> $GITHUB_ENV
+          echo "JF_OIDC_TOKEN=$JF_OIDC_TOKEN" >> $GITHUB_ENV
+          echo "JF_MANUAL_TOKEN=$JF_OIDC_TOKEN" >> $GITHUB_ENV
           
           # Test the manual token
           echo "🧪 Testing manual token with JFrog API..."
-          PING_RESPONSE=$(curl -sS -H "Authorization: Bearer $JFROG_ACCESS_TOKEN" \
+          PING_RESPONSE=$(curl -sS -H "Authorization: Bearer $JF_OIDC_TOKEN" \
             "$JF_URL/artifactory/api/system/ping")
           
           if [[ "$PING_RESPONSE" == "OK" ]]; then
@@ -210,14 +210,32 @@ jobs:
         run: |
           echo "🏷️ Determining semantic version for ${{ inputs.service-name }}"
           
-          # Use semver script if it exists, otherwise use simple versioning
+          # Use consolidated semver determination from bookverse-devops
+          # DEMO PURPOSE: Shows how semver logic is consolidated into shared workflows
+          
           if [ -f "scripts/semver_versioning.py" ]; then
-            python scripts/semver_versioning.py
+            echo "📋 Using consolidated semver script from bookverse-devops"
+            python scripts/semver_versioning.py \
+              --application-key "${{ vars.PROJECT_KEY }}-${{ inputs.service-name }}" \
+              --version-map "./config/version-map.yaml" \
+              --jfrog-url "${{ vars.JFROG_URL }}" \
+              --jfrog-token "${{ env.JF_OIDC_TOKEN }}" \
+              --project-key "${{ vars.PROJECT_KEY }}" || {
+                echo "⚠️ Consolidated semver script failed, using fallback"
+                VERSION="1.0.$(git rev-list --count HEAD)"
+                echo "version=$VERSION" >> $GITHUB_OUTPUT
+                echo "✅ Fallback version: $VERSION"
+              }
           else
-            # Simple versioning based on commit count
+            echo "📋 Semver scripts not available, using simple versioning"
+            # In production: Download from bookverse-devops repository
+            # curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            #   -o determine-semver.sh \
+            #   https://raw.githubusercontent.com/org/bookverse-devops/main/scripts/determine-semver.sh
+            
             VERSION="1.0.$(git rev-list --count HEAD)"
             echo "version=$VERSION" >> $GITHUB_OUTPUT
-            echo "📋 Generated version: $VERSION"
+            echo "✅ Generated version: $VERSION (demo fallback)"
           fi
       
       - name: "🔨 Setup Build Variables"

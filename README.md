@@ -169,8 +169,7 @@ gh repo clone $ORG/bookverse-platform
 gh repo clone $ORG/bookverse-web
 gh repo clone $ORG/bookverse-helm
 
-# Optional: Clone demo assets and this init repository
-gh repo clone $ORG/bookverse-demo-assets
+# Clone this init repository (contains demo assets as subfolder)
 gh repo clone $ORG/bookverse-demo-init
 
 # Verify all repositories are cloned
@@ -184,8 +183,7 @@ ls -la
 - 🚀 **bookverse-platform** - Platform aggregation service
 - 🌐 **bookverse-web** - Frontend web application
 - ⎈ **bookverse-helm** - Kubernetes deployment charts
-- 📁 **bookverse-demo-assets** - Demo materials and GitOps configs
-- 🔧 **bookverse-demo-init** - Setup and initialization scripts
+- 🔧 **bookverse-demo-init** - Setup and initialization scripts (includes demo assets in repos/bookverse-demo-assets/)
 
 > 💡 **Note**: If any repositories don't exist in your organization yet, you'll need to create them from templates or fork them from the reference repositories.
 
@@ -292,6 +290,9 @@ source .github/scripts/setup/config.sh
 
 # Create AppTrust applications
 ./.github/scripts/setup/create_applications.sh
+
+# Publish shared libraries (bookverse-core, bookverse-devops)
+./.github/scripts/setup/publish_libraries.sh
 ```
 
 ### Step 4: Configure Security Integration

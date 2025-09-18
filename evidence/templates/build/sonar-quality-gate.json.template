@@ -1,83 +1,64 @@
 {
   "scanner": "SonarQube Quality Gate",
-  "projectKey": "${SONAR_PROJECT_KEY:-${SERVICE_NAME}}",
+  "version": "9.9.1",
+  "project_key": "${PROJECT_KEY:-bookverse-${SERVICE_NAME}}",
   "status": "${SONAR_STATUS:-PASSED}",
-  "qualityGate": {
+  "gate_status": "${GATE_STATUS:-OK}",
+  "analysis_date": "${NOW_TS}",
+  "quality_gate": {
     "name": "BookVerse Quality Gate",
-    "status": "${GATE_STATUS:-OK}",
     "conditions": [
       {
-        "metric": "coverage",
+        "metric": "new_coverage",
         "operator": "LT",
         "threshold": "80.0",
-        "actualValue": "${COVERAGE_VALUE:-$(awk "BEGIN {srand($RANDOM); printf \"%.1f\", 82.0 + rand() * 10.0}")}",
-        "status": "OK"
+        "actual_value": "${NEW_COVERAGE:-$((85 + RANDOM % 10))}.${RANDOM_DECIMAL}",
+        "status": "${COVERAGE_STATUS:-OK}"
       },
       {
-        "metric": "duplicated_lines_density",
+        "metric": "new_duplicated_lines_density",
         "operator": "GT", 
         "threshold": "3.0",
-        "actualValue": "${DUPLICATION_VALUE:-$(awk "BEGIN {srand($RANDOM); printf \"%.1f\", rand() * 2.5}")}",
-        "status": "OK"
+        "actual_value": "${DUPLICATION:-$((1 + RANDOM % 2))}.${RANDOM_DECIMAL}",
+        "status": "${DUPLICATION_STATUS:-OK}"
       },
       {
-        "metric": "maintainability_rating",
+        "metric": "new_maintainability_rating",
         "operator": "GT",
         "threshold": "1",
-        "actualValue": "${MAINTAINABILITY_RATING:-1}",
-        "status": "OK"
+        "actual_value": "1",
+        "status": "${MAINTAINABILITY_STATUS:-OK}"
       },
       {
-        "metric": "reliability_rating",
-        "operator": "GT",
-        "threshold": "1", 
-        "actualValue": "${RELIABILITY_RATING:-1}",
-        "status": "OK"
-      },
-      {
-        "metric": "security_rating",
+        "metric": "new_reliability_rating", 
         "operator": "GT",
         "threshold": "1",
-        "actualValue": "${SECURITY_RATING:-1}",
-        "status": "OK"
+        "actual_value": "1",
+        "status": "${RELIABILITY_STATUS:-OK}"
+      },
+      {
+        "metric": "new_security_rating",
+        "operator": "GT", 
+        "threshold": "1",
+        "actual_value": "1",
+        "status": "${SECURITY_STATUS:-OK}"
       }
     ]
   },
   "metrics": {
-    "linesOfCode": ${LINES_OF_CODE:-$((8000 + RANDOM % 4000))},
-    "coverage": "${COVERAGE_VALUE:-$(awk "BEGIN {srand($RANDOM); printf \"%.1f\", 82.0 + rand() * 10.0}")}%",
-    "duplicatedLines": ${DUPLICATED_LINES:-$((50 + RANDOM % 100))},
-    "codeSmells": ${CODE_SMELLS:-$((15 + RANDOM % 25))},
-    "bugs": ${BUGS:-$((RANDOM % 5))},
-    "vulnerabilities": ${VULNERABILITIES:-$((RANDOM % 3))},
-    "securityHotspots": ${SECURITY_HOTSPOTS:-$((RANDOM % 8))},
-    "technicalDebt": "${TECHNICAL_DEBT:-$((30 + RANDOM % 60))min}"
-  },
-  "ratings": {
-    "maintainability": "${MAINTAINABILITY_RATING:-A}",
-    "reliability": "${RELIABILITY_RATING:-A}",
-    "security": "${SECURITY_RATING:-A}"
-  },
-  "scan": {
-    "analysisId": "${ANALYSIS_ID:-$(uuidgen)}",
-    "startTime": "${SONAR_SCAN_START:-$(date -u -d '20 minutes ago' +%Y-%m-%dT%H:%M:%SZ)}",
-    "endTime": "${NOW_TS}",
-    "duration": "${SONAR_SCAN_DURATION:-$((900 + RANDOM % 600))s}",
-    "filesAnalyzed": ${FILES_ANALYZED:-$((120 + RANDOM % 80))},
-    "rulesApplied": ${RULES_APPLIED:-$((450 + RANDOM % 150))}
-  },
-  "newCode": {
-    "coverage": "${NEW_COVERAGE:-$(awk "BEGIN {srand($RANDOM); printf \"%.1f\", 85.0 + rand() * 10.0}")}%",
-    "duplicatedLines": ${NEW_DUPLICATED_LINES:-$((RANDOM % 20))},
-    "codeSmells": ${NEW_CODE_SMELLS:-$((RANDOM % 8))},
-    "bugs": ${NEW_BUGS:-$((RANDOM % 2))},
-    "vulnerabilities": ${NEW_VULNERABILITIES:-$((RANDOM % 2))}
+    "lines_of_code": ${SONAR_LOC:-$((8200 + RANDOM % 1000))},
+    "complexity": ${COMPLEXITY:-$((450 + RANDOM % 100))},
+    "cognitive_complexity": ${COGNITIVE_COMPLEXITY:-$((380 + RANDOM % 80))},
+    "technical_debt_minutes": ${TECH_DEBT:-$((120 + RANDOM % 60))},
+    "bugs": ${BUGS:-$((RANDOM % 3))},
+    "vulnerabilities": ${VULNERABILITIES:-0},
+    "code_smells": ${CODE_SMELLS:-$((15 + RANDOM % 10))}
   },
   "metadata": {
-    "serviceName": "${SERVICE_NAME}",
-    "buildName": "${BUILD_NAME}",
-    "buildNumber": "${BUILD_NUMBER}",
-    "generatedAt": "${NOW_TS}",
-    "attachedTo": "build"
+    "service_name": "${SERVICE_NAME}",
+    "build_name": "${BUILD_NAME}",
+    "build_number": "${BUILD_NUMBER}",
+    "generated_at": "${NOW_TS}",
+    "sonar_url": "${SONAR_URL:-https://sonar.bookverse.com}"
   }
 }

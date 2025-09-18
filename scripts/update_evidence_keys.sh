@@ -39,7 +39,7 @@ log_error() { echo -e "${RED}❌ $1${NC}"; }
 # Default values
 PRIVATE_KEY_FILE=""
 PUBLIC_KEY_FILE=""
-KEY_ALIAS="bookverse_evidence_key"
+KEY_ALIAS="bookverse-evidence-key"  # Use consistent naming with hyphens
 GITHUB_ORG="yonatanp-jfrog"
 DRY_RUN=false
 GENERATE_KEYS=false
@@ -57,7 +57,7 @@ BOOKVERSE_REPOS=(
     "bookverse-platform"
     "bookverse-web"
     "bookverse-helm"
-    "bookverse-demo-assets"
+    "repos/bookverse-demo-assets"
     "bookverse-demo-init"
 )
 
@@ -543,7 +543,25 @@ upload_public_key_to_jfrog() {
     
     if [[ "$http_code" == "200" ]] || [[ "$http_code" == "201" ]]; then
         log_success "✅ Public key uploaded to JFrog Platform"
-        return 0
+        
+        # CRITICAL: Verify the upload actually worked
+        log_info "🔍 Verifying upload was successful..."
+        sleep 2  # Give JFrog a moment to process
+        local verify_response
+        verify_response=$(curl -s \
+            -H "Authorization: Bearer $JFROG_ADMIN_TOKEN" \
+            "$JFROG_URL/artifactory/api/security/keys/trusted")
+        
+        if echo "$verify_response" | jq -e --arg alias "$KEY_ALIAS" '.keys[] | select(.alias == $alias)' >/dev/null 2>&1; then
+            local uploaded_kid
+            uploaded_kid=$(echo "$verify_response" | jq -r --arg alias "$KEY_ALIAS" '.keys[] | select(.alias == $alias) | .kid')
+            log_success "✅ Upload verified! Key found with alias '$KEY_ALIAS' (kid: $uploaded_kid)"
+            return 0
+        else
+            log_error "❌ VERIFICATION FAILED: Key with alias '$KEY_ALIAS' not found in JFrog after upload"
+            log_error "This indicates a silent upload failure. Check JFrog permissions and API endpoint."
+            return 1
+        fi
     elif [[ "$http_code" == "409" ]]; then
         log_warning "⚠️ Trusted key with alias '$KEY_ALIAS' already exists"
         
@@ -562,7 +580,25 @@ upload_public_key_to_jfrog() {
             
             if [[ "$http_code" == "200" ]] || [[ "$http_code" == "201" ]]; then
                 log_success "✅ Public key uploaded to JFrog Platform (after replacing existing key)"
-                return 0
+                
+                # CRITICAL: Verify the upload actually worked
+                log_info "🔍 Verifying upload was successful..."
+                sleep 2  # Give JFrog a moment to process
+                local verify_response
+                verify_response=$(curl -s \
+                    -H "Authorization: Bearer $JFROG_ADMIN_TOKEN" \
+                    "$JFROG_URL/artifactory/api/security/keys/trusted")
+                
+                if echo "$verify_response" | jq -e --arg alias "$KEY_ALIAS" '.keys[] | select(.alias == $alias)' >/dev/null 2>&1; then
+                    local uploaded_kid
+                    uploaded_kid=$(echo "$verify_response" | jq -r --arg alias "$KEY_ALIAS" '.keys[] | select(.alias == $alias) | .kid')
+                    log_success "✅ Upload verified! Key found with alias '$KEY_ALIAS' (kid: $uploaded_kid)"
+                    return 0
+                else
+                    log_error "❌ VERIFICATION FAILED: Key with alias '$KEY_ALIAS' not found in JFrog after upload"
+                    log_error "This indicates a silent upload failure. Check JFrog permissions and API endpoint."
+                    return 1
+                fi
             else
                 log_error "❌ Failed to upload public key after deletion (HTTP $http_code)"
                 if [[ -f "$response_file" ]]; then

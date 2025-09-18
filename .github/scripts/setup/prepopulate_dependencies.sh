@@ -321,9 +321,12 @@ PACKAGES=(
     "pytest==8.3.2"
     "pytest-cov==4.0.0"
     "httpx==0.27.0"
+    "pydantic==2.11.9"
+    "python-multipart==0.0.20"
+    "python-dotenv==1.1.1"
+    "SQLAlchemy"
     # Core dependencies
     "starlette==0.37.2"
-    "pydantic==2.11.9"
     "typing-extensions==4.15.0"
     "click"
     "h11"
@@ -333,7 +336,6 @@ PACKAGES=(
     "certifi"
     "charset-normalizer"
     "urllib3"
-    "coverage"
     "pluggy"
     "iniconfig"
     "packaging"
@@ -381,8 +383,11 @@ cache_python_package "httpx" "0.27.0"
 # FastAPI ecosystem
 cache_python_package "fastapi" "0.111.0"
 cache_python_package "uvicorn" "0.30.0"
+cache_python_package "pydantic" "2.11.9"
 cache_python_package "pydantic" "2.5.0"
 cache_python_package "sqlalchemy" "2.0.23"
+cache_python_package "python-multipart" "0.0.20"
+cache_python_package "python-dotenv" "1.1.1"
 
 # Security tools
 cache_python_package "safety" "3.2.7"

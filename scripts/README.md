@@ -1,138 +1,106 @@
-# BookVerse Scripts
+# BookVerse DevOps Scripts
 
-This directory contains scripts for managing the BookVerse demo environment.
+This directory contains shared scripts used by the BookVerse CI/CD workflows.
 
-## Evidence Key Management
+## Semver Determination Scripts
 
-### update_evidence_keys.sh
+### `semver_versioning.py`
 
-Complete evidence key management script that can generate keys and/or update them across all BookVerse repositories.
+Core Python script for semantic version determination across all BookVerse services.
 
-**Features:**
-- Can generate new key pairs or use existing ones
-- Supports RSA, EC, and ED25519 key algorithms  
-- Updates all repositories with a single command
-- Uploads public key to JFrog Platform automatically
-- Uses your GitHub CLI authentication (full permissions)
-- Validates key formats and matching before updates
-- Migrates `EVIDENCE_PUBLIC_KEY` from secret to variable automatically
-- Supports dry-run mode for testing
-- Shows generated keys for secure storage
-- Automatic cleanup of temporary files
+**Purpose**: Prevents JFrog Artifactory 409 conflicts by intelligently determining next versions based on existing artifacts in repositories.
 
-**Prerequisites:**
+**Key Features**:
+- Queries existing versions from Docker registries, generic repositories, and AppTrust
+- Always bumps seed versions to avoid conflicts with promoted Release Bundles
+- Supports multiple package types (Docker, generic, applications)
+- Robust error handling with graceful fallbacks
+
+**Usage**:
 ```bash
-# Install GitHub CLI
-brew install gh  # macOS
-# or
-sudo apt install gh  # Ubuntu
-
-# Authenticate
-gh auth login
-
-# Set JFrog environment variables
-export JFROG_URL="https://your-instance.jfrog.io"
-export JFROG_ADMIN_TOKEN="your-admin-token"
+python3 semver_versioning.py \
+  --application-key bookverse-inventory \
+  --version-map ./config/version-map.yaml \
+  --jfrog-url "$JFROG_URL" \
+  --jfrog-token "$JF_OIDC_TOKEN" \
+  --project-key bookverse \
+  --packages "inventory,inventory-worker"
 ```
 
-**Usage:**
-```bash
-# Generate keys and update repositories (recommended)
-./update_evidence_keys.sh --generate
+### `determine-semver.sh`
 
-# Generate specific key type
-./update_evidence_keys.sh --generate --key-type rsa
-./update_evidence_keys.sh --generate --key-type ec
-./update_evidence_keys.sh --generate --key-type ed25519
+Shell wrapper for easy CI integration of the semver determination logic.
 
-# Use existing keys
-./update_evidence_keys.sh \
-  --private-key private.pem \
-  --public-key public.pem
+**Purpose**: Provides a simple interface for GitHub Actions workflows to determine versions and set environment variables.
 
-# With custom alias
-./update_evidence_keys.sh \
-  --generate \
-  --alias "my_evidence_key_2024"
+**Environment Variables Set**:
+- `APP_VERSION` - Application version (e.g., 2.4.17)
+- `BUILD_NUMBER` - Build number (e.g., 3.7.26)  
+- `IMAGE_TAG` - Docker image tag (defaults to BUILD_NUMBER)
+- `DOCKER_TAG_*` - Package-specific tags (e.g., DOCKER_TAG_INVENTORY=1.6.15)
 
-# Dry run (preview changes)
-./update_evidence_keys.sh \
-  --generate \
-  --dry-run
-
-
-# Help
-./update_evidence_keys.sh --help
+**Usage in GitHub Actions**:
+```yaml
+- name: "🧮 Determine Versions"
+  run: |
+    ./scripts/determine-semver.sh \
+      --application-key "${{ env.APPLICATION_KEY }}" \
+      --version-map "./config/version-map.yaml" \
+      --jfrog-url "${{ vars.JFROG_URL }}" \
+      --jfrog-token "${{ env.JF_OIDC_TOKEN }}" \
+      --project-key "${{ vars.PROJECT_KEY }}" \
+      --packages "${{ env.PACKAGES }}"
 ```
 
-**Options:**
-- `--generate` - Generate new key pair
-- `--key-type <type>` - Key algorithm: rsa, ec, or ed25519 (default: ed25519)
-- `--private-key <file>` - Path to private key PEM file (when not generating)
-- `--public-key <file>` - Path to public key PEM file (when not generating)
-- `--alias <name>` - Key alias (default: bookverse_evidence_key)
-- `--org <name>` - GitHub organization (default: yonatanp-jfrog)
-- `--no-jfrog` - Skip JFrog Platform update
-- `--dry-run` - Show what would be done without making changes
-- `--help` - Show usage information
+## Integration with Shared Workflows
 
-**Repositories Updated:**
-- bookverse-inventory
-- bookverse-recommendations
-- bookverse-checkout
-- bookverse-platform
-- bookverse-web
-- bookverse-helm
-- bookverse-demo-assets
-- bookverse-demo-init
+These scripts are designed to be used by the shared workflows in `.github/workflows/`:
 
-**What Gets Updated:**
-- `EVIDENCE_PRIVATE_KEY` (secret) - Private key for signing
-- `EVIDENCE_PUBLIC_KEY` (variable) - Public key for verification
-- `EVIDENCE_KEY_ALIAS` (variable) - Key identifier
-- JFrog Platform trusted keys - Public key uploaded for evidence verification
+- `shared-build.yml` - Uses semver determination for build versioning
+- `shared-promote.yml` - Uses semver determination for promotion versioning
 
-## Other Scripts
+## Demo Context
 
-### JFrog Platform Management
+**DEMO PURPOSE**: These scripts demonstrate how to eliminate version determination duplication across services. Previously, each service had its own copy of these scripts, leading to maintenance overhead and inconsistency.
 
-- `switch_jfrog_platform.sh` - Switch to different JFrog Platform instance
-- `switch_jfrog_platform_interactive.sh` - Interactive JFrog Platform switching
+**Consolidation Benefits**:
+- ✅ Single source of truth for version determination logic
+- ✅ Consistent versioning behavior across all services  
+- ✅ Centralized bug fixes and improvements
+- ✅ Reduced maintenance overhead
+- ✅ Prevents version conflicts with Release Bundles
 
-### Environment Setup  
+## Requirements
 
-- `evidence_keys_setup.sh` - Initial evidence key setup
-- Various cleanup and initialization scripts
+- Python 3.7+
+- PyYAML (`pip install PyYAML`)
+- JFrog CLI (for OIDC authentication)
+- Valid JFrog access token with appropriate permissions
 
-## Security Notes
+## Error Handling
 
-- ✅ Scripts use your local GitHub authentication
-- ✅ Private keys are never stored or logged
-- ✅ All operations are auditable through GitHub
-- ❌ Never run scripts with untrusted key files
-- ❌ Never commit private keys to version control
+The scripts include comprehensive error handling:
+- Network timeout handling for API calls
+- Graceful fallback when repositories are empty
+- Clear error messages for debugging
+- Proper JSON validation for API responses
 
-## Troubleshooting
+## Version Map Configuration
 
-**"GitHub CLI not authenticated"**
-```bash
-gh auth login
-gh auth status  # Verify
+The scripts require a `version-map.yaml` file that defines seed versions for each service:
+
+```yaml
+applications:
+  bookverse-inventory:
+    seed: "1.0.0"
+    packages:
+      inventory: "1.0.0"
+      inventory-worker: "1.0.0"
+  bookverse-recommendations:
+    seed: "1.0.0" 
+    packages:
+      recommendations: "1.0.0"
+      recommendations-worker: "1.0.0"
 ```
 
-**"Repository not found"**
-- Ensure you have access to the repository
-- Check organization name is correct
-
-**"Invalid key format"**
-```bash
-# Validate your keys
-openssl pkey -in private.pem -check -noout
-openssl pkey -in public.pem -pubin -check -noout
-```
-
-**"Permission denied"**
-- Ensure script is executable: `chmod +x update_evidence_keys.sh`
-- Check repository permissions in GitHub
-
-For more help, see the [troubleshooting guide](../docs/EVIDENCE_KEY_DEPLOYMENT.md#troubleshooting).
+This configuration ensures consistent version seeding across all services while allowing for independent versioning of individual packages.

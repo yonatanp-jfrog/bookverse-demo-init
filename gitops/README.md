@@ -1,16 +1,20 @@
-## BookVerse GitOps (PROD-only)
+## BookVerse GitOps (Multi-Environment)
 
-This demo uses Argo CD to deploy only to PROD. Deployments occur when AppTrust designates a Platform release as "Recommended for PROD" and CI/CD updates the Helm values accordingly.
+This demo uses Argo CD to deploy across all environments (DEV, QA, STAGING, PROD). Deployments occur when AppTrust promotes artifacts through the lifecycle stages and CI/CD updates the Helm values accordingly.
 
 ### Flow
-1. AppTrust marks a Platform version as Recommended for PROD.
-2. CI/CD updates `bookverse-helm/charts/platform/values.yaml` (chart/image versions) via PR and merge.
-3. Argo CD auto-syncs `apps/prod/platform.yaml` to the `bookverse-prod` namespace.
+1. AppTrust promotes artifacts through lifecycle stages (DEV → QA → STAGING → PROD).
+2. CI/CD updates `bookverse-helm/charts/platform/values.yaml` (chart/image versions) for each environment.
+3. Argo CD auto-syncs applications to their respective namespaces:
+   - `apps/dev/platform.yaml` → `bookverse-dev` namespace
+   - `apps/qa/platform.yaml` → `bookverse-qa` namespace  
+   - `apps/staging/platform.yaml` → `bookverse-staging` namespace
+   - `apps/prod/platform.yaml` → `bookverse-prod` namespace
 
-### Bootstrap (PROD only)
-1. Apply `gitops/bootstrap/*`.
-2. Apply `gitops/projects/bookverse-prod.yaml`.
-3. Apply `gitops/apps/prod/platform.yaml`.
+### Bootstrap (All Environments)
+1. Apply `gitops/bootstrap/*` (creates secrets and helm repos for all namespaces).
+2. Apply `gitops/projects/bookverse-*.yaml` (creates ArgoCD projects for each environment).
+3. Apply `gitops/apps/*/platform.yaml` (creates applications for each environment).
 
 See `docs/K8S_ARGO_BOOTSTRAP.md` for one-command local bootstrap.
 

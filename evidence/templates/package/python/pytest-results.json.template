@@ -1,0 +1,39 @@
+{
+  "framework": "pytest",
+  "version": "7.4.0",
+  "status": "${PYTEST_STATUS:-PASSED}",
+  "test_session": {
+    "start_time": "${TEST_START_TIME:-${NOW_TS}}",
+    "duration_seconds": ${TEST_DURATION:-$((30 + RANDOM % 120))},
+    "python_version": "${PYTHON_VERSION:-3.11.5}",
+    "platform": "linux"
+  },
+  "results": {
+    "total_tests": ${TOTAL_TESTS:-$((180 + RANDOM % 40))},
+    "passed": ${PASSED_TESTS:-$((175 + RANDOM % 35))},
+    "failed": ${FAILED_TESTS:-$((RANDOM % 3))},
+    "skipped": ${SKIPPED_TESTS:-$((RANDOM % 8))},
+    "errors": ${ERROR_TESTS:-0}
+  },
+  "coverage": {
+    "line_coverage_percent": ${LINE_COVERAGE:-$((85 + RANDOM % 10))},
+    "branch_coverage_percent": ${BRANCH_COVERAGE:-$((80 + RANDOM % 15))},
+    "lines_covered": ${LINES_COVERED:-$((7200 + RANDOM % 800))},
+    "lines_total": ${LINES_TOTAL:-$((8500 + RANDOM % 1000))},
+    "branches_covered": ${BRANCHES_COVERED:-$((1800 + RANDOM % 200))},
+    "branches_total": ${BRANCHES_TOTAL:-$((2200 + RANDOM % 300))}
+  },
+  "quality_gates": {
+    "minimum_coverage_met": ${COVERAGE_GATE:-true},
+    "no_failing_tests": ${NO_FAILURES:-true},
+    "performance_acceptable": ${PERFORMANCE_GATE:-true}
+  },
+  "metadata": {
+    "service_name": "${SERVICE_NAME}",
+    "package_type": "python",
+    "build_number": "${BUILD_NUMBER}",
+    "generated_at": "${NOW_TS}",
+    "test_command": "pytest --cov=${SERVICE_NAME} --cov-report=json"
+  }
+}
+

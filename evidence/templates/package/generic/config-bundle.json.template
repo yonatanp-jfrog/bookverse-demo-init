@@ -1,49 +1,41 @@
 {
-  "bundleType": "Configuration and Resources",
-  "status": "${BUNDLE_STATUS:-VERIFIED}",
-  "packages": [
-    {
-      "name": "${SERVICE_NAME}-config",
-      "type": "configuration",
-      "file": "${CONFIG_FILE:-${SERVICE_NAME}-config-${APP_VERSION}.tar.gz}",
-      "size": "${CONFIG_SIZE:-$((50 + RANDOM % 200))KB}",
-      "checksum": "${CONFIG_CHECKSUM:-$(echo -n \"${SERVICE_NAME}-config-${APP_VERSION}\" | sha256sum | cut -d' ' -f1)}",
-      "contents": [
-        "config/app.yml",
-        "config/database.yml", 
-        "config/logging.yml"
-      ]
-    },
-    {
-      "name": "${SERVICE_NAME}-resources",
-      "type": "resources",
-      "file": "${RESOURCES_FILE:-${SERVICE_NAME}-resources-${APP_VERSION}.tar.gz}",
-      "size": "${RESOURCES_SIZE:-$((100 + RANDOM % 500))KB}",
-      "checksum": "${RESOURCES_CHECKSUM:-$(echo -n \"${SERVICE_NAME}-resources-${APP_VERSION}\" | sha256sum | cut -d' ' -f1)}",
-      "contents": [
-        "resources/templates/",
-        "resources/static/",
-        "resources/data/"
-      ]
-    }
-  ],
-  "verification": {
-    "checksumVerified": true,
-    "compressionValid": true,
-    "structureValid": true,
-    "configurationParsed": true
+  "artifact_type": "configuration_bundle",
+  "format": "tar.gz",
+  "bundle_name": "${BUNDLE_NAME:-${SERVICE_NAME}-config}",
+  "version": "${CONFIG_VERSION:-${APP_VERSION}}",
+  "created_at": "${NOW_TS}",
+  "contents": {
+    "config_files": [
+      {
+        "path": "config/${SERVICE_NAME}-settings.yaml",
+        "size_bytes": ${CONFIG_SIZE:-$((2048 + RANDOM % 1024))},
+        "checksum": "${CONFIG_CHECKSUM:-sha256:${RANDOM_HASH}}"
+      },
+      {
+        "path": "resources/stopwords.txt", 
+        "size_bytes": ${RESOURCE_SIZE:-$((512 + RANDOM % 256))},
+        "checksum": "${RESOURCE_CHECKSUM:-sha256:${RANDOM_HASH}}"
+      }
+    ],
+    "total_files": ${TOTAL_FILES:-$((8 + RANDOM % 5))},
+    "total_size_bytes": ${TOTAL_SIZE:-$((4096 + RANDOM % 2048))},
+    "compression_ratio": "${COMPRESSION_RATIO:-0.65}"
   },
-  "upload": {
-    "repository": "${GENERIC_REPO:-bookverse-generic-internal-local}",
-    "path": "${SERVICE_NAME}/",
-    "uploadTime": "${NOW_TS}",
-    "uploadedBy": "${GITHUB_ACTOR}"
+  "validation": {
+    "schema_validated": ${SCHEMA_VALID:-true},
+    "syntax_checked": ${SYNTAX_VALID:-true},
+    "required_files_present": ${FILES_PRESENT:-true}
+  },
+  "deployment": {
+    "target_environments": ["${TARGET_ENV:-DEV}", "QA", "STAGING", "PROD"],
+    "deployment_strategy": "${DEPLOY_STRATEGY:-rolling}",
+    "rollback_supported": ${ROLLBACK_SUPPORT:-true}
   },
   "metadata": {
-    "serviceName": "${SERVICE_NAME}",
-    "version": "${APP_VERSION}",
-    "buildNumber": "${BUILD_NUMBER}",
-    "generatedAt": "${NOW_TS}",
-    "attachedTo": "package"
+    "service_name": "${SERVICE_NAME}",
+    "package_type": "generic",
+    "build_number": "${BUILD_NUMBER}",
+    "generated_at": "${NOW_TS}",
+    "bundle_purpose": "Service configuration and static resources"
   }
 }

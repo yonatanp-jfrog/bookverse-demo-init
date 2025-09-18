@@ -62,7 +62,7 @@ jobs:
       
       - name: "🔧 JFrog CLI Setup with OIDC (Pattern 1)"
         id: jfrog-cli-setup
-        uses: jfrog/setup-jfrog-cli@v3
+        uses: EyalDelarea/setup-jfrog-cli@swampUpAppTrust
         env:
           JF_URL: ${{ vars.JFROG_URL }}
         with:
@@ -120,8 +120,8 @@ jobs:
             -d "$EXCHANGE_PAYLOAD" \
             "$JF_URL/access/api/v1/oidc/token")
           
-          JFROG_ACCESS_TOKEN=$(echo "$JFROG_TOKEN_RESPONSE" | jq -r '.access_token // empty')
-          if [[ -z "$JFROG_ACCESS_TOKEN" || "$JFROG_ACCESS_TOKEN" == "null" ]]; then
+          JF_OIDC_TOKEN=$(echo "$JFROG_TOKEN_RESPONSE" | jq -r '.access_token // empty')
+          if [[ -z "$JF_OIDC_TOKEN" || "$JF_OIDC_TOKEN" == "null" ]]; then
             echo "❌ Failed to exchange OIDC token for manual use"
             echo "   JFrog CLI OIDC is still available for promotions"
             echo "manual_token_available=false" >> $GITHUB_OUTPUT
@@ -129,8 +129,8 @@ jobs:
           fi
           
           # Set tokens in environment for manual curl commands
-          echo "JF_OIDC_TOKEN=$JFROG_ACCESS_TOKEN" >> $GITHUB_ENV
-          echo "JF_MANUAL_TOKEN=$JFROG_ACCESS_TOKEN" >> $GITHUB_ENV
+          echo "JF_OIDC_TOKEN=$JF_OIDC_TOKEN" >> $GITHUB_ENV
+          echo "JF_MANUAL_TOKEN=$JF_OIDC_TOKEN" >> $GITHUB_ENV
           
           echo "✅ Manual OIDC token exchange successful for promotion workflow"
           echo "manual_token_available=true" >> $GITHUB_OUTPUT

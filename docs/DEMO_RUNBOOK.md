@@ -34,7 +34,7 @@ This runbook provides step-by-step instructions for demonstrating JFrog AppTrust
 - `bookverse-platform` - Platform aggregation service
 - `bookverse-web` - Frontend web application
 - `bookverse-helm` - Kubernetes deployment charts
-- `bookverse-demo-assets` - GitOps and demo materials
+- `bookverse-demo-assets` - GitOps and demo materials (integrated as subfolder in bookverse-demo-init)
 
 ## Demo Preparation
 
@@ -191,7 +191,7 @@ done
    gh repo view yonatanp-jfrog/bookverse-helm
    
    # Show GitOps configuration
-   gh repo view yonatanp-jfrog/bookverse-demo-assets
+   # Demo assets are now in repos/bookverse-demo-assets/ subfolder
    ```
 
 ### Phase 6: Security and Compliance (10 minutes)

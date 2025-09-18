@@ -134,8 +134,8 @@ jobs:
           fi
           
           # Extract JFrog access token
-          JFROG_ACCESS_TOKEN=$(echo "$JFROG_TOKEN_RESPONSE" | jq -r '.access_token // empty')
-          if [[ -z "$JFROG_ACCESS_TOKEN" || "$JFROG_ACCESS_TOKEN" == "null" ]]; then
+          JF_OIDC_TOKEN=$(echo "$JFROG_TOKEN_RESPONSE" | jq -r '.access_token // empty')
+          if [[ -z "$JF_OIDC_TOKEN" || "$JF_OIDC_TOKEN" == "null" ]]; then
             echo "❌ Failed to extract JFrog access token from response"
             echo "Response: $JFROG_TOKEN_RESPONSE"
             echo "manual_success=false" >> $GITHUB_OUTPUT
@@ -143,18 +143,18 @@ jobs:
           fi
           
           # Set the token in environment with the specified variable name
-          echo "${{ inputs.token-variable-name }}=$JFROG_ACCESS_TOKEN" >> $GITHUB_ENV
+          echo "${{ inputs.token-variable-name }}=$JF_OIDC_TOKEN" >> $GITHUB_ENV
           
-          # Also set standard JF_ACCESS_TOKEN for JFrog CLI compatibility
-          echo "JF_ACCESS_TOKEN=$JFROG_ACCESS_TOKEN" >> $GITHUB_ENV
+          # Also set standard JF_OIDC_TOKEN for JFrog CLI compatibility
+          echo "JF_OIDC_TOKEN=$JF_OIDC_TOKEN" >> $GITHUB_ENV
           
           echo "✅ JFrog access token obtained and configured"
           echo "🔧 Token available as: \${{ inputs.token-variable-name }}"
-          echo "🔧 Token available as: \$JF_ACCESS_TOKEN (JFrog CLI)"
+          echo "🔧 Token available as: \$JF_OIDC_TOKEN (JFrog CLI)"
           
           # Validate token by testing JFrog API
           echo "🔍 Validating token with JFrog API..."
-          PING_RESPONSE=$(curl -sS -H "Authorization: Bearer $JFROG_ACCESS_TOKEN" \
+          PING_RESPONSE=$(curl -sS -H "Authorization: Bearer $JF_OIDC_TOKEN" \
             "$JF_URL/artifactory/api/system/ping")
           
           if [[ "$PING_RESPONSE" == "OK" ]]; then
@@ -173,7 +173,7 @@ jobs:
       - name: "🔄 Fallback: JFrog CLI Setup Action"
         if: ${{ inputs.fallback-to-action && steps.manual-oidc.outputs.manual_success != 'true' }}
         id: action-fallback
-        uses: jfrog/setup-jfrog-cli@v3
+        uses: EyalDelarea/setup-jfrog-cli@swampUpAppTrust
         env:
           JF_URL: ${{ inputs.jfrog-url }}
         with:
@@ -194,7 +194,7 @@ jobs:
             echo "✅ Method: Manual OIDC token exchange"
             echo "✅ Status: Success"
             echo "🔧 Token Variable: ${{ inputs.token-variable-name }}"
-            echo "🔧 JFrog CLI: Configured with JF_ACCESS_TOKEN"
+            echo "🔧 JFrog CLI: Configured with JF_OIDC_TOKEN"
             echo "method=manual" >> $GITHUB_OUTPUT
             echo "status=success" >> $GITHUB_OUTPUT
           elif [[ "${{ inputs.fallback-to-action }}" == "true" && "${{ steps.action-fallback.conclusion }}" == "success" ]]; then
@@ -215,7 +215,7 @@ jobs:
           echo ""
           echo "🎯 Ready for JFrog CLI operations"
           echo "📋 Environment variables set:"
-          echo "   - JF_ACCESS_TOKEN (for JFrog CLI)"
+          echo "   - JF_OIDC_TOKEN (for JFrog CLI)"
           echo "   - ${{ inputs.token-variable-name }} (service-specific)"
       
       # =================================================================

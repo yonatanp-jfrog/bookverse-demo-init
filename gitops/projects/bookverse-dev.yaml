@@ -1,0 +1,17 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: bookverse-dev
+  namespace: argocd
+spec:
+  description: BookVerse DEV environment
+  sourceRepos:
+    - 'https://github.com/yonatanp-jfrog/bookverse-helm.git'
+    - 'https://github.com/yonatanp-jfrog/bookverse-demo-init.git'
+  destinations:
+    - namespace: 'bookverse-dev'
+      server: 'https://kubernetes.default.svc'
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+

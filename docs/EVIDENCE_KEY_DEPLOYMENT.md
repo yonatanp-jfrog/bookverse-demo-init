@@ -57,7 +57,7 @@ Update each repository individually:
 - `bookverse-platform`
 - `bookverse-web`
 - `bookverse-helm`
-- `bookverse-demo-assets`
+- `repos/bookverse-demo-assets`
 - `bookverse-demo-init`
 
 ### Option 3: JFrog Platform Update

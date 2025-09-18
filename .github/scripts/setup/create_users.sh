@@ -27,11 +27,13 @@ BOOKVERSE_USERS=(
     "frank.inventory@bookverse.com|frank.inventory@bookverse.com|BookVerse2024!|Inventory Manager"
     "grace.ai@bookverse.com|grace.ai@bookverse.com|BookVerse2024!|AI/ML Manager"
     "henry.checkout@bookverse.com|henry.checkout@bookverse.com|BookVerse2024!|Checkout Manager"
+    "ivan.devops@bookverse.com|ivan.devops@bookverse.com|BookVerse2024!|DevOps Manager"
     "pipeline.inventory@bookverse.com|pipeline.inventory@bookverse.com|Pipeline2024!|Pipeline User"
     "pipeline.recommendations@bookverse.com|pipeline.recommendations@bookverse.com|Pipeline2024!|Pipeline User"
     "pipeline.checkout@bookverse.com|pipeline.checkout@bookverse.com|Pipeline2024!|Pipeline User"
     "pipeline.web@bookverse.com|pipeline.web@bookverse.com|Pipeline2024!|Pipeline User"
     "pipeline.platform@bookverse.com|pipeline.platform@bookverse.com|Pipeline2024!|Pipeline User"
+    "pipeline.helm@bookverse.com|pipeline.helm@bookverse.com|Pipeline2024!|Pipeline User"
     "k8s.pull@bookverse.com|k8s.pull@bookverse.com|K8sPull2024!|K8s Pull User"
 )
 
@@ -44,6 +46,7 @@ PLATFORM_OWNERS=(
     "frank.inventory@bookverse.com"
     "grace.ai@bookverse.com"
     "henry.checkout@bookverse.com"
+    "ivan.devops@bookverse.com"
 )
 
 # Function to check if user is a platform owner
@@ -72,7 +75,7 @@ map_role_to_project_role() {
         # Application Admin is NOT a valid JFrog Project role. Map to Release Manager
         "AppTrust Admin") echo "Release Manager" ;;
         # Service managers should be members with elevated release capabilities
-        "Inventory Manager"|"AI/ML Manager"|"Checkout Manager") echo "Release Manager" ;;
+        "Inventory Manager"|"AI/ML Manager"|"Checkout Manager"|"DevOps Manager") echo "Release Manager" ;;
         "Pipeline User") echo "Developer" ;;
         "K8s Pull User") echo "Viewer" ;;
         *) echo "Viewer" ;;

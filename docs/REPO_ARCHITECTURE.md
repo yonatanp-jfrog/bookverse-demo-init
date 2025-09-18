@@ -14,7 +14,7 @@ Link: BookVerse playbook (`https://docs.google.com/document/d/1IJZDSFB_AtP4JDqHj
 - bookverse-platform (aggregations/shared libs)
 - bookverse-web (UI assets as applicable)
 - bookverse-helm (charts for environments)
-- bookverse-demo-assets (datasets, shared workflows, runbook artifacts)
+- bookverse-demo-assets (datasets, shared workflows, runbook artifacts) - *Now integrated as subfolder in bookverse-demo-init*
 
 Optional: bookverse-infra (if infra automation is split).
 

@@ -1,13 +1,12 @@
 {
   "folders": [
     { "path": "." },
-    { "path": "repos/bookverse-inventory" },
-    { "path": "repos/bookverse-recommendations" },
-    { "path": "repos/bookverse-checkout" },
-    { "path": "repos/bookverse-platform" },
-    { "path": "repos/bookverse-demo-assets" },
-    { "path": "repos/bookverse-web" },
-    { "path": "repos/bookverse-helm" }
+    { "path": "../bookverse-inventory" },
+    { "path": "../bookverse-recommendations" },
+    { "path": "../bookverse-checkout" },
+    { "path": "../bookverse-platform" },
+    { "path": "../bookverse-web" },
+    { "path": "../bookverse-helm" }
   ]
 }
 

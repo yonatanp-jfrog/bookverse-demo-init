@@ -51,7 +51,7 @@ jobs:
       
       - name: "Setup JFrog CLI"
         if: github.ref == 'refs/heads/main'
-        uses: jfrog/setup-jfrog-cli@v3
+        uses: EyalDelarea/setup-jfrog-cli@swampUpAppTrust
         env:
           JF_URL: ${{ vars.JFROG_URL }}
         with:

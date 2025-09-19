@@ -129,7 +129,7 @@ jfrog_api_call() {
     if [[ "$client" == "jf" ]]; then
         # Add project header automatically for Artifactory endpoints
         if [[ "$endpoint" == /artifactory/* ]]; then
-            code=$(curl -s -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" -H "X-JFrog-Project: ${PROJECT_KEY}" -X "$method" "${JFROG_URL%/}$endpoint" --write-out "%{http_code}" --output "$output_file" $extra_args)
+            code=$(curl -s -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" -X "$method" "${JFROG_URL%/}$endpoint" --write-out "%{http_code}" --output "$output_file" $extra_args)
         else
             code=$(curl -s -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" -X "$method" "${JFROG_URL%/}$endpoint" --write-out "%{http_code}" --output "$output_file" $extra_args)
         fi
@@ -145,7 +145,6 @@ jfrog_api_call() {
         if [[ "$endpoint" == /artifactory/* ]]; then
             code=$(curl -s -S -L \
                 -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
-                -H "X-JFrog-Project: ${PROJECT_KEY}" \
                 -H "Content-Type: application/json" \
                 -X "$method" "${base_url}${endpoint}" \
                 --write-out "%{http_code}" --output "$output_file" $extra_args)

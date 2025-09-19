@@ -185,13 +185,13 @@ jfrog_api_call() {
         if [[ "$endpoint" == /artifactory/* ]]; then
             if [[ -n "$data_payload" ]]; then
                 if $include_project_header; then
-                    code=$(echo "$data_payload" | curl -s -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" -H "X-JFrog-Project: ${PROJECT_KEY}" -X "$method" "${JFROG_URL%/}$endpoint" --write-out "%{http_code}" --output "$output_file" --data @-)
+                    code=$(echo "$data_payload" | curl -s -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" -X "$method" "${JFROG_URL%/}$endpoint" --write-out "%{http_code}" --output "$output_file" --data @-)
                 else
                     code=$(echo "$data_payload" | curl -s -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" -X "$method" "${JFROG_URL%/}$endpoint" --write-out "%{http_code}" --output "$output_file" --data @-)
                 fi
             else
                 if $include_project_header; then
-                    code=$(curl -s -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" -H "X-JFrog-Project: ${PROJECT_KEY}" -X "$method" "${JFROG_URL%/}$endpoint" --write-out "%{http_code}" --output "$output_file")
+                    code=$(curl -s -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" -X "$method" "${JFROG_URL%/}$endpoint" --write-out "%{http_code}" --output "$output_file")
                 else
                     code=$(curl -s -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" -X "$method" "${JFROG_URL%/}$endpoint" --write-out "%{http_code}" --output "$output_file")
                 fi
@@ -214,7 +214,6 @@ jfrog_api_call() {
                 if $include_project_header; then
                     code=$(curl -s -S -L \
                         -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
-                        -H "X-JFrog-Project: ${PROJECT_KEY}" \
                         -H "Content-Type: application/json" \
                         -X "$method" "${base_url}${endpoint}" \
                         --data "$data_payload" \
@@ -231,7 +230,6 @@ jfrog_api_call() {
                 if $include_project_header; then
                     code=$(curl -s -S -L \
                         -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
-                        -H "X-JFrog-Project: ${PROJECT_KEY}" \
                         -H "Content-Type: application/json" \
                         -X "$method" "${base_url}${endpoint}" \
                         --write-out "%{http_code}" --output "$output_file")

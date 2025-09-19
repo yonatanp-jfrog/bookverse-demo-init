@@ -90,7 +90,6 @@ create_repository() {
     # Create repository
     local temp_response=$(mktemp)
     local response_code=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
-        --header "X-JFrog-Project: ${PROJECT_KEY}" \
         --header "Content-Type: application/json" \
         -X PUT \
         -d "$repo_config" \
@@ -146,7 +145,6 @@ create_repository() {
 
     local get_resp_file=$(mktemp)
     local get_code=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
-        --header "X-JFrog-Project: ${PROJECT_KEY}" \
         --write-out "%{http_code}" --output "$get_resp_file" \
         "${JFROG_URL}/artifactory/api/repositories/${repo_key}")
     if [[ "$get_code" =~ ^2 ]]; then
@@ -165,7 +163,6 @@ create_repository() {
                 '.projectKey = $projectKey | .environments = $envs' "$get_resp_file")
             local up_tmp=$(mktemp)
             local up_code=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
-                --header "X-JFrog-Project: ${PROJECT_KEY}" \
                 --header "Content-Type: application/json" -X POST \
                 -d "$updated_config" --write-out "%{http_code}" --output "$up_tmp" \
                 "${JFROG_URL}/artifactory/api/repositories/${repo_key}")
@@ -266,7 +263,6 @@ prune_old_repositories() {
     list_file=$(mktemp)
     candidates_file=$(mktemp)
     local code=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
-        --header "X-JFrog-Project: ${PROJECT_KEY}" \
         --header "Accept: application/json" \
         --write-out "%{http_code}" --output "$list_file" \
         "${JFROG_URL}/artifactory/api/repositories?type=local")
@@ -298,7 +294,6 @@ prune_old_repositories() {
         echo "🗑️  Deleting outdated repo: $key"
         local del_code=$(curl -s -X DELETE \
             --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
-            --header "X-JFrog-Project: ${PROJECT_KEY}" \
             --write-out "%{http_code}" --output /dev/null \
             "${JFROG_URL}/artifactory/api/repositories/${key}" || echo 000)
         if [[ "$del_code" =~ ^2 ]]; then

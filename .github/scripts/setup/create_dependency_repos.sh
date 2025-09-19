@@ -71,7 +71,6 @@ create_remote_repository() {
     
     local temp_response=$(mktemp)
     local response_code=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
-        --header "X-JFrog-Project: ${PROJECT_KEY}" \
         --header "Content-Type: application/json" \
         -X PUT \
         -d "$repo_config" \
@@ -91,7 +90,6 @@ create_remote_repository() {
                 local update_config=$(echo "$repo_config" | jq 'del(.projectKey)')
                 local update_resp=$(mktemp)
                 local update_code=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
-                    --header "X-JFrog-Project: ${PROJECT_KEY}" \
                     --header "Content-Type: application/json" \
                     -X PUT \
                     -d "$update_config" \
@@ -151,7 +149,6 @@ create_virtual_repository() {
     
     local temp_response=$(mktemp)
     local response_code=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
-        --header "X-JFrog-Project: ${PROJECT_KEY}" \
         --header "Content-Type: application/json" \
         -X PUT \
         -d "$repo_config" \

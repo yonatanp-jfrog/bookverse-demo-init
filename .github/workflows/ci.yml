@@ -1,7 +1,5 @@
 name: BookVerse Core - Minimal CI
 
-# Minimal CI for Python package publishing only
-# No Docker, no AppTrust, just package publishing for service consumption
 
 on:
   push:
@@ -63,10 +61,8 @@ jobs:
         run: |
           echo "📤 Publishing Python package to JFrog Artifactory"
           
-          # Configure PyPI repository (use existing bookverse PyPI repo)
           jf pip-config --repo-resolve="${{ vars.PROJECT_KEY }}-pypi-virtual" --repo-deploy="${{ vars.PROJECT_KEY }}-pypi-internal-local"
           
-          # Upload the wheel package
           jf rt upload "dist/*.whl" "${{ vars.PROJECT_KEY }}-pypi-internal-local/" --flat=false
           
           echo "✅ Package published successfully"

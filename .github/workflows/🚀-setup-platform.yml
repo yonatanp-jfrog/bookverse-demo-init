@@ -5,7 +5,6 @@ on:
     inputs:
 
 env:
-  # Centralized environment variables - reduces 30+ lines of repetition
   JFROG_URL: ${{ vars.JFROG_URL }}
   JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
   GH_TOKEN: ${{ secrets.GH_TOKEN }}
@@ -32,12 +31,10 @@ jobs:
 
       - name: Initialize JFrog Platform
         run: |
-          # Configure JFrog CLI for admin access
           jf c add bookverse-admin --url "$JFROG_URL" --access-token "$JFROG_ADMIN_TOKEN" --interactive=false
           jf c use bookverse-admin
           jf c show
           
-          # Validate environment and connectivity
           ./.github/scripts/setup/validate_environment.sh
 
       - name: Setup Python
@@ -84,18 +81,14 @@ jobs:
 
       - name: Configure Security Integration
         run: |
-          # Configure OIDC integrations for GitHub Actions
           ./.github/scripts/setup/create_oidc.sh
 
       - name: Setup Evidence Keys
         run: |
-          # Generate keys (if not provided), upload trusted key to JFrog, and
-          # distribute secrets/variables to service repos
           bash ./.github/scripts/setup/evidence_keys_setup.sh
 
       - name: Validate Complete Setup
         run: |
-          # Final validation of all created resources
           ./.github/scripts/setup/validate_setup.sh
 
       - name: 📋 Setup Platform Summary
@@ -112,22 +105,18 @@ jobs:
             echo "### 📋 What was created:" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             
-            # Get actual created resources details
             echo "#### 🎯 **Project & Configuration**" >> $GITHUB_STEP_SUMMARY
             echo "- **Project**: \`bookverse\` with full configuration" >> $GITHUB_STEP_SUMMARY
             echo "- **Lifecycle stages**: \`bookverse-DEV\`, \`bookverse-QA\`, \`bookverse-STAGING\` (+ system PROD)" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             
             echo "#### 📦 **Repositories Created**" >> $GITHUB_STEP_SUMMARY
-            # Load project key for dynamic listing
             source ./.github/scripts/setup/config.sh
             project_key="${PROJECT_KEY:-bookverse}"
-            # Fetch all repositories and filter by project prefix
             repos_json=$(curl -s -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" "${JFROG_URL}/artifactory/api/repositories")
             repo_keys=$(echo "$repos_json" | jq -r --arg p "$project_key" '.[] | select(.key | startswith($p + "-")) | .key' 2>/dev/null || true)
 
             echo "**Service Repositories:**" >> $GITHUB_STEP_SUMMARY
-            # New schema: <project>-<service>-<visibility>-<type>-<stage_group>-local
             service_list=$(echo "$repo_keys" | grep -E "^${project_key}-(inventory|recommendations|checkout|platform|web|helm)-(public|internal)-(python|docker|maven|npm|helm|generic)-(nonprod|release)-local$" || true)
             if [[ -n "$service_list" ]]; then echo "$service_list" | sed 's/^/- `&`/' >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
             echo "" >> $GITHUB_STEP_SUMMARY
@@ -178,7 +167,6 @@ jobs:
             echo "- Smart conflict resolution implemented" >> $GITHUB_STEP_SUMMARY
             echo "- Keys distributed to all service repositories" >> $GITHUB_STEP_SUMMARY
             echo "- Public key uploaded to JFrog Platform as trusted key" >> $GITHUB_STEP_SUMMARY
-            # Resolve key alias using the script default/env rather than grepping logs
             key_alias=${EVIDENCE_KEY_ALIAS:-BookVerse-Evidence-Key}
             echo "- Key alias: \`$key_alias\`" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY

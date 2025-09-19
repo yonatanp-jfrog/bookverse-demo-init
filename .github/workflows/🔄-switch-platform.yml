@@ -22,7 +22,6 @@ on:
         default: false
 
 env:
-  # GitHub token for updating other repositories
   GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
 concurrency:
@@ -55,7 +54,6 @@ jobs:
 
       - name: Mask sensitive inputs
         run: |
-          # Mask either provided input or secret-based admin token
           if [[ -n "${{ github.event.inputs.admin_token }}" ]]; then
             echo "::add-mask::${{ github.event.inputs.admin_token }}"
           fi
@@ -66,11 +64,8 @@ jobs:
       - name: Switch JFrog Platform
         run: |
           export NEW_JFROG_URL='${{ github.event.inputs.jpd_host }}'
-          # Always use the provided input token to avoid stale secrets
           export NEW_JFROG_ADMIN_TOKEN='${{ github.event.inputs.admin_token }}'
-          # Disable ANSI colors for cleaner job summary snippets
           export NO_COLOR=1
-          # Prepare log file and export for later steps BEFORE running the script
           LOG_FILE="switch-platform.log"
           echo "LOG_FILE=$LOG_FILE" >> "$GITHUB_ENV"
           echo "🔄 Starting JFrog Platform Switch"
@@ -83,7 +78,6 @@ jobs:
           echo "To: ${{ github.event.inputs.jpd_host }}"
           echo ""
 
-          # Run the script and capture logs to a file; append tail to summary for readability
           set -o pipefail
           CONTINUE_ON_AUTH_FAILURE=1 ./.github/scripts/setup/switch_jfrog_platform.sh 2>&1 | tee "$LOG_FILE"
           echo "" >> "$GITHUB_STEP_SUMMARY"
@@ -115,7 +109,6 @@ jobs:
           export NEW_JFROG_ADMIN_TOKEN='${{ github.event.inputs.admin_token }}'
           echo "🔍 Validating new platform connectivity..."
           
-          # Test the new platform is accessible
           if curl -s --fail --header "Authorization: Bearer $NEW_JFROG_ADMIN_TOKEN" \
               "${NEW_JFROG_URL}/artifactory/api/system/ping" > /dev/null; then
             echo "✅ New platform validation successful"
@@ -140,7 +133,6 @@ jobs:
           echo "🔧 Updating Kubernetes cluster registry configuration..."
           echo ""
           
-          # Check if kubectl is available
           if ! command -v kubectl >/dev/null 2>&1; then
             echo "❌ kubectl not found. Installing kubectl..."
             curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
@@ -148,7 +140,6 @@ jobs:
             sudo mv kubectl /usr/local/bin/
           fi
           
-          # Check cluster connectivity
           if ! kubectl cluster-info >/dev/null 2>&1; then
             echo "❌ Cannot connect to Kubernetes cluster"
             echo "   Make sure your cluster is accessible and kubeconfig is configured"
@@ -156,7 +147,6 @@ jobs:
             exit 0
           fi
           
-          # Run the K8s registry update script
           export NEW_JFROG_URL='${{ github.event.inputs.jpd_host }}'
           export NEW_JFROG_ADMIN_TOKEN='${{ github.event.inputs.admin_token }}'
           

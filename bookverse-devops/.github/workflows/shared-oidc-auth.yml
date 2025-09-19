@@ -1,7 +1,5 @@
 name: "BookVerse Shared OIDC Authentication"
 
-# Reusable workflow for OIDC token minting and JFrog authentication
-# Consolidates the complex manual OIDC token exchange logic used across all services
 
 on:
   workflow_call:
@@ -53,16 +51,12 @@ jobs:
       status: ${{ steps.auth-result.outputs.status }}
     
     steps:
-      # =================================================================
-      # OIDC TOKEN MINTING & EXCHANGE (Manual Implementation)
-      # =================================================================
       
       - name: "🔐 GitHub OIDC Token Minting & JFrog Exchange"
         id: manual-oidc
         run: |
           echo "🔐 Starting OIDC token minting and exchange for ${{ inputs.service-name }}"
           
-          # Validate required environment variables
           if [[ -z "$ACTIONS_ID_TOKEN_REQUEST_TOKEN" || -z "$ACTIONS_ID_TOKEN_REQUEST_URL" ]]; then
             echo "❌ Missing GitHub OIDC request environment variables"
             echo "   ACTIONS_ID_TOKEN_REQUEST_TOKEN: ${ACTIONS_ID_TOKEN_REQUEST_TOKEN:+SET}"
@@ -71,7 +65,6 @@ jobs:
             exit 1
           fi
           
-          # Set JFrog URL and validate
           JF_URL="${{ inputs.jfrog-url }}"
           if [[ -z "$JF_URL" ]]; then
             echo "❌ JFrog URL not provided"
@@ -84,7 +77,6 @@ jobs:
           echo "🔑 OIDC Provider: ${{ inputs.oidc-provider-name }}"
           echo "👥 OIDC Audience: ${{ inputs.oidc-audience }}"
           
-          # Step 1: Mint GitHub OIDC ID token
           echo "🔄 Step 1: Minting GitHub OIDC ID token..."
           GITHUB_TOKEN_RESPONSE=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
             "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=${{ inputs.oidc-audience }}")
@@ -105,10 +97,8 @@ jobs:
           
           echo "✅ GitHub OIDC token minted successfully"
           
-          # Step 2: Exchange GitHub OIDC token for JFrog access token
           echo "🔄 Step 2: Exchanging OIDC token for JFrog access token..."
           
-          # Prepare token exchange payload
           EXCHANGE_PAYLOAD=$(jq -n \
             --arg grant_type "urn:ietf:params:oauth:grant-type:token-exchange" \
             --arg subject_token_type "urn:ietf:params:oauth:token-type:id_token" \
@@ -121,7 +111,6 @@ jobs:
               provider_name: $provider_name
             }')
           
-          # Exchange token with JFrog
           JFROG_TOKEN_RESPONSE=$(curl -sS -X POST \
             -H "Content-Type: application/json" \
             -d "$EXCHANGE_PAYLOAD" \
@@ -133,7 +122,6 @@ jobs:
             exit 1
           fi
           
-          # Extract JFrog access token
           JF_OIDC_TOKEN=$(echo "$JFROG_TOKEN_RESPONSE" | jq -r '.access_token // empty')
           if [[ -z "$JF_OIDC_TOKEN" || "$JF_OIDC_TOKEN" == "null" ]]; then
             echo "❌ Failed to extract JFrog access token from response"
@@ -142,17 +130,14 @@ jobs:
             exit 1
           fi
           
-          # Set the token in environment with the specified variable name
           echo "${{ inputs.token-variable-name }}=$JF_OIDC_TOKEN" >> $GITHUB_ENV
           
-          # Also set standard JF_OIDC_TOKEN for JFrog CLI compatibility
           echo "JF_OIDC_TOKEN=$JF_OIDC_TOKEN" >> $GITHUB_ENV
           
           echo "✅ JFrog access token obtained and configured"
           echo "🔧 Token available as: \${{ inputs.token-variable-name }}"
           echo "🔧 Token available as: \$JF_OIDC_TOKEN (JFrog CLI)"
           
-          # Validate token by testing JFrog API
           echo "🔍 Validating token with JFrog API..."
           PING_RESPONSE=$(curl -sS -H "Authorization: Bearer $JF_OIDC_TOKEN" \
             "$JF_URL/artifactory/api/system/ping")
@@ -166,9 +151,6 @@ jobs:
             exit 1
           fi
       
-      # =================================================================
-      # FALLBACK: JFROG SETUP ACTION (If manual exchange fails)
-      # =================================================================
       
       - name: "🔄 Fallback: JFrog CLI Setup Action"
         if: ${{ inputs.fallback-to-action && steps.manual-oidc.outputs.manual_success != 'true' }}
@@ -180,9 +162,6 @@ jobs:
           oidc-provider-name: ${{ inputs.oidc-provider-name }}
           oidc-audience: ${{ inputs.oidc-audience }}
       
-      # =================================================================
-      # AUTHENTICATION RESULT & SUMMARY
-      # =================================================================
       
       - name: "📋 Authentication Result Summary"
         id: auth-result
@@ -218,19 +197,14 @@ jobs:
           echo "   - JF_OIDC_TOKEN (for JFrog CLI)"
           echo "   - ${{ inputs.token-variable-name }} (service-specific)"
       
-      # =================================================================
-      # TOKEN VALIDATION & CLI TEST
-      # =================================================================
       
       - name: "🧪 JFrog CLI Validation Test"
         run: |
           echo "🧪 Testing JFrog CLI functionality..."
           
-          # Test basic JFrog CLI commands
           if command -v jf >/dev/null 2>&1; then
             echo "✅ JFrog CLI available"
             
-            # Test authentication
             if jf rt ping; then
               echo "✅ JFrog CLI authentication successful"
             else

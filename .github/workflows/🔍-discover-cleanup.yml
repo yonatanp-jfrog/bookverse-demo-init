@@ -25,8 +25,6 @@ jobs:
           sudo apt-get install -y jq
 
       - name: Setup JFrog CLI
-        # Temporary workaround: using forked action until upstream fix
-        # uses: EyalDelarea/setup-jfrog-cli@swampUpAppTrust
         uses: EyalDelarea/setup-jfrog-cli@swampUpAppTrust
         with:
           version: latest
@@ -52,12 +50,9 @@ jobs:
           JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
           PROJECT_KEY: 'bookverse'
         run: |
-          # Source the script and call discovery entrypoint directly
-          # Avoid -e so the step does not fail on non-zero from subshells
           set +e
           cd .github/scripts/setup
           export SKIP_PROTECTION=true
-          # Source script (it sets -e internally); then disable -e and run discovery-only
           source ./cleanup_project_based.sh
           set +e
           run_discovery_preview || true
@@ -65,13 +60,11 @@ jobs:
 
       - name: Commit shared discovery report
         run: |
-          # Locate report anywhere in the workspace
           report_path=$(find "$GITHUB_WORKSPACE" -type f -name "*cleanup-report.json" -print -quit)
           if [[ -n "$report_path" ]]; then
             echo "Found report at: $report_path"
             mkdir -p .github
             dest_path=".github/cleanup-report.json"
-            # Copy only if paths differ
             if [[ "$report_path" != "$GITHUB_WORKSPACE/$dest_path" ]]; then
               cp "$report_path" "$dest_path"
             else
@@ -84,7 +77,6 @@ jobs:
               echo "📋 No changes to commit for cleanup report"
             else
               git commit -m "chore: Update cleanup discovery report"
-              # Handle non-fast-forward: rebase and push
               set +e
               git push origin ${{ github.ref_name }}
               if [[ $? -ne 0 ]]; then
@@ -114,7 +106,6 @@ jobs:
             local_count=$(jq -r '.metadata.discovery_counts.repositories_breakdown.local // 0' .github/cleanup-report.json)
             remote_count=$(jq -r '.metadata.discovery_counts.repositories_breakdown.remote // 0' .github/cleanup-report.json)
             virtual_count=$(jq -r '.metadata.discovery_counts.repositories_breakdown.virtual // 0' .github/cleanup-report.json)
-            # Fallback: if breakdown sums to 0 but repos > 0, derive from plan.repositories
             repo_type_sum=$(jq -r '((.metadata.discovery_counts.repositories_breakdown.local // 0) + (.metadata.discovery_counts.repositories_breakdown.remote // 0) + (.metadata.discovery_counts.repositories_breakdown.virtual // 0))' .github/cleanup-report.json)
             if [[ ${repo_type_sum:-0} -eq 0 && ${repos:-0} -gt 0 ]]; then
               computed=$(jq -r '
@@ -140,7 +131,6 @@ jobs:
               virtual_count=$(echo "$computed" | jq -r '.virtual // 0')
               repo_type_sum=$(( ${local_count:-0} + ${remote_count:-0} + ${virtual_count:-0} ))
             fi
-            # Fallback 2: derive from deletion_preview if plan is empty
             if [[ ${repo_type_sum:-0} -eq 0 && ${repos:-0} -gt 0 ]]; then
               pv_file="/tmp/deletion_preview_for_counts.txt"
               jq -r '.deletion_preview // .deletion_plan // ""' .github/cleanup-report.json > "$pv_file"
@@ -164,7 +154,6 @@ jobs:
             echo "- 🔐 OIDC Integrations: $oidc" >> $GITHUB_STEP_SUMMARY
             echo "- 👥 Domain users (@bookverse.com): $domain_users" >> $GITHUB_STEP_SUMMARY
 
-            # Use structured plan arrays for reliable listing
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "### 🔎 Detailed Items Discovered" >> $GITHUB_STEP_SUMMARY
 
@@ -186,7 +175,6 @@ jobs:
             echo "#### 🏷️ Stages ($stages)" >> $GITHUB_STEP_SUMMARY
             stage_list=$(jq -r '.plan.stages[]? | "\(.name) (in lifecycle: \(.in_use // false))"' .github/cleanup-report.json 2>/dev/null || true)
             if [[ -z "$stage_list" ]]; then
-              # Fallback: parse raw discovery preview if structured plan is empty
               preview_file="/tmp/deletion_preview.txt"
               jq -r '.deletion_preview // .deletion_plan // ""' .github/cleanup-report.json > "$preview_file"
               fallback_stages=$(grep -E "^\\s*❌ Stage: " "$preview_file" | sed -E 's/^\\s*❌ Stage: (.*)$/\1/' || true)
@@ -215,7 +203,6 @@ jobs:
               echo "$domain_users_list" | sed 's/^/- /' >> $GITHUB_STEP_SUMMARY
             fi
 
-            # Safety checks: ensure all items belong to the expected project
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "### 🛡️ Safety Checks" >> $GITHUB_STEP_SUMMARY
             rpt_project=$(jq -r '.metadata.project_key' .github/cleanup-report.json)
@@ -240,7 +227,6 @@ jobs:
             echo "<details>" >> $GITHUB_STEP_SUMMARY
             echo "<summary>📄 Raw Discovery Preview</summary>" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            # Extract deletion preview content from report for full text context
             preview_file="/tmp/deletion_preview.txt"
             jq -r '.deletion_preview // .deletion_plan // ""' .github/cleanup-report.json > "$preview_file"
             echo '```' >> $GITHUB_STEP_SUMMARY
@@ -248,7 +234,6 @@ jobs:
             echo '```' >> $GITHUB_STEP_SUMMARY
             echo "</details>" >> $GITHUB_STEP_SUMMARY
 
-            # Link to committed report in repository
             report_url="https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_REF_NAME}/.github/cleanup-report.json"
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "### 🔗 Report File" >> $GITHUB_STEP_SUMMARY

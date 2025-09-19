@@ -117,7 +117,7 @@ jobs:
             repo_keys=$(echo "$repos_json" | jq -r --arg p "$project_key" '.[] | select(.key | startswith($p + "-")) | .key' 2>/dev/null || true)
 
             echo "**Service Repositories:**" >> $GITHUB_STEP_SUMMARY
-            service_list=$(echo "$repo_keys" | grep -E "^${project_key}-(inventory|recommendations|checkout|platform|web|helm)-(public|internal)-(python|docker|maven|npm|helm|generic)-(nonprod|release)-local$" || true)
+            service_list=$(echo "$repo_keys" | grep -E "^${project_key}-(inventory|recommendations|checkout|platform|web|helm|infra)-(public|internal)-(python|docker|maven|npm|helm|generic)-(nonprod|release)-local$" || true)
             if [[ -n "$service_list" ]]; then echo "$service_list" | sed 's/^/- `&`/' >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
             echo "" >> $GITHUB_STEP_SUMMARY
 
@@ -162,6 +162,7 @@ jobs:
             echo "- \`${project_key}-checkout-github\` → pipeline.checkout@bookverse.com" >> $GITHUB_STEP_SUMMARY
             echo "- \`${project_key}-platform-github\` → diana.architect@bookverse.com" >> $GITHUB_STEP_SUMMARY
             echo "- \`${project_key}-web-github\` → pipeline.web@bookverse.com" >> $GITHUB_STEP_SUMMARY
+            echo "- \`${project_key}-infra-github\` → charlie.devops@bookverse.com" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "**Evidence Keys:**" >> $GITHUB_STEP_SUMMARY
             echo "- Smart conflict resolution implemented" >> $GITHUB_STEP_SUMMARY

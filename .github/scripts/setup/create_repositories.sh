@@ -11,6 +11,48 @@ set -e
 # Load configuration
 source "$(dirname "$0")/config.sh"
 
+# Service definitions
+SERVICES=(
+    "inventory"
+    "recommendations" 
+    "checkout"
+    "platform"
+    "web"
+    "helm"
+    "infra"
+)
+
+# Define package types for each service
+get_packages_for_service() {
+    local service="$1"
+    case "$service" in
+        inventory)
+            echo "docker pypi"
+            ;;
+        recommendations)
+            echo "docker generic"
+            ;;
+        checkout)
+            echo "docker generic"
+            ;;
+        platform)
+            echo "docker"
+            ;;
+        web)
+            echo "generic"
+            ;;
+        helm)
+            echo "helm"
+            ;;
+        infra)
+            echo "pypi generic"
+            ;;
+        *)
+            echo "docker"
+            ;;
+    esac
+}
+
 echo ""
 echo "🚀 Creating repositories for BookVerse microservices platform"
 echo "🔧 Project: $PROJECT_KEY"

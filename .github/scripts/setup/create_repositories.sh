@@ -228,7 +228,7 @@ create_repository() {
 }
 
 # Services and their package types (portable across older Bash versions)
-SERVICES=("core" "inventory" "recommendations" "checkout" "platform" "web" "helm")
+SERVICES=("core" "inventory" "recommendations" "checkout" "platform" "web" "helm" "infra")
 
 get_packages_for_service() {
     case "$1" in
@@ -247,6 +247,9 @@ get_packages_for_service() {
             ;;
         helm)
             echo "helm generic"
+            ;;
+        infra)
+            echo "pypi generic"
             ;;
         *)
             echo ""

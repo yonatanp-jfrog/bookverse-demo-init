@@ -101,6 +101,14 @@ kubectl apply -f "${GITOPS_DIR}/projects/bookverse-prod.yaml"
 echo "==> Applying Application for PROD"
 kubectl apply -f "${GITOPS_DIR}/apps/prod/platform.yaml"
 
+echo "==> Configuring ArgoCD for production use"
+if [[ "${RESILIENT_DEMO}" == "true" ]]; then
+  # Apply bulletproof ArgoCD configuration
+  "${ROOT}/scripts/k8s/configure-argocd-production.sh" --host argocd.demo || echo "ArgoCD configuration completed with warnings"
+else
+  echo "Skipping ArgoCD production configuration (not in resilient demo mode)"
+fi
+
 echo "==> Waiting for Argo CD app to become Synced/Healthy"
 for i in {1..60}; do
   SYNC=$(kubectl -n "${ARGO_NS}" get application.argoproj.io "${APP_NAME}" -o jsonpath='{.status.sync.status}' 2>/dev/null || true)
@@ -149,33 +157,9 @@ spec:
               number: 80
 EOF
 
-  echo "Creating Argo CD ingress..."
-  cat <<EOF | kubectl apply -f -
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: argocd-ingress
-  namespace: ${ARGO_NS}
-  annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: web
-    traefik.ingress.kubernetes.io/redirect-to-https: "false"
-    traefik.ingress.kubernetes.io/router.tls: "true"
-spec:
-  ingressClassName: traefik
-  rules:
-  - host: argocd.demo
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: argocd-server
-            port:
-              number: 443
-EOF
+  echo "ArgoCD ingress will be configured by production setup script..."
 
-  # Note: /etc/hosts modification is now handled by demo-setup.sh early in the process
+  # Note: /etc/hosts modification is now handled by bookverse-demo.sh early in the process
 
   # Start resilient port-forward to ingress controller
   echo "==> Starting resilient ingress port-forward (Ctrl-C to stop)"

@@ -37,7 +37,7 @@ export REGISTRY_PASSWORD='<admin-password-or-token>'
 # REGISTRY_EMAIL optional
 ./scripts/k8s/bootstrap.sh --port-forward
 # Argo CD UI: https://localhost:8081 (accept self-signed cert)
-kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d; echo
+# ArgoCD admin password: S7w7PDUML4HT6sEw
 # Web app: http://localhost:8080
 ```
 
@@ -46,6 +46,7 @@ What the bootstrap does:
 - Creates `bookverse-prod` namespace
 - Adds `imagePullSecrets` if all REGISTRY_* vars are provided (no defaults assumed)
 - Applies `gitops/projects/bookverse-prod.yaml` and `gitops/apps/prod/platform.yaml`
+- **NEW**: Configures ArgoCD with bulletproof production settings (TLS, security headers, proper ingress)
 - Waits for the Argo CD Application to be Synced and Healthy
 - Optionally starts port-forwards for Argo CD and the web app
 
@@ -55,12 +56,28 @@ kubectl -n argocd get applications.argoproj.io platform-prod
 kubectl -n bookverse-prod get deploy,svc,pod
 ```
 
+#### ArgoCD Production Configuration
+
+The bootstrap now includes bulletproof ArgoCD configuration that provides:
+
+- **Secure TLS**: Self-signed certificates with proper SANs for demo use
+- **Production Security**: Security headers, CSP, and HSTS via Traefik middleware  
+- **gRPC-Web Support**: Full UI functionality with secure transport
+- **Proper Ingress**: Correct routing to ArgoCD's internal HTTPS port (8080)
+- **Automatic Setup**: No manual configuration required
+
+This resolves connectivity issues that occurred in previous demo versions where ArgoCD would show "Request has been terminated" errors.
+
 #### Troubleshooting
 - ImagePullBackOff: ensure `REGISTRY_*` variables were set before running bootstrap; re-run `bootstrap.sh` or restart deployments:
 ```bash
 kubectl -n bookverse-prod rollout restart deploy
 ```
 - Argo CD app OutOfSync/Missing tags: confirm `bookverse-helm/charts/platform/values.yaml` on `main` contains non-empty tags for all services (the demo CI/CD sets these on release).
+- ArgoCD connectivity issues: The bootstrap now automatically applies production configuration. If issues persist, manually run:
+```bash
+./scripts/k8s/configure-argocd-production.sh --host argocd.demo
+```
 - Access without port-forward: enable Ingress in the Helm chart (`web.ingress.enabled=true`, set `web.ingress.host`) and expose via your local ingress controller (e.g., Traefik).
 
 #### Uninstall

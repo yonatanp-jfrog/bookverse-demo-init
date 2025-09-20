@@ -1,0 +1,134 @@
+# ArgoCD Production Configuration
+# This file contains the bulletproof ArgoCD configuration for production use with Traefik
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cmd-params-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-cmd-params-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  # Security Configuration
+  server.insecure: "false"
+  
+  # gRPC-Web Support (required for UI)
+  server.grpc.web: "true"
+  server.enable.grpc.web: "true"
+  
+  # Path Configuration
+  server.rootpath: "/"
+  
+  # Performance Tuning
+  server.static.assets: "/shared/app"
+  
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-server-config
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  # Server URL (must match ingress host)
+  url: https://argocd.demo
+  
+  # OIDC Configuration (placeholder for future)
+  # oidc.config: |
+  #   name: OIDC
+  #   issuer: https://your-oidc-provider.com
+  #   clientId: argocd
+  #   clientSecret: $oidc.clientSecret
+  #   requestedScopes: ["openid", "profile", "email", "groups"]
+  
+  # Application in any namespace
+  application.instanceLabelKey: argocd.argoproj.io/instance
+  
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: argocd-ingress
+  namespace: argocd
+  annotations:
+    # Traefik Configuration
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    
+    # Backend Protocol - let Traefik auto-detect
+    
+    # Security Middleware
+    traefik.ingress.kubernetes.io/router.middlewares: argocd-argocd-headers@kubernetescrd
+    
+    # Priority for gRPC routing
+    traefik.ingress.kubernetes.io/router.priority: "10"
+    
+    # Additional Security
+    traefik.ingress.kubernetes.io/router.rule: Host(`argocd.demo`)
+spec:
+  ingressClassName: traefik
+  tls:
+  - hosts:
+    - argocd.demo
+    secretName: argocd-server-tls
+  rules:
+  - host: argocd.demo
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: argocd-server
+            port:
+              number: 443
+
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: argocd-headers
+  namespace: argocd
+spec:
+  headers:
+    # Request Headers for ArgoCD
+    customRequestHeaders:
+      X-Forwarded-Proto: https
+      X-Forwarded-Port: "443"
+      X-Forwarded-Host: argocd.demo
+    
+    # Security Response Headers
+    customResponseHeaders:
+      X-Frame-Options: DENY
+      X-Content-Type-Options: nosniff
+      X-XSS-Protection: "1; mode=block"
+      Referrer-Policy: strict-origin-when-cross-origin
+      Strict-Transport-Security: max-age=31536000; includeSubDomains
+    
+    # Content Security Policy for ArgoCD
+    contentSecurityPolicy: |
+      default-src 'self';
+      script-src 'self' 'unsafe-inline' 'unsafe-eval';
+      style-src 'self' 'unsafe-inline';
+      img-src 'self' data: https:;
+      font-src 'self' data:;
+      connect-src 'self' wss: https:;
+      frame-ancestors 'none';
+      base-uri 'self';
+      form-action 'self';
+
+---
+# TLS Certificate Secret (self-signed for demo, replace with proper cert in production)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: argocd-server-tls
+  namespace: argocd
+type: kubernetes.io/tls
+data:
+  # These will be populated by the certificate creation script
+  tls.crt: ""
+  tls.key: ""

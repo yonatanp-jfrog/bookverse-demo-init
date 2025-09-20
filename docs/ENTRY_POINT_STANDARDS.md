@@ -69,7 +69,6 @@ bookverse-{service}/
 **Example**: `bookverse-platform`
 
 - Multiple entry points for different modes:
-  - Web service: `app.tagging_service:main`
   - CLI tools: `app.main:main`, `scripts.{tool}:main`
 - Multiple console scripts for different functions
 - `entrypoint.sh` for container orchestration

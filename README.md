@@ -410,10 +410,10 @@ kubectl config current-context  # Should show: rancher-desktop
 kubectl get nodes              # Should show local node as Ready
 
 # 2. One-time setup (first time only - modifies /etc/hosts)
-./scripts/quick-demo.sh --setup
+./scripts/bookverse-demo.sh --setup
 
-# 3. Regular usage (restart after interruption)  
-./scripts/quick-demo.sh
+# 3. Regular usage (restart after interruption) - DEFAULT BEHAVIOR
+./scripts/bookverse-demo.sh
 
 # The setup automatically:
 # - Uses your existing JFROG_URL environment variable
@@ -428,7 +428,7 @@ kubectl get nodes              # Should show local node as Ready
 
 ### What the Quick Demo Setup Does
 
-The `quick-demo.sh` script provides one-command resilient demo setup:
+The `bookverse-demo.sh` script provides one-command resilient demo setup:
 
 **1. Installs Argo CD**
 - Creates `argocd` namespace
@@ -561,10 +561,10 @@ export REGISTRY_PASSWORD='your-access-token'  # Instead of password
 **Option 1: Local Development (Rancher Desktop, Docker Desktop, etc.)**
 ```bash
 # First-time setup (one-time only)
-./scripts/quick-demo.sh --setup
+./scripts/bookverse-demo.sh --setup
 
 # Regular usage (restart after interruption)
-./scripts/quick-demo.sh
+./scripts/bookverse-demo.sh
 
 # This automatically configures professional demo URLs:
 # - Argo CD: https://argocd.demo
@@ -573,7 +573,7 @@ export REGISTRY_PASSWORD='your-access-token'  # Instead of password
 # Alternative: Manual setup with custom credentials
 export REGISTRY_USERNAME='k8s.pull@bookverse.com'
 export REGISTRY_PASSWORD='K8sPull2024!'
-./scripts/demo-setup.sh --setup  # or --steady for restart
+./scripts/bookverse-demo.sh --setup  # or no flags for restart
 ```
 
 > ✅ **Resilient Demo Setup**: 
@@ -589,7 +589,7 @@ export REGISTRY_PASSWORD='K8sPull2024!'
 > **To restart access after interruption:**
 > ```bash
 > # Fast restart (steady mode - recommended)
-> ./scripts/quick-demo.sh
+> ./scripts/bookverse-demo.sh
 > 
 > # Or manually restart just the ingress port-forward
 > kubectl port-forward svc/traefik 80:80 -n kube-system &
@@ -622,7 +622,7 @@ kubectl -n bookverse-prod get svc platform-web
 ```
 
 **Access Methods Summary:**
-- **Local clusters** (Rancher Desktop): Use `./scripts/quick-demo.sh` for one-command professional demo setup
+- **Local clusters** (Rancher Desktop): Use `./scripts/bookverse-demo.sh` for one-command professional demo setup
 - **Cloud clusters**: Use LoadBalancer, NodePort, or Ingress based on your setup
 - **Both**: The setup scripts work the same way, only access method differs
 

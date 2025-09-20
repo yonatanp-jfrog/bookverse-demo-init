@@ -137,7 +137,7 @@ window.__BOOKVERSE_CONFIG__ = {
 
 ```bash
 # Use resilient demo setup (recommended)
-./scripts/quick-demo.sh
+./scripts/bookverse-demo.sh
 # Access via: http://bookverse.demo
 
 # Legacy manual port-forward (not recommended)

@@ -57,21 +57,20 @@ This document summarizes the comprehensive upgrade to the BookVerse demo system,
 - ✅ Complete environment reset capability
 
 #### New Demo Setup Scripts
-- ✅ **`scripts/quick-demo.sh`**: One-command setup using existing JFROG_URL
-- ✅ **`scripts/demo-setup.sh`**: Main setup engine with validation
+- ✅ **`scripts/bookverse-demo.sh`**: Unified script combining all demo functionality (replaces quick-demo.sh and demo-setup.sh)
 - ✅ Prerequisites validation and environment checks
 - ✅ Automatic verification of demo URLs
 - ✅ Comprehensive troubleshooting guide
 
-#### Script Hierarchy
+#### Script Hierarchy (Updated)
 ```
-quick-demo.sh (convenience wrapper)
+bookverse-demo.sh (unified script)
     ↓
-Uses existing JFROG_URL + sets K8s credentials
+Validates prerequisites + sets K8s credentials
     ↓
-Calls demo-setup.sh (main engine)
-    ↓
-Calls bootstrap.sh --resilient-demo
+Calls bootstrap.sh --resilient-demo (setup mode)
+    OR
+Starts port-forwarding (resume mode)
     ↓
 Professional demo URLs ready
 ```
@@ -95,7 +94,7 @@ Professional demo URLs ready
 ### Quick Demo Setup (Recommended)
 ```bash
 # One-command setup using existing JFROG_URL
-./scripts/quick-demo.sh
+./scripts/bookverse-demo.sh
 
 # This automatically:
 # - Uses your existing JFROG_URL environment variable
@@ -109,7 +108,7 @@ Professional demo URLs ready
 # Manual setup with custom credentials
 export REGISTRY_USERNAME='k8s.pull@bookverse.com'
 export REGISTRY_PASSWORD='K8sPull2024!'
-./scripts/demo-setup.sh
+./scripts/bookverse-demo.sh --setup
 
 # Direct bootstrap (advanced users)
 ./scripts/k8s/bootstrap.sh --resilient-demo
@@ -193,7 +192,7 @@ BookVerse Application Pods
 
 After implementing these changes, verify:
 
-- [ ] `./scripts/demo-setup.sh` completes successfully
+- [ ] `./scripts/bookverse-demo.sh --setup` completes successfully
 - [ ] `http://bookverse.demo` loads the BookVerse application
 - [ ] `https://argocd.demo` loads the Argo CD interface
 - [ ] `curl http://bookverse.demo/api/v1/books` returns book data

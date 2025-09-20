@@ -444,7 +444,7 @@ To enable the automatic pipeline for your demo:
 1. **Set up resilient demo environment**:
    ```bash
    # One-command setup using your existing JFROG_URL
-   ./scripts/quick-demo.sh
+   ./scripts/bookverse-demo.sh
    
    # This automatically:
    # - Uses your existing JFROG_URL environment variable

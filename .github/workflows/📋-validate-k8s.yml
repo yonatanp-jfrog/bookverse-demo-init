@@ -1,11 +1,11 @@
-name: Validate Kubernetes Manifests
+name: '📋 Validate K8s Manifests'
 
 on:
   push:
     paths:
       - 'gitops/**.yaml'
       - 'gitops/**/**.yaml'
-      - '.github/workflows/validate-k8s.yml'
+      - '.github/workflows/📋-validate-k8s.yml'
   pull_request:
     paths:
       - 'gitops/**.yaml'

@@ -14,6 +14,7 @@ BookVerse is a complete SaaS solution demonstrating secure software delivery wit
 - **🚀 Platform Solution** - Combined platform aggregating all microservices
 
 **Key Features:**
+
 - ✅ Zero-trust CI/CD with OIDC authentication (no stored tokens)
 - ✅ Automated SBOM generation and vulnerability scanning
 - ✅ End-to-end artifact traceability from code to production
@@ -63,6 +64,7 @@ brew install kubectl helm
 ```
 
 **Verify installations:**
+
 ```bash
 gh --version      # GitHub CLI
 curl --version    # Should be installed by default on macOS
@@ -931,6 +933,6 @@ After successful deployment, you should have:
 
 ---
 
-*Last Updated: September 2024*  
-*Maintainer: DevRel Team*  
+*Last Updated: September 2024*
+*Maintainer: DevRel Team*
 *Version: 2.0*

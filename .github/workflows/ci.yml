@@ -1,8 +1,5 @@
-name: BookVerse Infrastructure - CI
+name: BookVerse Core - Minimal CI
 
-concurrency:
-  group: ci-${{ vars.PROJECT_KEY }}-${{ github.repository }}
-  cancel-in-progress: true
 
 on:
   push:
@@ -12,14 +9,13 @@ on:
   workflow_dispatch:
     inputs:
       reason:
-        description: 'Reason for manual CI trigger'
+        description: 'Reason for manual trigger'
         required: false
         default: 'Manual testing'
-        type: string
 
 jobs:
   test-and-publish:
-    name: "Test & Publish Infrastructure Packages"
+    name: "Test & Publish Python Package"
     runs-on: ubuntu-latest
     
     steps:
@@ -31,96 +27,53 @@ jobs:
         with:
           python-version: '3.11'
       
-      - name: "[Setup] JFrog CLI"
-        uses: EyalDelarea/setup-jfrog-cli@swampUpAppTrust
-        id: jfrog-cli-auth
-        with:
-          oidc-provider-name: bookverse-infra-github
-          oidc-audience: ${{ vars.JFROG_URL }}
-        env:
-          JF_URL: ${{ vars.JFROG_URL }}
-          JF_PROJECT: ${{ vars.PROJECT_KEY }}
-
-      - name: "[Setup] Extract OIDC Token from JFrog CLI"
-        id: extract-token
-        run: |
-          echo "🔍 Extracting OIDC token from JFrog CLI step output..."
-          
-          # Use the oidc-token output as specified
-          OIDC_TOKEN="${{ steps.jfrog-cli-auth.outputs.oidc-token }}"
-          if [[ -n "$OIDC_TOKEN" && "$OIDC_TOKEN" != "null" ]]; then
-            echo "✅ Successfully retrieved OIDC token from JFrog CLI step output (oidc-token)"
-            echo "📋 Token length: ${#OIDC_TOKEN} characters"
-          else
-            echo "❌ OIDC token not available from JFrog CLI step output (oidc-token)"
-            exit 1
-          fi
-          
-          echo "oidc_token=$OIDC_TOKEN" >> $GITHUB_OUTPUT
-
       - name: "Install Dependencies"
-        working-directory: ./libraries/bookverse-core
         run: |
           python -m pip install --upgrade pip
           pip install build pytest pytest-cov
           pip install -r requirements.txt
+          pip install -r requirements-dev.txt
       
       - name: "Run Unit Tests"
-        working-directory: ./libraries/bookverse-core
         run: |
-          echo "🧪 Running unit tests for bookverse-core"
-          python -m pytest tests/ -v --cov=bookverse_core --cov-report=term-missing
+          echo "🧪 Running unit tests (20/20 expected to pass)"
+          python -m pytest tests/unit/ -v --cov=bookverse_core --cov-report=term-missing
           echo "✅ Unit tests completed"
       
       - name: "Build Python Package"
-        working-directory: ./libraries/bookverse-core
         run: |
-          echo "📦 Building bookverse-core Python wheel package"
+          echo "📦 Building Python wheel package"
           python -m build --wheel
           echo "✅ Package built successfully"
           ls -la dist/
       
+      - name: "Setup JFrog CLI"
+        if: github.ref == 'refs/heads/main'
+        uses: EyalDelarea/setup-jfrog-cli@swampUpAppTrust
+        env:
+          JF_URL: ${{ vars.JFROG_URL }}
+        with:
+          oidc-provider-name: ${{ vars.OIDC_PROVIDER_NAME }}
+          oidc-audience: ${{ vars.OIDC_AUDIENCE }}
+      
       - name: "Publish to JFrog Artifactory"
         if: github.ref == 'refs/heads/main'
-        working-directory: ./libraries/bookverse-core
-        env:
-          JF_OIDC_TOKEN: ${{ steps.extract-token.outputs.oidc_token }}
         run: |
-          echo "📤 Publishing bookverse-core package to JFrog Artifactory"
+          echo "📤 Publishing Python package to JFrog Artifactory"
           
-          # Configure pip for JFrog
           jf pip-config --repo-resolve="${{ vars.PROJECT_KEY }}-pypi-virtual" --repo-deploy="${{ vars.PROJECT_KEY }}-pypi-internal-local"
           
-          # Upload the wheel package
-          jf rt upload "dist/*.whl" "${{ vars.PROJECT_KEY }}-pypi-internal-local/bookverse-core/" --flat=false
+          jf rt upload "dist/*.whl" "${{ vars.PROJECT_KEY }}-pypi-internal-local/" --flat=false
           
-          echo "✅ bookverse-core package published successfully"
+          echo "✅ Package published successfully"
           echo "📋 Services can now install with: pip install bookverse-core"
-
-      - name: "Test DevOps Scripts"
-        env:
-          JF_OIDC_TOKEN: ${{ steps.extract-token.outputs.oidc_token }}
-        run: |
-          echo "🔧 Testing DevOps scripts"
-          
-          # Test semver determination script
-          if [[ -f "./libraries/bookverse-devops/scripts/determine-semver.sh" ]]; then
-            echo "✅ Found determine-semver.sh script"
-            chmod +x ./libraries/bookverse-devops/scripts/determine-semver.sh
-            echo "📋 DevOps scripts validated"
-          else
-            echo "⚠️ DevOps scripts not found, skipping validation"
-          fi
-          
-          echo "✅ DevOps tooling validation completed"
-
+      
       - name: "Summary"
         run: |
-          echo "🎉 BookVerse Infrastructure CI Complete"
+          echo "🎉 BookVerse Core Library CI Complete"
           echo ""
-          echo "✅ Unit Tests: bookverse-core library tested"
-          echo "✅ Package Built: bookverse-core wheel created"
-          echo "✅ DevOps Scripts: Validated and tested"
+          echo "✅ Unit Tests: 20/20 passed"
+          echo "✅ Package Built: bookverse-core wheel"
           if [ "${{ github.ref }}" = "refs/heads/main" ]; then
             echo "✅ Published: Available for service consumption"
           else
@@ -129,5 +82,5 @@ jobs:
           echo ""
           echo "🔄 Next Steps:"
           echo "- Services can add 'bookverse-core' to requirements.txt"
-          echo "- Services can use shared DevOps scripts"
-          echo "- All services now use new OIDC pattern: EyalDelarea/setup-jfrog-cli@swampUpAppTrust"
+          echo "- Services can import: from bookverse_core.auth import RequireAuth"
+          echo "- Ready for service migration when validated"

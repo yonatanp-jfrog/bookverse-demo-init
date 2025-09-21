@@ -99,7 +99,12 @@ SERVICES_FAILED=0
 validate_inputs() {
     log_info "Validating inputs..."
     
-    if [[ -z "$NEW_JFROG_URL" ]]; then
+    # Debug: Show URL length and first/last characters (without revealing the full URL)
+    if [[ -n "$NEW_JFROG_URL" ]]; then
+        log_info "NEW_JFROG_URL length: ${#NEW_JFROG_URL} characters"
+        log_info "NEW_JFROG_URL starts with: ${NEW_JFROG_URL:0:8}..."
+        log_info "NEW_JFROG_URL ends with: ...${NEW_JFROG_URL: -10}"
+    else
         log_error "NEW_JFROG_URL is required"
         exit 1
     fi
@@ -131,6 +136,31 @@ validate_host_format() {
     fi
     
     log_success "Host format is valid: $NEW_JFROG_URL"
+}
+
+check_same_platform() {
+    log_info "Checking for same-platform switch..."
+    
+    # Get current JFROG_URL from environment (GitHub Actions sets this from vars.JFROG_URL)
+    local current_url="${GITHUB_REPOSITORY_VARS_JFROG_URL:-}"
+    
+    # Remove trailing slashes for comparison
+    current_url=$(echo "$current_url" | sed 's:/*$::')
+    local new_url=$(echo "$NEW_JFROG_URL" | sed 's:/*$::')
+    
+    if [[ "$current_url" == "$new_url" ]]; then
+        log_warning "Same-platform switch detected!"
+        log_warning "Current: $current_url"
+        log_warning "Target:  $new_url"
+        log_info "This will refresh all repository configurations with the same platform"
+        log_info "Useful for troubleshooting or resetting to a good state"
+        echo ""
+    else
+        log_info "Platform migration detected:"
+        log_info "From: $current_url"
+        log_info "To:   $new_url"
+        echo ""
+    fi
 }
 
 test_platform_connectivity() {
@@ -509,6 +539,9 @@ main() {
     # Step 2: Validate host format
     validate_host_format
     echo ""
+    
+    # Step 2.5: Check for same-platform switch (informational)
+    check_same_platform
     
     # Step 3: Test connectivity
     test_platform_connectivity

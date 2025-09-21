@@ -8,8 +8,8 @@ on:
         required: true
         type: string
       admin_token:
-        description: 'JFrog Admin Token for the new platform'
-        required: true
+        description: 'JFrog Admin Token for the new platform (optional if JFROG_ADMIN_TOKEN secret is set)'
+        required: false
         type: string
       confirm_switch:
         description: 'Type "SWITCH" to confirm platform migration'
@@ -64,7 +64,17 @@ jobs:
       - name: Switch JFrog Platform
         run: |
           export NEW_JFROG_URL='${{ github.event.inputs.jpd_host }}'
-          export NEW_JFROG_ADMIN_TOKEN='${{ github.event.inputs.admin_token }}'
+          # Prefer repository secret over workflow input for security and length handling
+          if [[ -n "${{ secrets.JFROG_ADMIN_TOKEN }}" ]]; then
+            export NEW_JFROG_ADMIN_TOKEN='${{ secrets.JFROG_ADMIN_TOKEN }}'
+            echo "🔐 Using JFROG_ADMIN_TOKEN from repository secrets"
+          elif [[ -n "${{ github.event.inputs.admin_token }}" ]]; then
+            export NEW_JFROG_ADMIN_TOKEN='${{ github.event.inputs.admin_token }}'
+            echo "🔐 Using admin_token from workflow input"
+          else
+            echo "❌ No JFROG_ADMIN_TOKEN found in secrets or workflow inputs"
+            exit 1
+          fi
           export NO_COLOR=1
           LOG_FILE="switch-platform.log"
           echo "LOG_FILE=$LOG_FILE" >> "$GITHUB_ENV"
@@ -106,7 +116,15 @@ jobs:
       - name: Validate New Platform
         run: |
           export NEW_JFROG_URL='${{ github.event.inputs.jpd_host }}'
-          export NEW_JFROG_ADMIN_TOKEN='${{ github.event.inputs.admin_token }}'
+          # Prefer repository secret over workflow input for security and length handling
+          if [[ -n "${{ secrets.JFROG_ADMIN_TOKEN }}" ]]; then
+            export NEW_JFROG_ADMIN_TOKEN='${{ secrets.JFROG_ADMIN_TOKEN }}'
+          elif [[ -n "${{ github.event.inputs.admin_token }}" ]]; then
+            export NEW_JFROG_ADMIN_TOKEN='${{ github.event.inputs.admin_token }}'
+          else
+            echo "❌ No JFROG_ADMIN_TOKEN found in secrets or workflow inputs"
+            exit 1
+          fi
           echo "🔍 Validating new platform connectivity..."
           
           if curl -s --fail --header "Authorization: Bearer $NEW_JFROG_ADMIN_TOKEN" \
@@ -148,7 +166,15 @@ jobs:
           fi
           
           export NEW_JFROG_URL='${{ github.event.inputs.jpd_host }}'
-          export NEW_JFROG_ADMIN_TOKEN='${{ github.event.inputs.admin_token }}'
+          # Prefer repository secret over workflow input for security and length handling
+          if [[ -n "${{ secrets.JFROG_ADMIN_TOKEN }}" ]]; then
+            export NEW_JFROG_ADMIN_TOKEN='${{ secrets.JFROG_ADMIN_TOKEN }}'
+          elif [[ -n "${{ github.event.inputs.admin_token }}" ]]; then
+            export NEW_JFROG_ADMIN_TOKEN='${{ github.event.inputs.admin_token }}'
+          else
+            echo "❌ No JFROG_ADMIN_TOKEN found in secrets or workflow inputs"
+            exit 1
+          fi
           
           if ./scripts/k8s/update-registry.sh --restart-deployments; then
             echo ""

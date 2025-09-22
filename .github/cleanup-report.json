@@ -1,0 +1,422 @@
+{
+  "metadata": {
+    "timestamp": "2025-09-22T13:37:29Z",
+    "project_key": "bookverse",
+    "total_items": 82,
+    "discovery_counts": {
+      "builds": 5,
+      "applications": 0,
+      "repositories": 53,
+      "users": 16,
+      "stages": 8,
+      "oidc": 7,
+      "repositories_breakdown": {
+        "local": 47,
+        "remote": 3,
+        "virtual": 3
+      },
+      "domain_users": 16
+    }
+  },
+  "plan": {
+    "repositories": [
+      {
+        "key": "bookverse-checkout-internal-docker-nonprod-local",
+        "project": "bookverse"
+      },
+      {
+        "key": "bookverse-checkout-internal-docker-release-local",
+        "project": "bookverse"
+      },
+      {
+        "key": "bookverse-checkout-internal-generic-nonprod-local",
+        "project": "bookverse"
+      },
+      {
+        "key": "bookverse-checkout-internal-generic-release-local",
+        "project": "bookverse"
+      },
+      {
+        "key": "bookverse-checkout-internal-python-nonprod-local",
+        "project": "bookverse"
+      },
+      {
+        "key": "bookverse-checkout-internal-python-release-local",
+        "project": "bookverse"
+      },
+      {
+        "key": "bookverse-core-internal-docker-nonprod-local",
+        "project": "bookverse"
+      },
+      {
+        "key": "bookverse-core-internal-docker-release-local",
+        "project": "bookverse"
+      },
+      {
+        "key": "bookverse-core-internal-pypi-nonprod-local",
+        "project": "bookverse"
+      },
+      {
+        "key": "bookverse-core-internal-pypi-release-local",
+        "project": "bookverse"
+      },
+      {
+        "key": "bookverse-core-internal-python-nonprod-local",
+        "project": "bookverse"
+      },
+      {
+        "key": "bookverse-core-internal-python-release-local",
+        "project": "bookverse"
+      },
+      {
+        "key": "bookverse-dockerhub-cache-local",
+        "project": "bookverse"
+      },
+      {
+        "key": "bookverse-helm-internal-generic-nonprod-local",
+        "project": "bookverse"
+      },
+      {
+        "key": "bookverse-helm-internal-generic-release-local",
+        "project": "bookverse"
+      },
+      {
+        "key": "bookverse-helm-internal-helm-nonprod-local",
+        "project": "bookverse"
+      },
+      {
+        "key": "bookverse-helm-internal-helm-release-local",
+        "project": "bookverse"
+      },
+      {
+        "key": "bookverse-infra-internal-generic-nonprod-local",
+        "project": "bookverse"
+      },
+      {
+        "key": "bookverse-infra-internal-generic-release-local",
+        "project": "bookverse"
+      },
+      {
+        "key": "bookverse-infra-internal-pypi-nonprod-local",
+        "project": "bookverse"
+      },
+      {
+        "key": "bookverse-infra-internal-pypi-release-local",
+        "project": "bookverse"
+      },
+      {
+        "key": "bookverse-inventory-internal-docker-nonprod-local",
+        "project": "bookverse"
+      },
+      {
+        "key": "bookverse-inventory-internal-docker-release-local",
+        "project": "bookverse"
+      },
+      {
+        "key": "bookverse-inventory-internal-generic-nonprod-local",
+        "project": "bookverse"
+      },
+      {
+        "key": "bookverse-inventory-internal-generic-release-local",
+        "project": "bookverse"
+      },
+      {
+        "key": "bookverse-inventory-internal-python-nonprod-local",
+        "project": "bookverse"
+      },
+      {
+        "key": "bookverse-inventory-internal-python-release-local",
+        "project": "bookverse"
+      },
+      {
+        "key": "bookverse-npm-cache-local",
+        "project": "bookverse"
+      },
+      {
+        "key": "bookverse-platform-public-docker-nonprod-local",
+        "project": "bookverse"
+      },
+      {
+        "key": "bookverse-platform-public-docker-release-local",
+        "project": "bookverse"
+      },
+      {
+        "key": "bookverse-platform-public-generic-nonprod-local",
+        "project": "bookverse"
+      },
+      {
+        "key": "bookverse-platform-public-generic-release-local",
+        "project": "bookverse"
+      },
+      {
+        "key": "bookverse-platform-public-python-nonprod-local",
+        "project": "bookverse"
+      },
+      {
+        "key": "bookverse-platform-public-python-release-local",
+        "project": "bookverse"
+      },
+      {
+        "key": "bookverse-pypi-cache-local",
+        "project": "bookverse"
+      },
+      {
+        "key": "bookverse-recommendations-internal-docker-nonprod-local",
+        "project": "bookverse"
+      },
+      {
+        "key": "bookverse-recommendations-internal-docker-release-local",
+        "project": "bookverse"
+      },
+      {
+        "key": "bookverse-recommendations-internal-generic-nonprod-local",
+        "project": "bookverse"
+      },
+      {
+        "key": "bookverse-recommendations-internal-generic-release-local",
+        "project": "bookverse"
+      },
+      {
+        "key": "bookverse-recommendations-internal-python-nonprod-local",
+        "project": "bookverse"
+      },
+      {
+        "key": "bookverse-recommendations-internal-python-release-local",
+        "project": "bookverse"
+      },
+      {
+        "key": "bookverse-web-internal-docker-nonprod-local",
+        "project": "bookverse"
+      },
+      {
+        "key": "bookverse-web-internal-docker-release-local",
+        "project": "bookverse"
+      },
+      {
+        "key": "bookverse-web-internal-generic-nonprod-local",
+        "project": "bookverse"
+      },
+      {
+        "key": "bookverse-web-internal-generic-release-local",
+        "project": "bookverse"
+      },
+      {
+        "key": "bookverse-web-internal-npm-nonprod-local",
+        "project": "bookverse"
+      },
+      {
+        "key": "bookverse-web-internal-npm-release-local",
+        "project": "bookverse"
+      },
+      {
+        "key": "bookverse-dockerhub-remote",
+        "project": "bookverse"
+      },
+      {
+        "key": "bookverse-npm-remote",
+        "project": "bookverse"
+      },
+      {
+        "key": "bookverse-pypi-remote",
+        "project": "bookverse"
+      },
+      {
+        "key": "bookverse-dockerhub-virtual",
+        "project": "bookverse"
+      },
+      {
+        "key": "bookverse-npm-virtual",
+        "project": "bookverse"
+      },
+      {
+        "key": "bookverse-pypi-virtual",
+        "project": "bookverse"
+      }
+    ],
+    "applications": [],
+    "users": [
+      {
+        "name": "alice.developer@bookverse.com",
+        "roles": [
+          "Developer"
+        ],
+        "project": "bookverse"
+      },
+      {
+        "name": "bob.release@bookverse.com",
+        "roles": [
+          "Release Manager",
+          "Project Admin"
+        ],
+        "project": "bookverse"
+      },
+      {
+        "name": "charlie.devops@bookverse.com",
+        "roles": [
+          "Project Admin"
+        ],
+        "project": "bookverse"
+      },
+      {
+        "name": "diana.architect@bookverse.com",
+        "roles": [
+          "Release Manager",
+          "Project Admin"
+        ],
+        "project": "bookverse"
+      },
+      {
+        "name": "edward.manager@bookverse.com",
+        "roles": [
+          "Release Manager",
+          "Project Admin"
+        ],
+        "project": "bookverse"
+      },
+      {
+        "name": "frank.inventory@bookverse.com",
+        "roles": [
+          "Release Manager",
+          "Project Admin"
+        ],
+        "project": "bookverse"
+      },
+      {
+        "name": "grace.ai@bookverse.com",
+        "roles": [
+          "Release Manager",
+          "Project Admin"
+        ],
+        "project": "bookverse"
+      },
+      {
+        "name": "henry.checkout@bookverse.com",
+        "roles": [
+          "Release Manager",
+          "Project Admin"
+        ],
+        "project": "bookverse"
+      },
+      {
+        "name": "ivan.devops@bookverse.com",
+        "roles": [
+          "Release Manager",
+          "Project Admin"
+        ],
+        "project": "bookverse"
+      },
+      {
+        "name": "pipeline.inventory@bookverse.com",
+        "roles": [
+          "Project Admin"
+        ],
+        "project": "bookverse"
+      },
+      {
+        "name": "pipeline.recommendations@bookverse.com",
+        "roles": [
+          "Project Admin"
+        ],
+        "project": "bookverse"
+      },
+      {
+        "name": "pipeline.checkout@bookverse.com",
+        "roles": [
+          "Project Admin"
+        ],
+        "project": "bookverse"
+      },
+      {
+        "name": "pipeline.web@bookverse.com",
+        "roles": [
+          "Project Admin"
+        ],
+        "project": "bookverse"
+      },
+      {
+        "name": "pipeline.platform@bookverse.com",
+        "roles": [
+          "Project Admin"
+        ],
+        "project": "bookverse"
+      },
+      {
+        "name": "pipeline.helm@bookverse.com",
+        "roles": [
+          "Project Admin"
+        ],
+        "project": "bookverse"
+      },
+      {
+        "name": "k8s.pull@bookverse.com",
+        "roles": [
+          "k8s_image_pull"
+        ],
+        "project": "bookverse"
+      }
+    ],
+    "stages": [],
+    "builds": [
+      {
+        "name": "bookverse-inventory_CI_build-test-publish",
+        "project": "bookverse"
+      },
+      {
+        "name": "bookverse-recommendations_CI_build-test-publish",
+        "project": "bookverse"
+      },
+      {
+        "name": "bookverse-helm_Helm%20CI_build-test-publish",
+        "project": "bookverse"
+      },
+      {
+        "name": "bookverse-web_CI_build-test-publish",
+        "project": "bookverse"
+      },
+      {
+        "name": "bookverse-checkout_CI_build-test-publish",
+        "project": "bookverse"
+      }
+    ],
+    "oidc": [
+      "bookverse-inventory-github",
+      "bookverse-recommendations-github",
+      "bookverse-helm-github",
+      "bookverse-infra-github",
+      "bookverse-platform-github",
+      "bookverse-checkout-github",
+      "bookverse-web-github"
+    ],
+    "domain_users": [
+      "alice.developer@bookverse.com",
+      "bob.release@bookverse.com",
+      "charlie.devops@bookverse.com",
+      "diana.architect@bookverse.com",
+      "edward.manager@bookverse.com",
+      "frank.inventory@bookverse.com",
+      "grace.ai@bookverse.com",
+      "henry.checkout@bookverse.com",
+      "ivan.devops@bookverse.com",
+      "k8s.pull@bookverse.com",
+      "pipeline.checkout@bookverse.com",
+      "pipeline.helm@bookverse.com",
+      "pipeline.inventory@bookverse.com",
+      "pipeline.platform@bookverse.com",
+      "pipeline.recommendations@bookverse.com",
+      "pipeline.web@bookverse.com"
+    ]
+  },
+  "observations": {
+    "oidc_integrations": [
+      "bookverse-inventory-github",
+      "bookverse-recommendations-github",
+      "bookverse-helm-github",
+      "bookverse-infra-github",
+      "bookverse-platform-github",
+      "bookverse-checkout-github",
+      "bookverse-web-github"
+    ]
+  },
+  "deletion_preview": "🛡️ SAFETY: Discovering what would be deleted...\nProject: bookverse\nDate: Mon Sep 22 13:37:26 UTC 2025\n\nBUILDS TO DELETE (5 items):\n=======================================\n  ❌ Build: bookverse-inventory_CI_build-test-publish\n  ❌ Build: bookverse-recommendations_CI_build-test-publish\n  ❌ Build: bookverse-helm_Helm%20CI_build-test-publish\n  ❌ Build: bookverse-web_CI_build-test-publish\n  ❌ Build: bookverse-checkout_CI_build-test-publish\n\nAPPLICATIONS: None found\n\nREPOSITORIES TO DELETE (53 items):\n=============================================\n  ❌ Repository: bookverse-checkout-internal-docker-nonprod-local\n  ❌ Repository: bookverse-checkout-internal-docker-release-local\n  ❌ Repository: bookverse-checkout-internal-generic-nonprod-local\n  ❌ Repository: bookverse-checkout-internal-generic-release-local\n  ❌ Repository: bookverse-checkout-internal-python-nonprod-local\n  ❌ Repository: bookverse-checkout-internal-python-release-local\n  ❌ Repository: bookverse-core-internal-docker-nonprod-local\n  ❌ Repository: bookverse-core-internal-docker-release-local\n  ❌ Repository: bookverse-core-internal-pypi-nonprod-local\n  ❌ Repository: bookverse-core-internal-pypi-release-local\n  ❌ Repository: bookverse-core-internal-python-nonprod-local\n  ❌ Repository: bookverse-core-internal-python-release-local\n  ❌ Repository: bookverse-dockerhub-cache-local\n  ❌ Repository: bookverse-helm-internal-generic-nonprod-local\n  ❌ Repository: bookverse-helm-internal-generic-release-local\n  ❌ Repository: bookverse-helm-internal-helm-nonprod-local\n  ❌ Repository: bookverse-helm-internal-helm-release-local\n  ❌ Repository: bookverse-infra-internal-generic-nonprod-local\n  ❌ Repository: bookverse-infra-internal-generic-release-local\n  ❌ Repository: bookverse-infra-internal-pypi-nonprod-local\n  ❌ Repository: bookverse-infra-internal-pypi-release-local\n  ❌ Repository: bookverse-inventory-internal-docker-nonprod-local\n  ❌ Repository: bookverse-inventory-internal-docker-release-local\n  ❌ Repository: bookverse-inventory-internal-generic-nonprod-local\n  ❌ Repository: bookverse-inventory-internal-generic-release-local\n  ❌ Repository: bookverse-inventory-internal-python-nonprod-local\n  ❌ Repository: bookverse-inventory-internal-python-release-local\n  ❌ Repository: bookverse-npm-cache-local\n  ❌ Repository: bookverse-platform-public-docker-nonprod-local\n  ❌ Repository: bookverse-platform-public-docker-release-local\n  ❌ Repository: bookverse-platform-public-generic-nonprod-local\n  ❌ Repository: bookverse-platform-public-generic-release-local\n  ❌ Repository: bookverse-platform-public-python-nonprod-local\n  ❌ Repository: bookverse-platform-public-python-release-local\n  ❌ Repository: bookverse-pypi-cache-local\n  ❌ Repository: bookverse-recommendations-internal-docker-nonprod-local\n  ❌ Repository: bookverse-recommendations-internal-docker-release-local\n  ❌ Repository: bookverse-recommendations-internal-generic-nonprod-local\n  ❌ Repository: bookverse-recommendations-internal-generic-release-local\n  ❌ Repository: bookverse-recommendations-internal-python-nonprod-local\n  ❌ Repository: bookverse-recommendations-internal-python-release-local\n  ❌ Repository: bookverse-web-internal-docker-nonprod-local\n  ❌ Repository: bookverse-web-internal-docker-release-local\n  ❌ Repository: bookverse-web-internal-generic-nonprod-local\n  ❌ Repository: bookverse-web-internal-generic-release-local\n  ❌ Repository: bookverse-web-internal-npm-nonprod-local\n  ❌ Repository: bookverse-web-internal-npm-release-local\n  ❌ Repository: bookverse-dockerhub-remote\n  ❌ Repository: bookverse-npm-remote\n  ❌ Repository: bookverse-pypi-remote\n  ❌ Repository: bookverse-dockerhub-virtual\n  ❌ Repository: bookverse-npm-virtual\n  ❌ Repository: bookverse-pypi-virtual\n\nUSERS TO DELETE (16 items):\n======================================\n  ❌ User: alice.developer@bookverse.com\n  ❌ User: bob.release@bookverse.com\n  ❌ User: charlie.devops@bookverse.com\n  ❌ User: diana.architect@bookverse.com\n  ❌ User: edward.manager@bookverse.com\n  ❌ User: frank.inventory@bookverse.com\n  ❌ User: grace.ai@bookverse.com\n  ❌ User: henry.checkout@bookverse.com\n  ❌ User: ivan.devops@bookverse.com\n  ❌ User: pipeline.inventory@bookverse.com\n  ❌ User: pipeline.recommendations@bookverse.com\n  ❌ User: pipeline.checkout@bookverse.com\n  ❌ User: pipeline.web@bookverse.com\n  ❌ User: pipeline.platform@bookverse.com\n  ❌ User: pipeline.helm@bookverse.com\n  ❌ User: k8s.pull@bookverse.com\n\nSTAGES TO DELETE (8 items):\n=======================================\n  ❌ Stage: DEV\n  ❌ Stage: PROD\n  ❌ Stage: QA\n  ❌ Stage: STAGING\n  ❌ Stage: Pending-Approval\n  ❌ Stage: bookverse-DEV\n  ❌ Stage: bookverse-QA\n  ❌ Stage: bookverse-STAGING\n\nSUMMARY:\n========\nTotal items to delete: 82\nProject to delete: bookverse\n\n⚠️ WARNING: This action cannot be undone!\n",
+  "status": "ready_for_cleanup"
+}

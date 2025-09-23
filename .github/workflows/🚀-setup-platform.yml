@@ -68,8 +68,8 @@ name: '🚀 Setup Platform'
 # 🔄 Concurrency Control: Ensures only one platform setup runs at a time
 # Prevents conflicting platform provisioning and ensures safe setup operations
 concurrency:
-  group: setup-platform-${{ vars.PROJECT_KEY || 'bookverse' }}
-  cancel-in-progress: false  # Preserve running setup operations for safety
+  group: platform-operations-${{ vars.PROJECT_KEY || 'bookverse' }}
+  cancel-in-progress: false  # Queue setup/cleanup operations to prevent conflicts
 
 # 🎯 Trigger Configuration: Manual workflow dispatch for controlled platform setup
 on:

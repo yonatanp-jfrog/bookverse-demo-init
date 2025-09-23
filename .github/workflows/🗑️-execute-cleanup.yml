@@ -1,8 +1,8 @@
 name: '🗑️ Cleanup (Preview & Execute)'
 
 concurrency:
-  group: cleanup-${{ vars.PROJECT_KEY || 'bookverse' }}
-  cancel-in-progress: false
+  group: platform-operations-${{ vars.PROJECT_KEY || 'bookverse' }}
+  cancel-in-progress: false  # Queue setup/cleanup operations to prevent conflicts
 
 on:
   workflow_dispatch:

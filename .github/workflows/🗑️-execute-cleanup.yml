@@ -375,12 +375,12 @@ jobs:
             echo "- Execution log not found" >> $GITHUB_STEP_SUMMARY
           fi
 
-        if [[ "$MODE" == "execute" ]] && [[ "${CLEANUP_REPORT_VALID}" == "true" ]] && [[ "$overall" != "SUCCESS" ]]; then
-          echo "Cleanup result: $overall - project_deleted=$project_deleted. Failing job." >&2
-          exit 1
-        elif [[ "$MODE" == "preview" ]]; then
-          echo "Preview mode completed successfully"
-        fi
+          if [[ "$MODE" == "execute" ]] && [[ "${CLEANUP_REPORT_VALID}" == "true" ]] && [[ "$overall" != "SUCCESS" ]]; then
+            echo "Cleanup result: $overall - project_deleted=$project_deleted. Failing job." >&2
+            exit 1
+          elif [[ "$MODE" == "preview" ]]; then
+            echo "Preview mode completed successfully"
+          fi
 
       - name: 🔒 Commit report changes (preview or post-execution)
         if: ${{ always() && steps.validate.outputs.report_valid == 'true' }}

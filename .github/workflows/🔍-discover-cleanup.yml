@@ -92,7 +92,7 @@ jobs:
 
       - name: 📋 Discovery Report Summary
         run: |
-          echo "
+          echo "## 📋 Discovery Report Summary" >> $GITHUB_STEP_SUMMARY
           if [[ -f ".github/cleanup-report.json" ]]; then
             ts=$(jq -r '.metadata.timestamp' .github/cleanup-report.json)
             proj=$(jq -r '.metadata.project_key' .github/cleanup-report.json)
@@ -155,24 +155,24 @@ jobs:
             echo "- 👥 Domain users (@bookverse.com): $domain_users" >> $GITHUB_STEP_SUMMARY
 
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "
+            echo "### 📦 Repositories:" >> $GITHUB_STEP_SUMMARY
 
-            echo "
+            echo ""
             repo_list=$(jq -r '.plan.repositories[]?.key' .github/cleanup-report.json 2>/dev/null || true)
             if [[ -n "$repo_list" ]]; then echo "$repo_list" | sed 's/^/- /' >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
 
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "
+            echo "### 👥 Users:" >> $GITHUB_STEP_SUMMARY
             user_list=$(jq -r '.plan.users[]? | if ((.roles // [])|length)>0 then "\(.name) (roles: \((.roles // [])|join(", ")) )" else .name end' .github/cleanup-report.json 2>/dev/null || true)
             if [[ -n "$user_list" ]]; then echo "$user_list" | sed 's/^/- /' >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
 
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "
+            echo "### 🚀 Applications:" >> $GITHUB_STEP_SUMMARY
             app_list=$(jq -r '.plan.applications[]?.key' .github/cleanup-report.json 2>/dev/null || true)
             if [[ -n "$app_list" ]]; then echo "$app_list" | sed 's/^/- /' >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
 
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "
+            echo "### 🏷️ Stages:" >> $GITHUB_STEP_SUMMARY
             stage_list=$(jq -r '.plan.stages[]? | "\(.name) (in lifecycle: \(.in_use // false))"' .github/cleanup-report.json 2>/dev/null || true)
             if [[ -z "$stage_list" ]]; then
               preview_file="/tmp/deletion_preview.txt"
@@ -185,26 +185,26 @@ jobs:
             if [[ -n "$stage_list" ]]; then echo "$stage_list" | sed 's/^/- /' >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
 
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "
+            echo "### 🔧 Builds:" >> $GITHUB_STEP_SUMMARY
             build_list=$(jq -r '.plan.builds[]?.name' .github/cleanup-report.json 2>/dev/null || true)
             if [[ -n "$build_list" ]]; then echo "$build_list" | sed 's/^/- /' >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
 
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "
+            echo "### 🔐 OIDC Integrations:" >> $GITHUB_STEP_SUMMARY
             oidc_list=$(jq -r '.observations.oidc_integrations[]? // empty' .github/cleanup-report.json 2>/dev/null || true)
             if [[ -n "$oidc_list" ]]; then
-              echo "
+              echo ""
               echo "$oidc_list" | sed 's/^/- /' >> $GITHUB_STEP_SUMMARY
             fi
             domain_users_list=$(jq -r '.plan.domain_users[]? // empty' .github/cleanup-report.json 2>/dev/null || true)
             if [[ -n "$domain_users_list" ]]; then
               echo "" >> $GITHUB_STEP_SUMMARY
-              echo "
+              echo "### 👥 Domain Users (@bookverse.com):" >> $GITHUB_STEP_SUMMARY
               echo "$domain_users_list" | sed 's/^/- /' >> $GITHUB_STEP_SUMMARY
             fi
 
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "
+            echo "### 🎯 Project Validation:" >> $GITHUB_STEP_SUMMARY
             rpt_project=$(jq -r '.metadata.project_key' .github/cleanup-report.json)
             echo "- Expected project: $rpt_project" >> $GITHUB_STEP_SUMMARY
             repos_oop=$(jq -r --arg p "$rpt_project" '[.plan.repositories[]? | select(.project != $p)] | length' .github/cleanup-report.json)
@@ -236,7 +236,7 @@ jobs:
 
             report_url="https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_REF_NAME}/.github/cleanup-report.json"
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "
+            echo "### 📄 Report Details:" >> $GITHUB_STEP_SUMMARY
             echo "[View cleanup-report.json]($report_url)" >> $GITHUB_STEP_SUMMARY
           else
             echo "No report generated" >> $GITHUB_STEP_SUMMARY

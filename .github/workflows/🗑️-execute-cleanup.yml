@@ -410,11 +410,20 @@ jobs:
             if [[ -n "$builds_failed" ]]; then echo "$builds_failed" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
 
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Notes:**" >> $GITHUB_STEP_SUMMARY
+          echo "**Notes:**" >> $GITHUB_STEP_SUMMARY
+          if [[ "$MODE" == "preview" ]]; then
+            echo "- This preview shows resources that would be deleted in execute mode" >> $GITHUB_STEP_SUMMARY
+            echo "- No actual deletions were performed - this is a safe discovery operation" >> $GITHUB_STEP_SUMMARY
+            echo "- To perform actual cleanup, re-run this workflow with Mode: 'execute' and Confirmation: 'DELETE'" >> $GITHUB_STEP_SUMMARY
+          else
             if [[ -f "$report_file" ]]; then
-              echo "- Note: The report is not auto-refreshed after deletion. If it still shows items, run 🔍 Discover Cleanup again to regenerate it." >> $GITHUB_STEP_SUMMARY
-              echo "- Current report status: $(jq -r '.status' "$report_file")" >> $GITHUB_STEP_SUMMARY
+              echo "- The cleanup report shows the state before execution and is not auto-refreshed" >> $GITHUB_STEP_SUMMARY
+              echo "- To see current state after cleanup, run this workflow again in 'preview' mode" >> $GITHUB_STEP_SUMMARY
             fi
+          fi
+          if [[ -f "$report_file" ]]; then
+            echo "- Report generated: $(jq -r '.metadata.timestamp // "unknown"' "$report_file")" >> $GITHUB_STEP_SUMMARY
+          fi
 
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "<details>" >> $GITHUB_STEP_SUMMARY

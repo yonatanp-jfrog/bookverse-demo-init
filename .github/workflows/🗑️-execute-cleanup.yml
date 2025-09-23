@@ -355,7 +355,7 @@ jobs:
               echo "" >> $GITHUB_STEP_SUMMARY
               echo "**Users That Would Be Removed:**" >> $GITHUB_STEP_SUMMARY
             else
-              users=$(grep -E "✅ domain user '.*' deleted successfully" "$exec_log" | sed -E "s/.*domain user '([^']+)'.*/- \1/") || true
+              users=$(grep -E "✅ project user '.*' deleted successfully" "$exec_log" | sed -E "s/.*project user '([^']+)'.*/- \1/") || true
               echo "" >> $GITHUB_STEP_SUMMARY
               echo "**Users Removed:**" >> $GITHUB_STEP_SUMMARY
             fi

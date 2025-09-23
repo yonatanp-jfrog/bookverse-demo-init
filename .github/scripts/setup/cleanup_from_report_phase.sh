@@ -196,8 +196,7 @@ case "$PHASE" in
                     echo "🔍 [DRY RUN] Would remove user from project: $username"
                 else
                     echo "Removing user from project: $username"
-                    # Implementation would need project-specific user removal API
-                    echo "⚠️  Project user removal requires project-specific API implementation"
+                    execute_deletion "user" "$username" "/access/api/v1/projects/${PROJECT_KEY}/users/${username}" "project user"
                 fi
             fi
         done

@@ -97,9 +97,12 @@ jobs:
             fi
           else
             echo "🔍 EXECUTE MODE: Validating existing cleanup report..."
+            # Temporarily disable exit on error for validation check
             set +e
             bash ./.github/scripts/setup/validate_cleanup_report.sh
             status=$?
+            # Restore exit on error
+            set -e
             if [[ $status -eq 0 ]]; then
               echo "report_valid=true" >> "$GITHUB_OUTPUT"
             else
@@ -126,7 +129,7 @@ jobs:
           JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
           PROJECT_KEY: 'bookverse'
         run: |
-          set -uo pipefail
+          set -euo pipefail
           # Delete application versions first (highest level dependencies)
           DRY_RUN=${{ inputs.mode == 'preview' && 'true' || 'false' }}
           bash ./.github/scripts/setup/cleanup_from_report_phase.sh app_versions $DRY_RUN 2>&1 | tee -a /tmp/cleanup_execution.log || {
@@ -142,7 +145,7 @@ jobs:
           JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
           PROJECT_KEY: 'bookverse'
         run: |
-          set -uo pipefail
+          set -euo pipefail
           # Delete builds after application versions are removed
           DRY_RUN=${{ inputs.mode == 'preview' && 'true' || 'false' }}
           bash ./.github/scripts/setup/cleanup_from_report_phase.sh builds $DRY_RUN 2>&1 | tee -a /tmp/cleanup_execution.log || {
@@ -170,7 +173,7 @@ jobs:
           JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
           PROJECT_KEY: 'bookverse'
         run: |
-          set -uo pipefail
+          set -euo pipefail
           # Delete applications after all their dependencies are removed
           DRY_RUN=${{ inputs.mode == 'preview' && 'true' || 'false' }}
           bash ./.github/scripts/setup/cleanup_from_report_phase.sh applications $DRY_RUN 2>&1 | tee -a /tmp/cleanup_execution.log || {

@@ -286,7 +286,7 @@ case "$PHASE" in
             if [[ $failed_deletions -gt 0 ]]; then
                 echo "   Failed repositories: $failed_repo_list"
                 echo "❌ Some repository deletions failed!"
-                return 1
+                exit 1
             elif [[ $total_repos -eq 0 ]]; then
                 echo "ℹ️  No repositories found in cleanup report"
             else
@@ -359,7 +359,7 @@ case "$PHASE" in
             if [[ $failed_deletions -gt 0 ]]; then
                 echo "   Failed applications: $failed_app_list"
                 echo "❌ Some application deletions failed!"
-                return 1
+                exit 1
             elif [[ $total_apps -eq 0 ]]; then
                 echo "ℹ️  No applications found in cleanup report"
             else
@@ -396,9 +396,12 @@ case "$PHASE" in
             if [[ -n "$build_name" ]]; then
                 echo "Processing build: $build_name"
                 
+                # URL encode the build name for the API call
+                encoded_build_name=$(printf '%s\n' "$build_name" | jq -sRr @uri)
+                
                 # Capture the output to determine success type
                 deletion_output=$(mktemp)
-                if execute_deletion "build" "$build_name" "/artifactory/api/build/${build_name}?deleteAll=1" "build" 2>&1 | tee "$deletion_output"; then
+                if execute_deletion "build" "$build_name" "/artifactory/api/build/${encoded_build_name}?deleteAll=1" "build" 2>&1 | tee "$deletion_output"; then
                     if [[ "$DRY_RUN" == "true" ]]; then
                         echo "  🔍 [DRY RUN] Would delete build: $build_name"
                     else
@@ -440,7 +443,7 @@ case "$PHASE" in
             if [[ $failed_deletions -gt 0 ]]; then
                 echo "   Failed builds: $failed_build_list"
                 echo "❌ Some build deletions failed!"
-                return 1
+                exit 1
             elif [[ $total_builds -eq 0 ]]; then
                 echo "ℹ️  No builds found in cleanup report"
             else

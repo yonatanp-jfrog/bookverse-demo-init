@@ -251,7 +251,7 @@ case "$PHASE" in
                         # Check the actual output to determine if it was successfully deleted or not found
                         if grep -q "✅.*deleted successfully" "$deletion_output"; then
                             ((successful_deletions++))
-                        elif grep -q "ℹ️.*not found" "$deletion_output"; then
+                        elif grep -q "ℹ️.*not found.*already deleted" "$deletion_output"; then
                             ((repos_not_found++))
                         else
                             # This shouldn't happen if execute_deletion works correctly, but handle it
@@ -324,7 +324,7 @@ case "$PHASE" in
                         # Check the actual output to determine if it was successfully deleted or not found
                         if grep -q "✅.*deleted successfully" "$deletion_output"; then
                             ((successful_deletions++))
-                        elif grep -q "ℹ️.*not found" "$deletion_output"; then
+                        elif grep -q "ℹ️.*not found.*already deleted" "$deletion_output"; then
                             ((apps_not_found++))
                         else
                             # This shouldn't happen if execute_deletion works correctly, but handle it
@@ -401,14 +401,14 @@ case "$PHASE" in
                 
                 # Capture the output to determine success type
                 deletion_output=$(mktemp)
-                if execute_deletion "build" "$build_name" "/artifactory/api/build/${encoded_build_name}?deleteAll=1" "build" 2>&1 | tee "$deletion_output"; then
+                if execute_deletion "build" "$build_name" "/artifactory/api/build/${encoded_build_name}?deleteAll=1&project=${PROJECT_KEY}" "build" 2>&1 | tee "$deletion_output"; then
                     if [[ "$DRY_RUN" == "true" ]]; then
                         echo "  🔍 [DRY RUN] Would delete build: $build_name"
                     else
                         # Check the actual output to determine if it was successfully deleted or not found
                         if grep -q "✅.*deleted successfully" "$deletion_output"; then
                             ((successful_deletions++))
-                        elif grep -q "ℹ️.*not found" "$deletion_output"; then
+                        elif grep -q "ℹ️.*not found.*already deleted" "$deletion_output"; then
                             ((builds_not_found++))
                         else
                             # This shouldn't happen if execute_deletion works correctly, but handle it

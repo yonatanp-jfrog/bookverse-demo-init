@@ -244,7 +244,9 @@ case "$PHASE" in
                 
                 # Capture the output to determine success type
                 deletion_output=$(mktemp)
-                if execute_deletion "repository" "$repo_key" "/artifactory/api/repositories/${repo_key}" "repository" 2>&1 | tee "$deletion_output"; then
+                execute_deletion "repository" "$repo_key" "/artifactory/api/repositories/${repo_key}" "repository" 2>&1 | tee "$deletion_output"
+                local deletion_exit_code=${PIPESTATUS[0]}
+                if [[ $deletion_exit_code -eq 0 ]]; then
                     if [[ "$DRY_RUN" == "true" ]]; then
                         echo "  🔍 [DRY RUN] Would delete repository: $repo_key"
                     else
@@ -317,7 +319,9 @@ case "$PHASE" in
                 
                 # Capture the output to determine success type
                 deletion_output=$(mktemp)
-                if execute_deletion "application" "$app_name" "/apptrust/api/v1/applications/${app_name}" "application" 2>&1 | tee "$deletion_output"; then
+                execute_deletion "application" "$app_name" "/apptrust/api/v1/applications/${app_name}" "application" 2>&1 | tee "$deletion_output"
+                local deletion_exit_code=${PIPESTATUS[0]}
+                if [[ $deletion_exit_code -eq 0 ]]; then
                     if [[ "$DRY_RUN" == "true" ]]; then
                         echo "  🔍 [DRY RUN] Would delete application: $app_name"
                     else
@@ -401,7 +405,9 @@ case "$PHASE" in
                 
                 # Capture the output to determine success type
                 deletion_output=$(mktemp)
-                if execute_deletion "build" "$build_name" "/artifactory/api/build/${encoded_build_name}?deleteAll=1&project=${PROJECT_KEY}" "build" 2>&1 | tee "$deletion_output"; then
+                execute_deletion "build" "$build_name" "/artifactory/api/build/${encoded_build_name}?deleteAll=1&project=${PROJECT_KEY}" "build" 2>&1 | tee "$deletion_output"
+                local deletion_exit_code=${PIPESTATUS[0]}
+                if [[ $deletion_exit_code -eq 0 ]]; then
                     if [[ "$DRY_RUN" == "true" ]]; then
                         echo "  🔍 [DRY RUN] Would delete build: $build_name"
                     else

@@ -315,7 +315,7 @@ jobs:
           if [[ -f "$exec_log" ]]; then
             # Application versions
             if [[ "$MODE" == "preview" ]]; then
-              app_versions=$(grep -E "🔍 \[DRY RUN\] Would delete version:" "$exec_log" | sed -E "s/.*Would delete version: (.+)/- \1/" | sort -u) || true
+              app_versions=$(grep -E "🔍 \[DRY RUN\] Would delete all versions of application:" "$exec_log" | sed -E "s/.*Would delete all versions of application: (.+)/- \1 (all versions)/" | sort -u) || true
               echo "**Application Versions That Would Be Deleted:**" >> $GITHUB_STEP_SUMMARY
             else
               app_versions=$(grep -E "✅ Version '.*' deleted successfully" "$exec_log" | sed -E "s/.*Version '([^']+)'.*/- \1/" | sort -u) || true
@@ -378,6 +378,18 @@ jobs:
             fi
             if [[ -n "$builds" ]]; then echo "$builds" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
 
+            # OIDC integrations and roles
+            if [[ "$MODE" == "preview" ]]; then
+              oidc_items=$(grep -E "🔍 \[DRY RUN\] Would delete (oidc|role):" "$exec_log" | sed -E "s/.*Would delete (oidc|role): (.+)/- \2/" | sort -u) || true
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "**OIDC Integrations/Roles That Would Be Deleted:**" >> $GITHUB_STEP_SUMMARY
+            else
+              oidc_items=$(grep -E "✅ (OIDC integration|Role) '.*' deleted successfully" "$exec_log" | sed -E "s/.*(OIDC integration|Role) '([^']+)'.*/- \2/" | sort -u) || true
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "**OIDC Integrations/Roles Deleted:**" >> $GITHUB_STEP_SUMMARY
+            fi
+            if [[ -n "$oidc_items" ]]; then echo "$oidc_items" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
+
             # Project deletion
             if [[ "$MODE" == "preview" ]]; then
               project_status=$(grep -E "🔍 \[DRY RUN\] Would delete project:" "$exec_log" | sed -E "s/.*Would delete project: (.+)/- \1/") || true
@@ -390,24 +402,27 @@ jobs:
             fi
             if [[ -n "$project_status" ]]; then echo "$project_status" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
 
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Failed Operations:**" >> $GITHUB_STEP_SUMMARY
-            repos_failed=$(grep -E "❌ .*repository '.*'" "$exec_log" | sed -E "s/.*'([^']+)'.*/- \1/" | sort -u) || true
-            users_failed=$(grep -E "❌ Failed to (remove|delete) user '.*'" "$exec_log" | sed -E "s/.*'([^']+)'.*/- \1/" | sort -u) || true
-            apps_failed=$(grep -E "❌ Failed to delete application '.*'" "$exec_log" | sed -E "s/.*'([^']+)'.*/- \1/" | sort -u) || true
-            stages_failed=$(grep -E "❌ (Failed to delete stage|Stage '.*' still exists)" "$exec_log" | sed -E "s/.*'([^']+)'.*/- \1/" | sort -u) || true
-            builds_failed=$(grep -E "❌ Failed to delete build '.*'" "$exec_log" | sed -E "s/.*'([^']+)'.*/- \1/" | sort -u) || true
+            # Failed Operations (only show in execute mode)
+            if [[ "$MODE" != "preview" ]]; then
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "**Failed Operations:**" >> $GITHUB_STEP_SUMMARY
+              repos_failed=$(grep -E "❌ .*repository '.*'" "$exec_log" | sed -E "s/.*'([^']+)'.*/- \1/" | sort -u) || true
+              users_failed=$(grep -E "❌ Failed to (remove|delete) user '.*'" "$exec_log" | sed -E "s/.*'([^']+)'.*/- \1/" | sort -u) || true
+              apps_failed=$(grep -E "❌ Failed to delete application '.*'" "$exec_log" | sed -E "s/.*'([^']+)'.*/- \1/" | sort -u) || true
+              stages_failed=$(grep -E "❌ (Failed to delete stage|Stage '.*' still exists)" "$exec_log" | sed -E "s/.*'([^']+)'.*/- \1/" | sort -u) || true
+              builds_failed=$(grep -E "❌ Failed to delete build '.*'" "$exec_log" | sed -E "s/.*'([^']+)'.*/- \1/" | sort -u) || true
 
-            echo "Repositories that failed:" >> $GITHUB_STEP_SUMMARY
-            if [[ -n "$repos_failed" ]]; then echo "$repos_failed" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
-            echo "Users that failed:" >> $GITHUB_STEP_SUMMARY
-            if [[ -n "$users_failed" ]]; then echo "$users_failed" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
-            echo "Applications that failed:" >> $GITHUB_STEP_SUMMARY
-            if [[ -n "$apps_failed" ]]; then echo "$apps_failed" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
-            echo "Stages that failed:" >> $GITHUB_STEP_SUMMARY
-            if [[ -n "$stages_failed" ]]; then echo "$stages_failed" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
-            echo "Builds that failed:" >> $GITHUB_STEP_SUMMARY
-            if [[ -n "$builds_failed" ]]; then echo "$builds_failed" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
+              echo "Repositories that failed:" >> $GITHUB_STEP_SUMMARY
+              if [[ -n "$repos_failed" ]]; then echo "$repos_failed" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
+              echo "Users that failed:" >> $GITHUB_STEP_SUMMARY
+              if [[ -n "$users_failed" ]]; then echo "$users_failed" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
+              echo "Applications that failed:" >> $GITHUB_STEP_SUMMARY
+              if [[ -n "$apps_failed" ]]; then echo "$apps_failed" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
+              echo "Stages that failed:" >> $GITHUB_STEP_SUMMARY
+              if [[ -n "$stages_failed" ]]; then echo "$stages_failed" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
+              echo "Builds that failed:" >> $GITHUB_STEP_SUMMARY
+              if [[ -n "$builds_failed" ]]; then echo "$builds_failed" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
+            fi
 
             echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Notes:**" >> $GITHUB_STEP_SUMMARY

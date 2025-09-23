@@ -81,7 +81,7 @@ is_npm_package_cached() {
     fi
 
     local base
-    base="${package
+    base="${package}"
     local tar
     tar="${base}-${version}.tgz"
 

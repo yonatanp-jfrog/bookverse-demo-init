@@ -89,7 +89,7 @@ jobs:
             exit 0
           fi
 
-      - name: 🔧 Delete builds (from report)
+      - name: 📱 Delete application versions (step 1 of dependency chain)
         if: ${{ steps.validate.outputs.report_valid == 'true' }}
         env:
           JFROG_URL: ${{ vars.JFROG_URL }}
@@ -97,21 +97,21 @@ jobs:
           PROJECT_KEY: 'bookverse'
         run: |
           set -uo pipefail
-          # Continue on build cleanup errors - some builds may not exist
+          # Delete application versions first (highest level dependencies)
+          bash ./.github/scripts/setup/cleanup_from_report_phase.sh app_versions ${{ inputs.dry_run || 'false' }} 2>&1 | tee -a /tmp/cleanup_execution.log || echo "⚠️ Some application versions may have issues - continuing with cleanup"
+
+      - name: 🔧 Delete builds (step 2 of dependency chain)
+        if: ${{ steps.validate.outputs.report_valid == 'true' }}
+        env:
+          JFROG_URL: ${{ vars.JFROG_URL }}
+          JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
+          PROJECT_KEY: 'bookverse'
+        run: |
+          set -uo pipefail
+          # Delete builds after application versions are removed
           bash ./.github/scripts/setup/cleanup_from_report_phase.sh builds ${{ inputs.dry_run || 'false' }} 2>&1 | tee -a /tmp/cleanup_execution.log || echo "⚠️ Some builds may not exist - continuing with cleanup"
 
-      - name: 🚀 Delete applications (from report)
-        if: ${{ steps.validate.outputs.report_valid == 'true' }}
-        env:
-          JFROG_URL: ${{ vars.JFROG_URL }}
-          JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
-          PROJECT_KEY: 'bookverse'
-        run: |
-          set -uo pipefail
-          # Continue on application cleanup errors due to dependencies
-          bash ./.github/scripts/setup/cleanup_from_report_phase.sh applications ${{ inputs.dry_run || 'false' }} 2>&1 | tee -a /tmp/cleanup_execution.log || echo "⚠️ Some applications may have dependency issues - continuing with cleanup"
-
-      - name: 📦 Delete repositories (from report)
+      - name: 📦 Delete repositories/artifacts (step 3 of dependency chain)
         if: ${{ steps.validate.outputs.report_valid == 'true' }}
         env:
           JFROG_URL: ${{ vars.JFROG_URL }}
@@ -119,7 +119,19 @@ jobs:
           PROJECT_KEY: 'bookverse'
         run: |
           set -euo pipefail
+          # Delete repositories/artifacts after builds are removed
           bash ./.github/scripts/setup/cleanup_from_report_phase.sh repositories ${{ inputs.dry_run || 'false' }} 2>&1 | tee -a /tmp/cleanup_execution.log
+
+      - name: 🚀 Delete applications (step 4 of dependency chain)
+        if: ${{ steps.validate.outputs.report_valid == 'true' }}
+        env:
+          JFROG_URL: ${{ vars.JFROG_URL }}
+          JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
+          PROJECT_KEY: 'bookverse'
+        run: |
+          set -uo pipefail
+          # Delete applications after all their dependencies are removed
+          bash ./.github/scripts/setup/cleanup_from_report_phase.sh applications ${{ inputs.dry_run || 'false' }} 2>&1 | tee -a /tmp/cleanup_execution.log || echo "⚠️ Some applications may have dependency issues - continuing with cleanup"
 
       - name: 👥 Remove project users (from report)
         if: ${{ steps.validate.outputs.report_valid == 'true' }}

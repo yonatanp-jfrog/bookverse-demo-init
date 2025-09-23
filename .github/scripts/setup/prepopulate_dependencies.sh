@@ -235,7 +235,19 @@ cache_docker_image() {
 }
 
 echo "=== Configuring JFrog CLI for dependency management ==="
+# Configure JFrog CLI server for authenticated operations
+jf c add bookverse-admin --url="${JFROG_URL}" --access-token="${JFROG_ADMIN_TOKEN}" --interactive=false --overwrite
 jf c use bookverse-admin
+
+# Verify authentication before proceeding
+auth_test_code=$(curl -s -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" -X GET "${JFROG_URL%/}/api/system/ping" --write-out "%{http_code}" --output /dev/null)
+if [ "$auth_test_code" -eq 200 ]; then
+    echo "✅ JFrog CLI authentication verified"
+else
+    echo "❌ JFrog CLI authentication failed (HTTP $auth_test_code)"
+    echo "⚠️ Falling back to API-only operations"
+    export USE_JF_DOCKER="false"
+fi
 
 echo "🔐 Configuring secure Docker authentication..."
 
@@ -245,17 +257,16 @@ VIRTUAL_REPO_HOST="${DOCKER_REG_HOST}/${PROJECT_KEY}-dockerhub-virtual"
 if command -v jf >/dev/null 2>&1; then
   echo "Configuring authentication for Docker virtual repository..."
   
-  if jf rt ping >/dev/null 2>&1; then
-    echo "✅ JFrog CLI authentication verified"
-    
-    echo "ℹ️ Using JFrog CLI for secure Docker operations"
+  # Use the already-verified authentication status from above
+  if [[ "$USE_JF_DOCKER" != "false" ]]; then
+    echo "✅ Using JFrog CLI for secure Docker operations"
     echo "ℹ️ This prevents unencrypted credential storage in ~/.docker/config.json"
     
     export USE_JF_DOCKER="true"
     
   else
-    echo "❌ JFrog CLI authentication failed"
-    echo "❌ Docker image caching will be limited"
+    echo "❌ JFrog CLI authentication not available"
+    echo "❌ Docker image caching will be limited to API operations"
     export USE_JF_DOCKER="false"
   fi
 else

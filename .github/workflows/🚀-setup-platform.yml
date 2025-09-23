@@ -74,9 +74,8 @@ concurrency:
 # 🎯 Trigger Configuration: Manual workflow dispatch for controlled platform setup
 on:
   workflow_dispatch:
-    inputs:
-      # Manual trigger only - no additional inputs required
-      # All configuration handled through repository variables and secrets
+    # Manual trigger only - no additional inputs required
+    # All configuration handled through repository variables and secrets
 
 # 🔧 Environment Configuration: Core platform access and authentication
 env:

@@ -102,6 +102,7 @@
 # =============================================================================
 
 source "$(dirname "$0")/common.sh"
+source "$(dirname "$0")/config.sh"
 
 init_script "$(basename "$0")" "Creating AppTrust stages and lifecycle configuration"
 
@@ -166,7 +167,7 @@ echo ""
 count=0
 for stage_name in "${NON_PROD_STAGES[@]}"; do
     echo ""
-    log_info "[$(( ++count ))/${
+    log_info "[$(( ++count ))/${#NON_PROD_STAGES[@]}] Creating stage: $stage_name"
     process_stage "$stage_name"
 done
 

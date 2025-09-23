@@ -978,3 +978,90 @@ run_discovery_preview() {
     GLOBAL_TOTAL_ITEMS="$total_items"
     return 0
 }
+
+#######################################
+# Clear project lifecycle configuration by removing all promote stages
+# This effectively disables the lifecycle without deleting it entirely
+# (as lifecycles cannot be deleted, only edited)
+# 
+# Globals:
+#   PROJECT_KEY - The project key for lifecycle operations
+#   JFROG_URL - JFrog platform URL
+#   JFROG_ADMIN_TOKEN - Admin token for API access
+#   TEMP_DIR - Temporary directory for API responses
+# 
+# Returns:
+#   0 if lifecycle cleared successfully, 1 otherwise
+#######################################
+delete_project_lifecycle() {
+    echo "🔄 Clearing project lifecycle configuration..."
+    
+    local lifecycle_file="$TEMP_DIR/current_lifecycle.json"
+    local update_payload_file="$TEMP_DIR/lifecycle_update_payload.json"
+    
+    # Get current lifecycle configuration
+    local get_code
+    get_code=$(jfrog_api_call "GET" "/access/api/v2/lifecycle/?project_key=$PROJECT_KEY" "$lifecycle_file" "curl" "" "get current lifecycle")
+    
+    if [[ "$get_code" -eq $HTTP_NOT_FOUND ]]; then
+        echo "ℹ️  No lifecycle configuration found for project '$PROJECT_KEY'"
+        return 0
+    elif [[ "$get_code" -ne $HTTP_OK ]]; then
+        echo "❌ Failed to get lifecycle configuration (HTTP $get_code)"
+        return 1
+    fi
+    
+    # Check if lifecycle has any promote stages
+    local has_promote_stages
+    has_promote_stages=$(jq -r '
+        if .categories then
+            (.categories | map(select(.category == "promote")) | length > 0)
+        else
+            ((.promote_stages // []) | length > 0)
+        end
+    ' "$lifecycle_file" 2>/dev/null || echo "false")
+    
+    if [[ "$has_promote_stages" == "false" ]]; then
+        echo "ℹ️  Lifecycle already has no promote stages"
+        return 0
+    fi
+    
+    echo "📝 Creating empty lifecycle configuration..."
+    
+    # Create payload with empty promote stages but preserve other categories
+    jq '
+        if .categories then
+            # New API format with categories
+            .categories = (.categories | map(
+                if .category == "promote" then
+                    .stages = []
+                else
+                    .
+                end
+            ))
+        else
+            # Legacy format
+            .promote_stages = []
+        end
+    ' "$lifecycle_file" > "$update_payload_file"
+    
+    if [[ ! -s "$update_payload_file" ]]; then
+        echo "❌ Failed to create lifecycle update payload"
+        return 1
+    fi
+    
+    echo "🔄 Updating lifecycle to remove promote stages..."
+    local update_code
+    update_code=$(jfrog_api_call "PUT" "/access/api/v2/lifecycle/?project_key=$PROJECT_KEY" "" "curl" "$(cat "$update_payload_file")" "update lifecycle")
+    
+    if [[ "$update_code" -eq $HTTP_OK || "$update_code" -eq $HTTP_NO_CONTENT ]]; then
+        echo "✅ Lifecycle promote stages cleared successfully"
+        return 0
+    else
+        echo "❌ Failed to clear lifecycle promote stages (HTTP $update_code)"
+        if [[ -f "$TEMP_DIR/lifecycle_update_error.json" ]]; then
+            echo "Error details: $(cat "$TEMP_DIR/lifecycle_update_error.json")"
+        fi
+        return 1
+    fi
+}

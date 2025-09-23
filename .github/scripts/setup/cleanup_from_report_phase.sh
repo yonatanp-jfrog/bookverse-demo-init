@@ -7,11 +7,13 @@ source "$(dirname "$0")/config.sh"
 source "$(dirname "$0")/common.sh"
 
 PHASE="${1:-}"
+DRY_RUN="${2:-false}"
 CLEANUP_REPORT_FILE="${CLEANUP_REPORT_FILE:-.github/cleanup-report.json}"
 
 if [[ -z "$PHASE" ]]; then
-    echo "❌ Usage: $0 <phase>" >&2
+    echo "❌ Usage: $0 <phase> [dry_run]" >&2
     echo "Valid phases: users, domain_users, oidc, repositories, applications, stages, builds, project" >&2
+    echo "Set dry_run=true to preview without actual deletion" >&2
     exit 1
 fi
 
@@ -20,10 +22,68 @@ if [[ ! -f "$CLEANUP_REPORT_FILE" ]]; then
     exit 1
 fi
 
-echo "🗑️ Starting cleanup phase: $PHASE"
-echo "📋 Using report: $CLEANUP_REPORT_FILE"
+if [[ "$DRY_RUN" == "true" ]]; then
+    echo "🔍 DRY RUN: Preview cleanup phase: $PHASE"
+    echo "📋 Using report: $CLEANUP_REPORT_FILE"
+    echo "⚠️  No actual deletions will be performed"
+else
+    echo "🗑️ Starting cleanup phase: $PHASE"
+    echo "📋 Using report: $CLEANUP_REPORT_FILE"
+fi
+
+#######################################
+# Execute API deletion call or preview in dry-run mode
+# Arguments:
+#   $1 - resource_type: Type of resource being deleted
+#   $2 - resource_name: Name/ID of the resource
+#   $3 - api_endpoint: API endpoint for deletion
+#   $4 - description: Human-readable description of the operation
+# Globals:
+#   DRY_RUN - Whether to execute or just preview
+#   JFROG_URL - JFrog platform URL
+#   JFROG_ADMIN_TOKEN - Admin token for API access
+# Returns:
+#   0 if successful (or dry-run), 1 if failed
+#######################################
+execute_deletion() {
+    local resource_type="$1"
+    local resource_name="$2"
+    local api_endpoint="$3"
+    local description="$4"
+    
+    if [[ "$DRY_RUN" == "true" ]]; then
+        echo "🔍 [DRY RUN] Would delete $resource_type: $resource_name"
+        echo "    API: DELETE ${JFROG_URL}${api_endpoint}"
+        return 0
+    fi
+    
+    echo "Removing $description: $resource_name"
+    
+    local delete_response=$(mktemp)
+    local delete_code=$(curl -s \
+        --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+        -X DELETE \
+        -w "%{http_code}" -o "$delete_response" \
+        "${JFROG_URL}${api_endpoint}")
+    
+    if [[ "$delete_code" -ge 200 && "$delete_code" -lt 300 ]]; then
+        echo "✅ $description '$resource_name' deleted successfully"
+        rm -f "$delete_response"
+        return 0
+    else
+        echo "❌ Failed to delete $description '$resource_name' (HTTP $delete_code)"
+        echo "Response: $(cat "$delete_response")"
+        rm -f "$delete_response"
+        return 1
+    fi
+}
 
 cleanup_cicd_temp_user() {
+    if [[ "$DRY_RUN" == "true" ]]; then
+        echo "🔍 [DRY RUN] Would check and remove temporary cicd platform admin user"
+        return 0
+    fi
+    
     echo "🔧 Cleaning up temporary cicd platform admin user (workaround)..."
     
     local user_check_response=$(mktemp)
@@ -65,7 +125,14 @@ case "$PHASE" in
         echo "👥 Cleaning up project users..."
         jq -r '.plan.users[]?.name // empty' "$CLEANUP_REPORT_FILE" | while read -r username; do
             if [[ -n "$username" ]]; then
-                echo "Removing user from project: $username"
+                # Note: Project users are removed from project, not deleted globally
+                if [[ "$DRY_RUN" == "true" ]]; then
+                    echo "🔍 [DRY RUN] Would remove user from project: $username"
+                else
+                    echo "Removing user from project: $username"
+                    # Implementation would need project-specific user removal API
+                    echo "⚠️  Project user removal requires project-specific API implementation"
+                fi
             fi
         done
         ;;
@@ -74,7 +141,7 @@ case "$PHASE" in
         echo "👥 Cleaning up domain users..."
         jq -r '.plan.domain_users[]? // empty' "$CLEANUP_REPORT_FILE" | while read -r username; do
             if [[ -n "$username" ]]; then
-                echo "Removing domain user: $username"
+                execute_deletion "user" "$username" "/access/api/v2/users/${username}" "domain user"
             fi
         done
         
@@ -85,22 +152,7 @@ case "$PHASE" in
         echo "🔐 Cleaning up OIDC integrations..."
         jq -r '.plan.oidc[]? // empty' "$CLEANUP_REPORT_FILE" | while read -r integration_name; do
             if [[ -n "$integration_name" ]]; then
-                echo "Removing OIDC integration: $integration_name"
-                
-                local delete_response=$(mktemp)
-                local delete_code=$(curl -s \
-                    --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
-                    -X DELETE \
-                    -w "%{http_code}" -o "$delete_response" \
-                    "${JFROG_URL}/access/api/v1/oidc/${integration_name}")
-                
-                if [[ "$delete_code" -ge 200 && "$delete_code" -lt 300 ]]; then
-                    echo "✅ OIDC integration '$integration_name' deleted successfully"
-                else
-                    echo "❌ Failed to delete OIDC integration '$integration_name' (HTTP $delete_code)"
-                    echo "Response: $(cat "$delete_response")"
-                fi
-                rm -f "$delete_response"
+                execute_deletion "oidc" "$integration_name" "/access/api/v1/oidc/${integration_name}" "OIDC integration"
             fi
         done
         ;;
@@ -109,22 +161,7 @@ case "$PHASE" in
         echo "📦 Cleaning up repositories..."
         jq -r '.plan.repositories[]?.key // empty' "$CLEANUP_REPORT_FILE" | while read -r repo_key; do
             if [[ -n "$repo_key" ]]; then
-                echo "Removing repository: $repo_key"
-                
-                local delete_response=$(mktemp)
-                local delete_code=$(curl -s \
-                    --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
-                    -X DELETE \
-                    -w "%{http_code}" -o "$delete_response" \
-                    "${JFROG_URL}/artifactory/api/repositories/${repo_key}")
-                
-                if [[ "$delete_code" -ge 200 && "$delete_code" -lt 300 ]]; then
-                    echo "✅ Repository '$repo_key' deleted successfully"
-                else
-                    echo "❌ Failed to delete repository '$repo_key' (HTTP $delete_code)"
-                    echo "Response: $(cat "$delete_response")"
-                fi
-                rm -f "$delete_response"
+                execute_deletion "repository" "$repo_key" "/artifactory/api/repositories/${repo_key}" "repository"
             fi
         done
         ;;
@@ -133,22 +170,7 @@ case "$PHASE" in
         echo "🚀 Cleaning up applications..."
         jq -r '.plan.applications[]?.key // empty' "$CLEANUP_REPORT_FILE" | while read -r app_name; do
             if [[ -n "$app_name" ]]; then
-                echo "Removing application: $app_name"
-                
-                local delete_response=$(mktemp)
-                local delete_code=$(curl -s \
-                    --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
-                    -X DELETE \
-                    -w "%{http_code}" -o "$delete_response" \
-                    "${JFROG_URL}/apptrust/api/v1/applications/${app_name}")
-                
-                if [[ "$delete_code" -ge 200 && "$delete_code" -lt 300 ]]; then
-                    echo "✅ Application '$app_name' deleted successfully"
-                else
-                    echo "❌ Failed to delete application '$app_name' (HTTP $delete_code)"
-                    echo "Response: $(cat "$delete_response")"
-                fi
-                rm -f "$delete_response"
+                execute_deletion "application" "$app_name" "/apptrust/api/v1/applications/${app_name}" "application"
             fi
         done
         ;;
@@ -157,22 +179,7 @@ case "$PHASE" in
         echo "🏷️ Cleaning up lifecycle stages..."
         jq -r '.plan.stages[]?.name // empty' "$CLEANUP_REPORT_FILE" | while read -r stage_name; do
             if [[ -n "$stage_name" ]]; then
-                echo "Removing stage: $stage_name"
-                
-                local delete_response=$(mktemp)
-                local delete_code=$(curl -s \
-                    --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
-                    -X DELETE \
-                    -w "%{http_code}" -o "$delete_response" \
-                    "${JFROG_URL}/access/api/v2/lifecycle/${stage_name}")
-                
-                if [[ "$delete_code" -ge 200 && "$delete_code" -lt 300 ]]; then
-                    echo "✅ Stage '$stage_name' deleted successfully"
-                else
-                    echo "❌ Failed to delete stage '$stage_name' (HTTP $delete_code)"
-                    echo "Response: $(cat "$delete_response")"
-                fi
-                rm -f "$delete_response"
+                execute_deletion "stage" "$stage_name" "/access/api/v2/stages/${stage_name}" "lifecycle stage"
             fi
         done
         ;;
@@ -181,22 +188,7 @@ case "$PHASE" in
         echo "🔧 Cleaning up builds..."
         jq -r '.plan.builds[]?.name // empty' "$CLEANUP_REPORT_FILE" | while read -r build_name; do
             if [[ -n "$build_name" ]]; then
-                echo "Removing build: $build_name"
-                
-                local delete_response=$(mktemp)
-                local delete_code=$(curl -s \
-                    --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
-                    -X DELETE \
-                    -w "%{http_code}" -o "$delete_response" \
-                    "${JFROG_URL}/artifactory/api/build/${build_name}?deleteAll=1")
-                
-                if [[ "$delete_code" -ge 200 && "$delete_code" -lt 300 ]]; then
-                    echo "✅ Build '$build_name' deleted successfully"
-                else
-                    echo "❌ Failed to delete build '$build_name' (HTTP $delete_code)"
-                    echo "Response: $(cat "$delete_response")"
-                fi
-                rm -f "$delete_response"
+                execute_deletion "build" "$build_name" "/artifactory/api/build/${build_name}?deleteAll=1" "build"
             fi
         done
         ;;
@@ -206,22 +198,7 @@ case "$PHASE" in
         local project_key=$(jq -r '.metadata.project_key // empty' "$CLEANUP_REPORT_FILE")
         
         if [[ -n "$project_key" ]]; then
-            echo "Removing project: $project_key"
-            
-            local delete_response=$(mktemp)
-            local delete_code=$(curl -s \
-                --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
-                -X DELETE \
-                -w "%{http_code}" -o "$delete_response" \
-                "${JFROG_URL}/access/api/v1/projects/${project_key}")
-            
-            if [[ "$delete_code" -ge 200 && "$delete_code" -lt 300 ]]; then
-                echo "✅ Project '$project_key' deleted successfully"
-            else
-                echo "❌ Failed to delete project '$project_key' (HTTP $delete_code)"
-                echo "Response: $(cat "$delete_response")"
-            fi
-            rm -f "$delete_response"
+            execute_deletion "project" "$project_key" "/access/api/v1/projects/${project_key}" "project"
         else
             echo "⚠️  No project key found in cleanup report"
         fi
@@ -233,4 +210,8 @@ case "$PHASE" in
         ;;
 esac
 
-echo "✅ Cleanup phase '$PHASE' completed"
+if [[ "$DRY_RUN" == "true" ]]; then
+    echo "✅ Dry-run for cleanup phase '$PHASE' completed"
+else
+    echo "✅ Cleanup phase '$PHASE' completed"
+fi

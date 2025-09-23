@@ -7,6 +7,11 @@ on:
         description: 'Type "DELETE" to confirm cleanup (this action cannot be undone)'
         required: true
         type: string
+      dry_run:
+        description: 'Enable dry-run mode (preview only, no actual deletions)'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -40,6 +45,20 @@ jobs:
           jfrog config add bookverse-admin --url="$JFROG_URL" --access-token="$JFROG_ADMIN_TOKEN" --interactive=false --overwrite
           jfrog config use bookverse-admin
 
+      - name: Validate input and confirmation
+        run: |
+          if [[ "${{ inputs.dry_run }}" != "true" && "${{ inputs.confirm_cleanup }}" != "DELETE" ]]; then
+            echo "❌ Confirmation failed. You must type 'DELETE' exactly to proceed with actual cleanup."
+            echo "Current input: '${{ inputs.confirm_cleanup }}'"
+            exit 1
+          fi
+          
+          if [[ "${{ inputs.dry_run }}" == "true" ]]; then
+            echo "🔍 DRY RUN MODE: No confirmation required, will preview only"
+          else
+            echo "✅ Confirmation verified: proceeding with actual cleanup"
+          fi
+
       - name: Validate cleanup report freshness
         id: validate
         env:
@@ -56,7 +75,6 @@ jobs:
             echo "report_valid=false" >> "$GITHUB_OUTPUT"
           fi
           if [[ $status -ne 0 ]]; then
-            echo "
             if [[ -f ".github/cleanup-report.json" ]]; then
               ts=$(jq -r '.metadata.timestamp // "unknown"' .github/cleanup-report.json)
               pretty_ts=$(date -u -d "$ts" +"%a, %b %d %Y %H:%M:%S %Z" 2>/dev/null || echo "$ts")
@@ -66,7 +84,6 @@ jobs:
               echo "No cleanup report found. Please run 🔍 Discover Cleanup first." >> $GITHUB_STEP_SUMMARY
             fi
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "
             echo "- Run the 🔍 Discover Cleanup workflow to generate a fresh report (valid for 30 minutes)." >> $GITHUB_STEP_SUMMARY
             echo "- Then re-run 🗑️ Execute Cleanup." >> $GITHUB_STEP_SUMMARY
             exit 0
@@ -80,7 +97,7 @@ jobs:
           PROJECT_KEY: 'bookverse'
         run: |
           set -euo pipefail
-          bash ./.github/scripts/setup/cleanup_from_report_phase.sh builds 2>&1 | tee -a /tmp/cleanup_execution.log
+          bash ./.github/scripts/setup/cleanup_from_report_phase.sh builds ${{ inputs.dry_run || 'false' }} 2>&1 | tee -a /tmp/cleanup_execution.log
 
       - name: 🚀 Delete applications (from report)
         if: ${{ steps.validate.outputs.report_valid == 'true' }}
@@ -90,7 +107,7 @@ jobs:
           PROJECT_KEY: 'bookverse'
         run: |
           set -euo pipefail
-          bash ./.github/scripts/setup/cleanup_from_report_phase.sh applications 2>&1 | tee -a /tmp/cleanup_execution.log
+          bash ./.github/scripts/setup/cleanup_from_report_phase.sh applications ${{ inputs.dry_run || 'false' }} 2>&1 | tee -a /tmp/cleanup_execution.log
 
       - name: 📦 Delete repositories (from report)
         if: ${{ steps.validate.outputs.report_valid == 'true' }}
@@ -100,7 +117,7 @@ jobs:
           PROJECT_KEY: 'bookverse'
         run: |
           set -euo pipefail
-          bash ./.github/scripts/setup/cleanup_from_report_phase.sh repositories 2>&1 | tee -a /tmp/cleanup_execution.log
+          bash ./.github/scripts/setup/cleanup_from_report_phase.sh repositories ${{ inputs.dry_run || 'false' }} 2>&1 | tee -a /tmp/cleanup_execution.log
 
       - name: 👥 Remove project users (from report)
         if: ${{ steps.validate.outputs.report_valid == 'true' }}
@@ -110,7 +127,7 @@ jobs:
           PROJECT_KEY: 'bookverse'
         run: |
           set -euo pipefail
-          bash ./.github/scripts/setup/cleanup_from_report_phase.sh users 2>&1 | tee -a /tmp/cleanup_execution.log
+          bash ./.github/scripts/setup/cleanup_from_report_phase.sh users ${{ inputs.dry_run || 'false' }} 2>&1 | tee -a /tmp/cleanup_execution.log
 
       - name: 🔄 Clear lifecycle config (safety)
         if: ${{ steps.validate.outputs.report_valid == 'true' }}
@@ -130,7 +147,7 @@ jobs:
           PROJECT_KEY: 'bookverse'
         run: |
           set -euo pipefail
-          bash ./.github/scripts/setup/cleanup_from_report_phase.sh stages 2>&1 | tee -a /tmp/cleanup_execution.log
+          bash ./.github/scripts/setup/cleanup_from_report_phase.sh stages ${{ inputs.dry_run || 'false' }} 2>&1 | tee -a /tmp/cleanup_execution.log
 
       - name: 🔐 Delete OIDC integrations (from report)
         if: ${{ steps.validate.outputs.report_valid == 'true' }}
@@ -140,7 +157,7 @@ jobs:
           PROJECT_KEY: 'bookverse'
         run: |
           set -euo pipefail
-          bash ./.github/scripts/setup/cleanup_from_report_phase.sh oidc 2>&1 | tee -a /tmp/cleanup_execution.log
+          bash ./.github/scripts/setup/cleanup_from_report_phase.sh oidc ${{ inputs.dry_run || 'false' }} 2>&1 | tee -a /tmp/cleanup_execution.log
 
       - name: 👥 Delete global @bookverse.com users (from report)
         if: ${{ steps.validate.outputs.report_valid == 'true' }}
@@ -150,7 +167,7 @@ jobs:
           PROJECT_KEY: 'bookverse'
         run: |
           set -euo pipefail
-          bash ./.github/scripts/setup/cleanup_from_report_phase.sh domain_users 2>&1 | tee -a /tmp/cleanup_execution.log
+          bash ./.github/scripts/setup/cleanup_from_report_phase.sh domain_users ${{ inputs.dry_run || 'false' }} 2>&1 | tee -a /tmp/cleanup_execution.log
 
       - name: 🎯 Delete project (final)
         id: run_cleanup
@@ -161,15 +178,13 @@ jobs:
           PROJECT_KEY: 'bookverse'
         run: |
           set -euo pipefail
-          bash ./.github/scripts/setup/cleanup_from_report_phase.sh project 2>&1 | tee -a /tmp/cleanup_execution.log
+          bash ./.github/scripts/setup/cleanup_from_report_phase.sh project ${{ inputs.dry_run || 'false' }} 2>&1 | tee -a /tmp/cleanup_execution.log
 
       - name: 📋 Execute Cleanup Summary
         if: always()
         env:
           CLEANUP_REPORT_VALID: ${{ steps.validate.outputs.report_valid }}
         run: |
-          echo "
-
           report_file=".github/cleanup-report.json"
           exec_log="/tmp/cleanup_execution.log"
 

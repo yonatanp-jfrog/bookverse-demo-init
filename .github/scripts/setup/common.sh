@@ -609,7 +609,7 @@ process_batch() {
     local processor_function="$3"
     
     local -n items_ref="$items_array_name"
-    local total=${
+    local total=${#items_ref[@]}
     local count=0
     
     log_step "Processing $total $batch_name..."
@@ -645,7 +645,7 @@ validate_environment() {
         missing_vars+=("JFROG_URL")
     fi
     
-    if [[ ${
+    if [[ ${#missing_vars[@]} -gt 0 ]]; then
         log_error "Missing required environment variables:"
         printf '   - %s\n' "${missing_vars[@]}"
         echo ""

@@ -169,7 +169,27 @@ cache_docker_image() {
         return 0
     fi
     
-    # Use regular docker pull with authenticated registry (more reliable than jf docker pull)
+    # Try optimal JFrog CLI method first (for newer servers), fall back to regular docker pull (for older servers)
+    if [[ "$USE_JF_DOCKER" == "true" ]]; then
+        # First attempt: Use JFrog CLI (optimal for newer Artifactory versions)
+        local jf_attempt
+        for jf_attempt in 1 2; do
+            if jf docker pull "${virtual_repo_path}/${image_path}:$tag" 2>/dev/null; then
+                return 0
+            fi
+            if [[ "$image_path" == library/* ]]; then
+                if jf docker pull "${virtual_repo_path}/${image}:$tag" 2>/dev/null; then
+                    return 0
+                fi
+            fi
+            sleep $jf_attempt
+        done
+        
+        # Fallback: Use regular docker pull (compatibility for older Artifactory versions)
+        echo "ℹ️ JFrog CLI docker pull failed, falling back to regular docker pull for older server compatibility"
+    fi
+    
+    # Regular docker pull approach (fallback or primary for older servers)
     local attempt
     for attempt in 1 2 3; do
         if docker pull "${virtual_repo_path}/${image_path}:$tag" 2>/dev/null; then

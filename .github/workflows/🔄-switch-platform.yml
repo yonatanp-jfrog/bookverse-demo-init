@@ -106,7 +106,7 @@ jobs:
         if: always()
         run: |
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "
+          echo "## 📋 Switch Platform Log Details" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           if [[ -f "switch-platform.log" ]]; then
             tail -n 200 "switch-platform.log" >> "$GITHUB_STEP_SUMMARY" || true
@@ -187,7 +187,7 @@ jobs:
       - name: 📋 Switch Platform Summary
         if: always()
         run: |
-          echo "
+          echo "## 🔄 Platform Switch Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- Logs: see artifact 'switch-platform.log' (if uploaded)" >> $GITHUB_STEP_SUMMARY
           
@@ -196,14 +196,14 @@ jobs:
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "🎯 **BookVerse is now configured for the new platform**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "
+            echo "### ✅ Migration Details:" >> $GITHUB_STEP_SUMMARY
             echo "- 🔗 **From**: \`${{ vars.JFROG_URL }}\`" >> $GITHUB_STEP_SUMMARY
             echo "- 🎯 **To**: \`${{ github.event.inputs.jpd_host }}\`" >> $GITHUB_STEP_SUMMARY
             echo "- 📦 **Updated repositories**: All BookVerse service repositories" >> $GITHUB_STEP_SUMMARY
             echo "- 🔐 **Environment variables**: JFROG_URL, DOCKER_REGISTRY updated" >> $GITHUB_STEP_SUMMARY
             echo "- ✅ **Validation**: New platform connectivity confirmed" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "
+            echo "### 📋 Next Steps:" >> $GITHUB_STEP_SUMMARY
             echo "1. 🏗️ **Run Setup Platform workflow** to initialize the new environment" >> $GITHUB_STEP_SUMMARY
             echo "2. 🧪 **Test CI/CD workflows** to verify integration" >> $GITHUB_STEP_SUMMARY
             echo "3. 🔍 **Check service repositories** for updated configurations" >> $GITHUB_STEP_SUMMARY
@@ -216,14 +216,14 @@ jobs:
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "🔍 **Check the logs above for error details**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "
+            echo "### ❌ Common Issues:" >> $GITHUB_STEP_SUMMARY
             echo "- 🔐 **Authentication failed** with new platform" >> $GITHUB_STEP_SUMMARY
             echo "- 🌐 **Network connectivity** to new platform" >> $GITHUB_STEP_SUMMARY
             echo "- 🔒 **Invalid admin token** or insufficient permissions" >> $GITHUB_STEP_SUMMARY
             echo "- 📝 **Incorrect platform URL** format" >> $GITHUB_STEP_SUMMARY
             echo "- 🚫 **GitHub API rate limits** or token issues" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "
+            echo "### 🔧 Troubleshooting Steps:" >> $GITHUB_STEP_SUMMARY
             echo "1. ✅ **Verify platform URL** (format: https://hostname.jfrog.io)" >> $GITHUB_STEP_SUMMARY
             echo "2. 🔐 **Check admin token** has proper permissions" >> $GITHUB_STEP_SUMMARY
             echo "3. 🌐 **Test platform connectivity** manually" >> $GITHUB_STEP_SUMMARY

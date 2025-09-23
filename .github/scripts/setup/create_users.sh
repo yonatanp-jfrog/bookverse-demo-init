@@ -426,6 +426,8 @@ ensure_k8s_image_pull_role() {
         K8S_IMAGE_PULL_ROLE_AVAILABLE=true
     else
         echo "⚠️  K8s role creation returned HTTP $code; response: $(cat "$resp")"
+        # Record error for job summary detection
+        echo "K8s role creation failed: k8s_image_pull (HTTP $code)" >> /tmp/setup_errors.log 2>/dev/null || true
     fi
     rm -f "$resp"
 }

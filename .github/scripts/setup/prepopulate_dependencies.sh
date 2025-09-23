@@ -197,6 +197,8 @@ cache_docker_image() {
         done
     fi
     echo "⚠️ docker pull failed for $image:$tag via ${virtual_repo_path}; attempting API prefetch"
+    # Record warning for job summary detection (not a hard error since API prefetch works)
+    echo "Docker pull failed for $image:$tag - fell back to API prefetch" >> /tmp/setup_warnings.log 2>/dev/null || true
 
     local base_api="${JFROG_URL%/}/artifactory/api/docker/${PROJECT_KEY}-dockerhub-virtual/v2"
     local manifest_url="$base_api/${image_path}/manifests/$tag"

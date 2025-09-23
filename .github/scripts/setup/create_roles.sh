@@ -147,6 +147,8 @@ create_role() {
             ;;
         *)
             echo "⚠️  Role '$role_name' creation returned HTTP $response_code"
+            # Record error for job summary detection
+            echo "Role creation failed: $role_name (HTTP $response_code)" >> /tmp/setup_errors.log 2>/dev/null || true
             ;;
     esac
     echo ""

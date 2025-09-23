@@ -204,9 +204,52 @@ jobs:
         run: |
           echo "" >> $GITHUB_STEP_SUMMARY
           
-          if [[ "${{ job.status }}" == "success" ]]; then
-            echo "✅ **Platform setup completed successfully**" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
+          # Check for setup issues by examining step outputs and common error patterns
+          setup_errors=""
+          setup_warnings=""
+          
+          # Look for specific error indicators in the current session
+          # (GitHub Actions doesn't provide direct access to step logs, so we check for error files/indicators)
+          
+          # Check if any setup scripts created error/warning indicators
+          if [[ -f "/tmp/setup_errors.log" ]]; then
+            setup_errors=$(cat /tmp/setup_errors.log 2>/dev/null || echo "Error file found but unreadable")
+          fi
+          if [[ -f "/tmp/setup_warnings.log" ]]; then
+            setup_warnings=$(cat /tmp/setup_warnings.log 2>/dev/null || echo "Warning file found but unreadable")
+          fi
+          
+          # Check for common setup issues by testing key functionality
+          source ./.github/scripts/setup/config.sh 2>/dev/null || setup_errors="${setup_errors}Config loading failed; "
+          
+          # Test basic JFrog connectivity to catch auth issues
+          if ! curl -s -f -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" "${JFROG_URL}/api/system/ping" >/dev/null 2>&1; then
+            setup_errors="${setup_errors}JFrog authentication/connectivity failed; "
+          fi
+          
+          # Check if project exists (basic validation)
+          project_check=$(curl -s -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" "${JFROG_URL}/access/api/v1/projects/${PROJECT_KEY:-bookverse}" -w "%{http_code}" -o /dev/null 2>/dev/null || echo "000")
+          if [[ "$project_check" != "200" ]]; then
+            setup_errors="${setup_errors}Project creation/access failed (HTTP $project_check); "
+          fi
+          
+          # Override job status if we found errors
+          actual_status="${{ job.status }}"
+          if [[ -n "$setup_errors" ]]; then
+            actual_status="failed_with_errors"
+          fi
+          
+          if [[ "$actual_status" == "success" ]]; then
+            if [[ -n "$setup_warnings" ]]; then
+              echo "✅ **Platform setup completed successfully (with warnings)**" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "⚠️ **Non-critical issues detected:**" >> $GITHUB_STEP_SUMMARY
+              echo "$setup_warnings" | tr '\n' ';' | tr ';' '\n' | sed 's/^/- ⚠️ /' >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "✅ **Platform setup completed successfully**" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+            fi
             echo "🎯 **BookVerse demo environment is ready**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
@@ -276,17 +319,40 @@ jobs:
             echo "2. 🧪 **Test the demo applications** using the provided endpoints" >> $GITHUB_STEP_SUMMARY
             echo "3. 🔍 **Explore JFrog Platform** to see created resources" >> $GITHUB_STEP_SUMMARY
             echo "4. 📖 **Check documentation** for detailed usage instructions" >> $GITHUB_STEP_SUMMARY
+          elif [[ "$actual_status" == "failed_with_errors" ]]; then
+            echo "⚠️ **Platform setup completed with errors**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "🔍 **Issues detected during setup:**" >> $GITHUB_STEP_SUMMARY
+            echo "$setup_errors" | tr ';' '\n' | sed 's/^/- ❌ /' >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**The setup may appear successful but had underlying issues:**" >> $GITHUB_STEP_SUMMARY
+            echo "- 🔐 **Authentication/Permission errors** (HTTP 400/403)" >> $GITHUB_STEP_SUMMARY
+            echo "- ⚠️ **Resource creation warnings** (conflicts, partial failures)" >> $GITHUB_STEP_SUMMARY
+            echo "- 🌐 **Connectivity issues** to JFrog platform" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Next steps:**" >> $GITHUB_STEP_SUMMARY
+            echo "1. 🔍 **Review step logs** for detailed error messages" >> $GITHUB_STEP_SUMMARY
+            echo "2. 🧪 **Test functionality** to confirm what's working" >> $GITHUB_STEP_SUMMARY
+            echo "3. 🗑️ **Run Discover Cleanup** to see actual resource state" >> $GITHUB_STEP_SUMMARY
+            echo "4. 🔧 **Fix specific issues** and re-run setup if needed" >> $GITHUB_STEP_SUMMARY
           else
             echo "❌ **Platform setup failed**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "🔍 **Check the logs above for error details**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
+            if [[ -n "$setup_errors" ]]; then
+              echo "**Detected errors:**" >> $GITHUB_STEP_SUMMARY
+              echo "$setup_errors" | tr ';' '\n' | sed 's/^/- ❌ /' >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+            fi
+            echo "**Common failure causes:**" >> $GITHUB_STEP_SUMMARY
             echo "- 🔐 **Authentication issues** with JFrog platform" >> $GITHUB_STEP_SUMMARY
             echo "- 🔒 **Insufficient permissions** for admin token" >> $GITHUB_STEP_SUMMARY
             echo "- 🌐 **Network connectivity** problems" >> $GITHUB_STEP_SUMMARY
             echo "- ⚠️ **Resource conflicts** (project/users already exist)" >> $GITHUB_STEP_SUMMARY
             echo "- 🎯 **Missing prerequisites** (GitHub token, environment variables)" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Next steps:**" >> $GITHUB_STEP_SUMMARY
             echo "1. 🔍 **Review error logs** for specific failure points" >> $GITHUB_STEP_SUMMARY
             echo "2. 🗑️ **Run Discover Cleanup workflow** to see existing resources" >> $GITHUB_STEP_SUMMARY
             echo "3. 🧹 **Clean up conflicts** before retrying setup" >> $GITHUB_STEP_SUMMARY

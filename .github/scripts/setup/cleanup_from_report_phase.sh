@@ -263,7 +263,7 @@ case "$PHASE" in
         
     "project")
         echo "🎯 Cleaning up project..."
-        local project_key=$(jq -r '.metadata.project_key // empty' "$CLEANUP_REPORT_FILE")
+        project_key=$(jq -r '.metadata.project_key // empty' "$CLEANUP_REPORT_FILE")
         
         if [[ -n "$project_key" ]]; then
             execute_deletion "project" "$project_key" "/access/api/v1/projects/${project_key}" "project"

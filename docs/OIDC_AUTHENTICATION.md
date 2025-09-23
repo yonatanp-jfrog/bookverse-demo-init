@@ -1,6 +1,7 @@
 # BookVerse Platform - OIDC Authentication Guide
 
-## Zero-trust configuration, token management, and troubleshooting for secure CI/CD and platform access
+## Zero-trust configuration, token management, and troubleshooting for secure
+## CI/CD and platform access
 
 The BookVerse Platform implements comprehensive OpenID Connect (OIDC) authentication
 providing passwordless, zero-trust security for GitHub Actions CI/CD workflows,
@@ -32,33 +33,41 @@ The BookVerse Platform implements a comprehensive zero-trust authentication arch
 
 ```mermaid
 graph TB
-    DEV[👨‍💻 Developer<br/>Pushes Code<br/>Triggers Workflow] --> GH[🔄 GitHub Actions<br/>Workflow Execution<br/>OIDC Token Request]
+    DEV[👨‍💻 Developer<br/>Pushes Code<br/>Triggers Workflow] --> \
+        GH[🔄 GitHub Actions<br/>Workflow Execution<br/>OIDC Token Request]
     
     GH --> IDP[🔐 GitHub OIDC Provider<br/>Token Generation<br/>JWT Signing<br/>Claims Validation]
     
-    IDP --> JWT[📋 JWT Token<br/>Repository Claims<br/>Workflow Context<br/>Time-bound Access]
+    IDP --> JWT[📋 JWT Token<br/>Repository Claims<br/>Workflow Context<br/>\
+        Time-bound Access]
     
-    JWT --> JFROG[🏢 JFrog Platform<br/>OIDC Integration<br/>Token Validation<br/>Access Control]
+    JWT --> JFROG[🏢 JFrog Platform<br/>OIDC Integration<br/>Token Validation<br/>\
+        Access Control]
     
-    JFROG --> VALIDATE[✅ Token Validation<br/>Signature Verification<br/>Claims Checking<br/>Policy Enforcement]
+    JFROG --> VALIDATE[✅ Token Validation<br/>Signature Verification<br/>\
+        Claims Checking<br/>Policy Enforcement]
     
-    VALIDATE --> ACCESS[🔓 Platform Access<br/>Artifact Operations<br/>Repository Access<br/>API Permissions]
+    VALIDATE --> ACCESS[🔓 Platform Access<br/>Artifact Operations<br/>\
+        Repository Access<br/>API Permissions]
     
-    ACCESS --> AUDIT[📊 Audit Logging<br/>Access Tracking<br/>Security Events<br/>Compliance Records]
+    ACCESS --> AUDIT[📊 Audit Logging<br/>Access Tracking<br/>\
+        Security Events<br/>Compliance Records]
     
-    JWKS[🔑 JWKS Endpoint<br/>Key Rotation<br/>Signature Validation] --> VALIDATE
+    JWKS[🔑 JWKS Endpoint<br/>Key Rotation<br/>Signature Validation] --> \
+        VALIDATE
     
-    POLICIES[📋 Access Policies<br/>Subject Filtering<br/>Repository Restrictions<br/>Time-based Access] --> VALIDATE
+    POLICIES[📋 Access Policies<br/>Subject Filtering<br/>\
+        Repository Restrictions<br/>Time-based Access] --> VALIDATE
 ```
 
 ### OIDC Security Boundaries
 
 | Component | Trust Level | Authentication Method | Token Scope |
 |-----------|-------------|----------------------|-------------|
-| **GitHub Actions** | Trusted Identity Provider | OIDC JWT with repository claims | Workflow-specific, time-bound |
-| **JFrog Platform** | Resource Server | OIDC token validation | Repository and operation specific |
-| **BookVerse Services** | Protected Resources | Service account tokens | Service-specific, role-based |
-| **Developer Access** | User Authentication | GitHub OAuth + MFA | User-specific, session-based |
+| **GitHub Actions** | Trusted Identity Provider | OIDC JWT with repo claims | Workflow-specific |
+| **JFrog Platform** | Resource Server | OIDC token validation | Repository-specific |
+| **BookVerse Services** | Protected Resources | Service account tokens | Service-specific |
+| **Developer Access** | User Authentication | GitHub OAuth + MFA | User-specific |
 
 ### Token Claims Structure
 
@@ -139,7 +148,8 @@ jobs:
           
           # Decode and display token claims (for debugging)
           echo "🔍 Token Claims:"
-          echo "$OIDC_TOKEN" | cut -d'.' -f2 | base64 -d 2>/dev/null | jq . || echo "Failed to decode claims"
+          echo "$OIDC_TOKEN" | cut -d'.' -f2 | base64 -d 2>/dev/null | jq . || \
+            echo "Failed to decode claims"
       
       # 🏢 Exchange OIDC token for JFrog access token
       - name: Exchange for JFrog Access Token
@@ -269,7 +279,8 @@ jobs:
             local retry=0
             
             while [[ $retry -lt $max_retries ]]; do
-              echo "🔄 Attempting to exchange for JFrog token (attempt $((retry + 1))/$max_retries)"
+              echo "🔄 Attempting to exchange for JFrog token" \
+                "(attempt $((retry + 1))/$max_retries)"
               
               local response
               response=$(curl -s -w "%{http_code}" \
@@ -1904,7 +1915,8 @@ data:
             "type": "stat",
             "targets": [
               {
-                "expr": "rate(oidc_authentication_total{status=\"success\"}[5m]) / rate(oidc_authentication_total[5m]) * 100",
+                "expr": "rate(oidc_authentication_total{status=\"success\"}[5m]) / \
+                  rate(oidc_authentication_total[5m]) * 100",
                 "legendFormat": "Success Rate %"
               }
             ],

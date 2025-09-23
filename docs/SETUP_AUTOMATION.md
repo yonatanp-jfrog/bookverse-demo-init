@@ -1207,7 +1207,7 @@ $(generate_service_specific_build_steps "${service}")
       - name: Build and scan Docker image
         id: build
         run: |
-          IMAGE_TAG="\$PROJECT_KEY-\$SERVICE_NAME-internal-docker-dev-local.\\\njfrog.io/\$SERVICE_NAME:\${{ steps.version.outputs.version }}"
+          IMAGE_TAG="\$PROJECT_KEY-\$SERVICE_NAME-internal-docker-dev-local.\\\n            jfrog.io/\$SERVICE_NAME:\${{ steps.version.outputs.version }}"
           
           # Build image
           docker build -t "\$IMAGE_TAG" .
@@ -1227,7 +1227,8 @@ $(generate_service_specific_build_steps "${service}")
             "\$SERVICE_NAME" \
             "\${{ steps.version.outputs.version }}"
           
-          jf build-collect-env "\$SERVICE_NAME" "\${{ steps.version.outputs.version }}"
+          jf build-collect-env "\$SERVICE_NAME" \
+            "\${{ steps.version.outputs.version }}"
           jf build-publish "\$SERVICE_NAME" "\${{ steps.version.outputs.version }}"
       
       - name: Create AppTrust evidence
@@ -1328,7 +1329,8 @@ EOF
       - name: Build application
         run: |
           npm run build
-          tar -czf "\$SERVICE_NAME-\${{ steps.version.outputs.version }}.tar.gz" -C dist .
+          tar -czf "\$SERVICE_NAME-\${{ steps.version.outputs.version }}.tar.gz" \
+            -C dist .
           jf rt upload "\$SERVICE_NAME-\${{ steps.version.outputs.version }}.tar.gz" \
             "\$PROJECT_KEY-\$SERVICE_NAME-internal-generic-local/" \
             --build-name="\$SERVICE_NAME" \
@@ -1495,12 +1497,16 @@ update_service_dependency() {
 
 ## 🔗 Related Documentation
 
-- **[Orchestration Overview](ORCHESTRATION_OVERVIEW.md)**: High-level platform
+- **[Orchestration Overview](ORCHESTRATION_OVERVIEW.md)**: High-level platform \
   orchestration architecture
-- **[Script Reference](SCRIPT_REFERENCE.md)**: Detailed documentation of all setup scripts
-- **[Demo Operations Guide](DEMO_OPERATIONS.md)**: Daily operations and maintenance procedures
-- **[GitHub Actions Workflow Guide](../GITHUB_ACTIONS.md)**: Complete CI/CD workflow documentation
-- **[JFrog Integration Guide](../JFROG_INTEGRATION.md)**: Platform configuration and management
+- **[Script Reference](SCRIPT_REFERENCE.md)**: Detailed documentation of all \
+  setup scripts
+- **[Demo Operations Guide](DEMO_OPERATIONS.md)**: Daily operations and \
+  maintenance procedures
+- **[GitHub Actions Workflow Guide](../GITHUB_ACTIONS.md)**: Complete CI/CD \
+  workflow documentation
+- **[JFrog Integration Guide](../JFROG_INTEGRATION.md)**: Platform configuration \
+  and management
 
 ---
 

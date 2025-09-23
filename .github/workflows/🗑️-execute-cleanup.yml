@@ -307,9 +307,9 @@ jobs:
             if grep -Eq "❌ (Failed to delete (build|repository|application|project|stage)|Stage '.*' still exists|Some deletions failed|PROJECT DELETION INCOMPLETE)" "$exec_log"; then
               failed_any="true"
             fi
-            if grep -Eq "✅ project '.*' deleted successfully" "$exec_log"; then
+            if grep -Eq "✅ [Pp]roject '.*' deleted successfully" "$exec_log"; then
               project_deleted="yes"
-            elif grep -Eq "❌ Failed to delete project '.*'" "$exec_log"; then
+            elif grep -Eq "❌ Failed to delete [Pp]roject '.*'" "$exec_log"; then
               project_deleted="no"
             fi
           fi

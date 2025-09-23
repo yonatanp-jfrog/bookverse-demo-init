@@ -242,57 +242,53 @@ jobs:
           fi
 
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "
+          echo "### 📊 Detailed Results" >> $GITHUB_STEP_SUMMARY
           if [[ -f "$exec_log" ]]; then
             repos=$(grep -E "✅ Repository '.*' deleted successfully" "$exec_log" | sed -E "s/.*Repository '([^']+)'.*/- \1/") || true
-            echo "
+            echo "**Repositories Deleted:**" >> $GITHUB_STEP_SUMMARY
             if [[ -n "$repos" ]]; then echo "$repos" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
 
             users=$(grep -E "✅ User '.*' (removed from project|deleted) successfully" "$exec_log" | sed -E "s/.*User '([^']+)'.*/- \1/") || true
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "
+            echo "**Users Removed:**" >> $GITHUB_STEP_SUMMARY
             if [[ -n "$users" ]]; then echo "$users" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
 
             apps=$(grep -E "✅ Application '.*' deleted successfully" "$exec_log" | sed -E "s/.*Application '([^']+)'.*/- \1/") || true
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "
+            echo "**Applications Deleted:**" >> $GITHUB_STEP_SUMMARY
             if [[ -n "$apps" ]]; then echo "$apps" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
 
             stages=$(grep -E "✅ (Project stage|Stage) '.*' deleted successfully" "$exec_log" | sed -E "s/.*'(.*)'.*/- \1/") || true
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "
+            echo "**Stages Deleted:**" >> $GITHUB_STEP_SUMMARY
             if [[ -n "$stages" ]]; then echo "$stages" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
 
             builds=$(grep -E "✅ Build '.*' deleted successfully" "$exec_log" | sed -E "s/.*Build '([^']+)'.*/- \1/") || true
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "
+            echo "**Builds Deleted:**" >> $GITHUB_STEP_SUMMARY
             if [[ -n "$builds" ]]; then echo "$builds" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
 
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "
+            echo "**Failed Operations:**" >> $GITHUB_STEP_SUMMARY
             repos_failed=$(grep -E "❌ .*repository '.*'" "$exec_log" | sed -E "s/.*'([^']+)'.*/- \1/" | sort -u) || true
             users_failed=$(grep -E "❌ Failed to (remove|delete) user '.*'" "$exec_log" | sed -E "s/.*'([^']+)'.*/- \1/" | sort -u) || true
             apps_failed=$(grep -E "❌ Failed to delete application '.*'" "$exec_log" | sed -E "s/.*'([^']+)'.*/- \1/" | sort -u) || true
             stages_failed=$(grep -E "❌ (Failed to delete stage|Stage '.*' still exists)" "$exec_log" | sed -E "s/.*'([^']+)'.*/- \1/" | sort -u) || true
             builds_failed=$(grep -E "❌ Failed to delete build '.*'" "$exec_log" | sed -E "s/.*'([^']+)'.*/- \1/" | sort -u) || true
 
-            echo "
+            echo "Repositories that failed:" >> $GITHUB_STEP_SUMMARY
             if [[ -n "$repos_failed" ]]; then echo "$repos_failed" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "
+            echo "Users that failed:" >> $GITHUB_STEP_SUMMARY
             if [[ -n "$users_failed" ]]; then echo "$users_failed" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "
+            echo "Applications that failed:" >> $GITHUB_STEP_SUMMARY
             if [[ -n "$apps_failed" ]]; then echo "$apps_failed" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "
+            echo "Stages that failed:" >> $GITHUB_STEP_SUMMARY
             if [[ -n "$stages_failed" ]]; then echo "$stages_failed" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "
+            echo "Builds that failed:" >> $GITHUB_STEP_SUMMARY
             if [[ -n "$builds_failed" ]]; then echo "$builds_failed" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
 
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "
+            echo "**Notes:**" >> $GITHUB_STEP_SUMMARY
             if [[ -f "$report_file" ]]; then
               echo "- Note: The report is not auto-refreshed after deletion. If it still shows items, run 🔍 Discover Cleanup again to regenerate it." >> $GITHUB_STEP_SUMMARY
               echo "- Current report status: $(jq -r '.status' "$report_file")" >> $GITHUB_STEP_SUMMARY

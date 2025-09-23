@@ -70,6 +70,10 @@ execute_deletion() {
         echo "✅ $description '$resource_name' deleted successfully"
         rm -f "$delete_response"
         return 0
+    elif [[ "$delete_code" -eq 404 ]]; then
+        echo "ℹ️  $description '$resource_name' not found (already deleted or never existed)"
+        rm -f "$delete_response"
+        return 0
     else
         echo "❌ Failed to delete $description '$resource_name' (HTTP $delete_code)"
         echo "Response: $(cat "$delete_response")"

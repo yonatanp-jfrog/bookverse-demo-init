@@ -242,7 +242,7 @@ jf c add bookverse-admin --url="${JFROG_URL}" --access-token="${JFROG_ADMIN_TOKE
 jf c use bookverse-admin
 
 # Verify authentication before proceeding
-auth_test_code=$(curl -s -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" -X GET "${JFROG_URL%/}/api/system/ping" --write-out "%{http_code}" --output /dev/null)
+auth_test_code=$(curl -s -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" -X GET "${JFROG_URL%/}/artifactory/api/system/ping" --write-out "%{http_code}" --output /dev/null)
 if [ "$auth_test_code" -eq 200 ]; then
     echo "✅ JFrog CLI authentication verified"
 else

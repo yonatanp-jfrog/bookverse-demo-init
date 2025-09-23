@@ -223,7 +223,7 @@ jobs:
           source ./.github/scripts/setup/config.sh 2>/dev/null || setup_errors="${setup_errors}Config loading failed; "
           
           # Test basic JFrog connectivity to catch auth issues
-          if ! curl -s -f -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" "${JFROG_URL}/api/system/ping" >/dev/null 2>&1; then
+          if ! curl -s -f -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" "${JFROG_URL}/artifactory/api/system/ping" >/dev/null 2>&1; then
             setup_errors="${setup_errors}JFrog authentication/connectivity failed; "
           fi
           

@@ -383,16 +383,28 @@ jobs:
             fi
             if [[ -n "$stages" ]]; then echo "$stages" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
 
+            # Builds - Enhanced reporting from improved cleanup script
+            echo "" >> $GITHUB_STEP_SUMMARY
             if [[ "$MODE" == "preview" ]]; then
-              builds=$(grep -E "🔍 \[DRY RUN\] Would delete build:" "$exec_log" | sed -E "s/.*Would delete build: (.+)/- \1/") || true
-              echo "" >> $GITHUB_STEP_SUMMARY
               echo "**Builds That Would Be Deleted:**" >> $GITHUB_STEP_SUMMARY
+              builds_total=$(grep -E "📊 Found [0-9]+ builds to clean up" "$exec_log" | sed -E "s/.*Found ([0-9]+) builds.*/\1/" | tail -1) || true
+              builds_list=$(grep -E "Processing build:" "$exec_log" | sed -E "s/.*Processing build: (.+)/- \1/" | sort -u) || true
+              if [[ -n "$builds_total" && "$builds_total" != "0" ]]; then
+                echo "Total builds to process: $builds_total" >> $GITHUB_STEP_SUMMARY
+              fi
             else
-              builds=$(grep -E "✅ build '.*' deleted successfully" "$exec_log" | sed -E "s/.*build '([^']+)'.*/- \1/") || true
-              echo "" >> $GITHUB_STEP_SUMMARY
               echo "**Builds Deleted:**" >> $GITHUB_STEP_SUMMARY
+              builds_total=$(grep -E "Total builds processed: [0-9]+" "$exec_log" | sed -E "s/.*Total builds processed: ([0-9]+).*/\1/" | tail -1) || true
+              builds_success=$(grep -E "✅ Successfully deleted: [0-9]+" "$exec_log" | sed -E "s/.*Successfully deleted: ([0-9]+).*/\1/" | tail -1) || true
+              builds_not_found=$(grep -E "ℹ️.*Not found.*already deleted.*: [0-9]+" "$exec_log" | sed -E "s/.*: ([0-9]+).*/\1/" | tail -1) || true
+              builds_failed=$(grep -E "❌ Failed to delete: [0-9]+" "$exec_log" | sed -E "s/.*Failed to delete: ([0-9]+).*/\1/" | tail -1) || true
+              builds_list=$(grep -E "✅.*deleted successfully" "$exec_log" | sed -E "s/.*'([^']+)'.*/- \1/" | sort -u) || true
+              
+              if [[ -n "$builds_total" ]]; then
+                echo "📊 **Build Cleanup Summary**: Total: ${builds_total:-0}, Success: ${builds_success:-0}, Not found: ${builds_not_found:-0}, Failed: ${builds_failed:-0}" >> $GITHUB_STEP_SUMMARY
+              fi
             fi
-            if [[ -n "$builds" ]]; then echo "$builds" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
+            if [[ -n "$builds_list" ]]; then echo "$builds_list" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
 
             # OIDC integrations and roles
             if [[ "$MODE" == "preview" ]]; then

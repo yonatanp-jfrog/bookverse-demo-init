@@ -43,7 +43,8 @@ fi
 #   JFROG_URL - JFrog platform URL
 #   JFROG_ADMIN_TOKEN - Admin token for API access
 # Returns:
-#   0 if successful (or dry-run), 1 if failed
+#   0 if successful (or dry-run) - check output for success vs not-found
+#   1 if failed - actual deletion failure
 #######################################
 execute_deletion() {
     local resource_type="$1"
@@ -224,22 +225,147 @@ case "$PHASE" in
         
     "repositories")
         echo "📦 Cleaning up repositories..."
-        jq -r '.plan.repositories[]?.key // empty' "$CLEANUP_REPORT_FILE" | while read -r repo_key; do
+        
+        # Track success/failure counts for better reporting
+        total_repos=0
+        successful_deletions=0
+        failed_deletions=0
+        repos_not_found=0
+        failed_repo_list=""
+        
+        # Count total repositories first
+        total_repos=$(jq -r '.plan.repositories[]?.key // empty' "$CLEANUP_REPORT_FILE" | grep -c . || echo "0")
+        echo "📊 Found $total_repos repositories to clean up"
+        
+        # Process each repository and track results
+        while read -r repo_key; do
             if [[ -n "$repo_key" ]]; then
-                execute_deletion "repository" "$repo_key" "/artifactory/api/repositories/${repo_key}" "repository"
+                echo "Processing repository: $repo_key"
+                
+                # Capture the output to determine success type
+                deletion_output=$(mktemp)
+                if execute_deletion "repository" "$repo_key" "/artifactory/api/repositories/${repo_key}" "repository" 2>&1 | tee "$deletion_output"; then
+                    if [[ "$DRY_RUN" == "true" ]]; then
+                        echo "  🔍 [DRY RUN] Would delete repository: $repo_key"
+                    else
+                        # Check the actual output to determine if it was successfully deleted or not found
+                        if grep -q "✅.*deleted successfully" "$deletion_output"; then
+                            ((successful_deletions++))
+                        elif grep -q "ℹ️.*not found.*already deleted" "$deletion_output"; then
+                            ((repos_not_found++))
+                        else
+                            # This shouldn't happen if execute_deletion works correctly, but handle it
+                            ((successful_deletions++))
+                        fi
+                    fi
+                else
+                    echo "❌ Failed to delete repository: $repo_key"
+                    ((failed_deletions++))
+                    if [[ -z "$failed_repo_list" ]]; then
+                        failed_repo_list="$repo_key"
+                    else
+                        failed_repo_list="$failed_repo_list, $repo_key"
+                    fi
+                fi
+                rm -f "$deletion_output"
             fi
-        done
+        done < <(jq -r '.plan.repositories[]?.key // empty' "$CLEANUP_REPORT_FILE")
+        
+        # Report summary
+        echo ""
+        echo "📊 Repository cleanup summary:"
+        echo "   Total repositories processed: $total_repos"
+        
+        if [[ "$DRY_RUN" == "true" ]]; then
+            echo "   🔍 [DRY RUN] All $total_repos repositories would be processed"
+        else
+            echo "   ✅ Successfully deleted: $successful_deletions"
+            echo "   ℹ️  Not found (already deleted): $repos_not_found"
+            echo "   ❌ Failed to delete: $failed_deletions"
+            
+            if [[ $failed_deletions -gt 0 ]]; then
+                echo "   Failed repositories: $failed_repo_list"
+                echo "❌ Some repository deletions failed!"
+                return 1
+            elif [[ $total_repos -eq 0 ]]; then
+                echo "ℹ️  No repositories found in cleanup report"
+            else
+                echo "✅ All repositories cleaned up successfully"
+            fi
+        fi
         ;;
         
     "applications")
         echo "🚀 Cleaning up applications..."
         echo "ℹ️  Note: Application versions should have been deleted in previous step"
-        jq -r '.plan.applications[]?.key // empty' "$CLEANUP_REPORT_FILE" | while read -r app_name; do
+        
+        # Track success/failure counts for better reporting
+        total_apps=0
+        successful_deletions=0
+        failed_deletions=0
+        apps_not_found=0
+        failed_app_list=""
+        
+        # Count total applications first
+        total_apps=$(jq -r '.plan.applications[]?.key // empty' "$CLEANUP_REPORT_FILE" | grep -c . || echo "0")
+        echo "📊 Found $total_apps applications to clean up"
+        
+        # Process each application and track results
+        while read -r app_name; do
             if [[ -n "$app_name" ]]; then
-                # Delete the application (versions should already be gone)
-                execute_deletion "application" "$app_name" "/apptrust/api/v1/applications/${app_name}" "application"
+                echo "Processing application: $app_name"
+                
+                # Capture the output to determine success type
+                deletion_output=$(mktemp)
+                if execute_deletion "application" "$app_name" "/apptrust/api/v1/applications/${app_name}" "application" 2>&1 | tee "$deletion_output"; then
+                    if [[ "$DRY_RUN" == "true" ]]; then
+                        echo "  🔍 [DRY RUN] Would delete application: $app_name"
+                    else
+                        # Check the actual output to determine if it was successfully deleted or not found
+                        if grep -q "✅.*deleted successfully" "$deletion_output"; then
+                            ((successful_deletions++))
+                        elif grep -q "ℹ️.*not found.*already deleted" "$deletion_output"; then
+                            ((apps_not_found++))
+                        else
+                            # This shouldn't happen if execute_deletion works correctly, but handle it
+                            ((successful_deletions++))
+                        fi
+                    fi
+                else
+                    echo "❌ Failed to delete application: $app_name"
+                    ((failed_deletions++))
+                    if [[ -z "$failed_app_list" ]]; then
+                        failed_app_list="$app_name"
+                    else
+                        failed_app_list="$failed_app_list, $app_name"
+                    fi
+                fi
+                rm -f "$deletion_output"
             fi
-        done
+        done < <(jq -r '.plan.applications[]?.key // empty' "$CLEANUP_REPORT_FILE")
+        
+        # Report summary
+        echo ""
+        echo "📊 Application cleanup summary:"
+        echo "   Total applications processed: $total_apps"
+        
+        if [[ "$DRY_RUN" == "true" ]]; then
+            echo "   🔍 [DRY RUN] All $total_apps applications would be processed"
+        else
+            echo "   ✅ Successfully deleted: $successful_deletions"
+            echo "   ℹ️  Not found (already deleted): $apps_not_found"
+            echo "   ❌ Failed to delete: $failed_deletions"
+            
+            if [[ $failed_deletions -gt 0 ]]; then
+                echo "   Failed applications: $failed_app_list"
+                echo "❌ Some application deletions failed!"
+                return 1
+            elif [[ $total_apps -eq 0 ]]; then
+                echo "ℹ️  No applications found in cleanup report"
+            else
+                echo "✅ All applications cleaned up successfully"
+            fi
+        fi
         ;;
         
     "stages")
@@ -253,11 +379,74 @@ case "$PHASE" in
         
     "builds")
         echo "🔧 Cleaning up builds..."
-        jq -r '.plan.builds[]?.name // empty' "$CLEANUP_REPORT_FILE" | while read -r build_name; do
+        
+        # Track success/failure counts for better reporting
+        total_builds=0
+        successful_deletions=0
+        failed_deletions=0
+        builds_not_found=0
+        failed_build_list=""
+        
+        # Count total builds first
+        total_builds=$(jq -r '.plan.builds[]?.name // empty' "$CLEANUP_REPORT_FILE" | grep -c . || echo "0")
+        echo "📊 Found $total_builds builds to clean up"
+        
+        # Process each build and track results
+        while read -r build_name; do
             if [[ -n "$build_name" ]]; then
-                execute_deletion "build" "$build_name" "/artifactory/api/build/${build_name}?deleteAll=1" "build"
+                echo "Processing build: $build_name"
+                
+                # Capture the output to determine success type
+                deletion_output=$(mktemp)
+                if execute_deletion "build" "$build_name" "/artifactory/api/build/${build_name}?deleteAll=1" "build" 2>&1 | tee "$deletion_output"; then
+                    if [[ "$DRY_RUN" == "true" ]]; then
+                        echo "  🔍 [DRY RUN] Would delete build: $build_name"
+                    else
+                        # Check the actual output to determine if it was successfully deleted or not found
+                        if grep -q "✅.*deleted successfully" "$deletion_output"; then
+                            ((successful_deletions++))
+                        elif grep -q "ℹ️.*not found.*already deleted" "$deletion_output"; then
+                            ((builds_not_found++))
+                        else
+                            # This shouldn't happen if execute_deletion works correctly, but handle it
+                            ((successful_deletions++))
+                        fi
+                    fi
+                else
+                    echo "❌ Failed to delete build: $build_name"
+                    ((failed_deletions++))
+                    if [[ -z "$failed_build_list" ]]; then
+                        failed_build_list="$build_name"
+                    else
+                        failed_build_list="$failed_build_list, $build_name"
+                    fi
+                fi
+                rm -f "$deletion_output"
             fi
-        done
+        done < <(jq -r '.plan.builds[]?.name // empty' "$CLEANUP_REPORT_FILE")
+        
+        # Report summary
+        echo ""
+        echo "📊 Build cleanup summary:"
+        echo "   Total builds processed: $total_builds"
+        
+        if [[ "$DRY_RUN" == "true" ]]; then
+            echo "   🔍 [DRY RUN] All $total_builds builds would be processed"
+        else
+            echo "   ✅ Successfully deleted: $successful_deletions"
+            echo "   ℹ️  Not found (already deleted): $builds_not_found"
+            echo "   ❌ Failed to delete: $failed_deletions"
+            
+            if [[ $failed_deletions -gt 0 ]]; then
+                echo "   Failed builds: $failed_build_list"
+                echo "❌ Some build deletions failed!"
+                return 1
+            elif [[ $total_builds -eq 0 ]]; then
+                echo "ℹ️  No builds found in cleanup report"
+            else
+                echo "✅ All builds cleaned up successfully"
+            fi
+        fi
         ;;
         
     "project")

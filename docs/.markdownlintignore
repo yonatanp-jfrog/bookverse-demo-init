@@ -1,0 +1,9 @@
+# Exclude all markdown files in docs directory
+*.md
+JFrog AppTrust Operations.md
+WORKFLOW_REFERENCE.md
+OIDC_AUTHENTICATION.md
+SETUP_AUTOMATION.md
+JFROG_INTEGRATION.md
+GETTING_STARTED.md
+ARCHITECTURE.md

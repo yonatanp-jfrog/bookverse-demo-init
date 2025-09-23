@@ -7,7 +7,62 @@
     { "path": "../bookverse-platform" },
     { "path": "../bookverse-web" },
     { "path": "../bookverse-helm" }
-  ]
+  ],
+  "settings": {
+    "markdownlint.enable": false,
+    "markdownlint.run": "onSave",
+    "markdownlint.config": {
+      "default": false,
+      "MD013": false,
+      "line-length": false
+    },
+    "markdownlint.ignore": [
+      "**/*.md",
+      "**/docs/**",
+      "**/*OPERATIONS*.md",
+      "**/*REFERENCE*.md",
+      "**/*INTEGRATION*.md",
+      "**/*AUTHENTICATION*.md",
+      "**/*AUTOMATION*.md",
+      "**/*GETTING_STARTED*.md",
+      "**/*ARCHITECTURE*.md"
+    ],
+    "[markdown]": {
+      "editor.codeActionsOnSave": {
+        "source.fixAll.markdownlint": false
+      },
+      "editor.defaultFormatter": null
+    },
+    "problems.decorations.enabled": true,
+    "problems.filter": {
+      "showWarnings": false,
+      "showErrors": true,
+      "showInfos": false
+    },
+    "problems.sortOrder": "severity",
+    "yaml.validate": false,
+    "yaml.format.enable": false,
+    "files.associations": {
+      "*.md": "markdown",
+      "*.yml": "yaml",
+      "*.yaml": "yaml"
+    },
+    "[yaml]": {
+      "editor.defaultFormatter": null,
+      "editor.formatOnSave": false
+    },
+    "files.exclude": {
+      "**/.github/workflows/*.yml": false
+    }
+  },
+  "extensions": {
+    "recommendations": [
+      "yzhang.markdown-all-in-one"
+    ],
+    "unwantedRecommendations": [
+      "DavidAnson.vscode-markdownlint"
+    ]
+  }
 }
 
 

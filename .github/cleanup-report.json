@@ -1,14 +1,14 @@
 {
   "metadata": {
-    "timestamp": "2025-09-23T14:24:47Z",
+    "timestamp": "2025-09-23T14:37:52Z",
     "project_key": "bookverse",
-    "total_items": 10,
+    "total_items": 14,
     "discovery_counts": {
       "builds": 10,
-      "applications": 0,
+      "applications": 1,
       "repositories": 0,
       "users": 0,
-      "stages": 0,
+      "stages": 3,
       "oidc": 0,
       "repositories_breakdown": {
         "local": 0,
@@ -20,9 +20,30 @@
   },
   "plan": {
     "repositories": [],
-    "applications": [],
+    "applications": [
+      {
+        "key": "bookverse-helm",
+        "project": "bookverse"
+      }
+    ],
     "users": [],
-    "stages": [],
+    "stages": [
+      {
+        "name": "bookverse-DEV",
+        "project": "bookverse",
+        "in_use": true
+      },
+      {
+        "name": "bookverse-QA",
+        "project": "bookverse",
+        "in_use": true
+      },
+      {
+        "name": "bookverse-STAGING",
+        "project": "bookverse",
+        "in_use": true
+      }
+    ],
     "builds": [
       {
         "name": "recommendations",
@@ -71,6 +92,6 @@
   "observations": {
     "oidc_integrations": []
   },
-  "deletion_preview": "🛡️ SAFETY: Discovering what would be deleted...\nProject: bookverse\nDate: Tue Sep 23 14:24:45 UTC 2025\n\nBUILDS TO DELETE (10 items):\n=======================================\n  ❌ Build: recommendations\n  ❌ Build: bookverse-platform_Platform%20Aggregate%20&%20Promote_aggregate\n  ❌ Build: BookVerse%20Infrastructure%20-%20CI\n  ❌ Build: bookverse-helm_Helm%20CI_build-test-publish\n  ❌ Build: bookverse-checkout_CI_build-test-publish\n  ❌ Build: bookverse-web_CI_build-test-publish\n  ❌ Build: bookverse-recommendations_CI_build-test-publish\n  ❌ Build: bookverse-inventory_CI_build-test-publish\n  ❌ Build: bookverse-devops_CI_build-bookverse-devops\n  ❌ Build: bookverse-core_CI_build-bookverse-core\n\nAPPLICATIONS: None found\n\nREPOSITORIES: None found\n\nUSERS: None found\n\nSTAGES: None found\n\nSUMMARY:\n========\nTotal items to delete: 10\nProject to delete: bookverse\n\n⚠️ WARNING: This action cannot be undone!\n",
+  "deletion_preview": "🛡️ SAFETY: Discovering what would be deleted...\nProject: bookverse\nDate: Tue Sep 23 14:37:50 UTC 2025\n\nBUILDS TO DELETE (10 items):\n=======================================\n  ❌ Build: recommendations\n  ❌ Build: bookverse-platform_Platform%20Aggregate%20&%20Promote_aggregate\n  ❌ Build: BookVerse%20Infrastructure%20-%20CI\n  ❌ Build: bookverse-helm_Helm%20CI_build-test-publish\n  ❌ Build: bookverse-checkout_CI_build-test-publish\n  ❌ Build: bookverse-web_CI_build-test-publish\n  ❌ Build: bookverse-recommendations_CI_build-test-publish\n  ❌ Build: bookverse-inventory_CI_build-test-publish\n  ❌ Build: bookverse-devops_CI_build-bookverse-devops\n  ❌ Build: bookverse-core_CI_build-bookverse-core\n\nAPPLICATIONS TO DELETE (1 items):\n===========================================\n  ❌ Application: bookverse-helm\n\nREPOSITORIES: None found\n\nUSERS: None found\n\nSTAGES TO DELETE (3 items):\n=======================================\n  ❌ Stage: bookverse-DEV\n  ❌ Stage: bookverse-QA\n  ❌ Stage: bookverse-STAGING\n\nSUMMARY:\n========\nTotal items to delete: 14\nProject to delete: bookverse\n\n⚠️ WARNING: This action cannot be undone!\n",
   "status": "ready_for_cleanup"
 }

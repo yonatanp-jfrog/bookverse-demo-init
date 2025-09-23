@@ -416,7 +416,9 @@ case "$PHASE" in
                         if grep -q "✅.*deleted successfully" "$deletion_output"; then
                             ((successful_deletions++))
                         elif grep -q "ℹ️.*not found" "$deletion_output"; then
+                            echo "DEBUG: Incrementing builds_not_found from $builds_not_found"
                             ((builds_not_found++))
+                            echo "DEBUG: builds_not_found is now $builds_not_found"
                         else
                             # This shouldn't happen if execute_deletion works correctly, but handle it
                             ((successful_deletions++))

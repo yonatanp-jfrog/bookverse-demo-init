@@ -64,12 +64,12 @@ jobs:
       - name: Switch JFrog Platform
         run: |
           export NEW_JFROG_URL='${{ github.event.inputs.jpd_host }}'
-          if [[ -n "${{ secrets.JFROG_ADMIN_TOKEN }}" ]]; then
-            export NEW_JFROG_ADMIN_TOKEN='${{ secrets.JFROG_ADMIN_TOKEN }}'
-            echo "🔐 Using JFROG_ADMIN_TOKEN from repository secrets"
-          elif [[ -n "${{ github.event.inputs.admin_token }}" ]]; then
+          if [[ -n "${{ github.event.inputs.admin_token }}" ]]; then
             export NEW_JFROG_ADMIN_TOKEN='${{ github.event.inputs.admin_token }}'
             echo "🔐 Using admin_token from workflow input"
+          elif [[ -n "${{ secrets.JFROG_ADMIN_TOKEN }}" ]]; then
+            export NEW_JFROG_ADMIN_TOKEN='${{ secrets.JFROG_ADMIN_TOKEN }}'
+            echo "🔐 Using JFROG_ADMIN_TOKEN from repository secrets"
           else
             echo "❌ No JFROG_ADMIN_TOKEN found in secrets or workflow inputs"
             exit 1
@@ -115,10 +115,10 @@ jobs:
       - name: Validate New Platform
         run: |
           export NEW_JFROG_URL='${{ github.event.inputs.jpd_host }}'
-          if [[ -n "${{ secrets.JFROG_ADMIN_TOKEN }}" ]]; then
-            export NEW_JFROG_ADMIN_TOKEN='${{ secrets.JFROG_ADMIN_TOKEN }}'
-          elif [[ -n "${{ github.event.inputs.admin_token }}" ]]; then
+          if [[ -n "${{ github.event.inputs.admin_token }}" ]]; then
             export NEW_JFROG_ADMIN_TOKEN='${{ github.event.inputs.admin_token }}'
+          elif [[ -n "${{ secrets.JFROG_ADMIN_TOKEN }}" ]]; then
+            export NEW_JFROG_ADMIN_TOKEN='${{ secrets.JFROG_ADMIN_TOKEN }}'
           else
             echo "❌ No JFROG_ADMIN_TOKEN found in secrets or workflow inputs"
             exit 1
@@ -164,10 +164,10 @@ jobs:
           fi
           
           export NEW_JFROG_URL='${{ github.event.inputs.jpd_host }}'
-          if [[ -n "${{ secrets.JFROG_ADMIN_TOKEN }}" ]]; then
-            export NEW_JFROG_ADMIN_TOKEN='${{ secrets.JFROG_ADMIN_TOKEN }}'
-          elif [[ -n "${{ github.event.inputs.admin_token }}" ]]; then
+          if [[ -n "${{ github.event.inputs.admin_token }}" ]]; then
             export NEW_JFROG_ADMIN_TOKEN='${{ github.event.inputs.admin_token }}'
+          elif [[ -n "${{ secrets.JFROG_ADMIN_TOKEN }}" ]]; then
+            export NEW_JFROG_ADMIN_TOKEN='${{ secrets.JFROG_ADMIN_TOKEN }}'
           else
             echo "❌ No JFROG_ADMIN_TOKEN found in secrets or workflow inputs"
             exit 1

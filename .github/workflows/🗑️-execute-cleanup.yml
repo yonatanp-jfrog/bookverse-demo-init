@@ -1,17 +1,21 @@
-name: '🗑️ Execute Cleanup'
+name: '🗑️ Cleanup (Preview & Execute)'
 
 on:
   workflow_dispatch:
     inputs:
       confirm_cleanup:
-        description: 'Type "DELETE" to confirm cleanup (this action cannot be undone)'
-        required: true
-        type: string
-      dry_run:
-        description: 'Enable dry-run mode (preview only, no actual deletions)'
+        description: 'Type "DELETE" to confirm cleanup (leave empty for preview mode)'
         required: false
-        type: boolean
-        default: false
+        type: string
+        default: ''
+      mode:
+        description: 'Operation mode'
+        required: true
+        type: choice
+        options:
+          - 'preview'
+          - 'execute'
+        default: 'preview'
 
 permissions:
   contents: write
@@ -47,46 +51,67 @@ jobs:
 
       - name: Validate input and confirmation
         run: |
-          if [[ "${{ inputs.dry_run }}" != "true" && "${{ inputs.confirm_cleanup }}" != "DELETE" ]]; then
+          if [[ "${{ inputs.mode }}" == "execute" && "${{ inputs.confirm_cleanup }}" != "DELETE" ]]; then
             echo "❌ Confirmation failed. You must type 'DELETE' exactly to proceed with actual cleanup."
             echo "Current input: '${{ inputs.confirm_cleanup }}'"
+            echo "To preview resources without deletion, use 'preview' mode instead."
             exit 1
           fi
           
-          if [[ "${{ inputs.dry_run }}" == "true" ]]; then
-            echo "🔍 DRY RUN MODE: No confirmation required, will preview only"
+          if [[ "${{ inputs.mode }}" == "preview" ]]; then
+            echo "🔍 PREVIEW MODE: Will discover and show resources that would be deleted"
+            echo "ℹ️  No actual deletions will be performed"
           else
-            echo "✅ Confirmation verified: proceeding with actual cleanup"
+            echo "✅ EXECUTE MODE: Confirmation verified, proceeding with actual cleanup"
           fi
 
-      - name: Validate cleanup report freshness
+      - name: Generate fresh discovery or validate existing report
         id: validate
         env:
           JFROG_URL: ${{ vars.JFROG_URL }}
           JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
           PROJECT_KEY: 'bookverse'
         run: |
-          set +e
-          bash ./.github/scripts/setup/validate_cleanup_report.sh
-          status=$?
-          if [[ $status -eq 0 ]]; then
+          if [[ "${{ inputs.mode }}" == "preview" ]]; then
+            echo "🔍 PREVIEW MODE: Generating fresh discovery..."
             echo "report_valid=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "report_valid=false" >> "$GITHUB_OUTPUT"
-          fi
-          if [[ $status -ne 0 ]]; then
+            
+            # Run discovery to generate fresh report
+            cd .github/scripts/setup
+            export SKIP_PROTECTION=true
+            source ./cleanup_project_based.sh
+            set +e
+            run_discovery_preview || true
+            cd -
+            
             if [[ -f ".github/cleanup-report.json" ]]; then
-              ts=$(jq -r '.metadata.timestamp // "unknown"' .github/cleanup-report.json)
-              pretty_ts=$(date -u -d "$ts" +"%a, %b %d %Y %H:%M:%S %Z" 2>/dev/null || echo "$ts")
-              echo "Report is not usable - missing, invalid, or expired." >> $GITHUB_STEP_SUMMARY
-              echo "- Last report timestamp: $pretty_ts" >> $GITHUB_STEP_SUMMARY
+              echo "✅ Fresh discovery report generated successfully"
             else
-              echo "No cleanup report found. Please run 🔍 Discover Cleanup first." >> $GITHUB_STEP_SUMMARY
+              echo "⚠️ Discovery completed but no report generated"
+              echo "report_valid=false" >> "$GITHUB_OUTPUT"
             fi
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "- Run the 🔍 Discover Cleanup workflow to generate a fresh report valid for 30 minutes." >> $GITHUB_STEP_SUMMARY
-            echo "- Then re-run 🗑️ Execute Cleanup." >> $GITHUB_STEP_SUMMARY
-            exit 0
+          else
+            echo "🔍 EXECUTE MODE: Validating existing cleanup report..."
+            set +e
+            bash ./.github/scripts/setup/validate_cleanup_report.sh
+            status=$?
+            if [[ $status -eq 0 ]]; then
+              echo "report_valid=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "report_valid=false" >> "$GITHUB_OUTPUT"
+              if [[ -f ".github/cleanup-report.json" ]]; then
+                ts=$(jq -r '.metadata.timestamp // "unknown"' .github/cleanup-report.json)
+                pretty_ts=$(date -u -d "$ts" +"%a, %b %d %Y %H:%M:%S %Z" 2>/dev/null || echo "$ts")
+                echo "Report is not usable - missing, invalid, or expired." >> $GITHUB_STEP_SUMMARY
+                echo "- Last report timestamp: $pretty_ts" >> $GITHUB_STEP_SUMMARY
+              else
+                echo "No cleanup report found. Run this workflow in 'preview' mode first to generate a fresh report." >> $GITHUB_STEP_SUMMARY
+              fi
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "- Run this workflow in 'preview' mode to generate a fresh report." >> $GITHUB_STEP_SUMMARY
+              echo "- Then re-run in 'execute' mode to perform actual cleanup." >> $GITHUB_STEP_SUMMARY
+              exit 0
+            fi
           fi
 
       - name: 📱 Delete application versions (step 1 of dependency chain)
@@ -98,7 +123,8 @@ jobs:
         run: |
           set -uo pipefail
           # Delete application versions first (highest level dependencies)
-          bash ./.github/scripts/setup/cleanup_from_report_phase.sh app_versions ${{ inputs.dry_run || 'false' }} 2>&1 | tee -a /tmp/cleanup_execution.log || echo "⚠️ Some application versions may have issues - continuing with cleanup"
+          DRY_RUN=${{ inputs.mode == 'preview' && 'true' || 'false' }}
+          bash ./.github/scripts/setup/cleanup_from_report_phase.sh app_versions $DRY_RUN 2>&1 | tee -a /tmp/cleanup_execution.log || echo "⚠️ Some application versions may have issues - continuing with cleanup"
 
       - name: 🔧 Delete builds (step 2 of dependency chain)
         if: ${{ steps.validate.outputs.report_valid == 'true' }}
@@ -109,7 +135,8 @@ jobs:
         run: |
           set -uo pipefail
           # Delete builds after application versions are removed
-          bash ./.github/scripts/setup/cleanup_from_report_phase.sh builds ${{ inputs.dry_run || 'false' }} 2>&1 | tee -a /tmp/cleanup_execution.log || echo "⚠️ Some builds may not exist - continuing with cleanup"
+          DRY_RUN=${{ inputs.mode == 'preview' && 'true' || 'false' }}
+          bash ./.github/scripts/setup/cleanup_from_report_phase.sh builds $DRY_RUN 2>&1 | tee -a /tmp/cleanup_execution.log || echo "⚠️ Some builds may not exist - continuing with cleanup"
 
       - name: 📦 Delete repositories/artifacts (step 3 of dependency chain)
         if: ${{ steps.validate.outputs.report_valid == 'true' }}
@@ -120,7 +147,8 @@ jobs:
         run: |
           set -euo pipefail
           # Delete repositories/artifacts after builds are removed
-          bash ./.github/scripts/setup/cleanup_from_report_phase.sh repositories ${{ inputs.dry_run || 'false' }} 2>&1 | tee -a /tmp/cleanup_execution.log
+          DRY_RUN=${{ inputs.mode == 'preview' && 'true' || 'false' }}
+          bash ./.github/scripts/setup/cleanup_from_report_phase.sh repositories $DRY_RUN 2>&1 | tee -a /tmp/cleanup_execution.log
 
       - name: 🚀 Delete applications (step 4 of dependency chain)
         if: ${{ steps.validate.outputs.report_valid == 'true' }}
@@ -131,7 +159,8 @@ jobs:
         run: |
           set -uo pipefail
           # Delete applications after all their dependencies are removed
-          bash ./.github/scripts/setup/cleanup_from_report_phase.sh applications ${{ inputs.dry_run || 'false' }} 2>&1 | tee -a /tmp/cleanup_execution.log || echo "⚠️ Some applications may have dependency issues - continuing with cleanup"
+          DRY_RUN=${{ inputs.mode == 'preview' && 'true' || 'false' }}
+          bash ./.github/scripts/setup/cleanup_from_report_phase.sh applications $DRY_RUN 2>&1 | tee -a /tmp/cleanup_execution.log || echo "⚠️ Some applications may have dependency issues - continuing with cleanup"
 
       - name: 👥 Remove project users (from report)
         if: ${{ steps.validate.outputs.report_valid == 'true' }}
@@ -141,7 +170,8 @@ jobs:
           PROJECT_KEY: 'bookverse'
         run: |
           set -euo pipefail
-          bash ./.github/scripts/setup/cleanup_from_report_phase.sh users ${{ inputs.dry_run || 'false' }} 2>&1 | tee -a /tmp/cleanup_execution.log
+          DRY_RUN=${{ inputs.mode == 'preview' && 'true' || 'false' }}
+          bash ./.github/scripts/setup/cleanup_from_report_phase.sh users $DRY_RUN 2>&1 | tee -a /tmp/cleanup_execution.log
 
       - name: 🔄 Clear lifecycle config (safety)
         if: ${{ steps.validate.outputs.report_valid == 'true' }}
@@ -161,7 +191,8 @@ jobs:
           PROJECT_KEY: 'bookverse'
         run: |
           set -euo pipefail
-          bash ./.github/scripts/setup/cleanup_from_report_phase.sh stages ${{ inputs.dry_run || 'false' }} 2>&1 | tee -a /tmp/cleanup_execution.log
+          DRY_RUN=${{ inputs.mode == 'preview' && 'true' || 'false' }}
+          bash ./.github/scripts/setup/cleanup_from_report_phase.sh stages $DRY_RUN 2>&1 | tee -a /tmp/cleanup_execution.log
 
       - name: 🔐 Delete OIDC integrations (from report)
         if: ${{ steps.validate.outputs.report_valid == 'true' }}
@@ -171,7 +202,8 @@ jobs:
           PROJECT_KEY: 'bookverse'
         run: |
           set -euo pipefail
-          bash ./.github/scripts/setup/cleanup_from_report_phase.sh oidc ${{ inputs.dry_run || 'false' }} 2>&1 | tee -a /tmp/cleanup_execution.log
+          DRY_RUN=${{ inputs.mode == 'preview' && 'true' || 'false' }}
+          bash ./.github/scripts/setup/cleanup_from_report_phase.sh oidc $DRY_RUN 2>&1 | tee -a /tmp/cleanup_execution.log
 
       - name: 👥 Delete global @bookverse.com users (from report)
         if: ${{ steps.validate.outputs.report_valid == 'true' }}
@@ -181,7 +213,8 @@ jobs:
           PROJECT_KEY: 'bookverse'
         run: |
           set -euo pipefail
-          bash ./.github/scripts/setup/cleanup_from_report_phase.sh domain_users ${{ inputs.dry_run || 'false' }} 2>&1 | tee -a /tmp/cleanup_execution.log
+          DRY_RUN=${{ inputs.mode == 'preview' && 'true' || 'false' }}
+          bash ./.github/scripts/setup/cleanup_from_report_phase.sh domain_users $DRY_RUN 2>&1 | tee -a /tmp/cleanup_execution.log
 
       - name: 🎯 Delete project (final)
         id: run_cleanup
@@ -192,12 +225,14 @@ jobs:
           PROJECT_KEY: 'bookverse'
         run: |
           set -euo pipefail
-          bash ./.github/scripts/setup/cleanup_from_report_phase.sh project ${{ inputs.dry_run || 'false' }} 2>&1 | tee -a /tmp/cleanup_execution.log
+          DRY_RUN=${{ inputs.mode == 'preview' && 'true' || 'false' }}
+          bash ./.github/scripts/setup/cleanup_from_report_phase.sh project $DRY_RUN 2>&1 | tee -a /tmp/cleanup_execution.log
 
-      - name: 📋 Execute Cleanup Summary
+      - name: 📋 Cleanup Summary (Preview & Execute)
         if: always()
         env:
           CLEANUP_REPORT_VALID: ${{ steps.validate.outputs.report_valid }}
+          MODE: ${{ inputs.mode }}
         run: |
           report_file=".github/cleanup-report.json"
           exec_log="/tmp/cleanup_execution.log"
@@ -228,20 +263,33 @@ jobs:
             fi
           fi
 
-          if [[ "$failed_any" == "true" ]] || [[ "$report_status" == "stale_report" ]] || [[ "$project_deleted" == "no" ]]; then
-            overall="FAILED"
-          elif [[ "$report_status" == "cleanup_completed" ]] || [[ "$project_deleted" == "yes" ]]; then
-            overall="SUCCESS"
-          elif [[ -f "$exec_log" ]]; then
-            overall="PARTIAL"
-          fi
-
-          if [[ "$overall" == "SUCCESS" ]]; then
-            echo "**✅ Overall Result: Cleanup Succeeded**" >> $GITHUB_STEP_SUMMARY
-          elif [[ "$overall" == "FAILED" ]]; then
-            echo "**❌ Overall Result: Cleanup FAILED**" >> $GITHUB_STEP_SUMMARY
+          if [[ "$MODE" == "preview" ]]; then
+            echo "**🔍 Overall Result: Discovery and Preview Completed**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "This preview shows what **would** be deleted in execute mode." >> $GITHUB_STEP_SUMMARY
+            echo "No actual deletions were performed." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Next Steps:**" >> $GITHUB_STEP_SUMMARY
+            echo "1. Review the preview below" >> $GITHUB_STEP_SUMMARY
+            echo "2. If you want to proceed, run this workflow again with:" >> $GITHUB_STEP_SUMMARY
+            echo "   - Mode: \`execute\`" >> $GITHUB_STEP_SUMMARY
+            echo "   - Confirmation: \`DELETE\`" >> $GITHUB_STEP_SUMMARY
           else
-            echo "**⚠️ Overall Result: Partial/Unknown**" >> $GITHUB_STEP_SUMMARY
+            if [[ "$failed_any" == "true" ]] || [[ "$report_status" == "stale_report" ]] || [[ "$project_deleted" == "no" ]]; then
+              overall="FAILED"
+            elif [[ "$report_status" == "cleanup_completed" ]] || [[ "$project_deleted" == "yes" ]]; then
+              overall="SUCCESS"
+            elif [[ -f "$exec_log" ]]; then
+              overall="PARTIAL"
+            fi
+
+            if [[ "$overall" == "SUCCESS" ]]; then
+              echo "**✅ Overall Result: Cleanup Succeeded**" >> $GITHUB_STEP_SUMMARY
+            elif [[ "$overall" == "FAILED" ]]; then
+              echo "**❌ Overall Result: Cleanup FAILED**" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "**⚠️ Overall Result: Partial/Unknown**" >> $GITHUB_STEP_SUMMARY
+            fi
           fi
           if [[ -n "$project_key" ]]; then echo "- **Project**: $project_key" >> $GITHUB_STEP_SUMMARY; fi
           if [[ -n "$ts_pretty" ]]; then echo "- **Last report timestamp**: $ts_pretty UTC" >> $GITHUB_STEP_SUMMARY; fi
@@ -325,20 +373,27 @@ jobs:
             exit 1
           fi
 
-      - name: 🔒 Commit cleanup report changes (post-run)
-        if: ${{ always() && steps.validate.outputs.report_valid == 'true' && steps.run_cleanup.outcome == 'success' }}
+      - name: 🔒 Commit report changes (preview or post-execution)
+        if: ${{ always() && steps.validate.outputs.report_valid == 'true' }}
         run: |
           set -euo pipefail
           report_file=".github/cleanup-report.json"
           if [[ -f "$report_file" ]]; then
-            echo "Committing cleanup report changes after successful execution..."
+            if [[ "${{ inputs.mode }}" == "preview" ]]; then
+              echo "Committing fresh discovery report from preview mode..."
+              commit_msg="chore: Update cleanup discovery report (preview mode)"
+            else
+              echo "Committing cleanup report changes after execution..."
+              commit_msg="chore: Update cleanup report after execution"
+            fi
+            
             git config --global user.name "BookVerse Cleanup Bot"
             git config --global user.email "cleanup@bookverse.demo"
             git add "$report_file"
             if git diff --cached --quiet; then
               echo "📋 No changes to commit for cleanup report"
             else
-              git commit -m "chore: Commit cleanup report after successful execution"
+              git commit -m "$commit_msg"
               git push origin ${{ github.ref_name }}
               echo "📋 Cleanup report changes pushed"
             fi

@@ -207,6 +207,7 @@ set -euo pipefail
 #######################################
 [[ -z ${HTTP_OK+x} ]] && readonly HTTP_OK=200
 [[ -z ${HTTP_CREATED+x} ]] && readonly HTTP_CREATED=201
+[[ -z ${HTTP_ACCEPTED+x} ]] && readonly HTTP_ACCEPTED=202
 [[ -z ${HTTP_NO_CONTENT+x} ]] && readonly HTTP_NO_CONTENT=204
 [[ -z ${HTTP_BAD_REQUEST+x} ]] && readonly HTTP_BAD_REQUEST=400
 [[ -z ${HTTP_UNAUTHORIZED+x} ]] && readonly HTTP_UNAUTHORIZED=401

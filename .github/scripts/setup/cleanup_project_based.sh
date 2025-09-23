@@ -1028,22 +1028,8 @@ delete_project_lifecycle() {
     
     echo "📝 Creating empty lifecycle configuration..."
     
-    # Create payload with empty promote stages but preserve other categories
-    jq '
-        if .categories then
-            # New API format with categories
-            .categories = (.categories | map(
-                if .category == "promote" then
-                    .stages = []
-                else
-                    .
-                end
-            ))
-        else
-            # Legacy format
-            .promote_stages = []
-        end
-    ' "$lifecycle_file" > "$update_payload_file"
+    # Create payload with empty promote stages (API expects this specific format)
+    echo '{"promote_stages": []}' > "$update_payload_file"
     
     if [[ ! -s "$update_payload_file" ]]; then
         echo "❌ Failed to create lifecycle update payload"
@@ -1052,9 +1038,9 @@ delete_project_lifecycle() {
     
     echo "🔄 Updating lifecycle to remove promote stages..."
     local update_code
-    update_code=$(jfrog_api_call "PUT" "/access/api/v2/lifecycle/?project_key=$PROJECT_KEY" "" "curl" "$(cat "$update_payload_file")" "update lifecycle")
+    update_code=$(jfrog_api_call "PATCH" "/access/api/v2/lifecycle/?project_key=$PROJECT_KEY" "" "curl" "$(cat "$update_payload_file")" "update lifecycle")
     
-    if [[ "$update_code" -eq $HTTP_OK || "$update_code" -eq $HTTP_NO_CONTENT ]]; then
+    if [[ "$update_code" -eq $HTTP_ACCEPTED || "$update_code" -eq $HTTP_OK || "$update_code" -eq $HTTP_NO_CONTENT ]]; then
         echo "✅ Lifecycle promote stages cleared successfully"
         return 0
     else

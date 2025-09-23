@@ -435,7 +435,7 @@ if [[ "$K8S_IMAGE_PULL_ROLE_AVAILABLE" != true ]]; then
     echo "⚠️  Proceeding without custom role 'k8s_image_pull' (fallback will assign 'Viewer' to K8s users)"
 fi
 
-echo "🚀 Processing ${
+echo "🚀 Processing ${#BOOKVERSE_USERS[@]} users..."
 
 for user_data in "${BOOKVERSE_USERS[@]}"; do
     IFS='|' read -r username email password role <<< "$user_data"

@@ -169,33 +169,19 @@ cache_docker_image() {
         return 0
     fi
     
-    if [[ "$USE_JF_DOCKER" == "true" ]]; then
-        local attempt
-        for attempt in 1 2 3; do
-            if jf docker pull "${virtual_repo_path}/${image_path}:$tag" 2>/dev/null; then
+    # Use regular docker pull with authenticated registry (more reliable than jf docker pull)
+    local attempt
+    for attempt in 1 2 3; do
+        if docker pull "${virtual_repo_path}/${image_path}:$tag" 2>/dev/null; then
+            return 0
+        fi
+        if [[ "$image_path" == library/* ]]; then
+            if docker pull "${virtual_repo_path}/${image}:$tag" 2>/dev/null; then
                 return 0
             fi
-            if [[ "$image_path" == library/* ]]; then
-                if jf docker pull "${virtual_repo_path}/${image}:$tag" 2>/dev/null; then
-                    return 0
-                fi
-            fi
-            sleep $((attempt * 2))
-        done
-    else
-        local attempt
-        for attempt in 1 2 3; do
-            if docker pull "${virtual_repo_path}/${image_path}:$tag"; then
-                return 0
-            fi
-            if [[ "$image_path" == library/* ]]; then
-                if docker pull "${virtual_repo_path}/${image}:$tag"; then
-                    return 0
-                fi
-            fi
-            sleep $((attempt * 2))
-        done
-    fi
+        fi
+        sleep $((attempt * 2))
+    done
     echo "⚠️ docker pull failed for $image:$tag via ${virtual_repo_path}; attempting API prefetch"
     # Record warning for job summary detection (not a hard error since API prefetch works)
     echo "Docker pull failed for $image:$tag - fell back to API prefetch" >> /tmp/setup_warnings.log 2>/dev/null || true

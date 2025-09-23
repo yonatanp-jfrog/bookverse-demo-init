@@ -223,7 +223,7 @@ Examples:
 EOF
 }
 
-while [[ $
+while [[ $# -gt 0 ]]; do
   case "$1" in
     --port-forward) PORT_FORWARD=true; shift;;
     --resilient-demo) RESILIENT_DEMO=true; shift;;

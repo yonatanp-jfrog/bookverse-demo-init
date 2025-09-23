@@ -274,7 +274,7 @@ log_error() {
     echo -e "${RED}❌ $1${NC}"
 }
 
-while [[ $
+while [[ $# -gt 0 ]]; do
   case "$1" in
     --setup) SETUP_MODE=true; STEADY_MODE=false; shift;;
     --port-forward) PORT_FORWARD_MODE=true; STEADY_MODE=false; shift;;

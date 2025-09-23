@@ -246,7 +246,7 @@ DRY_RUN=false
 RESTART_DEPLOYMENTS=false
 SKIP_TOKEN_GENERATION="${SKIP_TOKEN_GENERATION:-false}"
 
-while [[ $
+while [[ $# -gt 0 ]]; do
     case "$1" in
         --dry-run)
             DRY_RUN=true

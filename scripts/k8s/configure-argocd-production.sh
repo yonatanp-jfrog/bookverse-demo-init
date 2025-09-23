@@ -196,7 +196,7 @@ Prerequisites:
 EOF
 }
 
-while [[ $
+while [[ $# -gt 0 ]]; do
   case "$1" in
     --host) ARGOCD_HOST="$2"; shift 2;;
     -h|--help) usage; exit 0;;

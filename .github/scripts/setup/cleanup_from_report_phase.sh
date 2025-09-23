@@ -252,17 +252,17 @@ case "$PHASE" in
                     else
                         # Check the actual output to determine if it was successfully deleted or not found
                         if grep -q "✅.*deleted successfully" "$deletion_output"; then
-                            ((successful_deletions++))
+                            successful_deletions=$((successful_deletions + 1))
                         elif grep -q "ℹ️.*not found" "$deletion_output"; then
                             ((repos_not_found++))
                         else
                             # This shouldn't happen if execute_deletion works correctly, but handle it
-                            ((successful_deletions++))
+                            successful_deletions=$((successful_deletions + 1))
                         fi
                     fi
                 else
                     echo "❌ Failed to delete repository: $repo_key"
-                    ((failed_deletions++))
+                    failed_deletions=$((failed_deletions + 1))
                     if [[ -z "$failed_repo_list" ]]; then
                         failed_repo_list="$repo_key"
                     else
@@ -327,17 +327,17 @@ case "$PHASE" in
                     else
                         # Check the actual output to determine if it was successfully deleted or not found
                         if grep -q "✅.*deleted successfully" "$deletion_output"; then
-                            ((successful_deletions++))
+                            successful_deletions=$((successful_deletions + 1))
                         elif grep -q "ℹ️.*not found" "$deletion_output"; then
                             ((apps_not_found++))
                         else
                             # This shouldn't happen if execute_deletion works correctly, but handle it
-                            ((successful_deletions++))
+                            successful_deletions=$((successful_deletions + 1))
                         fi
                     fi
                 else
                     echo "❌ Failed to delete application: $app_name"
-                    ((failed_deletions++))
+                    failed_deletions=$((failed_deletions + 1))
                     if [[ -z "$failed_app_list" ]]; then
                         failed_app_list="$app_name"
                     else
@@ -407,26 +407,23 @@ case "$PHASE" in
                 deletion_output=$(mktemp)
                 execute_deletion "build" "$build_name" "/artifactory/api/build/${encoded_build_name}?deleteAll=1&project=${PROJECT_KEY}" "build" 2>&1 | tee "$deletion_output"
                 deletion_exit_code=${PIPESTATUS[0]}
-                echo "DEBUG: execute_deletion exit code: $deletion_exit_code"
                 if [[ $deletion_exit_code -eq 0 ]]; then
                     if [[ "$DRY_RUN" == "true" ]]; then
                         echo "  🔍 [DRY RUN] Would delete build: $build_name"
                     else
                         # Check the actual output to determine if it was successfully deleted or not found
                         if grep -q "✅.*deleted successfully" "$deletion_output"; then
-                            ((successful_deletions++))
+                            successful_deletions=$((successful_deletions + 1))
                         elif grep -q "ℹ️.*not found" "$deletion_output"; then
-                            echo "DEBUG: Incrementing builds_not_found from $builds_not_found"
-                            ((builds_not_found++))
-                            echo "DEBUG: builds_not_found is now $builds_not_found"
+                            builds_not_found=$((builds_not_found + 1))
                         else
                             # This shouldn't happen if execute_deletion works correctly, but handle it
-                            ((successful_deletions++))
+                            successful_deletions=$((successful_deletions + 1))
                         fi
                     fi
                 else
                     echo "❌ Failed to delete build: $build_name"
-                    ((failed_deletions++))
+                    failed_deletions=$((failed_deletions + 1))
                     if [[ -z "$failed_build_list" ]]; then
                         failed_build_list="$build_name"
                     else

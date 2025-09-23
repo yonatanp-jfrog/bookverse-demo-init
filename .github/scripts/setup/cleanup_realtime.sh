@@ -18,6 +18,58 @@ failed_deletions=0
 builds_not_found=0
 total_resources=0
 
+# Define the execute_deletion function for real-time cleanup
+execute_deletion() {
+    local resource_type="$1"
+    local resource_name="$2"
+    local api_endpoint="$3"
+    local description="$4"
+    
+    if [[ "$DRY_RUN" == "true" ]]; then
+        echo "🔍 [DRY RUN] Would delete $resource_type: $resource_name"
+        echo "    API: DELETE ${JFROG_URL}${api_endpoint}"
+        return 0
+    fi
+    
+    echo "Removing $description: $resource_name"
+    
+    local delete_response=$(mktemp)
+    local delete_code=$(curl -s \
+        --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+        -X DELETE \
+        -w "%{http_code}" -o "$delete_response" \
+        "${JFROG_URL}${api_endpoint}")
+    
+    if [[ "$delete_code" -ge 200 && "$delete_code" -lt 300 ]]; then
+        echo "✅ $description '$resource_name' deleted successfully"
+        rm -f "$delete_response"
+        return 0
+    elif [[ "$delete_code" -eq 404 ]]; then
+        echo "ℹ️  $description '$resource_name' not found (already deleted or never existed)"
+        rm -f "$delete_response"
+        return 0
+    elif [[ "$delete_code" -eq 400 ]]; then
+        # Check if it's a dependency error
+        local error_msg=$(cat "$delete_response" 2>/dev/null || echo "")
+        if echo "$error_msg" | grep -q "contains versions\|has dependencies\|in use"; then
+            echo "⚠️ $description '$resource_name' has dependencies that need to be removed first"
+            echo "Error: $error_msg"
+            rm -f "$delete_response"
+            return 1
+        else
+            echo "❌ Failed to delete $description '$resource_name' (HTTP $delete_code - Bad Request)"
+            echo "Response: $(cat "$delete_response")"
+            rm -f "$delete_response"
+            return 1
+        fi
+    else
+        echo "❌ Failed to delete $description '$resource_name' (HTTP $delete_code)"
+        echo "Response: $(cat "$delete_response")"
+        rm -f "$delete_response"
+        return 1
+    fi
+}
+
 case "$PHASE" in
     "app_versions")
         echo "📱 Cleaning up application versions using real-time discovery..."

@@ -63,7 +63,7 @@ cleanup_cicd_temp_user() {
 case "$PHASE" in
     "users")
         echo "👥 Cleaning up project users..."
-        jq -r '.resources.users[]? // empty' "$CLEANUP_REPORT_FILE" | while read -r username; do
+        jq -r '.plan.users[]?.name // empty' "$CLEANUP_REPORT_FILE" | while read -r username; do
             if [[ -n "$username" ]]; then
                 echo "Removing user from project: $username"
             fi
@@ -72,7 +72,7 @@ case "$PHASE" in
         
     "domain_users")
         echo "👥 Cleaning up domain users..."
-        jq -r '.resources.domain_users[]? // empty' "$CLEANUP_REPORT_FILE" | while read -r username; do
+        jq -r '.plan.domain_users[]? // empty' "$CLEANUP_REPORT_FILE" | while read -r username; do
             if [[ -n "$username" ]]; then
                 echo "Removing domain user: $username"
             fi
@@ -83,7 +83,7 @@ case "$PHASE" in
         
     "oidc")
         echo "🔐 Cleaning up OIDC integrations..."
-        jq -r '.resources.oidc_integrations[]? // empty' "$CLEANUP_REPORT_FILE" | while read -r integration_name; do
+        jq -r '.plan.oidc[]? // empty' "$CLEANUP_REPORT_FILE" | while read -r integration_name; do
             if [[ -n "$integration_name" ]]; then
                 echo "Removing OIDC integration: $integration_name"
                 
@@ -107,7 +107,7 @@ case "$PHASE" in
         
     "repositories")
         echo "📦 Cleaning up repositories..."
-        jq -r '.resources.repositories[]? // empty' "$CLEANUP_REPORT_FILE" | while read -r repo_key; do
+        jq -r '.plan.repositories[]?.key // empty' "$CLEANUP_REPORT_FILE" | while read -r repo_key; do
             if [[ -n "$repo_key" ]]; then
                 echo "Removing repository: $repo_key"
                 
@@ -131,7 +131,7 @@ case "$PHASE" in
         
     "applications")
         echo "🚀 Cleaning up applications..."
-        jq -r '.resources.applications[]? // empty' "$CLEANUP_REPORT_FILE" | while read -r app_name; do
+        jq -r '.plan.applications[]?.key // empty' "$CLEANUP_REPORT_FILE" | while read -r app_name; do
             if [[ -n "$app_name" ]]; then
                 echo "Removing application: $app_name"
                 
@@ -155,7 +155,7 @@ case "$PHASE" in
         
     "stages")
         echo "🏷️ Cleaning up lifecycle stages..."
-        jq -r '.resources.stages[]? // empty' "$CLEANUP_REPORT_FILE" | while read -r stage_name; do
+        jq -r '.plan.stages[]?.name // empty' "$CLEANUP_REPORT_FILE" | while read -r stage_name; do
             if [[ -n "$stage_name" ]]; then
                 echo "Removing stage: $stage_name"
                 
@@ -179,7 +179,7 @@ case "$PHASE" in
         
     "builds")
         echo "🔧 Cleaning up builds..."
-        jq -r '.resources.builds[]? // empty' "$CLEANUP_REPORT_FILE" | while read -r build_name; do
+        jq -r '.plan.builds[]?.name // empty' "$CLEANUP_REPORT_FILE" | while read -r build_name; do
             if [[ -n "$build_name" ]]; then
                 echo "Removing build: $build_name"
                 

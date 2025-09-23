@@ -106,19 +106,44 @@ jobs:
             if [[ $status -eq 0 ]]; then
               echo "report_valid=true" >> "$GITHUB_OUTPUT"
             else
-              echo "report_valid=false" >> "$GITHUB_OUTPUT"
-              if [[ -f ".github/cleanup-report.json" ]]; then
-                ts=$(jq -r '.metadata.timestamp // "unknown"' .github/cleanup-report.json)
-                pretty_ts=$(date -u -d "$ts" +"%a, %b %d %Y %H:%M:%S %Z" 2>/dev/null || echo "$ts")
-                echo "Report is not usable - missing, invalid, or expired." >> $GITHUB_STEP_SUMMARY
-                echo "- Last report timestamp: $pretty_ts" >> $GITHUB_STEP_SUMMARY
+              echo "⚠️ Existing cleanup report is invalid or stale. Attempting to generate fresh report..."
+              echo "🔄 Generating fresh discovery for execute mode..."
+              
+              # Try to generate a fresh report
+              cd .github/scripts/setup
+              export SKIP_PROTECTION=true
+              if bash -c 'source ./cleanup_project_based.sh && run_discovery_preview'; then
+                cd -
+                if [[ -f ".github/cleanup-report.json" ]]; then
+                  echo "✅ Fresh discovery report generated successfully for execute mode"
+                  echo "report_valid=true" >> "$GITHUB_OUTPUT"
+                else
+                  echo "❌ Discovery completed but no report generated"
+                  echo "report_valid=false" >> "$GITHUB_OUTPUT"
+                  cd -
+                fi
               else
-                echo "No cleanup report found. Run this workflow in 'preview' mode first to generate a fresh report." >> $GITHUB_STEP_SUMMARY
+                echo "❌ Failed to generate fresh discovery report"
+                echo "report_valid=false" >> "$GITHUB_OUTPUT"
+                cd -
               fi
-              echo "" >> $GITHUB_STEP_SUMMARY
-              echo "- Run this workflow in 'preview' mode to generate a fresh report." >> $GITHUB_STEP_SUMMARY
-              echo "- Then re-run in 'execute' mode to perform actual cleanup." >> $GITHUB_STEP_SUMMARY
-              exit 0
+              
+              # If fresh report generation failed, exit with error
+              if [[ "$(tail -1 "$GITHUB_OUTPUT" | cut -d= -f2)" != "true" ]]; then
+                if [[ -f ".github/cleanup-report.json" ]]; then
+                  ts=$(jq -r '.metadata.timestamp // "unknown"' .github/cleanup-report.json)
+                  pretty_ts=$(date -u -d "$ts" +"%a, %b %d %Y %H:%M:%S %Z" 2>/dev/null || echo "$ts")
+                  echo "Report is not usable - missing, invalid, or expired." >> $GITHUB_STEP_SUMMARY
+                  echo "- Last report timestamp: $pretty_ts" >> $GITHUB_STEP_SUMMARY
+                else
+                  echo "No cleanup report found. Run this workflow in 'preview' mode first to generate a fresh report." >> $GITHUB_STEP_SUMMARY
+                fi
+                echo "" >> $GITHUB_STEP_SUMMARY
+                echo "- Run this workflow in 'preview' mode to generate a fresh report." >> $GITHUB_STEP_SUMMARY
+                echo "- Then re-run in 'execute' mode to perform actual cleanup." >> $GITHUB_STEP_SUMMARY
+                echo "❌ Cleanup cannot proceed - failed to generate valid cleanup report" >&2
+                exit 1
+              fi
             fi
           fi
 
@@ -483,9 +508,16 @@ jobs:
             echo "- Execution log not found" >> $GITHUB_STEP_SUMMARY
           fi
 
-          if [[ "$MODE" == "execute" ]] && [[ "${CLEANUP_REPORT_VALID}" == "true" ]] && [[ "$overall" != "SUCCESS" ]]; then
-            echo "Cleanup result: $overall - project_deleted=$project_deleted. Failing job." >&2
-            exit 1
+          if [[ "$MODE" == "execute" ]]; then
+            if [[ "${CLEANUP_REPORT_VALID}" != "true" ]]; then
+              echo "❌ Cleanup failed: Invalid or stale cleanup report. No cleanup steps were executed." >&2
+              exit 1
+            elif [[ "$overall" != "SUCCESS" ]]; then
+              echo "Cleanup result: $overall - project_deleted=$project_deleted. Failing job." >&2
+              exit 1
+            else
+              echo "✅ Cleanup executed successfully"
+            fi
           elif [[ "$MODE" == "preview" ]]; then
             echo "Preview mode completed successfully"
           fi

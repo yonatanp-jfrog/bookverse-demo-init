@@ -481,7 +481,11 @@ discover_project_builds() {
     if is_success "$code" && [[ -s "$builds_file" ]]; then
         echo "✅ Successfully discovered builds for project '$PROJECT_KEY'" >&2
         
-        jq -r '.builds[]?.uri' "$builds_file" 2>/dev/null | sed 's|^/||' > "$filtered_builds" 2>/dev/null || true
+        jq -r '.builds[]?.uri' "$builds_file" 2>/dev/null | sed 's|^/||' | while IFS= read -r build; do
+            if [[ -n "$build" ]]; then
+                python3 -c "import urllib.parse; print(urllib.parse.unquote('$build'))"
+            fi
+        done > "$filtered_builds" 2>/dev/null || true
         count=$(wc -l < "$filtered_builds" 2>/dev/null || echo 0)
     fi
 

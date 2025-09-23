@@ -96,8 +96,9 @@ jobs:
           JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
           PROJECT_KEY: 'bookverse'
         run: |
-          set -euo pipefail
-          bash ./.github/scripts/setup/cleanup_from_report_phase.sh builds ${{ inputs.dry_run || 'false' }} 2>&1 | tee -a /tmp/cleanup_execution.log
+          set -uo pipefail
+          # Continue on build cleanup errors - some builds may not exist
+          bash ./.github/scripts/setup/cleanup_from_report_phase.sh builds ${{ inputs.dry_run || 'false' }} 2>&1 | tee -a /tmp/cleanup_execution.log || echo "⚠️ Some builds may not exist - continuing with cleanup"
 
       - name: 🚀 Delete applications (from report)
         if: ${{ steps.validate.outputs.report_valid == 'true' }}
@@ -106,8 +107,9 @@ jobs:
           JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
           PROJECT_KEY: 'bookverse'
         run: |
-          set -euo pipefail
-          bash ./.github/scripts/setup/cleanup_from_report_phase.sh applications ${{ inputs.dry_run || 'false' }} 2>&1 | tee -a /tmp/cleanup_execution.log
+          set -uo pipefail
+          # Continue on application cleanup errors due to dependencies
+          bash ./.github/scripts/setup/cleanup_from_report_phase.sh applications ${{ inputs.dry_run || 'false' }} 2>&1 | tee -a /tmp/cleanup_execution.log || echo "⚠️ Some applications may have dependency issues - continuing with cleanup"
 
       - name: 📦 Delete repositories (from report)
         if: ${{ steps.validate.outputs.report_valid == 'true' }}

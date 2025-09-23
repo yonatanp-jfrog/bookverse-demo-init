@@ -74,6 +74,20 @@ execute_deletion() {
         echo "ℹ️  $description '$resource_name' not found (already deleted or never existed)"
         rm -f "$delete_response"
         return 0
+    elif [[ "$delete_code" -eq 400 ]]; then
+        # Check if it's a dependency error
+        local error_msg=$(cat "$delete_response" 2>/dev/null || echo "")
+        if echo "$error_msg" | grep -q "contains versions\|has dependencies\|in use"; then
+            echo "⚠️ $description '$resource_name' has dependencies that need to be removed first"
+            echo "Error: $error_msg"
+            rm -f "$delete_response"
+            return 1
+        else
+            echo "❌ Failed to delete $description '$resource_name' (HTTP $delete_code - Bad Request)"
+            echo "Response: $(cat "$delete_response")"
+            rm -f "$delete_response"
+            return 1
+        fi
     else
         echo "❌ Failed to delete $description '$resource_name' (HTTP $delete_code)"
         echo "Response: $(cat "$delete_response")"
@@ -174,6 +188,49 @@ case "$PHASE" in
         echo "🚀 Cleaning up applications..."
         jq -r '.plan.applications[]?.key // empty' "$CLEANUP_REPORT_FILE" | while read -r app_name; do
             if [[ -n "$app_name" ]]; then
+                # First, try to delete all versions of the application
+                if [[ "$DRY_RUN" == "true" ]]; then
+                    echo "🔍 [DRY RUN] Would delete all versions of application: $app_name"
+                    echo "🔍 [DRY RUN] Would then delete application: $app_name"
+                else
+                    echo "🗑️ Deleting all versions of application: $app_name"
+                    local versions_response=$(mktemp)
+                    local versions_code=$(curl -s \
+                        --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+                        -X GET \
+                        -w "%{http_code}" -o "$versions_response" \
+                        "${JFROG_URL}/apptrust/api/v1/applications/${app_name}/versions")
+                    
+                    if [[ "$versions_code" -eq 200 ]]; then
+                        # Delete each version
+                        jq -r '.[]?.version_name // empty' "$versions_response" 2>/dev/null | while read -r version; do
+                            if [[ -n "$version" ]]; then
+                                echo "  🗑️ Deleting version: $version"
+                                local delete_version_response=$(mktemp)
+                                local delete_version_code=$(curl -s \
+                                    --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+                                    -X DELETE \
+                                    -w "%{http_code}" -o "$delete_version_response" \
+                                    "${JFROG_URL}/apptrust/api/v1/applications/${app_name}/versions/${version}")
+                                
+                                if [[ "$delete_version_code" -ge 200 && "$delete_version_code" -lt 300 ]]; then
+                                    echo "  ✅ Version '$version' deleted successfully"
+                                elif [[ "$delete_version_code" -eq 404 ]]; then
+                                    echo "  ℹ️  Version '$version' not found (already deleted)"
+                                else
+                                    echo "  ⚠️ Failed to delete version '$version' (HTTP $delete_version_code)"
+                                fi
+                                rm -f "$delete_version_response"
+                            fi
+                        done
+                    fi
+                    rm -f "$versions_response"
+                    
+                    # Small delay to ensure versions are fully deleted
+                    sleep 2
+                fi
+                
+                # Now delete the application itself
                 execute_deletion "application" "$app_name" "/apptrust/api/v1/applications/${app_name}" "application"
             fi
         done

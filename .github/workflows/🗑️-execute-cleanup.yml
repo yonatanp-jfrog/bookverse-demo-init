@@ -173,7 +173,7 @@ jobs:
           set -euo pipefail
           # Delete builds after application versions are removed
           DRY_RUN=${{ inputs.mode == 'preview' && 'true' || 'false' }}
-          bash ./.github/scripts/setup/cleanup_from_report_phase.sh builds $DRY_RUN 2>&1 | tee -a /tmp/cleanup_execution.log || {
+          bash ./.github/scripts/setup/cleanup_realtime.sh builds $DRY_RUN 2>&1 | tee -a /tmp/cleanup_execution.log || {
             echo "❌ Builds cleanup failed with exit code $?"
             echo "Check the logs above for specific errors"
             exit 1
@@ -189,7 +189,7 @@ jobs:
           set -euo pipefail
           # Delete repositories/artifacts after builds are removed
           DRY_RUN=${{ inputs.mode == 'preview' && 'true' || 'false' }}
-          bash ./.github/scripts/setup/cleanup_from_report_phase.sh repositories $DRY_RUN 2>&1 | tee -a /tmp/cleanup_execution.log
+          bash ./.github/scripts/setup/cleanup_realtime.sh repositories $DRY_RUN 2>&1 | tee -a /tmp/cleanup_execution.log
 
       - name: 🚀 Delete applications (step 4 of dependency chain)
         if: ${{ steps.validate.outputs.report_valid == 'true' }}
@@ -201,7 +201,7 @@ jobs:
           set -euo pipefail
           # Delete applications after all their dependencies are removed
           DRY_RUN=${{ inputs.mode == 'preview' && 'true' || 'false' }}
-          bash ./.github/scripts/setup/cleanup_from_report_phase.sh applications $DRY_RUN 2>&1 | tee -a /tmp/cleanup_execution.log || {
+          bash ./.github/scripts/setup/cleanup_realtime.sh applications $DRY_RUN 2>&1 | tee -a /tmp/cleanup_execution.log || {
             echo "❌ Applications cleanup failed with exit code $?"
             echo "Check the logs above for specific errors"
             exit 1
@@ -277,7 +277,7 @@ jobs:
         run: |
           set -euo pipefail
           DRY_RUN=${{ inputs.mode == 'preview' && 'true' || 'false' }}
-          bash ./.github/scripts/setup/cleanup_from_report_phase.sh project $DRY_RUN 2>&1 | tee -a /tmp/cleanup_execution.log
+          bash ./.github/scripts/setup/cleanup_realtime.sh project $DRY_RUN 2>&1 | tee -a /tmp/cleanup_execution.log
 
       - name: 📋 Cleanup Summary (Preview & Execute)
         if: always()

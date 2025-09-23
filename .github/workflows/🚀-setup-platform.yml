@@ -227,16 +227,29 @@ jobs:
             setup_errors="${setup_errors}JFrog authentication/connectivity failed; "
           fi
           
+          # Test JFrog CLI authentication (more specific than basic connectivity)
+          if ! jf rt ping >/dev/null 2>&1; then
+            setup_errors="${setup_errors}JFrog CLI authentication failed; "
+          fi
+          
           # Check if project exists (basic validation)
           project_check=$(curl -s -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" "${JFROG_URL}/access/api/v1/projects/${PROJECT_KEY:-bookverse}" -w "%{http_code}" -o /dev/null 2>/dev/null || echo "000")
           if [[ "$project_check" != "200" ]]; then
             setup_errors="${setup_errors}Project creation/access failed (HTTP $project_check); "
           fi
           
+          # Check if Docker registry authentication is working
+          docker_test=$(jf docker pull "${JFROG_URL#https://}/bookverse-dockerhub-virtual/library/alpine:latest" --dry-run 2>&1 | grep -i "authentication\|unauthorized\|forbidden" || true)
+          if [[ -n "$docker_test" ]]; then
+            setup_errors="${setup_errors}Docker registry authentication failed; "
+          fi
+          
           # Override job status if we found errors
           actual_status="${{ job.status }}"
           if [[ -n "$setup_errors" ]]; then
             actual_status="failed_with_errors"
+            echo "::error::Setup completed with errors: $setup_errors"
+            echo "SETUP_HAD_ERRORS=true" >> $GITHUB_ENV
           fi
           
           if [[ "$actual_status" == "success" ]]; then
@@ -358,3 +371,10 @@ jobs:
             echo "3. 🧹 **Clean up conflicts** before retrying setup" >> $GITHUB_STEP_SUMMARY
             echo "4. ✅ **Verify environment variables** and secrets are configured" >> $GITHUB_STEP_SUMMARY
           fi
+
+      - name: 🚨 Fail job if critical errors detected
+        if: always() && env.SETUP_HAD_ERRORS == 'true'
+        run: |
+          echo "❌ Setup completed with critical errors that require attention"
+          echo "Check the job summary and logs above for details"
+          exit 1

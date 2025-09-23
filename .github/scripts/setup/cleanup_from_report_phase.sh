@@ -407,6 +407,7 @@ case "$PHASE" in
                 deletion_output=$(mktemp)
                 execute_deletion "build" "$build_name" "/artifactory/api/build/${encoded_build_name}?deleteAll=1&project=${PROJECT_KEY}" "build" 2>&1 | tee "$deletion_output"
                 deletion_exit_code=${PIPESTATUS[0]}
+                echo "DEBUG: execute_deletion exit code: $deletion_exit_code"
                 if [[ $deletion_exit_code -eq 0 ]]; then
                     if [[ "$DRY_RUN" == "true" ]]; then
                         echo "  🔍 [DRY RUN] Would delete build: $build_name"

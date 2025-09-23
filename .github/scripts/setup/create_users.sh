@@ -405,7 +405,8 @@ ensure_k8s_image_pull_role() {
             type: "CUSTOM",
             actions: [
                 "READ_REPOSITORY",
-                "READ_RELEASE_BUNDLE"
+                "READ_RELEASE_BUNDLE",
+                "READ_APPLICATION"
             ],
             environments: [
                 "PROD"

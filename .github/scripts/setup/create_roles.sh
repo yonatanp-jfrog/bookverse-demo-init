@@ -136,7 +136,7 @@ create_role() {
         --header "Content-Type: application/json" \
         --request POST \
         --data "$role_payload" \
-        "${JFROG_URL}/access/api/v1/roles")
+        "${JFROG_URL}/access/api/v1/projects/${PROJECT_KEY}/roles")
     
     case "$response_code" in
         201)
@@ -157,13 +157,14 @@ echo "Creating Kubernetes Image Pull role..."
 
 k8s_permissions='[
     "READ_REPOSITORY",
-    "READ_RELEASE_BUNDLE"
+    "READ_RELEASE_BUNDLE",
+    "READ_APPLICATION"
 ]'
 
 k8s_environments='["PROD"]'
 
 create_role \
-    "bookverse-k8s-image-pull" \
+    "k8s_image_pull" \
     "Kubernetes Image Pull - Read access to PROD Docker repositories for container deployment" \
     "$k8s_permissions" \
     "$k8s_environments"
@@ -171,11 +172,11 @@ create_role \
 
 echo "📋 Role creation summary:"
 echo ""
-echo "✅ bookverse-k8s-image-pull (Global Custom Role)"
-echo "   • Purpose: Legacy global role (superseded by project role)"
-echo "   • Permissions: READ_REPOSITORY, READ_RELEASE_BUNDLE"
+echo "✅ k8s_image_pull (Project Custom Role)"
+echo "   • Purpose: K8s image pull access for container deployment"
+echo "   • Permissions: READ_REPOSITORY, READ_RELEASE_BUNDLE, READ_APPLICATION"
 echo "   • Environments: PROD only"
-echo "   • Note: K8s users now use 'k8s_image_pull' project role instead"
+echo "   • Scope: Project-level role for BookVerse project"
 echo ""
 
 echo "🎯 Custom roles are now available for assignment to users"

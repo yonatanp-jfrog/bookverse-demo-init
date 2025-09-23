@@ -78,13 +78,13 @@ jobs:
             if [[ -f ".github/cleanup-report.json" ]]; then
               ts=$(jq -r '.metadata.timestamp // "unknown"' .github/cleanup-report.json)
               pretty_ts=$(date -u -d "$ts" +"%a, %b %d %Y %H:%M:%S %Z" 2>/dev/null || echo "$ts")
-              echo "Report is not usable (missing/invalid/expired)." >> $GITHUB_STEP_SUMMARY
+              echo "Report is not usable - missing, invalid, or expired." >> $GITHUB_STEP_SUMMARY
               echo "- Last report timestamp: $pretty_ts" >> $GITHUB_STEP_SUMMARY
             else
               echo "No cleanup report found. Please run 🔍 Discover Cleanup first." >> $GITHUB_STEP_SUMMARY
             fi
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "- Run the 🔍 Discover Cleanup workflow to generate a fresh report (valid for 30 minutes)." >> $GITHUB_STEP_SUMMARY
+            echo "- Run the 🔍 Discover Cleanup workflow to generate a fresh report valid for 30 minutes." >> $GITHUB_STEP_SUMMARY
             echo "- Then re-run 🗑️ Execute Cleanup." >> $GITHUB_STEP_SUMMARY
             exit 0
           fi
@@ -230,7 +230,7 @@ jobs:
             echo "**⚠️ Overall Result: Partial/Unknown**" >> $GITHUB_STEP_SUMMARY
           fi
           if [[ -n "$project_key" ]]; then echo "- **Project**: $project_key" >> $GITHUB_STEP_SUMMARY; fi
-          if [[ -n "$ts_pretty" ]]; then echo "- **Last report timestamp**: $ts_pretty (UTC)" >> $GITHUB_STEP_SUMMARY; fi
+          if [[ -n "$ts_pretty" ]]; then echo "- **Last report timestamp**: $ts_pretty UTC" >> $GITHUB_STEP_SUMMARY; fi
           if [[ -n "$report_status" ]]; then echo "- **Report status**: $report_status" >> $GITHUB_STEP_SUMMARY; fi
           if [[ -n "$total_items" ]]; then echo "- **Items in report**: $total_items" >> $GITHUB_STEP_SUMMARY; fi
           if [[ "$project_deleted" == "yes" ]]; then echo "- **Project deletion**: ✅ deleted" >> $GITHUB_STEP_SUMMARY; fi
@@ -311,7 +311,7 @@ jobs:
           fi
 
           if [[ "${CLEANUP_REPORT_VALID}" == "true" ]] && [[ "$overall" != "SUCCESS" ]]; then
-            echo "Cleanup result: $overall (project_deleted=$project_deleted). Failing job." >&2
+            echo "Cleanup result: $overall - project_deleted=$project_deleted. Failing job." >&2
             exit 1
           fi
 
@@ -321,7 +321,7 @@ jobs:
           set -euo pipefail
           report_file=".github/cleanup-report.json"
           if [[ -f "$report_file" ]]; then
-            echo "Committing cleanup report changes (post-success)..."
+            echo "Committing cleanup report changes after successful execution..."
             git config --global user.name "BookVerse Cleanup Bot"
             git config --global user.email "cleanup@bookverse.demo"
             git add "$report_file"

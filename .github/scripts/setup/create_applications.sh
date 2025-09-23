@@ -176,7 +176,7 @@ create_application() {
         fi
     done
     
-    if [[ ${
+    if [[ ${#missing_fields[@]} -gt 0 ]]; then
         echo "❌ CRITICAL: Missing required fields in payload: ${missing_fields[*]}"
         echo "Generated payload:"
         echo "$app_payload" | jq .
@@ -412,7 +412,7 @@ update_repo_jfrog_config() {
         --arg content "$b64" \
         --arg branch "$branch" \
         --arg sha "$sha" \
-        'if ($sha | length) > 0 then {message:$message, content:$content, branch:$branch, sha:$sha} else {message:$message, content:$content, branch:$branch} end')
+        'if $sha != "" then {message:$message, content:$content, branch:$branch, sha:$sha} else {message:$message, content:$content, branch:$branch} end')
 
     if echo "$payload" | gh api -X PUT -H "Accept: application/vnd.github+json" "repos/$owner/$repo_name/contents/.jfrog/config.yml" --input - >/dev/null 2>&1; then
         echo "✅ .jfrog/config.yml updated in $owner/$repo_name@$branch"
@@ -421,7 +421,7 @@ update_repo_jfrog_config() {
     fi
 }
 
-echo "🔧 Propagating application keys to service repositories (.jfrog/config.yml)"
+echo "🔧 Propagating application keys to service repositories - jfrog config"
 for app_data in "${BOOKVERSE_APPLICATIONS[@]}"; do
     IFS='|' read -r app_key _rest <<< "$app_data"
     update_repo_jfrog_config "$app_key"

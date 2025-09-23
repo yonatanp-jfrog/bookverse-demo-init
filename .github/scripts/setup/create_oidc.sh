@@ -417,7 +417,7 @@ for oidc_data in "${OIDC_CONFIGS[@]}"; do
 done
 
 echo ""
-echo "🚀 Processing ${
+echo "🚀 Processing ${#OIDC_CONFIGS[@]} OIDC integrations..."
 echo ""
 
 for oidc_data in "${OIDC_CONFIGS[@]}"; do

@@ -103,7 +103,14 @@ jobs:
                     fi
                     echo "Retrying with fresh pull..."
                     git reset --hard origin/${{ github.ref_name }}
-                    git commit -m "chore: Update cleanup discovery report (retry $retry_count)"
+                    # Re-add the updated report file and commit again
+                    git add "$dest_path"
+                    if ! git diff --cached --quiet; then
+                      git commit -m "chore: Update cleanup discovery report (retry $retry_count)"
+                    else
+                      echo "No changes to commit after reset, skipping retry..."
+                      break
+                    fi
                   fi
                 fi
               done

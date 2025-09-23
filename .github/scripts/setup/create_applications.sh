@@ -359,7 +359,7 @@ for app_data in "${BOOKVERSE_APPLICATIONS[@]}"; do
 done
 
 echo ""
-echo "🚀 Processing ${
+echo "🚀 Processing ${#BOOKVERSE_APPLICATIONS[@]} applications..."
 echo ""
 
 for app_data in "${BOOKVERSE_APPLICATIONS[@]}"; do
@@ -407,12 +407,12 @@ update_repo_jfrog_config() {
     sha=$(gh api -X GET "repos/$owner/$repo_name/contents/.jfrog/config.yml" -f ref="$branch" -q .sha 2>/dev/null || echo "")
 
     local payload
-    payload=$(jq -n \
-        --arg message "chore: set JFrog application key ($app_key)" \
-        --arg content "$b64" \
-        --arg branch "$branch" \
-        --arg sha "$sha" \
-        'if $sha != "" then {message:$message, content:$content, branch:$branch, sha:$sha} else {message:$message, content:$content, branch:$branch} end')
+    local msg="chore: set JFrog application key ($app_key)"
+    if [[ -n "$sha" ]]; then
+        payload=$(jq -n --arg message "$msg" --arg content "$b64" --arg branch "$branch" --arg sha "$sha" '{message:$message, content:$content, branch:$branch, sha:$sha}')
+    else
+        payload=$(jq -n --arg message "$msg" --arg content "$b64" --arg branch "$branch" '{message:$message, content:$content, branch:$branch}')
+    fi
 
     if echo "$payload" | gh api -X PUT -H "Accept: application/vnd.github+json" "repos/$owner/$repo_name/contents/.jfrog/config.yml" --input - >/dev/null 2>&1; then
         echo "✅ .jfrog/config.yml updated in $owner/$repo_name@$branch"

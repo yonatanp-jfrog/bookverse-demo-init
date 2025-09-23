@@ -157,7 +157,7 @@ jobs:
           set -euo pipefail
           # Delete application versions first (highest level dependencies)
           DRY_RUN=${{ inputs.mode == 'preview' && 'true' || 'false' }}
-          bash ./.github/scripts/setup/cleanup_from_report_phase.sh app_versions $DRY_RUN 2>&1 | tee -a /tmp/cleanup_execution.log || {
+          bash ./.github/scripts/setup/cleanup_realtime.sh app_versions $DRY_RUN 2>&1 | tee -a /tmp/cleanup_execution.log || {
             echo "❌ Application versions cleanup failed with exit code $?"
             echo "Check the logs above for specific errors"
             exit 1
@@ -216,7 +216,7 @@ jobs:
         run: |
           set -euo pipefail
           DRY_RUN=${{ inputs.mode == 'preview' && 'true' || 'false' }}
-          bash ./.github/scripts/setup/cleanup_from_report_phase.sh users $DRY_RUN 2>&1 | tee -a /tmp/cleanup_execution.log
+          bash ./.github/scripts/setup/cleanup_realtime.sh users $DRY_RUN 2>&1 | tee -a /tmp/cleanup_execution.log
 
       - name: 🔄 Clear lifecycle config (safety)
         if: ${{ steps.validate.outputs.report_valid == 'true' }}
@@ -243,7 +243,7 @@ jobs:
         run: |
           set -euo pipefail
           DRY_RUN=${{ inputs.mode == 'preview' && 'true' || 'false' }}
-          bash ./.github/scripts/setup/cleanup_from_report_phase.sh stages $DRY_RUN 2>&1 | tee -a /tmp/cleanup_execution.log
+          bash ./.github/scripts/setup/cleanup_realtime.sh stages $DRY_RUN 2>&1 | tee -a /tmp/cleanup_execution.log
 
       - name: 🔐 Delete OIDC integrations (from report)
         if: ${{ steps.validate.outputs.report_valid == 'true' }}
@@ -254,7 +254,7 @@ jobs:
         run: |
           set -euo pipefail
           DRY_RUN=${{ inputs.mode == 'preview' && 'true' || 'false' }}
-          bash ./.github/scripts/setup/cleanup_from_report_phase.sh oidc $DRY_RUN 2>&1 | tee -a /tmp/cleanup_execution.log
+          bash ./.github/scripts/setup/cleanup_realtime.sh oidc $DRY_RUN 2>&1 | tee -a /tmp/cleanup_execution.log
 
       - name: 👥 Delete global @bookverse.com users (from report)
         if: ${{ steps.validate.outputs.report_valid == 'true' }}
@@ -265,7 +265,7 @@ jobs:
         run: |
           set -euo pipefail
           DRY_RUN=${{ inputs.mode == 'preview' && 'true' || 'false' }}
-          bash ./.github/scripts/setup/cleanup_from_report_phase.sh domain_users $DRY_RUN 2>&1 | tee -a /tmp/cleanup_execution.log
+          bash ./.github/scripts/setup/cleanup_realtime.sh domain_users $DRY_RUN 2>&1 | tee -a /tmp/cleanup_execution.log
 
       - name: 🎯 Delete project (final)
         id: run_cleanup

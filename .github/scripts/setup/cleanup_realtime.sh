@@ -19,6 +19,367 @@ builds_not_found=0
 total_resources=0
 
 case "$PHASE" in
+    "app_versions")
+        echo "📱 Cleaning up application versions using real-time discovery..."
+        
+        # Use the real-time discovery function
+        if ! discover_project_applications; then
+            echo "❌ Failed to discover applications for project '$PROJECT_KEY'"
+            exit 1
+        fi
+        
+        if [[ -f "$TEMP_DIR/project_applications.txt" && -s "$TEMP_DIR/project_applications.txt" ]]; then
+            total_resources=$(wc -l < "$TEMP_DIR/project_applications.txt")
+            echo "📊 Found $total_resources applications to process for version cleanup"
+            
+            while read -r app_name; do
+                if [[ -n "$app_name" ]]; then
+                    echo "Processing application versions: $app_name"
+                    
+                    if [[ "$DRY_RUN" == "true" ]]; then
+                        echo "  🔍 [DRY RUN] Would delete all versions of application: $app_name"
+                        successful_deletions=$((successful_deletions + 1))
+                    else
+                        # Get versions for this application
+                        versions_response=$(mktemp)
+                        versions_code=$(curl -s \
+                            --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+                            -X GET \
+                            -w "%{http_code}" -o "$versions_response" \
+                            "${JFROG_URL}/apptrust/api/v1/applications/${app_name}/versions")
+                        
+                        if [[ "$versions_code" -eq 200 ]]; then
+                            # Delete all versions
+                            deletion_code=$(curl -s \
+                                --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+                                -X DELETE \
+                                -w "%{http_code}" \
+                                "${JFROG_URL}/apptrust/api/v1/applications/${app_name}/versions")
+                            
+                            if [[ "$deletion_code" -ge 200 && "$deletion_code" -lt 300 ]]; then
+                                echo "  ✅ Application versions '$app_name' deleted successfully"
+                                successful_deletions=$((successful_deletions + 1))
+                            else
+                                echo "  ❌ Failed to delete application versions '$app_name' (HTTP $deletion_code)"
+                                failed_deletions=$((failed_deletions + 1))
+                            fi
+                        elif [[ "$versions_code" -eq 404 ]]; then
+                            echo "  ℹ️  Application '$app_name' not found (already deleted or never existed)"
+                            builds_not_found=$((builds_not_found + 1))
+                        else
+                            echo "  ❌ Failed to get versions for application '$app_name' (HTTP $versions_code)"
+                            failed_deletions=$((failed_deletions + 1))
+                        fi
+                        rm -f "$versions_response"
+                    fi
+                fi
+            done < "$TEMP_DIR/project_applications.txt"
+        else
+            echo "📊 No applications found to process for version cleanup"
+            total_resources=0
+        fi
+        
+        # Report summary
+        echo ""
+        echo "📊 Application versions cleanup summary:"
+        if [[ "$DRY_RUN" == "true" ]]; then
+            echo "   🔍 Total applications that would be processed: $total_resources"
+        else
+            echo "   ✅ Successfully deleted: $successful_deletions"
+            echo "   ℹ️  Not found (already deleted): $builds_not_found"
+            echo "   ❌ Failed to delete: $failed_deletions"
+            
+            if [[ $failed_deletions -gt 0 ]]; then
+                echo "❌ Some application version deletions failed!"
+                exit 1
+            elif [[ $total_resources -eq 0 ]]; then
+                echo "ℹ️  No applications found in project"
+            else
+                echo "✅ All application versions cleaned up successfully"
+            fi
+        fi
+        ;;
+
+    "users")
+        echo "👥 Cleaning up users using real-time discovery..."
+        
+        # Use the real-time discovery function
+        if ! discover_project_users; then
+            echo "❌ Failed to discover users for project '$PROJECT_KEY'"
+            exit 1
+        fi
+        
+        if [[ -f "$TEMP_DIR/project_users.txt" && -s "$TEMP_DIR/project_users.txt" ]]; then
+            total_resources=$(wc -l < "$TEMP_DIR/project_users.txt")
+            echo "📊 Found $total_resources users to clean up"
+            
+            while read -r username; do
+                if [[ -n "$username" ]]; then
+                    echo "Processing user: $username"
+                    
+                    if [[ "$DRY_RUN" == "true" ]]; then
+                        echo "  🔍 [DRY RUN] Would delete user: $username"
+                        successful_deletions=$((successful_deletions + 1))
+                    else
+                        # First remove from project
+                        removal_code=$(curl -s \
+                            --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+                            -X DELETE \
+                            -w "%{http_code}" \
+                            "${JFROG_URL}/access/api/v1/projects/${PROJECT_KEY}/users/${username}")
+                        
+                        # Then delete user entirely
+                        deletion_code=$(curl -s \
+                            --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+                            -X DELETE \
+                            -w "%{http_code}" \
+                            "${JFROG_URL}/access/api/v2/users/${username}")
+                        
+                        if [[ "$deletion_code" -ge 200 && "$deletion_code" -lt 300 ]] || [[ "$deletion_code" -eq 404 ]]; then
+                            echo "  ✅ User '$username' deleted successfully"
+                            successful_deletions=$((successful_deletions + 1))
+                        else
+                            echo "  ❌ Failed to delete user '$username' (HTTP $deletion_code)"
+                            failed_deletions=$((failed_deletions + 1))
+                        fi
+                    fi
+                fi
+            done < "$TEMP_DIR/project_users.txt"
+        else
+            echo "📊 No users found to clean up"
+            total_resources=0
+        fi
+        
+        # Report summary
+        echo ""
+        echo "📊 Users cleanup summary:"
+        if [[ "$DRY_RUN" == "true" ]]; then
+            echo "   🔍 Total users that would be processed: $total_resources"
+        else
+            echo "   ✅ Successfully deleted: $successful_deletions"
+            echo "   ❌ Failed to delete: $failed_deletions"
+            
+            if [[ $failed_deletions -gt 0 ]]; then
+                echo "❌ Some user deletions failed!"
+                exit 1
+            elif [[ $total_resources -eq 0 ]]; then
+                echo "ℹ️  No users found in project"
+            else
+                echo "✅ All users cleaned up successfully"
+            fi
+        fi
+        ;;
+
+    "domain_users")
+        echo "🌐 Cleaning up domain users using real-time discovery..."
+        # For domain users, we can reuse the same logic as regular users
+        # since discover_project_users should find all users including domain users
+        
+        if ! discover_project_users; then
+            echo "❌ Failed to discover users for project '$PROJECT_KEY'"
+            exit 1
+        fi
+        
+        if [[ -f "$TEMP_DIR/project_users.txt" && -s "$TEMP_DIR/project_users.txt" ]]; then
+            # Filter for domain users (typically contain @ or specific patterns)
+            grep '@\|domain' "$TEMP_DIR/project_users.txt" > "$TEMP_DIR/domain_users.txt" 2>/dev/null || echo "" > "$TEMP_DIR/domain_users.txt"
+            
+            if [[ -s "$TEMP_DIR/domain_users.txt" ]]; then
+                total_resources=$(wc -l < "$TEMP_DIR/domain_users.txt")
+                echo "📊 Found $total_resources domain users to clean up"
+                
+                while read -r username; do
+                    if [[ -n "$username" ]]; then
+                        echo "Processing domain user: $username"
+                        
+                        if [[ "$DRY_RUN" == "true" ]]; then
+                            echo "  🔍 [DRY RUN] Would delete domain user: $username"
+                            successful_deletions=$((successful_deletions + 1))
+                        else
+                            # Remove from project and delete user
+                            removal_code=$(curl -s \
+                                --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+                                -X DELETE \
+                                -w "%{http_code}" \
+                                "${JFROG_URL}/access/api/v1/projects/${PROJECT_KEY}/users/${username}")
+                            
+                            deletion_code=$(curl -s \
+                                --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+                                -X DELETE \
+                                -w "%{http_code}" \
+                                "${JFROG_URL}/access/api/v2/users/${username}")
+                            
+                            if [[ "$deletion_code" -ge 200 && "$deletion_code" -lt 300 ]] || [[ "$deletion_code" -eq 404 ]]; then
+                                echo "  ✅ Domain user '$username' deleted successfully"
+                                successful_deletions=$((successful_deletions + 1))
+                            else
+                                echo "  ❌ Failed to delete domain user '$username' (HTTP $deletion_code)"
+                                failed_deletions=$((failed_deletions + 1))
+                            fi
+                        fi
+                    fi
+                done < "$TEMP_DIR/domain_users.txt"
+            else
+                echo "📊 No domain users found to clean up"
+                total_resources=0
+            fi
+        else
+            echo "📊 No users found to check for domain users"
+            total_resources=0
+        fi
+        
+        # Report summary
+        echo ""
+        echo "📊 Domain users cleanup summary:"
+        if [[ "$DRY_RUN" == "true" ]]; then
+            echo "   🔍 Total domain users that would be processed: $total_resources"
+        else
+            echo "   ✅ Successfully deleted: $successful_deletions"
+            echo "   ❌ Failed to delete: $failed_deletions"
+            
+            if [[ $failed_deletions -gt 0 ]]; then
+                echo "❌ Some domain user deletions failed!"
+                exit 1
+            elif [[ $total_resources -eq 0 ]]; then
+                echo "ℹ️  No domain users found in project"
+            else
+                echo "✅ All domain users cleaned up successfully"
+            fi
+        fi
+        ;;
+
+    "stages")
+        echo "🏗️ Cleaning up stages using real-time discovery..."
+        
+        # Use the real-time discovery function
+        if ! discover_project_stages; then
+            echo "❌ Failed to discover stages for project '$PROJECT_KEY'"
+            exit 1
+        fi
+        
+        if [[ -f "$TEMP_DIR/project_stages.txt" && -s "$TEMP_DIR/project_stages.txt" ]]; then
+            total_resources=$(wc -l < "$TEMP_DIR/project_stages.txt")
+            echo "📊 Found $total_resources stages to clean up"
+            
+            while read -r stage_name; do
+                if [[ -n "$stage_name" ]]; then
+                    echo "Processing stage: $stage_name"
+                    
+                    if [[ "$DRY_RUN" == "true" ]]; then
+                        echo "  🔍 [DRY RUN] Would delete stage: $stage_name"
+                        successful_deletions=$((successful_deletions + 1))
+                    else
+                        deletion_code=$(curl -s \
+                            --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+                            -X DELETE \
+                            -w "%{http_code}" \
+                            "${JFROG_URL}/access/api/v2/stages/${stage_name}")
+                        
+                        if [[ "$deletion_code" -ge 200 && "$deletion_code" -lt 300 ]]; then
+                            echo "  ✅ Stage '$stage_name' deleted successfully"
+                            successful_deletions=$((successful_deletions + 1))
+                        elif [[ "$deletion_code" -eq 404 ]]; then
+                            echo "  ℹ️  Stage '$stage_name' not found (already deleted or never existed)"
+                            builds_not_found=$((builds_not_found + 1))
+                        else
+                            echo "  ❌ Failed to delete stage '$stage_name' (HTTP $deletion_code)"
+                            failed_deletions=$((failed_deletions + 1))
+                        fi
+                    fi
+                fi
+            done < "$TEMP_DIR/project_stages.txt"
+        else
+            echo "📊 No stages found to clean up"
+            total_resources=0
+        fi
+        
+        # Report summary
+        echo ""
+        echo "📊 Stages cleanup summary:"
+        if [[ "$DRY_RUN" == "true" ]]; then
+            echo "   🔍 Total stages that would be processed: $total_resources"
+        else
+            echo "   ✅ Successfully deleted: $successful_deletions"
+            echo "   ℹ️  Not found (already deleted): $builds_not_found"
+            echo "   ❌ Failed to delete: $failed_deletions"
+            
+            if [[ $failed_deletions -gt 0 ]]; then
+                echo "❌ Some stage deletions failed!"
+                exit 1
+            elif [[ $total_resources -eq 0 ]]; then
+                echo "ℹ️  No stages found in project"
+            else
+                echo "✅ All stages cleaned up successfully"
+            fi
+        fi
+        ;;
+
+    "oidc")
+        echo "🔐 Cleaning up OIDC integrations using real-time discovery..."
+        
+        # Use the real-time discovery function
+        if ! discover_project_oidc; then
+            echo "❌ Failed to discover OIDC integrations for project '$PROJECT_KEY'"
+            exit 1
+        fi
+        
+        if [[ -f "$TEMP_DIR/project_oidc.txt" && -s "$TEMP_DIR/project_oidc.txt" ]]; then
+            total_resources=$(wc -l < "$TEMP_DIR/project_oidc.txt")
+            echo "📊 Found $total_resources OIDC integrations to clean up"
+            
+            while read -r integration_name; do
+                if [[ -n "$integration_name" ]]; then
+                    echo "Processing OIDC integration: $integration_name"
+                    
+                    if [[ "$DRY_RUN" == "true" ]]; then
+                        echo "  🔍 [DRY RUN] Would delete OIDC integration: $integration_name"
+                        successful_deletions=$((successful_deletions + 1))
+                    else
+                        deletion_code=$(curl -s \
+                            --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+                            -X DELETE \
+                            -w "%{http_code}" \
+                            "${JFROG_URL}/access/api/v1/oidc/${integration_name}")
+                        
+                        if [[ "$deletion_code" -ge 200 && "$deletion_code" -lt 300 ]]; then
+                            echo "  ✅ OIDC integration '$integration_name' deleted successfully"
+                            successful_deletions=$((successful_deletions + 1))
+                        elif [[ "$deletion_code" -eq 404 ]]; then
+                            echo "  ℹ️  OIDC integration '$integration_name' not found (already deleted or never existed)"
+                            builds_not_found=$((builds_not_found + 1))
+                        else
+                            echo "  ❌ Failed to delete OIDC integration '$integration_name' (HTTP $deletion_code)"
+                            failed_deletions=$((failed_deletions + 1))
+                        fi
+                    fi
+                fi
+            done < "$TEMP_DIR/project_oidc.txt"
+        else
+            echo "📊 No OIDC integrations found to clean up"
+            total_resources=0
+        fi
+        
+        # Report summary
+        echo ""
+        echo "📊 OIDC integrations cleanup summary:"
+        if [[ "$DRY_RUN" == "true" ]]; then
+            echo "   🔍 Total OIDC integrations that would be processed: $total_resources"
+        else
+            echo "   ✅ Successfully deleted: $successful_deletions"
+            echo "   ℹ️  Not found (already deleted): $builds_not_found"
+            echo "   ❌ Failed to delete: $failed_deletions"
+            
+            if [[ $failed_deletions -gt 0 ]]; then
+                echo "❌ Some OIDC integration deletions failed!"
+                exit 1
+            elif [[ $total_resources -eq 0 ]]; then
+                echo "ℹ️  No OIDC integrations found in project"
+            else
+                echo "✅ All OIDC integrations cleaned up successfully"
+            fi
+        fi
+        ;;
+        
     "builds")
         echo "🔧 Cleaning up builds using real-time discovery..."
         
@@ -241,7 +602,7 @@ case "$PHASE" in
         
     *)
         echo "❌ Unknown cleanup phase: $PHASE"
-        echo "Supported phases: builds, repositories, applications, project"
+        echo "Supported phases: app_versions, users, domain_users, oidc, stages, builds, repositories, applications, project"
         exit 1
         ;;
 esac

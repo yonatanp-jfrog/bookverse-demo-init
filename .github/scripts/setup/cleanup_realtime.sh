@@ -451,7 +451,7 @@ case "$PHASE" in
                         successful_deletions=$((successful_deletions + 1))
                     else
                         # URL encode the build name for the API call
-                        encoded_build_name=$(printf '%s\n' "$build_name" | jq -sRr @uri)
+                        encoded_build_name=$(printf '%s' "$build_name" | jq -sRr @uri)
                         
                         # Capture the output to determine success type
                         deletion_output=$(mktemp)

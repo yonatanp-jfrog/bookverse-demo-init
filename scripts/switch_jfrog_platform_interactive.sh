@@ -345,12 +345,12 @@ update_all_repositories() {
     local repos
     mapfile -t repos < <(get_bookverse_repos)
     
-    if [[ ${
+    if [[ ${#repos[@]} -eq 0 ]]; then
         log_error "No BookVerse repositories found"
         exit 1
     fi
     
-    log_info "Found ${
+    log_info "Found ${#repos[@]} BookVerse repositories"
     echo ""
     
     local success_count=0
@@ -361,7 +361,7 @@ update_all_repositories() {
     done
     
     echo ""
-    log_success "Updated $success_count/${
+    log_success "Updated $success_count/${#repos[@]} repositories successfully"
 }
 
 

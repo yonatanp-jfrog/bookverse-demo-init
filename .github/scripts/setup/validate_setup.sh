@@ -206,12 +206,12 @@ for exp in "${expected_users[@]}"; do
   fi
 done
 
-user_count=${
-echo "✅ Found $user_count/${
-if [[ ${
+user_count=${#found_users[@]}
+echo "✅ Found $user_count/${#expected_users[@]} expected users:"
+if [[ ${#found_users[@]} -gt 0 ]]; then
   printf '   • %s\n' "${found_users[@]}"
 fi
-if [[ ${
+if [[ ${#missing_users[@]} -gt 0 ]]; then
   echo "⚠️  Missing users (not visible via current APIs/permissions):"
   printf '   • %s\n' "${missing_users[@]}"
 fi
@@ -227,7 +227,7 @@ for exp in "${expected_users[@]}"; do
   fi
 done
 
-if [[ ${
+if [[ ${#missing_members[@]} -eq 0 ]]; then
   echo "✅ All expected users are members of project '${PROJECT_KEY}'"
 else
   echo "⚠️  Users not yet members of project '${PROJECT_KEY}':"
@@ -349,7 +349,7 @@ echo "   • Applications: $app_count (expected: 4)"
 echo "   • Stages: $stage_count (expected: 3)"  
 echo "   • OIDC Integrations: $oidc_count (expected: 5)"
 echo ""
-echo "🐙 GitHub Repositories: $github_repos_ok/${
+echo "🐙 GitHub Repositories: $github_repos_ok/8 (checking access)"
 echo ""
 
 issues_found=0

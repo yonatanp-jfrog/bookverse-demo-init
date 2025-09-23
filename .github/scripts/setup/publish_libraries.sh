@@ -1,15 +1,8 @@
 #!/usr/bin/env bash
 
-# =============================================================================
-# BOOKVERSE LIBRARY PUBLISHING SCRIPT
-# =============================================================================
-# Publishes bookverse-core and bookverse-devops libraries to JFrog registry
-# This must run after applications are created but before services deploy
-# =============================================================================
 
 set -e
 
-# Load configuration
 source "$(dirname "$0")/config.sh"
 
 echo ""
@@ -18,7 +11,6 @@ echo "🔧 Project: $PROJECT_KEY"
 echo "🔧 JFrog URL: $JFROG_URL"
 echo ""
 
-# Check if bookverse-infra repository exists and is accessible
 INFRA_REPO_OWNER="${GITHUB_REPOSITORY_OWNER:-yonatanp-jfrog}"
 INFRA_REPO_NAME="bookverse-infra"
 
@@ -32,12 +24,10 @@ fi
 
 echo "✅ bookverse-infra repository found: $INFRA_REPO_OWNER/$INFRA_REPO_NAME"
 
-# Trigger CI workflow to publish libraries
 echo ""
 echo "🚀 Triggering CI workflow to publish libraries..."
 echo "   This will build and publish bookverse-core and bookverse-devops packages"
 
-# Trigger workflow with specific reason
 TRIGGER_REASON="Library publishing for demo setup - triggered by setup script"
 
 if gh workflow run ci.yml \
@@ -55,7 +45,6 @@ echo ""
 echo "⏳ Waiting for workflow to start..."
 sleep 10
 
-# Get the latest workflow run
 echo "🔍 Monitoring workflow progress..."
 LATEST_RUN_ID=$(gh run list --repo "$INFRA_REPO_OWNER/$INFRA_REPO_NAME" --limit 1 --json databaseId --jq '.[0].databaseId')
 
@@ -67,7 +56,6 @@ fi
 echo "📋 Workflow run ID: $LATEST_RUN_ID"
 echo "🔗 View progress: https://github.com/$INFRA_REPO_OWNER/$INFRA_REPO_NAME/actions/runs/$LATEST_RUN_ID"
 
-# Wait for workflow to complete
 echo ""
 echo "⏳ Waiting for workflow to complete (this may take 5-10 minutes)..."
 echo "   You can monitor progress at the URL above"
@@ -75,8 +63,7 @@ echo "   You can monitor progress at the URL above"
 MAX_WAIT_MINUTES=15
 WAIT_COUNT=0
 
-while [[ $WAIT_COUNT -lt $((MAX_WAIT_MINUTES * 12)) ]]; do  # 12 checks per minute (5 second intervals)
-    # Get workflow status
+while [[ $WAIT_COUNT -lt $((MAX_WAIT_MINUTES * 12)) ]]; do
     RUN_STATUS=$(gh api "repos/$INFRA_REPO_OWNER/$INFRA_REPO_NAME/actions/runs/$LATEST_RUN_ID" --jq '.status')
     RUN_CONCLUSION=$(gh api "repos/$INFRA_REPO_OWNER/$INFRA_REPO_NAME/actions/runs/$LATEST_RUN_ID" --jq '.conclusion // "null"')
     

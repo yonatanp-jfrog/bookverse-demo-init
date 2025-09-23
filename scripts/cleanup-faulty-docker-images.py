@@ -1,9 +1,3 @@
-#!/usr/bin/env python3
-"""
-Script to identify and delete faulty non-semver Docker images from BookVerse repositories.
-This script addresses the issue where CI workflows sometimes create Docker images with 
-build numbers (e.g., '180-1') instead of proper semantic versions.
-"""
 
 import os
 import sys
@@ -14,13 +8,10 @@ from typing import List, Dict, Tuple, Optional
 import argparse
 from urllib.parse import urljoin
 
-# BookVerse service names
 SERVICES = ['inventory', 'recommendations', 'checkout', 'platform', 'web']
 
-# Semver pattern - matches x.y.z, x.y.z-alpha.1, etc.
 SEMVER_PATTERN = re.compile(r'^v?\d+\.\d+\.\d+(?:-[a-zA-Z0-9]+(?:\.[a-zA-Z0-9]+)*)?(?:\+[a-zA-Z0-9]+(?:\.[a-zA-Z0-9]+)*)?$')
 
-# Build number pattern - matches patterns like '180-1', '42-2', etc.
 BUILD_NUMBER_PATTERN = re.compile(r'^\d+-\d+$')
 
 class JFrogClient:
@@ -55,17 +46,14 @@ class JFrogClient:
         return response
 
     def get_docker_repositories(self) -> List[str]:
-        """Get all Docker repositories for BookVerse services."""
         repos = []
         for service in SERVICES:
-            # Both nonprod and prod repositories
             for env in ['nonprod', 'prod']:
                 repo_name = f"{self.project_key}-{service}-internal-docker-{env}-local"
                 repos.append(repo_name)
         return repos
 
     def list_docker_tags(self, repository: str, image_name: str) -> List[str]:
-        """List all tags for a specific Docker image in a repository."""
         endpoint = f"/artifactory/api/docker/{repository}/v2/{image_name}/tags/list"
         
         try:
@@ -84,7 +72,6 @@ class JFrogClient:
             return []
 
     def delete_docker_image(self, repository: str, image_name: str, tag: str) -> bool:
-        """Delete a specific Docker image tag."""
         endpoint = f"/artifactory/{repository}/{image_name}/{tag}"
         
         try:
@@ -100,7 +87,6 @@ class JFrogClient:
             return False
 
     def get_image_info(self, repository: str, image_name: str, tag: str) -> Optional[Dict]:
-        """Get detailed information about a Docker image."""
         endpoint = f"/artifactory/api/storage/{repository}/{image_name}/{tag}"
         
         try:
@@ -114,15 +100,12 @@ class JFrogClient:
             return None
 
 def is_semver(tag: str) -> bool:
-    """Check if a tag follows semantic versioning."""
     return bool(SEMVER_PATTERN.match(tag))
 
 def is_build_number(tag: str) -> bool:
-    """Check if a tag looks like a build number (e.g., '180-1')."""
     return bool(BUILD_NUMBER_PATTERN.match(tag))
 
 def analyze_tags(tags: List[str]) -> Tuple[List[str], List[str], List[str]]:
-    """Analyze tags and categorize them."""
     semver_tags = []
     build_number_tags = []
     other_tags = []
@@ -149,7 +132,6 @@ def main():
     
     args = parser.parse_args()
     
-    # Initialize JFrog client
     client = JFrogClient(args.jfrog_url, args.jfrog_token, args.project_key, args.verbose)
     
     print("🔍 Scanning BookVerse Docker repositories for faulty non-semver images...")
@@ -158,7 +140,6 @@ def main():
     print(f"   Mode: {'DRY RUN' if args.dry_run else 'DELETE'}")
     print()
     
-    # Get repositories to scan
     services_to_scan = [args.service] if args.service else SERVICES
     total_faulty = 0
     total_deleted = 0
@@ -166,12 +147,10 @@ def main():
     for service in services_to_scan:
         print(f"📦 Scanning service: {service}")
         
-        # Check both nonprod and prod repositories
         for env in ['nonprod', 'prod']:
             repo_name = f"{args.project_key}-{service}-internal-docker-{env}-local"
             print(f"   Repository: {repo_name}")
             
-            # Common image names for each service
             image_names = [service]
             if service == 'checkout':
                 image_names.extend(['checkout-worker', 'checkout-migrations'])
@@ -179,13 +158,11 @@ def main():
             for image_name in image_names:
                 print(f"      Image: {image_name}")
                 
-                # Get all tags for this image
                 tags = client.list_docker_tags(repo_name, image_name)
                 if not tags:
                     print(f"         No tags found")
                     continue
                 
-                # Analyze tags
                 semver_tags, build_number_tags, other_tags = analyze_tags(tags)
                 
                 print(f"         Total tags: {len(tags)}")
@@ -193,7 +170,6 @@ def main():
                 print(f"         Build number tags: {len(build_number_tags)} ⚠️")
                 print(f"         Other tags: {len(other_tags)}")
                 
-                # Handle specific target tag
                 if args.target_tag:
                     if args.target_tag in tags:
                         if is_build_number(args.target_tag) or not is_semver(args.target_tag):
@@ -206,13 +182,11 @@ def main():
                         print(f"         ❌ Target tag '{args.target_tag}' not found")
                         build_number_tags = []
                 
-                # Process faulty tags (build numbers)
                 if build_number_tags:
                     print(f"         🚨 Found {len(build_number_tags)} faulty tags:")
                     for tag in build_number_tags:
                         total_faulty += 1
                         
-                        # Get image info for context
                         info = client.get_image_info(repo_name, image_name, tag)
                         created = info.get('created', 'unknown') if info else 'unknown'
                         size = info.get('size', 'unknown') if info else 'unknown'
@@ -228,13 +202,11 @@ def main():
                         else:
                             print(f"            🔍 Would delete {repo_name}/{image_name}:{tag}")
                 
-                # Show some valid semver tags for reference
                 if semver_tags:
                     print(f"         ✅ Valid semver tags (showing first 3): {semver_tags[:3]}")
                 
                 print()
     
-    # Summary
     print("=" * 60)
     print("📊 SUMMARY")
     print(f"   Total faulty images found: {total_faulty}")

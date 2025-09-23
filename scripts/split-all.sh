@@ -1,7 +1,6 @@
 #!/bin/bash
 set -euo pipefail
 
-# Split all BookVerse services into individual repositories
 
 SERVICES=(
     "bookverse-checkout"

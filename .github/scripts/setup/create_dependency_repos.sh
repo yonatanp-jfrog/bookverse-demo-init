@@ -1,15 +1,8 @@
 #!/usr/bin/env bash
 
-# =============================================================================
-# DEPENDENCY REPOSITORIES CREATION SCRIPT
-# =============================================================================
-# Creates remote, local, and virtual repositories for external dependencies
-# Pre-populates critical dependencies used by BookVerse services
-# =============================================================================
 
 set -e
 
-# Load configuration
 source "$(dirname "$0")/config.sh"
 
 echo ""
@@ -18,7 +11,6 @@ echo "🔧 Project: $PROJECT_KEY"
 echo "🔧 JFrog URL: $JFROG_URL"
 echo ""
 
-# Function to create remote repository
 create_remote_repository() {
     local repo_key="$1"
     local package_type="$2"
@@ -26,9 +18,7 @@ create_remote_repository() {
     local description="$4"
     local registry_url="$5"
     
-    # Build remote repository config; for PyPI set both url (files host) and pypiRegistryUrl (index)
     if [[ "$package_type" == "pypi" ]]; then
-        # Default registry_url to https://pypi.org/simple for index queries
         local effective_registry_url=${registry_url:-"https://pypi.org/simple"}
         local repo_config=$(jq -n \
             --arg key "$repo_key" \
@@ -85,8 +75,6 @@ create_remote_repository() {
         409|400)
             if grep -qi "already exists" "$temp_response"; then
                 echo "⚠️  Remote repository '$repo_key' already exists - attempting update"
-                # Remove projectKey for updates
-                # For PyPI, ensure pypiRegistryUrl is used on update
                 local update_config=$(echo "$repo_config" | jq 'del(.projectKey)')
                 local update_resp=$(mktemp)
                 local update_code=$(curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
@@ -121,7 +109,6 @@ create_remote_repository() {
     rm -f "$temp_response"
 }
 
-# Function to create virtual repository
 create_virtual_repository() {
     local repo_key="$1"
     local package_type="$2"
@@ -181,7 +168,6 @@ create_virtual_repository() {
     rm -f "$temp_response"
 }
 
-# Function to create local dependency cache repository
 create_local_cache_repository() {
     local repo_key="$1"
     local package_type="$2"
@@ -239,7 +225,6 @@ create_local_cache_repository() {
 
 echo "=== Creating Python Dependency Repositories ==="
 
-# Create Python remote repository (PyPI)
 create_remote_repository \
     "${PROJECT_KEY}-pypi-remote" \
     "pypi" \
@@ -247,13 +232,11 @@ create_remote_repository \
     "Remote proxy for PyPI.org - Python packages" \
     "https://pypi.org/simple"
 
-# Create Python local cache repository
 create_local_cache_repository \
     "${PROJECT_KEY}-pypi-cache-local" \
     "pypi" \
     "Local cache for frequently used Python packages"
 
-# Create Python virtual repository
 create_virtual_repository \
     "${PROJECT_KEY}-pypi-virtual" \
     "pypi" \
@@ -263,20 +246,17 @@ create_virtual_repository \
 echo ""
 echo "=== Creating npm Dependency Repositories ==="
 
-# Create npm remote repository
 create_remote_repository \
     "${PROJECT_KEY}-npm-remote" \
     "npm" \
     "https://registry.npmjs.org" \
     "Remote proxy for npmjs.org - Node.js packages"
 
-# Create npm local cache repository
 create_local_cache_repository \
     "${PROJECT_KEY}-npm-cache-local" \
     "npm" \
     "Local cache for frequently used npm packages"
 
-# Create npm virtual repository
 create_virtual_repository \
     "${PROJECT_KEY}-npm-virtual" \
     "npm" \
@@ -286,20 +266,17 @@ create_virtual_repository \
 echo ""
 echo "=== Creating Docker Dependency Repositories ==="
 
-# Create Docker Hub remote repository
 create_remote_repository \
     "${PROJECT_KEY}-dockerhub-remote" \
     "docker" \
     "https://registry-1.docker.io" \
     "Remote proxy for Docker Hub - Base images and tools"
 
-# Create Docker local cache repository
 create_local_cache_repository \
     "${PROJECT_KEY}-dockerhub-cache-local" \
     "docker" \
     "Local cache for frequently used Docker images"
 
-# Create Docker virtual repository
 create_virtual_repository \
     "${PROJECT_KEY}-dockerhub-virtual" \
     "docker" \

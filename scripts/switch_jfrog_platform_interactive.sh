@@ -2,31 +2,20 @@
 
 set -e
 
-# =============================================================================
-# INTERACTIVE JFROG PLATFORM SWITCH SCRIPT
-# =============================================================================
-# This script provides an interactive way to switch JFrog Platform Deployments
-# and update all BookVerse repositories with new configuration
-# =============================================================================
 
-# Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-BLUE='\033[0;36m'  # Using cyan instead of dark blue for better visibility
+BLUE='\033[0;36m'
 CYAN='\033[0;36m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
-# Logging functions
 log_info() { echo -e "${BLUE}ℹ️  $1${NC}"; }
 log_success() { echo -e "${GREEN}✅ $1${NC}"; }
 log_warning() { echo -e "${YELLOW}⚠️  $1${NC}"; }
 log_error() { echo -e "${RED}❌ $1${NC}"; }
 log_prompt() { echo -e "${CYAN}🔹 $1${NC}"; }
 
-# =============================================================================
-# INTERACTIVE INPUT FUNCTIONS
-# =============================================================================
 
 prompt_for_jpd_host() {
     echo ""
@@ -36,7 +25,6 @@ prompt_for_jpd_host() {
     echo ""
     read -p "JFrog Platform Host URL: " jpd_host
     
-    # Remove trailing slash if present
     jpd_host=$(echo "$jpd_host" | sed 's:/*$::')
     
     if [[ -z "$jpd_host" ]]; then
@@ -53,7 +41,7 @@ prompt_for_admin_token() {
     log_warning "This token will be used to validate connectivity and update repositories"
     echo ""
     read -s -p "Admin Token: " admin_token
-    echo "" # New line after hidden input
+    echo ""
     
     if [[ -z "$admin_token" ]]; then
         log_error "Admin token is required"
@@ -87,28 +75,22 @@ confirm_switch() {
     log_success "Platform switch confirmed"
 }
 
-# =============================================================================
-# VALIDATION FUNCTIONS
-# =============================================================================
 
 validate_prerequisites() {
     log_info "Checking prerequisites..."
     
-    # Check if gh CLI is installed and authenticated
     if ! command -v gh &> /dev/null; then
         log_error "GitHub CLI (gh) is not installed"
         log_info "Install it from: https://cli.github.com/"
         exit 1
     fi
     
-    # Check if authenticated
     if ! gh auth status &> /dev/null; then
         log_error "GitHub CLI is not authenticated"
         log_info "Run: gh auth login"
         exit 1
     fi
     
-    # Check if curl and jq are available
     if ! command -v curl &> /dev/null; then
         log_error "curl is not installed"
         exit 1
@@ -127,7 +109,6 @@ validate_host_format() {
     
     log_info "Validating host format..."
     
-    # Check format
     if [[ ! "$host" =~ ^https://[a-zA-Z0-9.-]+\.jfrog\.io$ ]]; then
         log_error "Invalid host format"
         log_error "Expected: https://host.jfrog.io"
@@ -144,13 +125,11 @@ test_connectivity_and_auth() {
     
     log_info "Testing connectivity and authentication..."
     
-    # Test basic connectivity
     if ! curl -s --fail --max-time 10 "$host" > /dev/null; then
         log_error "Cannot reach JFrog platform: $host"
         exit 1
     fi
     
-    # Test authentication
     local response
     response=$(curl -s --max-time 10 \
         --header "Authorization: Bearer $token" \
@@ -180,7 +159,6 @@ test_services() {
     
     log_info "Testing platform services..."
     
-    # Test Artifactory
     if curl -s --fail --max-time 10 \
         --header "Authorization: Bearer $token" \
         "$host/artifactory/api/system/ping" > /dev/null; then
@@ -190,7 +168,6 @@ test_services() {
         exit 1
     fi
     
-    # Test Access (optional)
     if curl -s --fail --max-time 10 \
         --header "Authorization: Bearer $token" \
         "$host/access/api/v1/system/ping" > /dev/null 2>&1; then
@@ -200,9 +177,6 @@ test_services() {
     fi
 }
 
-# =============================================================================
-# REPOSITORY ENVIRONMENTS MAPPING (Artifactory)
-# =============================================================================
 
 patch_repo_envs() {
     local jpd_host="$1"
@@ -211,7 +185,6 @@ patch_repo_envs() {
     shift 3
     local -a envs=("$@")
 
-    # Build JSON array for environments
     local env_json
     env_json=$(printf '"%s",' "${envs[@]}")
     env_json="[${env_json%,}]"
@@ -240,18 +213,14 @@ repair_repository_environments() {
 
     log_info "Repairing repository environments mapping (internal → DEV/QA/STAGING, release → PROD)"
 
-    # Project key (allow override via env, default to bookverse)
     local project_key="${PROJECT_KEY:-bookverse}"
 
-    # Internal repos map to project-prefixed DEV/QA/STAGING
     local dev_envs=("${project_key}-DEV" "${project_key}-QA" "${project_key}-STAGING")
 
-    # Fetch all repositories and filter by project prefix
     local list_json
     list_json=$(curl -sS -L -H "Authorization: Bearer $admin_token" \
         "$jpd_host/artifactory/api/repositories" 2>/dev/null || echo "[]")
 
-    # Extract keys belonging to this project
     mapfile -t repo_keys < <(echo "$list_json" | jq -r --arg p "${project_key}-" '.[]? | select(.key | startswith($p)) | .key')
 
     for key in "${repo_keys[@]}"; do
@@ -265,16 +234,11 @@ repair_repository_environments() {
     log_success "Repository environments mapping repaired."
 }
 
-# =============================================================================
-# REPOSITORY UPDATE FUNCTIONS
-# =============================================================================
 
 get_bookverse_repos() {
-    # Get GitHub organization (defaults to current user)
     local github_org
     github_org=$(gh api user --jq .login)
     
-    # List of BookVerse repositories
     local repos=(
         "bookverse-inventory"
         "bookverse-recommendations" 
@@ -286,7 +250,6 @@ get_bookverse_repos() {
         "bookverse-demo-init"
     )
     
-    # Check which repos actually exist
     local existing_repos=()
     for repo in "${repos[@]}"; do
         if gh repo view "$github_org/$repo" > /dev/null 2>&1; then
@@ -306,17 +269,14 @@ update_repository() {
     
     log_info "Updating $full_repo..."
     
-    # Extract docker registry from URL
     local docker_registry
     docker_registry=$(echo "$jpd_host" | sed 's|https://||')
     
     local success=true
     
-    # Update secrets (suppress errors for repos that don't have these)
     echo "$admin_token" | gh secret set JFROG_ADMIN_TOKEN --repo "$full_repo" 2>/dev/null || true
     echo "$admin_token" | gh secret set JFROG_ACCESS_TOKEN --repo "$full_repo" 2>/dev/null || true
     
-    # Update variables
     if ! gh variable set JFROG_URL --body "$jpd_host" --repo "$full_repo" 2>/dev/null; then
         log_warning "  → Could not update JFROG_URL variable"
         success=false
@@ -333,12 +293,9 @@ update_repository() {
         log_warning "  → $full_repo partially updated"
     fi
     
-    # Optional: open a PR to replace hardcoded old hostnames in repo files
-    # Detect default branch
     local default_branch
     default_branch=$(gh repo view "$full_repo" --json defaultBranchRef --jq .defaultBranchRef.name 2>/dev/null || echo "main")
 
-    # Create a working dir
     local workdir
     workdir=$(mktemp -d)
     pushd "$workdir" >/dev/null
@@ -347,26 +304,21 @@ update_repository() {
         cd repo
         git checkout -b chore/switch-platform-$(date +%Y%m%d%H%M%S) >/dev/null 2>&1 || true
 
-        # Compute new registry (host without scheme)
         local new_registry
         new_registry=$(echo "$jpd_host" | sed 's|https://||')
 
-        # Replace any https://<host>.jfrog.io with the new URL
         if grep -RIl --exclude-dir=.git -e "https://[A-Za-z0-9.-]*\\.jfrog\\.io" . >/dev/null 2>&1; then
             grep -RIl --exclude-dir=.git -e "https://[A-Za-z0-9.-]*\\.jfrog\\.io" . | xargs sed -i '' -E "s|https://[A-Za-z0-9.-]+\\.jfrog\\.io|${jpd_host}|g"
         fi
 
-        # Replace any bare <host>.jfrog.io with the new registry host
         if grep -RIl --exclude-dir=.git -e "[A-Za-z0-9.-]*\\.jfrog\\.io" . >/dev/null 2>&1; then
             grep -RIl --exclude-dir=.git -e "[A-Za-z0-9.-]*\\.jfrog\\.io" . | xargs sed -i '' -E "s|\b[A-Za-z0-9.-]+\\.jfrog\\.io\b|${new_registry}|g"
         fi
 
-        # Commit if changes
         if ! git diff --quiet; then
             git add -A
             git commit -m "chore: switch platform host to ${new_registry}" >/dev/null 2>&1 || true
             git push -u origin HEAD >/dev/null 2>&1 || true
-            # Open PR
             gh pr create --title "chore: switch platform host to ${new_registry}" \
               --body "Automated replacement of old host with ${jpd_host}." \
               --base "$default_branch" >/dev/null 2>&1 || true
@@ -393,12 +345,12 @@ update_all_repositories() {
     local repos
     mapfile -t repos < <(get_bookverse_repos)
     
-    if [[ ${#repos[@]} -eq 0 ]]; then
+    if [[ ${
         log_error "No BookVerse repositories found"
         exit 1
     fi
     
-    log_info "Found ${#repos[@]} repositories to update"
+    log_info "Found ${
     echo ""
     
     local success_count=0
@@ -409,12 +361,9 @@ update_all_repositories() {
     done
     
     echo ""
-    log_success "Updated $success_count/${#repos[@]} repositories"
+    log_success "Updated $success_count/${
 }
 
-# =============================================================================
-# MAIN EXECUTION
-# =============================================================================
 
 main() {
     echo "🔄 Interactive Platform Switch"
@@ -424,44 +373,34 @@ main() {
     echo "and update all BookVerse repositories with the new configuration."
     echo ""
     
-    # Step 1: Check prerequisites
     validate_prerequisites
     echo ""
     
-    # Step 2: Get JFrog platform host
     local jpd_host
     jpd_host=$(prompt_for_jpd_host)
     
-    # Step 3: Validate host format
     validate_host_format "$jpd_host"
     echo ""
     
-    # Step 4: Get admin token
     local admin_token
     admin_token=$(prompt_for_admin_token)
     echo ""
     
-    # Step 5: Test connectivity and authentication
     test_connectivity_and_auth "$jpd_host" "$admin_token"
     echo ""
     
-    # Step 6: Test services
     test_services "$jpd_host" "$admin_token"
     echo ""
     
-    # Step 7: Get confirmation
     confirm_switch "$jpd_host"
     echo ""
     
-    # Step 8: Update repositories
     update_all_repositories "$jpd_host" "$admin_token"
     echo ""
 
-    # Step 9: Ensure repository environment mappings are correct
     repair_repository_environments "$jpd_host" "$admin_token"
     echo ""
     
-    # Summary
     local docker_registry
     docker_registry=$(echo "$jpd_host" | sed 's|https://||')
     
@@ -476,5 +415,4 @@ main() {
     log_info "You can now run workflows on the new JFrog platform"
 }
 
-# Execute main function
 main "$@"

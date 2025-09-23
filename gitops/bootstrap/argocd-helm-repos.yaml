@@ -10,11 +10,6 @@ stringData:
   name: bookverse-helm-internal
   type: helm
   url: "${JFROG_URL}/artifactory/bookverse-helm-internal-helm-nonprod-local"
-  # Set one of the following auth methods before applying:
-  # username: <jfrog-username>
-  # password: <jfrog-password-or-api-key>
-  # OR for token-based auth (if supported by your ArgoCD version):
-  # bearerToken: <jfrog-access-token>
 ---
 apiVersion: v1
 kind: Secret
@@ -28,10 +23,5 @@ stringData:
   name: bookverse-helm-release
   type: helm
   url: "${JFROG_URL}/artifactory/bookverse-helm-internal-helm-release-local"
-  # Set one of the following auth methods before applying:
-  # username: <jfrog-username>
-  # password: <jfrog-password-or-api-key>
-  # OR for token-based auth (if supported by your ArgoCD version):
-  # bearerToken: <jfrog-access-token>
 
 

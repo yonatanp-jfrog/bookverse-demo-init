@@ -1,9 +1,5 @@
 #!/usr/bin/env bash
 
-# =============================================================================
-# VALIDATION SCRIPT: Test Application Deletion Safety Fix
-# =============================================================================
-# This script validates that the security fix prevents cross-project deletion
 
 set -e
 
@@ -17,7 +13,6 @@ echo "Project: $PROJECT_KEY"
 echo "JFrog URL: $JFROG_URL"
 echo ""
 
-# Setup authentication
 jf c add test-safety --url="$JFROG_URL" --access-token="$JFROG_ADMIN_TOKEN" --interactive=false --overwrite
 jf c use test-safety
 
@@ -45,7 +40,6 @@ echo "--------------------------------------------"
 echo "Testing CLI command syntax (dry run):"
 echo "  Command: jf apptrust app-delete <app-key> --project=\"$PROJECT_KEY\""
 
-# Test if CLI accepts the project parameter
 if jf apptrust app-delete --help 2>/dev/null | grep -q "project"; then
     echo "✅ CLI supports --project parameter for safe scoping"
 else
@@ -65,7 +59,6 @@ if code=$(curl -s -H "Authorization: Bearer $JFROG_ADMIN_TOKEN" \
         total_apps=$(jq length "$all_apps_file")
         echo "📊 Found $total_apps applications across ALL projects"
         
-        # Group by project
         echo "Applications by project:"
         jq -r 'group_by(.project // "unknown") | .[] | "  \(.[0].project // "unknown"): \(length) apps"' "$all_apps_file" 2>/dev/null || true
     else
@@ -87,5 +80,4 @@ echo "The application deletion bug has been CORRECTLY fixed!"
 echo "CLI commands don't have project flags, so we verify"
 echo "project membership before deletion to prevent accidents."
 
-# Cleanup
 rm -f "$project_apps_file" "$all_apps_file"

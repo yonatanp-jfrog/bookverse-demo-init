@@ -1,8 +1,3 @@
-#!/usr/bin/env python3
-"""
-Script to find AppTrust application versions containing faulty Docker images by checking releasables.
-Uses parallel processing to speed up the search across multiple applications and versions.
-"""
 
 import os
 import sys
@@ -50,14 +45,12 @@ class AppTrustScanner:
         return response
 
     def list_applications(self) -> List[str]:
-        """List all applications in the project."""
         endpoint = f"/apptrust/api/v1/applications"
         
         try:
             response = self._make_request('GET', endpoint, params={'project': self.project_key})
             if response.status_code == 200:
                 data = response.json()
-                # Handle both possible response formats
                 if isinstance(data, list):
                     apps = data
                 else:
@@ -71,7 +64,6 @@ class AppTrustScanner:
             return []
 
     def list_application_versions(self, app_key: str) -> List[Dict]:
-        """List all versions for an application."""
         endpoint = f"/apptrust/api/v1/applications/{app_key}/versions"
         
         try:
@@ -86,7 +78,6 @@ class AppTrustScanner:
             return []
 
     def get_version_releasables(self, app_key: str, version: str) -> Optional[List[Dict]]:
-        """Get releasable content of a specific application version."""
         endpoint = f"/apptrust/api/v1/applications/{app_key}/versions/{version}/content"
         
         try:
@@ -102,7 +93,6 @@ class AppTrustScanner:
             return None
 
     def delete_application_version(self, app_key: str, version: str) -> bool:
-        """Delete a specific application version."""
         endpoint = f"/apptrust/api/v1/applications/{app_key}/versions/{version}"
         
         try:
@@ -118,7 +108,6 @@ class AppTrustScanner:
             return False
 
 def contains_faulty_version(releasables: List[Dict], target_version: str = "180-1") -> Tuple[bool, List[str]]:
-    """Check if releasables contain the faulty version and return matching releasable names."""
     if not releasables:
         return False, []
     
@@ -128,14 +117,12 @@ def contains_faulty_version(releasables: List[Dict], target_version: str = "180-
         name = releasable.get('name', '')
         package_type = releasable.get('package_type', '')
         
-        # Check for exact match of the faulty version
         if version == target_version and package_type == 'docker':
             faulty_releasables.append(f"{name}:{version}")
     
     return len(faulty_releasables) > 0, faulty_releasables
 
 def scan_version(scanner: AppTrustScanner, app_key: str, version_info: Dict, target_version: str) -> Optional[Dict]:
-    """Scan a single version for faulty releasables."""
     version = version_info.get('version', '')
     status = version_info.get('status', '')
     created = version_info.get('created', '')
@@ -161,7 +148,6 @@ def scan_version(scanner: AppTrustScanner, app_key: str, version_info: Dict, tar
     return None
 
 def scan_application(scanner: AppTrustScanner, app_key: str, target_version: str, max_workers: int = 5) -> List[Dict]:
-    """Scan all versions of an application for faulty releasables."""
     print(f"📦 Scanning application: {app_key}")
     
     versions = scanner.list_application_versions(app_key)
@@ -173,15 +159,12 @@ def scan_application(scanner: AppTrustScanner, app_key: str, target_version: str
     
     faulty_versions = []
     
-    # Use ThreadPoolExecutor for parallel version scanning
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        # Submit all version scan tasks
         future_to_version = {
             executor.submit(scan_version, scanner, app_key, version_info, target_version): version_info
             for version_info in versions
         }
         
-        # Collect results as they complete
         for future in as_completed(future_to_version):
             version_info = future_to_version[future]
             try:
@@ -208,7 +191,6 @@ def main():
     
     args = parser.parse_args()
     
-    # Initialize scanner
     scanner = AppTrustScanner(args.jfrog_url, args.jfrog_token, args.project_key, args.verbose)
     
     print("🔍 Scanning AppTrust applications for faulty Docker image versions...")
@@ -219,7 +201,6 @@ def main():
     print(f"   Parallel workers: {args.max_workers} per app, {args.app_workers} apps")
     print()
     
-    # Get applications to scan
     if args.apps:
         applications = [app.strip() for app in args.apps.split(',') if app.strip()]
     else:
@@ -234,15 +215,12 @@ def main():
     
     all_faulty_versions = []
     
-    # Use ThreadPoolExecutor for parallel application scanning
     with ThreadPoolExecutor(max_workers=args.app_workers) as executor:
-        # Submit all application scan tasks
         future_to_app = {
             executor.submit(scan_application, scanner, app_key, args.target_version, args.max_workers): app_key
             for app_key in applications
         }
         
-        # Collect results as they complete
         for future in as_completed(future_to_app):
             app_key = future_to_app[future]
             try:
@@ -261,7 +239,6 @@ def main():
         print("   🎉 No versions contain the faulty Docker image version!")
         return 0
     
-    # Show details of faulty versions
     print(f"\n🚨 FAULTY VERSIONS FOUND:")
     for fv in all_faulty_versions:
         print(f"\n   Application: {fv['app_key']}")
@@ -271,7 +248,6 @@ def main():
         print(f"   Total releasables: {fv['total_releasables']}")
         print(f"   Faulty releasables: {', '.join(fv['faulty_releasables'])}")
     
-    # Deletion logic
     if args.dry_run:
         print(f"\n🔍 DRY RUN: Would delete {len(all_faulty_versions)} faulty versions")
         for fv in all_faulty_versions:

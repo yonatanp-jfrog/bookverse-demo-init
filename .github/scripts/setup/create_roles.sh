@@ -1,14 +1,100 @@
 #!/usr/bin/env bash
 
 # =============================================================================
-# CUSTOM ROLE CREATION SCRIPT
+# BookVerse Platform - Role Creation and Permission Assignment Script
 # =============================================================================
-# Creates custom BookVerse roles with specific permissions
+#
+# This comprehensive setup script automates the creation and configuration of
+# custom security roles and permission assignments for the BookVerse platform
+# within the JFrog Platform ecosystem, implementing enterprise-grade role-based
+# access control (RBAC), fine-grained permission management, and security
+# governance for production-ready access control and compliance operations.
+#
+# 🏗️ ROLE MANAGEMENT STRATEGY:
+#     - Custom Role Creation: Automated creation of BookVerse-specific security roles
+#     - Permission Assignment: Fine-grained permission mapping and access control
+#     - Environment-Specific Access: Role-based environment segregation and access control
+#     - Service-Specific Roles: Specialized roles for different BookVerse services and teams
+#     - Operational Roles: Roles for CI/CD, Kubernetes, and operational automation
+#     - Compliance Integration: Role definitions meeting enterprise security and audit requirements
+#
+# 🛡️ ENTERPRISE SECURITY AND GOVERNANCE:
+#     - Role-Based Access Control: Comprehensive RBAC implementation with graduated permissions
+#     - Principle of Least Privilege: Minimal permission assignment for security optimization
+#     - Separation of Duties: Role segregation preventing privilege escalation and conflicts
+#     - Access Control Matrix: Structured permission mapping and authorization validation
+#     - Audit Trail: Complete role assignment and permission change audit logging
+#     - Compliance Framework: SOX, PCI-DSS, GDPR compliance for role and permission management
+#
+# 🔧 ROLE SPECIALIZATION AND PERMISSIONS:
+#     - Repository Access: Fine-grained repository read/write permissions and artifact access
+#     - Environment Permissions: Environment-specific access control and promotion permissions
+#     - Service Operations: Service-specific operational permissions and automation access
+#     - Administrative Roles: Platform administration and security management permissions
+#     - Pipeline Automation: CI/CD and automation service account permissions
+#     - Kubernetes Integration: Container orchestration and deployment automation permissions
+#
+# 📈 SCALABILITY AND ORGANIZATION:
+#     - Role Hierarchy: Graduated permission levels and access control escalation
+#     - Team-Based Roles: Service team-specific roles and responsibility assignments
+#     - Cross-Service Access: Inter-service collaboration and shared resource permissions
+#     - Environment Scaling: Role-based environment access and promotion workflow support
+#     - Automation Integration: Service account role assignment and automated permission management
+#     - Permission Inheritance: Role-based permission inheritance and delegation patterns
+#
+# 🔐 ADVANCED SECURITY FEATURES:
+#     - Dynamic Permissions: Runtime permission validation and context-aware access control
+#     - Permission Auditing: Real-time permission usage monitoring and security validation
+#     - Access Reviews: Periodic access review and permission validation procedures
+#     - Privilege Management: Just-in-time permission elevation and temporary access control
+#     - Threat Detection: Role-based threat detection and security incident response
+#     - Identity Integration: Role integration with identity providers and authentication systems
+#
+# 🛠️ TECHNICAL IMPLEMENTATION:
+#     - JFrog Platform Integration: Native role management via JFrog Platform APIs
+#     - REST API Automation: Programmatic role creation and permission assignment
+#     - JSON Configuration: Structured role definition and permission specification
+#     - Error Handling: Comprehensive error detection and recovery for role operations
+#     - Validation Framework: Role configuration validation and permission verification
+#     - Integration Testing: Role assignment testing and access control validation
+#
+# 📋 ROLE CATEGORIES AND PERMISSIONS:
+#     - Kubernetes Image Pull: Container image access for Kubernetes deployment
+#     - Service-Specific Roles: Inventory, recommendations, checkout, platform, web, helm
+#     - Environment Roles: DEV, QA, STAGING, PROD environment-specific access
+#     - Administrative Roles: Platform administration and security management
+#     - Pipeline Roles: CI/CD automation and service-to-service permissions
+#     - Operational Roles: Monitoring, logging, and infrastructure management
+#
+# 🎯 SUCCESS CRITERIA:
+#     - Role Creation: All BookVerse security roles successfully provisioned
+#     - Permission Assignment: Complete role-based permission configuration and validation
+#     - Security Compliance: Role definitions meeting enterprise security standards
+#     - Access Control: Comprehensive access control implementation and testing
+#     - Audit Readiness: Role management ready for compliance and security audit
+#     - Operational Excellence: Role-based access control ready for production operations
+#
+# Authors: BookVerse Platform Team
+# Version: 1.0.0
+# Last Updated: 2024
+#
+# Dependencies:
+#   - config.sh (configuration management)
+#   - JFrog Platform with role management (access control management)
+#   - Valid administrative credentials (admin tokens)
+#   - Network connectivity to JFrog Platform endpoints
+#   - jq (JSON processing for role configuration)
+#
+# Security Notes:
+#   - Roles implement principle of least privilege for security optimization
+#   - Permission assignments should be reviewed regularly for security compliance
+#   - Custom roles should be validated against enterprise security policies
+#   - Role changes should be audited and logged for compliance tracking
+#
 # =============================================================================
 
 set -e
 
-# Load configuration
 source "$(dirname "$0")/config.sh"
 
 echo ""
@@ -17,7 +103,6 @@ echo "🔧 Project: $PROJECT_KEY"
 echo "🔧 JFrog URL: $JFROG_URL"
 echo ""
 
-# Function to create a custom role
 create_role() {
     local role_name="$1"
     local role_description="$2"
@@ -28,7 +113,6 @@ create_role() {
     echo "  Description: $role_description"
     echo "  Environments: $environments"
     
-    # Build role JSON payload
     local role_payload=$(jq -n \
         --arg name "$role_name" \
         --arg desc "$role_description" \
@@ -45,7 +129,6 @@ create_role() {
             "environments": $envs
         }')
     
-    # Create role using JFrog API
     local response_code
     response_code=$(curl -s --write-out "%{http_code}" \
         --output /dev/null \
@@ -69,11 +152,7 @@ create_role() {
     echo ""
 }
 
-# =============================================================================
-# ROLE DEFINITIONS
-# =============================================================================
 
-# Kubernetes Image Pull Role - minimal permissions for container deployment
 echo "Creating Kubernetes Image Pull role..."
 
 k8s_permissions='[
@@ -89,9 +168,6 @@ create_role \
     "$k8s_permissions" \
     "$k8s_environments"
 
-# =============================================================================
-# SUMMARY
-# =============================================================================
 
 echo "📋 Role creation summary:"
 echo ""

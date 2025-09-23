@@ -1,16 +1,5 @@
-#!/usr/bin/env python3
-"""
-Validate GitHub repository_dispatch permissions using a fine-grained PAT.
 
-Usage:
-  export GH_REPO_DISPATCH_TOKEN=...  # required
-  export GITHUB_OWNER=yonatanp-jfrog   # optional (default)
-  export GITHUB_REPO=bookverse-helm    # optional (default)
-  export REPO_DISPATCH_EVENT=release_completed  # optional (default)
-  python scripts/validate_repo_dispatch.py
 
-Exits 0 on HTTP 204; non-zero otherwise.
-"""
 import json
 import os
 import sys

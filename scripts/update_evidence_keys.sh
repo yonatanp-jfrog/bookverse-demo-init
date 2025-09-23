@@ -1,55 +1,284 @@
-#!/bin/bash
-
+#!/usr/bin/env bash
 # =============================================================================
-# Evidence Key Management Script
+# BookVerse Platform - Evidence Key Management Script
 # =============================================================================
-# 
-# This script can generate evidence keys and/or update them across all BookVerse 
-# repositories using your local GitHub CLI authentication.
 #
-# Usage:
-#   # Generate keys and update repositories
-#   ./update_evidence_keys.sh --generate --key-type ed25519
-#   
-#   # Use existing keys
-#   ./update_evidence_keys.sh --private-key private.pem --public-key public.pem
+# Comprehensive evidence key generation and distribution for cryptographic signing
 #
-# Requirements:
-#   - GitHub CLI (gh) installed and authenticated
-#   - OpenSSL for key generation and validation
-#   - Access to BookVerse repositories
+# 📋 USAGE EXAMPLES - COMPREHENSIVE EXECUTION PATTERNS:
+#     This script provides multiple execution patterns for evidence key management
+#     across the BookVerse platform, supporting both CI/CD automation and manual
+#     operations with comprehensive key lifecycle management capabilities.
 #
+# 🔧 Basic Usage Patterns:
+#     [Quick Key Generation]
+#     # Generate new RSA keys and update all repositories
+#     ./update_evidence_keys.sh --generate
+#     
+#     [Advanced Key Generation]
+#     # Generate ED25519 keys with custom alias
+#     ./update_evidence_keys.sh --generate --key-type ed25519 --alias "prod-evidence-2024"
+#     
+#     [Existing Key Deployment]
+#     # Use existing key files to update repositories
+#     ./update_evidence_keys.sh --private-key ./keys/private.pem --public-key ./keys/public.pem
+#     
+#     [Dry Run Validation]
+#     # Test configuration without making changes
+#     ./update_evidence_keys.sh --generate --dry-run
+#
+# 🚀 CI/CD Integration Patterns:
+#     [GitHub Actions Workflow Integration]
+#     name: Update Evidence Keys
+#     on:
+#       workflow_dispatch:
+#         inputs:
+#           key_type:
+#             description: 'Key algorithm (rsa, ec, ed25519)'
+#             required: true
+#             default: 'rsa'
+#           alias:
+#             description: 'Key alias'
+#             required: true
+#             default: 'bookverse-evidence-key'
+#     jobs:
+#       update-keys:
+#         runs-on: ubuntu-latest
+#         steps:
+#           - uses: actions/checkout@v4
+#           - name: Generate and distribute evidence keys
+#             env:
+#               JFROG_URL: ${{ secrets.JFROG_URL }}
+#               JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
+#               GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#             run: |
+#               ./scripts/update_evidence_keys.sh \
+#                 --generate \
+#                 --key-type ${{ github.event.inputs.key_type }} \
+#                 --alias ${{ github.event.inputs.alias }}
+#     
+#     [Jenkins Pipeline Integration]
+#     pipeline {
+#         agent any
+#         parameters {
+#             choice(name: 'KEY_TYPE', choices: ['rsa', 'ec', 'ed25519'], description: 'Key Algorithm')
+#             string(name: 'KEY_ALIAS', defaultValue: 'bookverse-evidence-key', description: 'Key Alias')
+#             booleanParam(name: 'DRY_RUN', defaultValue: false, description: 'Dry Run Mode')
+#         }
+#         environment {
+#             JFROG_URL = credentials('jfrog-url')
+#             JFROG_ADMIN_TOKEN = credentials('jfrog-admin-token')
+#         }
+#         stages {
+#             stage('Update Evidence Keys') {
+#                 steps {
+#                     sh """
+#                         ./scripts/update_evidence_keys.sh \
+#                             --generate \
+#                             --key-type ${params.KEY_TYPE} \
+#                             --alias ${params.KEY_ALIAS} \
+#                             ${params.DRY_RUN ? '--dry-run' : ''}
+#                     """
+#                 }
+#             }
+#         }
+#     }
+#     
+#     [Azure DevOps Pipeline Integration]
+#     trigger: none
+#     pr: none
+#     parameters:
+#       - name: keyType
+#         displayName: 'Key Algorithm'
+#         type: string
+#         default: 'rsa'
+#         values:
+#           - rsa
+#           - ec
+#           - ed25519
+#       - name: keyAlias
+#         displayName: 'Key Alias'
+#         type: string
+#         default: 'bookverse-evidence-key'
+#       - name: dryRun
+#         displayName: 'Dry Run Mode'
+#         type: boolean
+#         default: false
+#     jobs:
+#       - job: UpdateEvidenceKeys
+#         displayName: 'Update Evidence Keys'
+#         pool:
+#           vmImage: 'ubuntu-latest'
+#         steps:
+#           - checkout: self
+#           - bash: |
+#               ./scripts/update_evidence_keys.sh \
+#                 --generate \
+#                 --key-type ${{ parameters.keyType }} \
+#                 --alias ${{ parameters.keyAlias }} \
+#                 ${{ eq(parameters.dryRun, true) && '--dry-run' || '' }}
+#             displayName: 'Generate and Distribute Evidence Keys'
+#             env:
+#               JFROG_URL: $(JFROG_URL)
+#               JFROG_ADMIN_TOKEN: $(JFROG_ADMIN_TOKEN)
+#
+# 🛠️ Manual Operation Procedures:
+#     [Production Key Rotation]
+#     # Step 1: Generate new production keys
+#     ./update_evidence_keys.sh --generate --key-type ed25519 --alias "prod-evidence-$(date +%Y%m%d)"
+#     
+#     # Step 2: Verify deployment with dry run
+#     ./update_evidence_keys.sh --generate --key-type ed25519 --alias "prod-evidence-$(date +%Y%m%d)" --dry-run
+#     
+#     # Step 3: Test signing with new keys
+#     echo "test content" | openssl dgst -sha256 -sign ./generated-private.pem | base64
+#     
+#     [Emergency Key Replacement]
+#     # Immediate key replacement for security incident
+#     export EMERGENCY_ALIAS="emergency-evidence-$(date +%Y%m%d-%H%M%S)"
+#     ./update_evidence_keys.sh --generate --key-type ed25519 --alias "$EMERGENCY_ALIAS"
+#     
+#     [Development Environment Setup]
+#     # Setup development evidence keys
+#     ./update_evidence_keys.sh --generate --key-type rsa --alias "dev-evidence-key" --org "your-dev-org"
+#     
+#     [Staging Environment Sync]
+#     # Sync staging with production keys
+#     ./update_evidence_keys.sh \
+#       --private-key /secure/prod-private.pem \
+#       --public-key /secure/prod-public.pem \
+#       --alias "staging-sync-$(date +%Y%m%d)" \
+#       --org "staging-org"
+#
+# 🌍 Multi-Environment Execution:
+#     [Development Environment]
+#     export JFROG_URL="https://dev.jfrog.io"
+#     export JFROG_ADMIN_TOKEN="dev-token"
+#     ./update_evidence_keys.sh --generate --key-type rsa --alias "dev-evidence-key"
+#     
+#     [Staging Environment]
+#     export JFROG_URL="https://staging.jfrog.io"
+#     export JFROG_ADMIN_TOKEN="staging-token"
+#     ./update_evidence_keys.sh --generate --key-type ec --alias "staging-evidence-key"
+#     
+#     [Production Environment]
+#     export JFROG_URL="https://prod.jfrog.io"
+#     export JFROG_ADMIN_TOKEN="prod-token"
+#     ./update_evidence_keys.sh --generate --key-type ed25519 --alias "prod-evidence-key"
+#
+# 🔍 Testing and Validation Patterns:
+#     [Key Validation Testing]
+#     # Test key generation without deployment
+#     ./update_evidence_keys.sh --generate --dry-run --key-type ed25519
+#     
+#     # Validate existing keys
+#     ./update_evidence_keys.sh \
+#       --private-key ./test-private.pem \
+#       --public-key ./test-public.pem \
+#       --dry-run
+#     
+#     [Repository Access Testing]
+#     # Test GitHub CLI authentication
+#     gh auth status
+#     gh repo view yonatanp-jfrog/bookverse-inventory
+#     
+#     [JFrog Integration Testing]
+#     # Test JFrog API connectivity
+#     curl -H "Authorization: Bearer $JFROG_ADMIN_TOKEN" "$JFROG_URL/artifactory/api/system/ping"
+#     
+#     [End-to-End Validation]
+#     # Complete validation workflow
+#     ./update_evidence_keys.sh --generate --dry-run  # Validate configuration
+#     ./update_evidence_keys.sh --generate             # Execute deployment
+#     gh secret list --repo yonatanp-jfrog/bookverse-inventory | grep EVIDENCE  # Verify secrets
+#
+# 🛡️ Security Best Practices:
+#     [Secure Key Handling]
+#     # Use secure temporary directory
+#     export TMPDIR="/secure/tmp"
+#     mkdir -p "$TMPDIR" && chmod 700 "$TMPDIR"
+#     ./update_evidence_keys.sh --generate
+#     
+#     [Token Management]
+#     # Use environment files for tokens
+#     echo "JFROG_ADMIN_TOKEN=your-token" > .env.secure
+#     chmod 600 .env.secure
+#     source .env.secure
+#     ./update_evidence_keys.sh --generate
+#     
+#     [Audit Trail]
+#     # Log all operations for audit
+#     ./update_evidence_keys.sh --generate 2>&1 | tee evidence-key-update-$(date +%Y%m%d-%H%M%S).log
+#
+# 🚨 Emergency Procedures:
+#     [Compromised Key Response]
+#     # Immediate key rotation
+#     EMERGENCY_ALIAS="emergency-$(date +%Y%m%d-%H%M%S)"
+#     ./update_evidence_keys.sh --generate --key-type ed25519 --alias "$EMERGENCY_ALIAS"
+#     
+#     # Verify old key removal from JFrog
+#     curl -H "Authorization: Bearer $JFROG_ADMIN_TOKEN" \
+#       "$JFROG_URL/artifactory/api/security/keys/trusted" | jq '.keys[].alias'
+#     
+#     [Rollback Procedures]
+#     # Restore previous working keys
+#     ./update_evidence_keys.sh \
+#       --private-key ./backup/previous-private.pem \
+#       --public-key ./backup/previous-public.pem \
+#       --alias "rollback-$(date +%Y%m%d)"
+#
+# 🔧 Advanced Configuration:
+#     [Custom Repository List]
+#     # Override default repository list
+#     export BOOKVERSE_REPOS="custom-repo1 custom-repo2"
+#     ./update_evidence_keys.sh --generate
+#     
+#     [Batch Processing]
+#     # Process multiple key types
+#     for key_type in rsa ec ed25519; do
+#         ./update_evidence_keys.sh \
+#           --generate \
+#           --key-type "$key_type" \
+#           --alias "multi-${key_type}-$(date +%Y%m%d)" \
+#           --dry-run
+#     done
+#     
+#     [Parallel Execution]
+#     # Update multiple organizations simultaneously
+#     ./update_evidence_keys.sh --generate --org "org1" --alias "org1-evidence" &
+#     ./update_evidence_keys.sh --generate --org "org2" --alias "org2-evidence" &
+#     wait
+#
+# Authors: BookVerse Platform Team
+# Version: 1.0.0
+# Last Updated: 2024-01-01
 # =============================================================================
 
 set -euo pipefail
 
-# Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-CYAN='\033[0;36m'  # Cyan instead of dark blue - more visible
-NC='\033[0m' # No Color
+CYAN='\033[0;36m'
+NC='\033[0m'
 
-# Logging functions
 log_info() { echo -e "${CYAN}ℹ️  $1${NC}"; }
 log_success() { echo -e "${GREEN}✅ $1${NC}"; }
 log_warning() { echo -e "${YELLOW}⚠️  $1${NC}"; }
 log_error() { echo -e "${RED}❌ $1${NC}"; }
 
-# Default values
 PRIVATE_KEY_FILE=""
 PUBLIC_KEY_FILE=""
-KEY_ALIAS="bookverse-evidence-key"  # Use consistent naming with hyphens
+KEY_ALIAS="bookverse-evidence-key"
 GITHUB_ORG="yonatanp-jfrog"
 DRY_RUN=false
 GENERATE_KEYS=false
-KEY_TYPE="rsa"  # Uses DEFAULT_RSA_KEY_SIZE from config.sh
+KEY_TYPE="rsa"
 TEMP_DIR=""
 UPDATE_JFROG=true
 JFROG_URL="${JFROG_URL:-}"
 JFROG_ADMIN_TOKEN="${JFROG_ADMIN_TOKEN:-}"
 
-# BookVerse repositories
 BOOKVERSE_REPOS=(
     "bookverse-inventory"
     "bookverse-recommendations" 
@@ -61,9 +290,6 @@ BOOKVERSE_REPOS=(
     "bookverse-demo-init"
 )
 
-# =============================================================================
-# HELPER FUNCTIONS
-# =============================================================================
 
 show_usage() {
     cat << 'EOF'
@@ -73,10 +299,8 @@ Generate evidence keys and/or update them across all BookVerse repositories
 using your local GitHub CLI authentication.
 
 USAGE:
-    # Generate new keys and update repositories
     ./update_evidence_keys.sh --generate [--key-type <type>] [options]
     
-    # Use existing keys
     ./update_evidence_keys.sh --private-key <file> --public-key <file> [options]
 
 KEY GENERATION:
@@ -95,19 +319,14 @@ OPTIONAL ARGUMENTS:
     --help                  Show this help message
 
 EXAMPLES:
-    # Generate RSA keys and update repositories (default)
     ./update_evidence_keys.sh --generate
     
-    # Generate ED25519 keys and update repositories
     ./update_evidence_keys.sh --generate --key-type ed25519
     
-    # Use existing keys
     ./update_evidence_keys.sh --private-key private.pem --public-key public.pem
     
-    # Generate keys with custom alias
     ./update_evidence_keys.sh --generate --alias "my_evidence_key_2024"
     
-    # Dry run with key generation
     ./update_evidence_keys.sh --generate --dry-run
 
 KEY ALGORITHMS:
@@ -172,18 +391,14 @@ parse_arguments() {
         esac
     done
 
-    # Validate arguments
     if [[ "$GENERATE_KEYS" == true ]]; then
-        # When generating, we don't need existing key files
         if [[ -n "$PRIVATE_KEY_FILE" ]] || [[ -n "$PUBLIC_KEY_FILE" ]]; then
             log_error "Cannot specify --private-key or --public-key when using --generate"
             exit 1
         fi
         
-        # Validate key type
         case "$KEY_TYPE" in
             rsa|ec|ed25519)
-                # Valid key types
                 ;;
             *)
                 log_error "Invalid key type: $KEY_TYPE. Use: rsa, ec, or ed25519"
@@ -191,7 +406,6 @@ parse_arguments() {
                 ;;
         esac
     else
-        # When not generating, require existing key files
         if [[ -z "$PRIVATE_KEY_FILE" ]]; then
             log_error "Private key file is required. Use --private-key <file> or --generate"
             exit 1
@@ -207,13 +421,11 @@ parse_arguments() {
 validate_environment() {
     log_info "Validating environment..."
 
-    # Check if OpenSSL is available
     if ! command -v openssl &> /dev/null; then
         log_error "OpenSSL is required but not installed"
         exit 1
     fi
 
-    # Check if GitHub CLI is available and authenticated
     if ! command -v gh &> /dev/null; then
         log_error "GitHub CLI (gh) is not installed"
         log_info "Install from: https://cli.github.com/"
@@ -226,7 +438,6 @@ validate_environment() {
         exit 1
     fi
 
-    # Check JFrog environment (if updating JFrog Platform)
     if [[ "$UPDATE_JFROG" == true ]]; then
         if [[ -z "$JFROG_URL" ]]; then
             log_error "JFROG_URL environment variable is required for JFrog Platform updates"
@@ -239,7 +450,6 @@ validate_environment() {
         fi
     fi
 
-    # Check if files exist (only when not generating)
     if [[ "$GENERATE_KEYS" == false ]]; then
         if [[ ! -f "$PRIVATE_KEY_FILE" ]]; then
             log_error "Private key file not found: $PRIVATE_KEY_FILE"
@@ -262,7 +472,6 @@ generate_keys() {
     
     log_info "Generating $KEY_TYPE key pair..."
     
-    # Create temporary directory for generated keys
     TEMP_DIR=$(mktemp -d)
     PRIVATE_KEY_FILE="$TEMP_DIR/private.pem"
     PUBLIC_KEY_FILE="$TEMP_DIR/public.pem"
@@ -293,19 +502,16 @@ generate_keys() {
 validate_keys() {
     log_info "Validating key files..."
 
-    # Validate private key
     if ! openssl pkey -in "$PRIVATE_KEY_FILE" -check -noout 2>/dev/null; then
         log_error "Invalid private key format: $PRIVATE_KEY_FILE"
         exit 1
     fi
 
-    # Validate public key
     if ! openssl pkey -in "$PUBLIC_KEY_FILE" -pubin -check -noout 2>/dev/null; then
         log_error "Invalid public key format: $PUBLIC_KEY_FILE"
         exit 1
     fi
 
-    # Verify key pair match
     local private_pubkey
     private_pubkey=$(openssl pkey -in "$PRIVATE_KEY_FILE" -pubout 2>/dev/null)
     local public_key_content
@@ -316,7 +522,6 @@ validate_keys() {
         exit 1
     fi
 
-    # Detect key type
     local key_type
     key_type=$(openssl pkey -in "$PRIVATE_KEY_FILE" -text -noout 2>/dev/null | head -1)
     
@@ -363,7 +568,6 @@ update_repository_secrets_and_variables() {
     
     local success=true
     
-    # Update private key secret
     log_info "  → Updating EVIDENCE_PRIVATE_KEY secret..."
     if printf "%s" "$private_key_content" | gh secret set EVIDENCE_PRIVATE_KEY --repo "$repo"; then
         log_success "    ✅ EVIDENCE_PRIVATE_KEY secret updated"
@@ -372,7 +576,6 @@ update_repository_secrets_and_variables() {
         success=false
     fi
     
-    # Set public key as variable (public keys should never be secrets)
     log_info "  → Setting EVIDENCE_PUBLIC_KEY variable..."
     if gh variable set EVIDENCE_PUBLIC_KEY --body "$public_key_content" --repo "$repo"; then
         log_success "    ✅ EVIDENCE_PUBLIC_KEY variable updated"
@@ -381,7 +584,6 @@ update_repository_secrets_and_variables() {
         success=false
     fi
     
-    # Update key alias variable
     log_info "  → Updating EVIDENCE_KEY_ALIAS variable..."
     if gh variable set EVIDENCE_KEY_ALIAS --body "$KEY_ALIAS" --repo "$repo"; then
         log_success "    ✅ EVIDENCE_KEY_ALIAS variable updated"
@@ -403,23 +605,19 @@ update_all_repositories() {
     log_info "Updating evidence keys across all repositories..."
     echo ""
     
-    # Ensure temporary directory exists even when not generating keys
     if [[ -z "$TEMP_DIR" ]] || [[ ! -d "$TEMP_DIR" ]]; then
         TEMP_DIR=$(mktemp -d)
     fi
 
-    # Get repositories using portable method (no mapfile dependency)
     local repos_temp="$TEMP_DIR/repos_list.txt"
     get_existing_repositories > "$repos_temp"
     
-    # Count repositories
     local repo_count=$(wc -l < "$repos_temp" | tr -d ' ')
     
     echo ""
     log_info "Processing $repo_count repositories..."
     echo ""
     
-    # Read key content
     local private_key_content
     private_key_content=$(cat "$PRIVATE_KEY_FILE")
     local public_key_content
@@ -452,7 +650,6 @@ delete_existing_trusted_key() {
     
     log_info "Checking for existing trusted key with alias: $alias_to_delete"
     
-    # Find the Key ID (kid) for the given alias
     local response_file="$TEMP_DIR/trusted_keys_response.json"
     local http_code
     http_code=$(curl -s -w "%{http_code}" \
@@ -466,7 +663,6 @@ delete_existing_trusted_key() {
         return 1
     fi
     
-    # Extract Key ID for the given alias
     local kid
     kid=$(jq -r --arg alias "$alias_to_delete" '.keys[] | select(.alias == $alias) | .kid' "$response_file" 2>/dev/null)
     
@@ -511,16 +707,13 @@ upload_public_key_to_jfrog() {
         return 0
     fi
 
-    # Ensure we have a temporary directory for responses
     if [[ -z "$TEMP_DIR" ]]; then
         TEMP_DIR=$(mktemp -d)
     fi
 
-    # Read public key content (use full PEM format including headers)
     local public_key_content
     public_key_content=$(cat "$PUBLIC_KEY_FILE")
     
-    # Create JSON payload with full PEM format
     local payload
     payload=$(jq -n \
         --arg alias "$KEY_ALIAS" \
@@ -530,7 +723,6 @@ upload_public_key_to_jfrog() {
             "public_key": $public_key
         }')
     
-    # Upload to JFrog Platform
     local response_file="$TEMP_DIR/jfrog_response.json"
     local http_code
     http_code=$(curl -s -w "%{http_code}" \
@@ -544,9 +736,8 @@ upload_public_key_to_jfrog() {
     if [[ "$http_code" == "200" ]] || [[ "$http_code" == "201" ]]; then
         log_success "✅ Public key uploaded to JFrog Platform"
         
-        # CRITICAL: Verify the upload actually worked
         log_info "🔍 Verifying upload was successful..."
-        sleep 2  # Give JFrog a moment to process
+        sleep 2
         local verify_response
         verify_response=$(curl -s \
             -H "Authorization: Bearer $JFROG_ADMIN_TOKEN" \
@@ -565,11 +756,9 @@ upload_public_key_to_jfrog() {
     elif [[ "$http_code" == "409" ]]; then
         log_warning "⚠️ Trusted key with alias '$KEY_ALIAS' already exists"
         
-        # Delete existing key and retry upload
         if delete_existing_trusted_key "$KEY_ALIAS"; then
             log_info "Retrying upload after deleting existing key..."
             
-            # Retry the upload
             http_code=$(curl -s -w "%{http_code}" \
                 -X POST \
                 -H "Authorization: Bearer $JFROG_ADMIN_TOKEN" \
@@ -581,9 +770,8 @@ upload_public_key_to_jfrog() {
             if [[ "$http_code" == "200" ]] || [[ "$http_code" == "201" ]]; then
                 log_success "✅ Public key uploaded to JFrog Platform (after replacing existing key)"
                 
-                # CRITICAL: Verify the upload actually worked
                 log_info "🔍 Verifying upload was successful..."
-                sleep 2  # Give JFrog a moment to process
+                sleep 2
                 local verify_response
                 verify_response=$(curl -s \
                     -H "Authorization: Bearer $JFROG_ADMIN_TOKEN" \
@@ -621,9 +809,6 @@ upload_public_key_to_jfrog() {
     fi
 }
 
-# =============================================================================
-# MAIN EXECUTION
-# =============================================================================
 
 cleanup() {
     if [[ -n "$TEMP_DIR" ]] && [[ -d "$TEMP_DIR" ]]; then
@@ -633,14 +818,12 @@ cleanup() {
 }
 
 main() {
-    # Setup cleanup trap
     trap cleanup EXIT
     
     log_info "🔐 Evidence Key Management Script"
     log_info "================================="
     echo ""
     
-    # Parse command line arguments
     parse_arguments "$@"
     
     if [[ "$DRY_RUN" == true ]]; then
@@ -661,31 +844,25 @@ main() {
     log_info "Organization: $GITHUB_ORG"
     echo ""
     
-    # Validate environment
     validate_environment
     echo ""
     
-    # Generate keys if requested
     if [[ "$GENERATE_KEYS" == true ]]; then
         generate_keys
         echo ""
     fi
     
-    # Validate keys
     validate_keys
     echo ""
     
-    # Update repositories
     update_all_repositories
     echo ""
     
-    # Upload to JFrog Platform
     if [[ "$UPDATE_JFROG" == true ]]; then
         upload_public_key_to_jfrog
         echo ""
     fi
     
-    # Show generated keys if created
     if [[ "$GENERATE_KEYS" == true ]] && [[ "$DRY_RUN" == false ]]; then
         echo ""
         log_success "🔑 Generated Keys:"
@@ -704,7 +881,6 @@ main() {
         echo ""
     fi
     
-    # Summary
     if [[ "$DRY_RUN" == true ]]; then
         log_success "🎯 Dry run completed successfully!"
         log_info "Run without --dry-run to apply changes"
@@ -741,5 +917,4 @@ main() {
     fi
 }
 
-# Execute main function with all arguments
 main "$@"

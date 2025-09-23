@@ -2,26 +2,17 @@
 
 set -Eeuo pipefail
 
-# =============================================================================
-# SWITCH JFROG PLATFORM DEPLOYMENT (JPD) SCRIPT
-# =============================================================================
-# This script validates a new JPD platform and updates all BookVerse
-# repositories with new JFROG_URL, JFROG_ADMIN_TOKEN, and DOCKER_REGISTRY values
-# =============================================================================
 
-# Enable xtrace when requested (useful in CI with BASH_XTRACE_ENABLED)
 if [[ "${BASH_XTRACE_ENABLED:-0}" == "1" ]]; then
     set -x
 fi
 
-# Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
-# Disable colors when NO_COLOR is set or stdout is not a TTY
 if [[ -n "${NO_COLOR:-}" || ! -t 1 ]]; then
     RED=''
     GREEN=''
@@ -30,13 +21,11 @@ if [[ -n "${NO_COLOR:-}" || ! -t 1 ]]; then
     NC=''
 fi
 
-# Logging functions
 log_info() { echo -e "${BLUE}ℹ️  $1${NC}"; }
 log_success() { echo -e "${GREEN}✅ $1${NC}"; }
 log_warning() { echo -e "${YELLOW}⚠️  $1${NC}"; }
 log_error() { echo -e "${RED}❌ $1${NC}"; }
 
-# Error handler to provide actionable diagnostics on failure
 on_error() {
     local exit_code=$?
     local failed_command=${BASH_COMMAND}
@@ -57,15 +46,10 @@ on_error() {
 
 trap on_error ERR
 
-# =============================================================================
-# CONFIGURATION
-# =============================================================================
 
-# Get inputs from environment (set by GitHub Actions)
 NEW_JFROG_URL="${NEW_JFROG_URL}"
 NEW_JFROG_ADMIN_TOKEN="${NEW_JFROG_ADMIN_TOKEN}"
 
-# BookVerse repository list (all repos that need secrets/variables updated)
 BOOKVERSE_REPOS=(
     "bookverse-inventory"
     "bookverse-recommendations" 
@@ -77,7 +61,6 @@ BOOKVERSE_REPOS=(
     "bookverse-demo-init"
 )
 
-# Get GitHub organization (defaults to current user)
 if [[ -n "$GITHUB_REPOSITORY" ]]; then
     GITHUB_ORG=$(echo "$GITHUB_REPOSITORY" | cut -d'/' -f1)
 else
@@ -86,22 +69,17 @@ fi
 
 log_info "GitHub Organization: $GITHUB_ORG"
 
-# Track per-repository results
 declare -a SUCCEEDED_REPOS=()
 declare -a FAILED_REPOS=()
 AUTH_FAILED=0
 SERVICES_FAILED=0
 
-# =============================================================================
-# VALIDATION FUNCTIONS
-# =============================================================================
 
 validate_inputs() {
     log_info "Validating inputs..."
     
-    # Debug: Show URL length and first/last characters (without revealing the full URL)
     if [[ -n "$NEW_JFROG_URL" ]]; then
-        log_info "NEW_JFROG_URL length: ${#NEW_JFROG_URL} characters"
+        log_info "NEW_JFROG_URL length: ${
         log_info "NEW_JFROG_URL starts with: ${NEW_JFROG_URL:0:8}..."
         log_info "NEW_JFROG_URL ends with: ...${NEW_JFROG_URL: -10}"
     else
@@ -125,10 +103,8 @@ validate_inputs() {
 validate_host_format() {
     log_info "Validating host format..."
     
-    # Remove trailing slash if present
     NEW_JFROG_URL=$(echo "$NEW_JFROG_URL" | sed 's:/*$::')
     
-    # Check format
     if [[ ! "$NEW_JFROG_URL" =~ ^https://[a-zA-Z0-9.-]+\.jfrog\.io$ ]]; then
         log_error "Invalid host format. Expected: https://host.jfrog.io"
         log_error "Received: $NEW_JFROG_URL"
@@ -141,10 +117,8 @@ validate_host_format() {
 check_same_platform() {
     log_info "Checking for same-platform switch..."
     
-    # Get current JFROG_URL from environment (GitHub Actions sets this from vars.JFROG_URL)
     local current_url="${GITHUB_REPOSITORY_VARS_JFROG_URL:-}"
     
-    # Remove trailing slashes for comparison
     current_url=$(echo "$current_url" | sed 's:/*$::')
     local new_url=$(echo "$NEW_JFROG_URL" | sed 's:/*$::')
     
@@ -166,7 +140,6 @@ check_same_platform() {
 test_platform_connectivity() {
     log_info "Testing platform connectivity..."
     
-    # Test basic connectivity
     if ! curl -s --fail --max-time 10 "$NEW_JFROG_URL" > /dev/null; then
         log_error "Cannot reach JPD platform: $NEW_JFROG_URL"
         exit 1
@@ -178,11 +151,9 @@ test_platform_connectivity() {
 test_platform_authentication() {
     log_info "Testing platform authentication..."
     
-    # Test authentication with admin token
     local response
     local was_xtrace=0
     if [[ -o xtrace ]]; then was_xtrace=1; set +x; fi
-    # Show a sanitized version of the request for reproducibility
     log_info "Command: curl -s --max-time 10 --header 'Authorization: Bearer ***' --write-out '%{http_code}' '$NEW_JFROG_URL/artifactory/api/system/ping'"
     response=$(curl -s --max-time 10 \
         --header "Authorization: Bearer $NEW_JFROG_ADMIN_TOKEN" \
@@ -213,7 +184,6 @@ test_platform_authentication() {
 test_platform_services() {
     log_info "Testing platform services..."
     
-    # Test Artifactory service
     local was_xtrace=0
     if [[ -o xtrace ]]; then was_xtrace=1; set +x; fi
     log_info "Command: curl -s --fail --max-time 10 --header 'Authorization: Bearer ***' '$NEW_JFROG_URL/artifactory/api/system/ping'"
@@ -230,7 +200,6 @@ test_platform_services() {
         exit 1
     fi
     
-    # Test Access service
     log_info "Command: curl -s --fail --max-time 10 --header 'Authorization: Bearer ***' '$NEW_JFROG_URL/access/api/v1/system/ping'"
     if ! curl -s --fail --max-time 10 \
         --header "Authorization: Bearer $NEW_JFROG_ADMIN_TOKEN" \
@@ -242,18 +211,13 @@ test_platform_services() {
     log_success "Core services are available"
 }
 
-# =============================================================================
-# REPOSITORY UPDATE FUNCTIONS
-# =============================================================================
 
 extract_docker_registry() {
-    # Extract hostname from JFROG_URL for DOCKER_REGISTRY
     echo "$NEW_JFROG_URL" | sed 's|https://||'
 }
 
 validate_gh_auth() {
     log_info "Validating GitHub CLI authentication..."
-    # Avoid interactive prompts
     gh config set prompt disabled true >/dev/null 2>&1 || true
     if gh auth status >/dev/null 2>&1; then
         local gh_user
@@ -266,16 +230,12 @@ validate_gh_auth() {
 }
 
 trim_whitespace() {
-    # Trim leading/trailing whitespace from a string
     local s="$1"
-    # shellcheck disable=SC2001
     s=$(echo "$s" | sed 's/^\s*//;s/\s*$//')
     echo "$s"
 }
 
 get_variable_value() {
-    # Retrieve repository variable value using GitHub REST API for stronger consistency
-    # Falls back to gh variable get if REST call fails
     local full_repo="$1"
     local name="$2"
     local value
@@ -308,7 +268,6 @@ verify_variable_with_retry() {
         ((attempts++))
         if (( attempts < max_attempts )); then
             sleep "$delay_seconds"
-            # Exponential backoff with cap at 8 seconds
             if (( delay_seconds < 16 )); then
                 delay_seconds=$(( delay_seconds * 2 ))
                 if (( delay_seconds > 16 )); then delay_seconds=16; fi
@@ -326,13 +285,11 @@ update_repository_secrets_and_variables() {
     
     log_info "Updating $full_repo..."
     
-    # Extract docker registry from URL
     local docker_registry
     docker_registry=$(extract_docker_registry)
 
     local repo_ok=1
 
-    # Update secrets
     log_info "  → Updating secrets..."
     local output
     local was_xtrace=0
@@ -348,7 +305,6 @@ update_repository_secrets_and_variables() {
     fi
     if [[ $was_xtrace -eq 1 ]]; then set -x; fi
 
-    # Update variables
     log_info "  → Updating variables..."
     if ! output=$(gh variable set JFROG_URL --body "$NEW_JFROG_URL" --repo "$full_repo" 2>&1); then
         log_warning "  → Failed to update JFROG_URL: ${output}"
@@ -360,7 +316,6 @@ update_repository_secrets_and_variables() {
         repo_ok=0
     fi
 
-    # Verify variables were set correctly (with retries to avoid eventual consistency issues)
     if ! verify_variable_with_retry "$full_repo" "JFROG_URL" "$NEW_JFROG_URL"; then
         log_warning "  → JFROG_URL verification failed, retrying update once..."
         gh variable set JFROG_URL --body "$NEW_JFROG_URL" --repo "$full_repo" >/dev/null 2>&1 || true
@@ -372,7 +327,6 @@ update_repository_secrets_and_variables() {
     fi
     if ! verify_variable_with_retry "$full_repo" "DOCKER_REGISTRY" "$docker_registry"; then
         log_warning "  → DOCKER_REGISTRY verification failed, retrying update once..."
-        # Reapply the variable to mitigate eventual consistency and retry
         gh variable set DOCKER_REGISTRY --body "$docker_registry" --repo "$full_repo" >/dev/null 2>&1 || true
         if ! verify_variable_with_retry "$full_repo" "DOCKER_REGISTRY" "$docker_registry"; then
             repo_ok=0
@@ -395,7 +349,7 @@ update_repository_secrets_and_variables() {
 update_all_repositories() {
     log_info "Updating all BookVerse repositories..."
     
-    local total_count=${#BOOKVERSE_REPOS[@]}
+    local total_count=${
     local success_count=0
 
     for repo in "${BOOKVERSE_REPOS[@]}"; do
@@ -403,8 +357,6 @@ update_all_repositories() {
             ((++success_count))
         fi
 
-        # After variables are updated, open a PR in each repo to replace hardcoded host strings
-        # Best-effort only; skips if clone or PR fails
         local default_branch
         default_branch=$(gh repo view "$GITHUB_ORG/$repo" --json defaultBranchRef --jq .defaultBranchRef.name 2>/dev/null || echo "main")
 
@@ -418,20 +370,15 @@ update_all_repositories() {
             local new_registry
             new_registry=$(extract_docker_registry)
 
-            # Replace occurrences of hardcoded JFrog hosts with the new registry
-            # This handles various patterns of JFrog URLs that might be hardcoded
             
-            # Common hardcoded patterns to replace (add more as needed)
             local old_patterns=(
                 "evidencetrial\\.jfrog\\.io"
                 "apptrustswampupc\\.jfrog\\.io"
                 "releases\\.jfrog\\.io"
-                # Add any other known hardcoded patterns here
             )
             
             local changes_made=false
             
-            # Replace hostname-only patterns (for DOCKER_REGISTRY)
             for pattern in "${old_patterns[@]}"; do
                 if rg -l "$pattern" >/dev/null 2>&1; then
                     rg -l "$pattern" | xargs sed -i '' -e "s|$pattern|${new_registry}|g"
@@ -440,7 +387,6 @@ update_all_repositories() {
                 fi
             done
             
-            # Replace full URL patterns (for JFROG_URL)
             for pattern in "${old_patterns[@]}"; do
                 local url_pattern="https://$pattern"
                 if rg -l "$url_pattern" >/dev/null 2>&1; then
@@ -471,10 +417,8 @@ update_all_repositories() {
     echo "  ✗ Failed: $((total_count - success_count))/${total_count}"
 }
 
-# Perform a final re-verification pass for any repositories that reported verification errors.
-# This mitigates GitHub API eventual consistency by giving changes extra time to propagate.
 final_verification_pass() {
-    if [[ ${#FAILED_REPOS[@]} -eq 0 ]]; then
+    if [[ ${
         return 0
     fi
 
@@ -483,7 +427,6 @@ final_verification_pass() {
     local docker_registry
     docker_registry=$(extract_docker_registry)
 
-    # Make a copy, as we'll mutate FAILED_REPOS during iteration
     local to_check=("${FAILED_REPOS[@]}")
     local still_failed=()
 
@@ -491,12 +434,10 @@ final_verification_pass() {
         local full_repo="$GITHUB_ORG/$repo"
         log_info "  → Re-verifying $full_repo"
 
-        # Small delay before re-check to allow propagation
         sleep 2
 
         local ok=1
         if ! verify_variable_with_retry "$full_repo" "JFROG_URL" "$NEW_JFROG_URL"; then
-            # Reapply and retry once more
             gh variable set JFROG_URL --body "$NEW_JFROG_URL" --repo "$full_repo" >/dev/null 2>&1 || true
             if ! verify_variable_with_retry "$full_repo" "JFROG_URL" "$NEW_JFROG_URL"; then
                 ok=0
@@ -519,69 +460,55 @@ final_verification_pass() {
         fi
     done
 
-    # Replace FAILED_REPOS with those still failing
     FAILED_REPOS=("${still_failed[@]}")
 }
 
-# =============================================================================
-# MAIN EXECUTION
-# =============================================================================
 
 main() {
     echo "🔄 JFrog Platform Deployment (JPD) Switch"
     echo "=========================================="
     echo ""
     
-    # Step 1: Validate inputs
     validate_inputs
     echo ""
     
-    # Step 2: Validate host format
     validate_host_format
     echo ""
     
-    # Step 2.5: Check for same-platform switch (informational)
     check_same_platform
     
-    # Step 3: Test connectivity
     test_platform_connectivity
     echo ""
     
-    # Step 4: Test authentication
     test_platform_authentication  
     echo ""
     
-    # Step 5: Test services
     test_platform_services
     echo ""
     
-    # Step 5.5: Validate GitHub CLI auth (for cross-repo updates)
     validate_gh_auth
     echo ""
     
-    # Step 6: Update all repositories
     update_all_repositories
     echo ""
 
-    # Step 6.5: Final verification pass to reduce false negatives
     final_verification_pass
     echo ""
     
-    # Summary
     local docker_registry
     docker_registry=$(extract_docker_registry)
     
     local failed_count
-    failed_count=${#FAILED_REPOS[@]}
+    failed_count=${
     local success_count
-    success_count=${#SUCCEEDED_REPOS[@]}
+    success_count=${
 
     echo "🎯 JPD Platform Switch Summary"
     echo "================================="
     echo "New Configuration:"
     echo "  JFROG_URL: $NEW_JFROG_URL"
     echo "  DOCKER_REGISTRY: $docker_registry"
-    echo "  Total repositories: ${#BOOKVERSE_REPOS[@]}"
+    echo "  Total repositories: ${
     echo "  Success: ${success_count}"
     echo "  Failed: ${failed_count}"
 
@@ -595,7 +522,6 @@ main() {
         echo "✗ Repositories with errors: ${FAILED_REPOS[*]}"
         echo ""
         log_error "Some repositories failed to update. See messages above."
-        # Exit non-zero to mark the step as failed, but only after printing summary
         exit 1
     else
         echo ""
@@ -603,5 +529,4 @@ main() {
     fi
 }
 
-# Execute main function
 main "$@"

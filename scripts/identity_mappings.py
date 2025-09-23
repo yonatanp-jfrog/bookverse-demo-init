@@ -1,27 +1,8 @@
-#!/usr/bin/env python3
-"""
-Identity mappings discovery and cleanup utility for JFrog Access (OIDC).
 
-Goals:
-- Discover OIDC providers and any identity mappings referencing a given project key
-- Delete those identity mappings prior to project deletion
-- Emit a concise step summary (for GitHub Actions) and clear exit status
 
-Notes:
-- JFrog Access API for identity mappings can vary across versions. This tool
-  probes a set of likely endpoints and degrades gracefully when unsupported.
-- Requires JFROG_URL and JFROG_ADMIN_TOKEN environment variables.
 
-Usage examples:
-  # Discover mappings related to project 'bookverse'
-  python identity_mappings.py discover --project bookverse
 
-  # Cleanup mappings related to project 'bookverse' (dry run)
-  python identity_mappings.py cleanup --project bookverse --dry-run
 
-  # Cleanup mappings for project, failing on any error
-  python identity_mappings.py cleanup --project bookverse
-"""
 
 from __future__ import annotations
 
@@ -37,7 +18,6 @@ from dataclasses import dataclass
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 
-# ------------------------- HTTP Client -------------------------
 
 
 def _env(name: str, default: Optional[str] = None) -> Optional[str]:
@@ -102,7 +82,6 @@ class AccessClient:
                 return HttpResponse(status=getattr(resp, "status", 200), headers=dict(resp.headers), body=parsed)
         except urllib.error.HTTPError as e:
             err_body = e.read().decode("utf-8", errors="replace")
-            # Return structured response for callers that can handle non-2xx
             try:
                 parsed = json.loads(err_body)
             except Exception:
@@ -111,13 +90,11 @@ class AccessClient:
         except urllib.error.URLError as e:
             raise RuntimeError(f"Network error for {method} {url}: {e}") from None
 
-    # Known endpoints
     def list_oidc_providers(self) -> Tuple[int, Any]:
         resp = self._request("GET", "/access/api/v1/oidc")
         return resp.status, resp.body
 
 
-# ------------------------- Discovery helpers -------------------------
 
 
 def _flatten_strings(value: Any) -> Iterable[str]:
@@ -143,17 +120,12 @@ def _contains_project_reference(obj: Any, project_key: str) -> bool:
 
 
 def _probe_mapping_list_endpoints(client: AccessClient, provider_name: str) -> List[Dict[str, Any]]:
-    """
-    Try several likely endpoints to get identity mappings for a given OIDC provider.
-    Returns the first successful list; empty list if none found.
-    """
     candidate_paths = [
         f"/access/api/v1/oidc/{urllib.parse.quote(provider_name)}/mappings",
         f"/access/api/v1/oidc/{urllib.parse.quote(provider_name)}/identity-mappings",
         f"/access/api/v1/identity-mappings",
         f"/access/api/v1/identity_mappings",
     ]
-    # Try provider-scoped first, then global with providerName query
     for path in candidate_paths[:2]:
         resp = client._request("GET", path)
         if 200 <= resp.status < 300 and isinstance(resp.body, list):
@@ -165,20 +137,14 @@ def _probe_mapping_list_endpoints(client: AccessClient, provider_name: str) -> L
         if 200 <= resp.status < 300:
             if isinstance(resp.body, list):
                 return list(resp.body)
-            # Some APIs may return {"mappings": [...]} shape
             if isinstance(resp.body, dict) and isinstance(resp.body.get("mappings"), list):
-                return list(resp.body["mappings"])  # type: ignore[index]
+                return list(resp.body["mappings"])
         if resp.status == 404:
             continue
     return []
 
 
 def _delete_mapping(client: AccessClient, provider_name: str, mapping: Dict[str, Any]) -> Tuple[bool, str]:
-    """
-    Attempt to delete a mapping using multiple endpoint styles.
-    Returns (success, message).
-    """
-    # Prefer stable identifiers
     mapping_id = str(mapping.get("id") or mapping.get("_id") or mapping.get("name") or "").strip()
     if not mapping_id:
         return False, "No mapping identifier found (id/name)"
@@ -194,15 +160,12 @@ def _delete_mapping(client: AccessClient, provider_name: str, mapping: Dict[str,
         resp = client._request("DELETE", path)
         if 200 <= resp.status < 300 or resp.status == 204:
             return True, f"Deleted via {path}"
-        # If not found on this path, keep trying other templates
         if resp.status in (404, 405):
             continue
-        # Any other error: return the reason
         return False, f"HTTP {resp.status} deleting {path}: {json.dumps(resp.body) if not isinstance(resp.body, str) else resp.body}"
     return False, "No supported DELETE endpoint found"
 
 
-# ------------------------- CLI operations -------------------------
 
 
 def write_step_summary(lines: List[str]) -> None:
@@ -216,7 +179,6 @@ def write_step_summary(lines: List[str]) -> None:
                 if not line.endswith("\n"):
                     fh.write("\n")
     except Exception:
-        # Best-effort only
         pass
 
 
@@ -338,7 +300,6 @@ def main(argv: Optional[List[str]] = None) -> int:
         print("Missing --token or JFROG_ADMIN_TOKEN", file=sys.stderr)
         return 2
 
-    # Normalize: Access API base
     base = args.base_url.rstrip("/")
     if base.endswith("/access"):
         base_url = base

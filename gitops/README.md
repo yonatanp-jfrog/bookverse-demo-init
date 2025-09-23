@@ -6,9 +6,6 @@ This demo uses Argo CD to deploy across all environments (DEV, QA, STAGING, PROD
 1. AppTrust promotes artifacts through lifecycle stages (DEV → QA → STAGING → PROD).
 2. CI/CD updates `bookverse-helm/charts/platform/values.yaml` (chart/image versions) for each environment.
 3. Argo CD auto-syncs applications to their respective namespaces:
-   - `apps/dev/platform.yaml` → `bookverse-dev` namespace
-   - `apps/qa/platform.yaml` → `bookverse-qa` namespace  
-   - `apps/staging/platform.yaml` → `bookverse-staging` namespace
    - `apps/prod/platform.yaml` → `bookverse-prod` namespace
 
 ### Bootstrap (All Environments)

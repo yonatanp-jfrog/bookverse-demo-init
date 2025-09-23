@@ -1,8 +1,6 @@
 #!/bin/bash
 set -euo pipefail
 
-# BookVerse Single Service Split Script
-# This script splits one service from the monorepo for testing
 
 SERVICE="$1"
 ORG="${2:-yonatanp-jfrog}"
@@ -17,17 +15,14 @@ fi
 echo "🚀 Splitting service: $SERVICE"
 echo "🏢 GitHub organization: $ORG"
 
-# Check if service directory exists
 if [[ ! -d "$SERVICE" ]]; then
     echo "❌ Directory $SERVICE not found!"
     exit 1
 fi
 
-# Create temporary directory
 TEMP_DIR=$(mktemp -d)
 echo "📂 Temporary directory: $TEMP_DIR"
 
-# Clone monorepo
 echo "📋 Step 1: Cloning monorepo..."
 REMOTE_URL=$(git remote get-url origin)
 git clone "$REMOTE_URL" "$TEMP_DIR/$SERVICE"
@@ -36,7 +31,6 @@ cd "$TEMP_DIR/$SERVICE"
 
 echo "📋 Step 2: Filtering git history for $SERVICE..."
 
-# Add git-filter-repo to PATH if needed
 export PATH="$PATH:/Users/$USER/Library/Python/3.9/bin"
 
 if command -v git-filter-repo >/dev/null 2>&1; then

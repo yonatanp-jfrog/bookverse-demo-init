@@ -2,11 +2,6 @@
 
 set -e
 
-# =============================================================================
-# INVESTIGATE ACTUAL RESOURCES IN BOOKVERSE PROJECT
-# =============================================================================
-# User reports: builds, artifacts, repositories still exist despite 0 counts
-# Need to find what discovery methods actually work
 
 PROJECT_KEY="bookverse"
 JFROG_URL="${JFROG_URL:-https://apptrustswampupc.jfrog.io}"
@@ -20,9 +15,6 @@ echo "🎯 User reports: builds, artifacts, repositories still exist"
 echo "📊 Script reports: 0 builds, 0 repos - DISCOVERY LOGIC BROKEN"
 echo ""
 
-# =============================================================================
-# HELPER FUNCTIONS
-# =============================================================================
 
 log_attempt() {
     echo "🔍 TRYING: $1" >&2
@@ -36,9 +28,6 @@ log_fail() {
     echo "❌ FAILED: $1" >&2
 }
 
-# =============================================================================
-# INVESTIGATE REPOSITORIES
-# =============================================================================
 
 echo "📦 REPOSITORY INVESTIGATION"
 echo "==========================="
@@ -50,7 +39,6 @@ if jf rt repo-list > "$TEMP_DIR/repos_cli.txt" 2>/dev/null; then
     echo "First 10 repositories:"
     head -10 "$TEMP_DIR/repos_cli.txt" 2>/dev/null || echo "No output"
     
-    # Look for bookverse-related repos
     echo ""
     echo "🔍 Repositories containing 'bookverse':"
     grep -i bookverse "$TEMP_DIR/repos_cli.txt" 2>/dev/null || echo "None found"
@@ -79,9 +67,6 @@ else
     log_fail "REST API failed"
 fi
 
-# =============================================================================
-# INVESTIGATE BUILDS  
-# =============================================================================
 
 echo ""
 echo "🏗️ BUILD INVESTIGATION"
@@ -117,9 +102,6 @@ else
     log_fail "REST API failed"
 fi
 
-# =============================================================================
-# INVESTIGATE PROJECT DETAILS
-# =============================================================================
 
 echo ""
 echo "🎯 PROJECT DETAILS INVESTIGATION"
@@ -146,16 +128,12 @@ else
     log_fail "Project resources failed"
 fi
 
-# =============================================================================
-# INVESTIGATE ARTIFACTS
-# =============================================================================
 
 echo ""
 echo "📋 ARTIFACT INVESTIGATION" 
 echo "========================="
 
 log_attempt "Search for artifacts in project repositories"
-# First get the actual repo list and search in each
 if [[ -f "$TEMP_DIR/repos_cli.txt" ]]; then
     while IFS= read -r repo_key; do
         if [[ -n "$repo_key" && "$repo_key" =~ bookverse ]]; then

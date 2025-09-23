@@ -1,0 +1,35 @@
+{
+  "metadata": {
+    "timestamp": "2025-09-22T13:38:00Z",
+    "project_key": "bookverse",
+    "total_items": 0,
+    "discovery_counts": {
+      "builds": 0,
+      "applications": 0,
+      "repositories": 0,
+      "users": 0,
+      "stages": 0,
+      "oidc": 0,
+      "repositories_breakdown": {
+        "local": 0,
+        "remote": 0,
+        "virtual": 0
+      },
+      "domain_users": 0
+    }
+  },
+  "plan": {
+    "repositories": [],
+    "applications": [],
+    "users": [],
+    "stages": [],
+    "builds": [],
+    "oidc": [],
+    "domain_users": []
+  },
+  "observations": {
+    "oidc_integrations": []
+  },
+  "deletion_preview": "🛡️ SAFETY: Discovering what would be deleted...\nProject: bookverse\nDate: Mon Sep 22 16:35:17 IDT 2025\n\nBUILDS: None found\n\nAPPLICATIONS: None found\n\nREPOSITORIES: None found\n\nUSERS: None found\n\nSTAGES: None found\n\nSUMMARY:\n========\nTotal items to delete: 0\nProject to delete: bookverse\n\n⚠️ WARNING: This action cannot be undone!\n",
+  "status": "ready_for_cleanup"
+}

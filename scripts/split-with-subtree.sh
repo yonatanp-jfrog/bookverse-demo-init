@@ -1,8 +1,6 @@
 #!/bin/bash
 set -euo pipefail
 
-# BookVerse Service Split using git subtree
-# This approach is cleaner for splitting services
 
 SERVICE="$1"
 ORG="${2:-yonatanp-jfrog}"
@@ -17,7 +15,6 @@ fi
 echo "🚀 Splitting service: $SERVICE using git subtree"
 echo "🏢 GitHub organization: $ORG"
 
-# Check if service directory exists
 if [[ ! -d "$SERVICE" ]]; then
     echo "❌ Directory $SERVICE not found!"
     exit 1

@@ -1,15 +1,8 @@
 #!/usr/bin/env bash
 
-# =============================================================================
-# DEPENDENCY PRE-POPULATION SCRIPT (CORRECTED)
-# =============================================================================
-# Pre-populates critical dependencies used by BookVerse services
-# This ensures all CI/CD pipelines can run with dependencies from Artifactory
-# =============================================================================
 
 set -e
 
-# Load configuration
 source "$(dirname "$0")/config.sh"
 
 echo ""
@@ -18,7 +11,6 @@ echo "🔧 Project: $PROJECT_KEY"
 echo "🔧 JFrog URL: $JFROG_URL"
 echo ""
 
-# Helper: Execute an AQL query against Artifactory
 aql_query() {
     local query="$1"
     curl -sS -L \
@@ -29,12 +21,10 @@ aql_query() {
         "${JFROG_URL%/}/artifactory/api/search/aql" 2>/dev/null || true
 }
 
-# Check if a specific Python package version is already cached
 is_python_package_cached() {
     local package="$1"
     local version="$2"
 
-    # If no specific version, we can't reliably check
     if [[ -z "$version" || "$version" == "latest" ]]; then
         return 1
     fi
@@ -42,7 +32,6 @@ is_python_package_cached() {
     local pkg_lower
     pkg_lower=$(echo "$package" | tr '[:upper:]' '[:lower:]')
 
-    # Try to find a wheel first
     local aql_wheel
     aql_wheel=$(cat <<EOF
 items.find({
@@ -64,7 +53,6 @@ EOF
         return 0
     fi
 
-    # Fallback: try sdist tarball
     local aql_sdist
     aql_sdist=$(cat <<EOF
 items.find({
@@ -84,19 +72,16 @@ EOF
     echo "$res" | jq -e '.results | length > 0' >/dev/null 2>&1
 }
 
-# Check if a specific npm package version is already cached
 is_npm_package_cached() {
     local package="$1"
     local version="$2"
 
-    # If no specific version, we can't reliably check
     if [[ -z "$version" || "$version" == "latest" ]]; then
         return 1
     fi
 
-    # Derive tarball file name used by npm: <basename>-<version>.tgz
     local base
-    base="${package##*/}"
+    base="${package
     local tar
     tar="${base}-${version}.tgz"
 
@@ -118,7 +103,6 @@ EOF
     echo "$res" | jq -e '.results | length > 0' >/dev/null 2>&1
 }
 
-# Function to download and cache Python packages
 cache_python_package() {
     local package="$1"
     local version="${2:-latest}"
@@ -130,18 +114,14 @@ cache_python_package() {
         return 0
     fi
     
-    # Use 'pip download' which respects the config from 'jf pipc'
-    # This will download the package and its dependencies into Artifactory's cache
     if [[ "$version" == "latest" ]]; then
         pip download "$package" --no-deps > /dev/null 2>&1 || echo "⚠️ Warning: Could not cache $package"
     else
         pip download "$package==$version" --no-deps > /dev/null 2>&1 || echo "⚠️ Warning: Could not cache $package==$version"
     fi
-    # Clean up locally downloaded files
     rm -f *.whl *.tar.gz
 }
 
-# Function to download and cache npm packages
 cache_npm_package() {
     local package="$1"
     local version="${2:-latest}"
@@ -153,18 +133,15 @@ cache_npm_package() {
         return 0
     fi
     
-    # Use 'npm pack' which respects the config from 'jf npmc'
     if [[ "$version" == "latest" ]]; then
         npm pack "$package" > /dev/null 2>&1 || echo "⚠️ Warning: Could not cache $package"
     else
         npm pack "$package@$version" > /dev/null 2>&1 || echo "⚠️ Warning: Could not cache $package@$version"
     fi
     
-    # Clean up downloaded tarballs
     rm -f *.tgz
 }
 
-# Function to pull and cache Docker images (supports Docker Hub library namespace)
 cache_docker_image() {
     local image="$1"
     local tag="${2:-latest}"
@@ -175,13 +152,11 @@ cache_docker_image() {
     local virtual_repo_path="${docker_registry_host}/${PROJECT_KEY}-dockerhub-virtual"
     local cache_repo_key="${PROJECT_KEY}-dockerhub-cache-local"
     
-    # Official Docker Hub images require the 'library/' prefix when pulled via Artifactory
     local image_path="$image"
     if [[ "$image" != */* ]]; then
         image_path="library/$image"
     fi
     
-    # Fast path: if manifest already exists in the local cache repo, skip
     local base_api_cache="${JFROG_URL%/}/artifactory/api/docker/${cache_repo_key}/v2"
     local manifest_url_cache="$base_api_cache/${image_path}/manifests/$tag"
     local head_code
@@ -194,15 +169,12 @@ cache_docker_image() {
         return 0
     fi
     
-    # Use JFrog CLI for secure Docker operations if available
     if [[ "$USE_JF_DOCKER" == "true" ]]; then
-        # Retry pulls using JFrog CLI to handle transient network/remote hiccups
         local attempt
         for attempt in 1 2 3; do
             if jf docker pull "${virtual_repo_path}/${image_path}:$tag" 2>/dev/null; then
                 return 0
             fi
-            # Fallback: try without 'library/' if the first path failed
             if [[ "$image_path" == library/* ]]; then
                 if jf docker pull "${virtual_repo_path}/${image}:$tag" 2>/dev/null; then
                     return 0
@@ -211,13 +183,11 @@ cache_docker_image() {
             sleep $((attempt * 2))
         done
     else
-        # Fallback to direct docker pull (may have authentication issues)
         local attempt
         for attempt in 1 2 3; do
             if docker pull "${virtual_repo_path}/${image_path}:$tag"; then
                 return 0
             fi
-            # Fallback: try without 'library/' if the first path failed
             if [[ "$image_path" == library/* ]]; then
                 if docker pull "${virtual_repo_path}/${image}:$tag"; then
                     return 0
@@ -228,7 +198,6 @@ cache_docker_image() {
     fi
     echo "⚠️ docker pull failed for $image:$tag via ${virtual_repo_path}; attempting API prefetch"
 
-    # Fallback: Prefetch via Artifactory Docker API (manifest + blobs) using admin token
     local base_api="${JFROG_URL%/}/artifactory/api/docker/${PROJECT_KEY}-dockerhub-virtual/v2"
     local manifest_url="$base_api/${image_path}/manifests/$tag"
     local mf=$(mktemp)
@@ -238,7 +207,6 @@ cache_docker_image() {
         -H "Accept: application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.manifest.v1+json" \
         "$manifest_url" 2>/dev/null || echo 000)
     if [[ "$code" -ge 200 && "$code" -lt 300 ]]; then
-        # Fetch config and layers to warm cache
         local config_digest
         config_digest=$(jq -r '.config.digest // empty' "$mf" 2>/dev/null || echo "")
         if [[ -n "$config_digest" ]]; then
@@ -269,26 +237,20 @@ cache_docker_image() {
 echo "=== Configuring JFrog CLI for dependency management ==="
 jf c use bookverse-admin
 
-# Configure secure Docker authentication for JFrog registry and virtual repositories
 echo "🔐 Configuring secure Docker authentication..."
 
-# Extract registry host from JFROG_URL
 DOCKER_REG_HOST=$(echo "$JFROG_URL" | sed 's|https://||' | sed 's|http://||')
 VIRTUAL_REPO_HOST="${DOCKER_REG_HOST}/${PROJECT_KEY}-dockerhub-virtual"
 
 if command -v jf >/dev/null 2>&1; then
-  # Method 1: Use JFrog CLI for secure authentication to virtual repository
   echo "Configuring authentication for Docker virtual repository..."
   
-  # First ensure JFrog CLI is authenticated
   if jf rt ping >/dev/null 2>&1; then
     echo "✅ JFrog CLI authentication verified"
     
-    # Use JFrog CLI's secure approach for Docker operations instead of direct docker commands
     echo "ℹ️ Using JFrog CLI for secure Docker operations"
     echo "ℹ️ This prevents unencrypted credential storage in ~/.docker/config.json"
     
-    # Set up an environment variable to track that we should use JF CLI commands
     export USE_JF_DOCKER="true"
     
   else
@@ -304,16 +266,13 @@ fi
 echo ""
 echo "=== Pre-populating Python dependencies ==="
 
-# Use direct download and upload approach to avoid PyPI proxy issues
 echo "📦 Downloading and uploading Python packages to local repository..."
 
-# Create temporary directory for downloads
 TEMP_DIR=$(mktemp -d)
 trap "rm -rf $TEMP_DIR" EXIT
 
 cd "$TEMP_DIR"
 
-# Define packages to download (based on BookVerse service requirements)
 PACKAGES=(
     "fastapi==0.111.0"
     "uvicorn==0.30.0"
@@ -325,7 +284,6 @@ PACKAGES=(
     "python-multipart==0.0.20"
     "python-dotenv==1.1.1"
     "SQLAlchemy"
-    # Core dependencies
     "starlette==0.37.2"
     "typing-extensions==4.15.0"
     "click"
@@ -343,16 +301,13 @@ PACKAGES=(
 )
 
 echo "📥 Downloading packages with dependencies..."
-# Download packages with all dependencies
 pip3 download "${PACKAGES[@]}" || echo "⚠️ Some downloads may have failed"
 
-# Also download platform-independent versions for compatibility
 echo "📥 Downloading platform-independent wheels..."
 pip3 download --platform any --only-binary=:all: \
   charset-normalizer urllib3 coverage || echo "⚠️ Some platform-independent downloads failed"
 
 echo "📤 Uploading packages to JFrog local repository..."
-# Upload all downloaded packages to the local PyPI repository
 for file in *.whl *.tar.gz; do
     if [[ -f "$file" ]]; then
         echo "  📤 Uploading: $file"
@@ -368,19 +323,15 @@ cd - > /dev/null
 
 echo "✅ Python dependencies populated in local repository"
 
-# Legacy approach (kept for compatibility but will likely fail due to PyPI proxy issues)
 echo "📝 Note: Also attempting legacy caching approach for compatibility..."
 jf pipc --repo-resolve "${PROJECT_KEY}-pypi-virtual"
 
-# Core Python CI tools
 cache_python_package "pip" "24.2"
 
-# Testing tools  
 cache_python_package "pytest" "8.3.2"
 cache_python_package "pytest-cov" "4.0.0"
 cache_python_package "httpx" "0.27.0"
 
-# FastAPI ecosystem
 cache_python_package "fastapi" "0.111.0"
 cache_python_package "uvicorn" "0.30.0"
 cache_python_package "pydantic" "2.11.9"
@@ -389,10 +340,8 @@ cache_python_package "sqlalchemy" "2.0.23"
 cache_python_package "python-multipart" "0.0.20"
 cache_python_package "python-dotenv" "1.1.1"
 
-# Security tools
 cache_python_package "safety" "3.2.7"
 
-# Code quality tools
 cache_python_package "black" "23.9.1"
 cache_python_package "isort" "5.12.0"
 cache_python_package "mypy" "1.5.1"
@@ -400,46 +349,36 @@ cache_python_package "mypy" "1.5.1"
 echo ""
 echo "=== Pre-populating npm dependencies ==="
 
-# Configure npm to resolve from the virtual repository
 jf npmc --repo-resolve "${PROJECT_KEY}-npm-virtual"
 
-# Core npm tools
 cache_npm_package "npm" "10.8.2"
 cache_npm_package "yarn" "1.22.22"
 
-# Frontend build tools
 cache_npm_package "vite" "5.4.1"
 cache_npm_package "typescript" "5.5.4"
 cache_npm_package "@vitejs/plugin-react" "4.3.1"
 
-# React ecosystem
 cache_npm_package "react" "18.3.1"
 cache_npm_package "react-dom" "18.3.1"
 cache_npm_package "@types/react" "18.3.3"
 cache_npm_package "@types/react-dom" "18.3.0"
 
-# Testing tools
 cache_npm_package "vitest" "2.0.5"
 cache_npm_package "jsdom" "25.0.0"
 
-# Security tools
 cache_npm_package "audit-ci" "7.1.0"
 
 echo ""
 echo "=== Pre-populating Docker base images ==="
 
-# Python base images
 cache_docker_image "python" "3.11-slim"
 cache_docker_image "python" "3.11-alpine"
 
-# Node.js base images
 cache_docker_image "node" "20-alpine"
 cache_docker_image "node" "20-slim"
 
-# Nginx for web frontend
 cache_docker_image "nginx" "1.25-alpine"
 
-# Utility images for CI/CD
 cache_docker_image "alpine" "3.18"
 cache_docker_image "ubuntu" "22.04"
 

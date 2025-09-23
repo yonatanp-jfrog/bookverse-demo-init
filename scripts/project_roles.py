@@ -1,20 +1,6 @@
-#!/usr/bin/env python3
-"""
-Project roles discovery and cleanup utility for JFrog Access.
 
-Functions:
-- List project roles for a given project key
-- Delete project-scoped roles created by the demo (optionally filter by prefix)
-- Emit GitHub step summary for visibility in CI logs
 
-Requirements:
-- JFROG_URL (base), JFROG_ADMIN_TOKEN
 
-Usage:
-  python project_roles.py discover --project bookverse
-  python project_roles.py cleanup --project bookverse --dry-run
-  python project_roles.py cleanup --project bookverse --role-prefix bookverse-
-"""
 
 from __future__ import annotations
 
@@ -89,7 +75,6 @@ class AccessClient:
         except urllib.error.URLError as e:
             raise RuntimeError(f"Network error for {method} {url}: {e}") from None
 
-    # API methods
     def list_project_roles(self, project_key: str) -> HttpResponse:
         return self._request("GET", f"/access/api/v1/projects/{urllib.parse.quote(project_key)}/roles")
 
@@ -144,7 +129,6 @@ def op_cleanup(client: AccessClient, project: str, dry_run: bool, role_prefix: O
             continue
         if role_prefix and not name.startswith(role_prefix):
             continue
-        # Skip built-in roles by convention (common names); adjust as needed
         builtin = {"Developer", "Contributor", "Viewer", "Release Manager", "Security Manager", "Application Admin", "Project Admin"}
         if name in builtin:
             continue

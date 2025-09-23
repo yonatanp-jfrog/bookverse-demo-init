@@ -313,29 +313,82 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 📊 Detailed Results" >> $GITHUB_STEP_SUMMARY
           if [[ -f "$exec_log" ]]; then
+            # Application versions
+            if [[ "$MODE" == "preview" ]]; then
+              app_versions=$(grep -E "🔍 \[DRY RUN\] Would delete version:" "$exec_log" | sed -E "s/.*Would delete version: (.+)/- \1/" | sort -u) || true
+              echo "**Application Versions That Would Be Deleted:**" >> $GITHUB_STEP_SUMMARY
+            else
+              app_versions=$(grep -E "✅ Version '.*' deleted successfully" "$exec_log" | sed -E "s/.*Version '([^']+)'.*/- \1/" | sort -u) || true
+              echo "**Application Versions Deleted:**" >> $GITHUB_STEP_SUMMARY
+            fi
+            if [[ -n "$app_versions" ]]; then echo "$app_versions" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            # Repositories
+          if [[ "$MODE" == "preview" ]]; then
+            repos=$(grep -E "🔍 \[DRY RUN\] Would delete repository:" "$exec_log" | sed -E "s/.*Would delete repository: (.+)/- \1/") || true
+            echo "**Repositories That Would Be Deleted:**" >> $GITHUB_STEP_SUMMARY
+          else
             repos=$(grep -E "✅ Repository '.*' deleted successfully" "$exec_log" | sed -E "s/.*Repository '([^']+)'.*/- \1/") || true
             echo "**Repositories Deleted:**" >> $GITHUB_STEP_SUMMARY
-            if [[ -n "$repos" ]]; then echo "$repos" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
+          fi
+          if [[ -n "$repos" ]]; then echo "$repos" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
 
-            users=$(grep -E "✅ User '.*' (removed from project|deleted) successfully" "$exec_log" | sed -E "s/.*User '([^']+)'.*/- \1/") || true
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Users Removed:**" >> $GITHUB_STEP_SUMMARY
+            if [[ "$MODE" == "preview" ]]; then
+              users=$(grep -E "🔍 \[DRY RUN\] Would delete user:|🔍 \[DRY RUN\] Would remove user:" "$exec_log" | sed -E "s/.*Would (delete|remove) user: (.+)/- \2/") || true
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "**Users That Would Be Removed:**" >> $GITHUB_STEP_SUMMARY
+            else
+              users=$(grep -E "✅ User '.*' (removed from project|deleted) successfully" "$exec_log" | sed -E "s/.*User '([^']+)'.*/- \1/") || true
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "**Users Removed:**" >> $GITHUB_STEP_SUMMARY
+            fi
             if [[ -n "$users" ]]; then echo "$users" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
 
-            apps=$(grep -E "✅ Application '.*' deleted successfully" "$exec_log" | sed -E "s/.*Application '([^']+)'.*/- \1/") || true
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Applications Deleted:**" >> $GITHUB_STEP_SUMMARY
+            if [[ "$MODE" == "preview" ]]; then
+              apps=$(grep -E "🔍 \[DRY RUN\] Would delete application:" "$exec_log" | sed -E "s/.*Would delete application: (.+)/- \1/") || true
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "**Applications That Would Be Deleted:**" >> $GITHUB_STEP_SUMMARY
+            else
+              apps=$(grep -E "✅ Application '.*' deleted successfully" "$exec_log" | sed -E "s/.*Application '([^']+)'.*/- \1/") || true
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "**Applications Deleted:**" >> $GITHUB_STEP_SUMMARY
+            fi
             if [[ -n "$apps" ]]; then echo "$apps" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
 
-            stages=$(grep -E "✅ (Project stage|Stage) '.*' deleted successfully" "$exec_log" | sed -E "s/.*'(.*)'.*/- \1/") || true
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Stages Deleted:**" >> $GITHUB_STEP_SUMMARY
+            if [[ "$MODE" == "preview" ]]; then
+              stages=$(grep -E "🔍 \[DRY RUN\] Would delete stage:" "$exec_log" | sed -E "s/.*Would delete stage: (.+)/- \1/") || true
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "**Stages That Would Be Deleted:**" >> $GITHUB_STEP_SUMMARY
+            else
+              stages=$(grep -E "✅ (Project stage|Stage) '.*' deleted successfully" "$exec_log" | sed -E "s/.*'(.*)'.*/- \1/") || true
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "**Stages Deleted:**" >> $GITHUB_STEP_SUMMARY
+            fi
             if [[ -n "$stages" ]]; then echo "$stages" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
 
-            builds=$(grep -E "✅ Build '.*' deleted successfully" "$exec_log" | sed -E "s/.*Build '([^']+)'.*/- \1/") || true
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Builds Deleted:**" >> $GITHUB_STEP_SUMMARY
+            if [[ "$MODE" == "preview" ]]; then
+              builds=$(grep -E "🔍 \[DRY RUN\] Would delete build:" "$exec_log" | sed -E "s/.*Would delete build: (.+)/- \1/") || true
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "**Builds That Would Be Deleted:**" >> $GITHUB_STEP_SUMMARY
+            else
+              builds=$(grep -E "✅ Build '.*' deleted successfully" "$exec_log" | sed -E "s/.*Build '([^']+)'.*/- \1/") || true
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "**Builds Deleted:**" >> $GITHUB_STEP_SUMMARY
+            fi
             if [[ -n "$builds" ]]; then echo "$builds" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
+
+            # Project deletion
+            if [[ "$MODE" == "preview" ]]; then
+              project_status=$(grep -E "🔍 \[DRY RUN\] Would delete project:" "$exec_log" | sed -E "s/.*Would delete project: (.+)/- \1/") || true
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "**Project That Would Be Deleted:**" >> $GITHUB_STEP_SUMMARY
+            else
+              project_status=$(grep -E "✅ Project '.*' deleted successfully" "$exec_log" | sed -E "s/.*Project '([^']+)'.*/- \1/") || true
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "**Project Deleted:**" >> $GITHUB_STEP_SUMMARY
+            fi
+            if [[ -n "$project_status" ]]; then echo "$project_status" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
 
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "**Failed Operations:**" >> $GITHUB_STEP_SUMMARY

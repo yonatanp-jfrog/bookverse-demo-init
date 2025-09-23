@@ -156,7 +156,7 @@ case "$PHASE" in
                     
                     if [[ "$versions_code" -eq 200 ]]; then
                         # Delete each version
-                        jq -r '.[]?.version_name // empty' "$versions_response" 2>/dev/null | while read -r version; do
+                        jq -r '.versions[]?.version // empty' "$versions_response" 2>/dev/null | while read -r version; do
                             if [[ -n "$version" ]]; then
                                 echo "  🗑️ Deleting version: $version"
                                 delete_version_response=$(mktemp)

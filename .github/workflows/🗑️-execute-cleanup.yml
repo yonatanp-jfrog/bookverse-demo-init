@@ -345,7 +345,7 @@ jobs:
             repos=$(grep -E "🔍 \[DRY RUN\] Would delete repository:" "$exec_log" | sed -E "s/.*Would delete repository: (.+)/- \1/") || true
             echo "**Repositories That Would Be Deleted:**" >> $GITHUB_STEP_SUMMARY
           else
-            repos=$(grep -E "✅ Repository '.*' deleted successfully" "$exec_log" | sed -E "s/.*Repository '([^']+)'.*/- \1/") || true
+            repos=$(grep -E "✅ repository '.*' deleted successfully" "$exec_log" | sed -E "s/.*repository '([^']+)'.*/- \1/") || true
             echo "**Repositories Deleted:**" >> $GITHUB_STEP_SUMMARY
           fi
           if [[ -n "$repos" ]]; then echo "$repos" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
@@ -355,7 +355,7 @@ jobs:
               echo "" >> $GITHUB_STEP_SUMMARY
               echo "**Users That Would Be Removed:**" >> $GITHUB_STEP_SUMMARY
             else
-              users=$(grep -E "✅ User '.*' (removed from project|deleted) successfully" "$exec_log" | sed -E "s/.*User '([^']+)'.*/- \1/") || true
+              users=$(grep -E "✅ domain user '.*' deleted successfully" "$exec_log" | sed -E "s/.*domain user '([^']+)'.*/- \1/") || true
               echo "" >> $GITHUB_STEP_SUMMARY
               echo "**Users Removed:**" >> $GITHUB_STEP_SUMMARY
             fi
@@ -366,7 +366,7 @@ jobs:
               echo "" >> $GITHUB_STEP_SUMMARY
               echo "**Applications That Would Be Deleted:**" >> $GITHUB_STEP_SUMMARY
             else
-              apps=$(grep -E "✅ Application '.*' deleted successfully" "$exec_log" | sed -E "s/.*Application '([^']+)'.*/- \1/") || true
+              apps=$(grep -E "✅ application '.*' deleted successfully" "$exec_log" | sed -E "s/.*application '([^']+)'.*/- \1/") || true
               echo "" >> $GITHUB_STEP_SUMMARY
               echo "**Applications Deleted:**" >> $GITHUB_STEP_SUMMARY
             fi
@@ -377,7 +377,7 @@ jobs:
               echo "" >> $GITHUB_STEP_SUMMARY
               echo "**Stages That Would Be Deleted:**" >> $GITHUB_STEP_SUMMARY
             else
-              stages=$(grep -E "✅ (Project stage|Stage) '.*' deleted successfully" "$exec_log" | sed -E "s/.*'(.*)'.*/- \1/") || true
+              stages=$(grep -E "✅ lifecycle stage '.*' deleted successfully" "$exec_log" | sed -E "s/.*lifecycle stage '([^']+)'.*/- \1/") || true
               echo "" >> $GITHUB_STEP_SUMMARY
               echo "**Stages Deleted:**" >> $GITHUB_STEP_SUMMARY
             fi
@@ -388,7 +388,7 @@ jobs:
               echo "" >> $GITHUB_STEP_SUMMARY
               echo "**Builds That Would Be Deleted:**" >> $GITHUB_STEP_SUMMARY
             else
-              builds=$(grep -E "✅ Build '.*' deleted successfully" "$exec_log" | sed -E "s/.*Build '([^']+)'.*/- \1/") || true
+              builds=$(grep -E "✅ build '.*' deleted successfully" "$exec_log" | sed -E "s/.*build '([^']+)'.*/- \1/") || true
               echo "" >> $GITHUB_STEP_SUMMARY
               echo "**Builds Deleted:**" >> $GITHUB_STEP_SUMMARY
             fi
@@ -400,7 +400,7 @@ jobs:
               echo "" >> $GITHUB_STEP_SUMMARY
               echo "**OIDC Integrations/Roles That Would Be Deleted:**" >> $GITHUB_STEP_SUMMARY
             else
-              oidc_items=$(grep -E "✅ (OIDC integration|Role) '.*' deleted successfully" "$exec_log" | sed -E "s/.*(OIDC integration|Role) '([^']+)'.*/- \2/" | sort -u) || true
+              oidc_items=$(grep -E "✅ OIDC integration '.*' deleted successfully" "$exec_log" | sed -E "s/.*OIDC integration '([^']+)'.*/- \1/" | sort -u) || true
               echo "" >> $GITHUB_STEP_SUMMARY
               echo "**OIDC Integrations/Roles Deleted:**" >> $GITHUB_STEP_SUMMARY
             fi

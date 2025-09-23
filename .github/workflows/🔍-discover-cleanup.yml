@@ -2,7 +2,6 @@ name: '🔍 Discover Cleanup'
 
 on:
   workflow_dispatch:
-    inputs:
   push:
     paths:
       - '.github/workflows/🔍-discover-cleanup.yml'
@@ -48,14 +47,17 @@ jobs:
         env:
           JFROG_URL: ${{ vars.JFROG_URL }}
           JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}
-          PROJECT_KEY: 'bookverse'
+          PROJECT_KEY: ${{ vars.PROJECT_KEY || 'bookverse' }}
         run: |
-          set +e
+          set -euo pipefail  # Enable proper error handling
           cd .github/scripts/setup
           export SKIP_PROTECTION=true
           source ./cleanup_project_based.sh
-          set +e
-          run_discovery_preview || true
+          # Allow discovery to fail gracefully but still report errors
+          if ! run_discovery_preview; then
+            echo "⚠️ Discovery completed with some errors, but continuing..."
+            exit 0
+          fi
           cd -
 
       - name: Commit shared discovery report
@@ -77,14 +79,34 @@ jobs:
               echo "📋 No changes to commit for cleanup report"
             else
               git commit -m "chore: Update cleanup discovery report"
-              set +e
-              git push origin ${{ github.ref_name }}
-              if [[ $? -ne 0 ]]; then
-                echo "Push rejected, attempting pull --rebase..."
-                git pull --rebase origin ${{ github.ref_name }}
-                git push origin ${{ github.ref_name }}
-              fi
-              echo "📋 Cleanup report committed and pushed"
+              
+              # Robust push with retry logic and conflict handling
+              max_retries=3
+              retry_count=0
+              while [[ $retry_count -lt $max_retries ]]; do
+                if git push origin ${{ github.ref_name }}; then
+                  echo "📋 Cleanup report committed and pushed successfully"
+                  break
+                else
+                  retry_count=$((retry_count + 1))
+                  echo "Push failed (attempt $retry_count/$max_retries), attempting pull --rebase..."
+                  
+                  if git pull --rebase origin ${{ github.ref_name }}; then
+                    echo "Rebase successful, retrying push..."
+                  else
+                    echo "❌ Rebase failed - likely merge conflicts"
+                    git rebase --abort 2>/dev/null || true
+                    if [[ $retry_count -eq $max_retries ]]; then
+                      echo "❌ Failed to push after $max_retries attempts"
+                      echo "Manual intervention may be required"
+                      exit 1
+                    fi
+                    echo "Retrying with fresh pull..."
+                    git reset --hard origin/${{ github.ref_name }}
+                    git commit -m "chore: Update cleanup discovery report (retry $retry_count)"
+                  fi
+                fi
+              done
             fi
           else
             echo "⚠️ No cleanup report found"

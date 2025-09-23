@@ -485,21 +485,8 @@ discover_project_builds() {
         count=$(wc -l < "$filtered_builds" 2>/dev/null || echo 0)
     fi
 
-    if [[ "$count" -eq 0 ]]; then
-        echo "ℹ️ Fallback: Listing all builds and filtering by name..." >&2
-        
-        local all_builds_file="$TEMP_DIR/all_builds.json"
-        local code2=$(jfrog_api_call "GET" "/artifactory/api/build" "$all_builds_file" "curl" "" "all builds")
-        
-        if is_success "$code2" && [[ -s "$all_builds_file" ]]; then
-            jq -r --arg project "$PROJECT_KEY" '.builds[]?.uri | select(contains($project))' "$all_builds_file" 2>/dev/null | sed 's|^/||' > "$filtered_builds" 2>/dev/null || true
-            count=$(wc -l < "$filtered_builds" 2>/dev/null || echo 0)
-            
-            if [[ "$count" -gt 0 ]]; then
-                echo "✅ Found $count builds via name filtering" >&2
-            fi
-        fi
-    fi
+    # No fallback to string matching - if project API returns no builds, 
+    # there are genuinely no builds for this project
     
     echo "🏗️ Found $count builds in project '$PROJECT_KEY'" >&2
     
@@ -581,7 +568,9 @@ discover_project_oidc() {
     
     local count=0
     if is_success "$code" && [[ -s "$all_oidc_file" ]]; then
-        jq -r --arg project "$PROJECT_KEY" '.[]? | .name | select(contains($project))' "$all_oidc_file" 2>/dev/null > "$oidc_file" || touch "$oidc_file"
+        # Use precise pattern matching instead of contains() to avoid false positives
+        # Matches: project-*, *-project, or exact project name
+        jq -r --arg project "$PROJECT_KEY" '.[]? | .name | select(test("^" + $project + "-") or test("-" + $project + "$") or . == $project)' "$all_oidc_file" 2>/dev/null > "$oidc_file" || touch "$oidc_file"
         count=$(wc -l < "$oidc_file" 2>/dev/null || echo 0)
     else
         touch "$oidc_file"
@@ -819,17 +808,21 @@ run_discovery_preview() {
     fi
     if [[ -f "$TEMP_DIR/project_stages.txt" ]]; then
         local lifecycle_file="$TEMP_DIR/lifecycle.json"
-        jfrog_api_call "GET" "/access/api/v2/lifecycle/?project_key=$PROJECT_KEY" "$lifecycle_file" "curl" "" "get lifecycle for stage usage" >/dev/null || true
+        local lifecycle_code
+        lifecycle_code=$(jfrog_api_call "GET" "/access/api/v2/lifecycle/?project_key=$PROJECT_KEY" "$lifecycle_file" "curl" "" "get lifecycle for stage usage")
+        if ! is_success "$lifecycle_code"; then
+            echo "⚠️ Lifecycle API call failed (HTTP $lifecycle_code), stages will show in_use:false" >&2
+            [[ -f "$lifecycle_file" ]] && echo "Response: $(cat "$lifecycle_file")" >&2
+        fi
 
         if [[ -s "$lifecycle_file" ]] && jq -e . "$lifecycle_file" >/dev/null 2>&1; then
             # Handle the actual lifecycle API response structure with categories
-            stages_json=$(jq -R -s --arg project "$PROJECT_KEY" --argfile lif "$lifecycle_file" '
-                # Extract promote stages from the actual lifecycle structure
-                ( ($lif|try .categories // []) | 
-                  map(select(.category == "promote")) | 
-                  .[0].stages // [] |
-                  map(.name)
-                ) as $ps
+            # Extract promote stages list first for compatibility with older jq versions
+            local promote_stages_list
+            promote_stages_list=$(jq -r '(.categories // []) | map(select(.category == "promote")) | .[0].stages // [] | map(.name) | join(",")' "$lifecycle_file" 2>/dev/null || echo "")
+            
+            stages_json=$(jq -R -s --arg project "$PROJECT_KEY" --arg promote_stages "$promote_stages_list" '
+                ($promote_stages | split(",") | map(select(length > 0))) as $ps
                 | split("\n")
                 | map(select(length>0))
                 | map({name:., project:$project, in_use: ( ($ps|index(.)) != null )})

@@ -125,7 +125,11 @@ jobs:
           set -uo pipefail
           # Delete application versions first (highest level dependencies)
           DRY_RUN=${{ inputs.mode == 'preview' && 'true' || 'false' }}
-          bash ./.github/scripts/setup/cleanup_from_report_phase.sh app_versions $DRY_RUN 2>&1 | tee -a /tmp/cleanup_execution.log || echo "⚠️ Some application versions may have issues - continuing with cleanup"
+          bash ./.github/scripts/setup/cleanup_from_report_phase.sh app_versions $DRY_RUN 2>&1 | tee -a /tmp/cleanup_execution.log || {
+            echo "❌ Application versions cleanup failed with exit code $?"
+            echo "Check the logs above for specific errors"
+            exit 1
+          }
 
       - name: 🔧 Delete builds (step 2 of dependency chain)
         if: ${{ steps.validate.outputs.report_valid == 'true' }}
@@ -137,7 +141,11 @@ jobs:
           set -uo pipefail
           # Delete builds after application versions are removed
           DRY_RUN=${{ inputs.mode == 'preview' && 'true' || 'false' }}
-          bash ./.github/scripts/setup/cleanup_from_report_phase.sh builds $DRY_RUN 2>&1 | tee -a /tmp/cleanup_execution.log || echo "⚠️ Some builds may not exist - continuing with cleanup"
+          bash ./.github/scripts/setup/cleanup_from_report_phase.sh builds $DRY_RUN 2>&1 | tee -a /tmp/cleanup_execution.log || {
+            echo "❌ Builds cleanup failed with exit code $?"
+            echo "Check the logs above for specific errors"
+            exit 1
+          }
 
       - name: 📦 Delete repositories/artifacts (step 3 of dependency chain)
         if: ${{ steps.validate.outputs.report_valid == 'true' }}
@@ -161,7 +169,11 @@ jobs:
           set -uo pipefail
           # Delete applications after all their dependencies are removed
           DRY_RUN=${{ inputs.mode == 'preview' && 'true' || 'false' }}
-          bash ./.github/scripts/setup/cleanup_from_report_phase.sh applications $DRY_RUN 2>&1 | tee -a /tmp/cleanup_execution.log || echo "⚠️ Some applications may have dependency issues - continuing with cleanup"
+          bash ./.github/scripts/setup/cleanup_from_report_phase.sh applications $DRY_RUN 2>&1 | tee -a /tmp/cleanup_execution.log || {
+            echo "❌ Applications cleanup failed with exit code $?"
+            echo "Check the logs above for specific errors"
+            exit 1
+          }
 
       - name: 👥 Remove project users (from report)
         if: ${{ steps.validate.outputs.report_valid == 'true' }}

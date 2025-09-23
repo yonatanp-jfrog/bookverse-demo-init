@@ -147,8 +147,8 @@ case "$PHASE" in
                     echo "🔍 [DRY RUN] Would delete all versions of application: $app_name"
                 else
                     echo "🗑️ Deleting all versions of application: $app_name"
-                    local versions_response=$(mktemp)
-                    local versions_code=$(curl -s \
+                    versions_response=$(mktemp)
+                    versions_code=$(curl -s \
                         --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
                         -X GET \
                         -w "%{http_code}" -o "$versions_response" \
@@ -159,8 +159,8 @@ case "$PHASE" in
                         jq -r '.[]?.version_name // empty' "$versions_response" 2>/dev/null | while read -r version; do
                             if [[ -n "$version" ]]; then
                                 echo "  🗑️ Deleting version: $version"
-                                local delete_version_response=$(mktemp)
-                                local delete_version_code=$(curl -s \
+                                delete_version_response=$(mktemp)
+                                delete_version_code=$(curl -s \
                                     --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
                                     -X DELETE \
                                     -w "%{http_code}" -o "$delete_version_response" \

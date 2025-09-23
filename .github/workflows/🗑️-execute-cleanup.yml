@@ -148,7 +148,7 @@ jobs:
           fi
 
       - name: 📱 Delete application versions (step 1 of dependency chain)
-        if: ${{ steps.validate.outputs.report_valid == 'true' }}
+        # Real-time cleanup - no report dependency
         env:
           JFROG_URL: ${{ vars.JFROG_URL }}
           JFROG_ADMIN_TOKEN: ${{ secrets.JFROG_ADMIN_TOKEN }}

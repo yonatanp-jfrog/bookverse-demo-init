@@ -105,10 +105,25 @@ set -e
 
 source "$(dirname "$0")/config.sh"
 
+# =============================================================================
+# JPD INTEGRATION WORKAROUND CONFIGURATION
+# =============================================================================
+# Due to a JPD bug that prevents OIDC integrations from working correctly 
+# with project-specific roles, we implement a temporary workaround using
+# a platform admin user instead of service-specific users.
+USE_PLATFORM_ADMIN_WORKAROUND="${USE_PLATFORM_ADMIN_WORKAROUND:-true}"
+CICD_TEMP_USERNAME="cicd"
+CICD_TEMP_PASSWORD="CicdTemp2024!"
+
 echo ""
 echo "🚀 Creating OIDC integrations and identity mappings"
 echo "🔧 Project: $PROJECT_KEY"
 echo "🔧 JFrog URL: $JFROG_URL"
+if [[ "$USE_PLATFORM_ADMIN_WORKAROUND" == "true" ]]; then
+    echo "🐛 JPD Workaround: Using platform admin user (temporary)"
+else
+    echo "✅ Standard Mode: Using project-specific roles"
+fi
 echo ""
 
 OIDC_CONFIGS=(
@@ -155,6 +170,69 @@ mapping_exists() {
     fi
     rm -f "$tmp"
     return 1
+}
+
+create_cicd_temp_user() {
+    if [[ "$USE_PLATFORM_ADMIN_WORKAROUND" != "true" ]]; then
+        return 0
+    fi
+    
+    echo "🔧 Creating temporary platform admin user: $CICD_TEMP_USERNAME"
+    
+    # Check if user already exists
+    local user_check_response=$(mktemp)
+    local user_check_code=$(curl -s \
+        --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+        --header "Accept: application/json" \
+        -w "%{http_code}" -o "$user_check_response" \
+        "${JFROG_URL}/access/api/v2/users/${CICD_TEMP_USERNAME}")
+    
+    if [[ "$user_check_code" -eq 200 ]]; then
+        echo "ℹ️  Temporary user '$CICD_TEMP_USERNAME' already exists"
+        rm -f "$user_check_response"
+        return 0
+    fi
+    
+    # Create the temporary platform admin user
+    local user_payload=$(jq -n \
+        --arg username "$CICD_TEMP_USERNAME" \
+        --arg password "$CICD_TEMP_PASSWORD" \
+        --arg email "cicd-temp@bookverse.com" \
+        '{
+            "username": $username,
+            "password": $password,
+            "email": $email,
+            "admin": true,
+            "profile_updatable": false,
+            "disable_ui_access": true,
+            "internal_password_disabled": false
+        }')
+    
+    local create_response=$(mktemp)
+    local create_code=$(curl -s \
+        --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+        --header "Content-Type: application/json" \
+        -X POST \
+        -d "$user_payload" \
+        -w "%{http_code}" -o "$create_response" \
+        "${JFROG_URL}/access/api/v2/users")
+    
+    case "$create_code" in
+        200|201)
+            echo "✅ Temporary platform admin user '$CICD_TEMP_USERNAME' created successfully"
+            ;;
+        409)
+            echo "ℹ️  User '$CICD_TEMP_USERNAME' already exists (conflict)"
+            ;;
+        *)
+            echo "⚠️  Warning: Could not create temporary user (HTTP $create_code)"
+            echo "Response: $(cat "$create_response")"
+            echo "💡 Continuing anyway - user might already exist or be managed externally"
+            ;;
+    esac
+    
+    rm -f "$user_check_response" "$create_response"
+    echo ""
 }
 
 create_oidc_integration() {
@@ -320,10 +398,12 @@ create_oidc_integration() {
         esac
     fi
     
-    echo "Creating identity mapping for: $integration_name → $username"
-    
     local repo_claim
     local mapping_description
+    local mapping_payload
+    local token_username
+    local token_scope
+    
     if [[ "$service_name" == "platform" ]]; then
         repo_claim="${org_name}/bookverse-*"
         mapping_description="Platform identity mapping with cross-service access"
@@ -333,19 +413,48 @@ create_oidc_integration() {
         mapping_description="Identity mapping for $integration_name"
     fi
     
-    local mapping_payload=$(jq -n \
-        --arg name "$integration_name" \
-        --arg priority "1" \
-        --arg repo "$repo_claim" \
-        --arg scope "applied-permissions/roles:${PROJECT_KEY}:cicd_pipeline" \
-        --arg description "$mapping_description" \
-        '{
-            "name": $name,
-            "description": $description,
-            "priority": ($priority | tonumber),
-            "claims": {"repository": $repo},
-            "token_spec": {"scope": $scope}
-        }')
+    # Conditional identity mapping based on workaround flag
+    if [[ "$USE_PLATFORM_ADMIN_WORKAROUND" == "true" ]]; then
+        echo "🐛 Creating identity mapping for: $integration_name → $CICD_TEMP_USERNAME (platform admin workaround)"
+        token_username="$CICD_TEMP_USERNAME"
+        token_scope="applied-permissions/admin"
+        mapping_description="$mapping_description (temporary platform admin workaround)"
+        
+        mapping_payload=$(jq -n \
+            --arg name "$integration_name" \
+            --arg priority "1" \
+            --arg repo "$repo_claim" \
+            --arg username "$token_username" \
+            --arg scope "$token_scope" \
+            --arg description "$mapping_description" \
+            '{
+                "name": $name,
+                "description": $description,
+                "priority": ($priority | tonumber),
+                "claims": {"repository": $repo},
+                "token_spec": {
+                    "username": $username,
+                    "scope": $scope
+                }
+            }')
+    else
+        echo "✅ Creating identity mapping for: $integration_name → $username (project-specific role)"
+        token_scope="applied-permissions/roles:${PROJECT_KEY}:cicd_pipeline"
+        
+        mapping_payload=$(jq -n \
+            --arg name "$integration_name" \
+            --arg priority "1" \
+            --arg repo "$repo_claim" \
+            --arg scope "$token_scope" \
+            --arg description "$mapping_description" \
+            '{
+                "name": $name,
+                "description": $description,
+                "priority": ($priority | tonumber),
+                "claims": {"repository": $repo},
+                "token_spec": {"scope": $scope}
+            }')
+    fi
 
     echo "OIDC identity mapping payload:"; echo "$mapping_payload" | jq . || echo "$mapping_payload"
     
@@ -417,6 +526,10 @@ for oidc_data in "${OIDC_CONFIGS[@]}"; do
 done
 
 echo ""
+
+# Create temporary platform admin user if workaround is enabled
+create_cicd_temp_user
+
 echo "🚀 Processing ${#OIDC_CONFIGS[@]} OIDC integrations..."
 echo ""
 

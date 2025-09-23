@@ -114,7 +114,7 @@ curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
   "${JFROG_URL}/access/api/v1/oidc/bookverse-web-github/identity_mappings" | jq .
 
 # Should show:
-# - name: "cicd-temp" 
+# - name: "bookverse-{service}-github" 
 # - token_spec.username: "cicd"
 # - token_spec.scope: "applied-permissions/admin"
 ```

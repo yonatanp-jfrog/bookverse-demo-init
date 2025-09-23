@@ -523,7 +523,8 @@ discover_project_stages() {
     local code=$(jfrog_api_call "GET" "/access/api/v1/projects/$PROJECT_KEY/stages" "$project_stages_file" "curl" "" "project stages v1")
     
     if is_success "$code" && [[ -s "$project_stages_file" ]]; then
-        jq -r '.[]? | .name' "$project_stages_file" 2>/dev/null > "$stages_file" || touch "$stages_file"
+        # Filter for project-scoped stages only (exclude global stages)
+        jq -r --arg project "$PROJECT_KEY" '.[]? | select(.scope == "project") | select(.project_key == $project) | .name' "$project_stages_file" 2>/dev/null > "$stages_file" || touch "$stages_file"
         count=$(wc -l < "$stages_file" 2>/dev/null || echo 0)
         echo "✅ Found $count stages via v1 project API" >&2
     fi
@@ -533,7 +534,8 @@ discover_project_stages() {
         local code2=$(jfrog_api_call "GET" "/access/api/v2/stages?project_key=$PROJECT_KEY" "$project_stages_v2_file" "curl" "" "project stages v2")
         
         if is_success "$code2" && [[ -s "$project_stages_v2_file" ]]; then
-            jq -r '.[]? | .name' "$project_stages_v2_file" 2>/dev/null > "$stages_file" || touch "$stages_file"
+            # Filter for project-scoped stages only (exclude global stages)
+            jq -r --arg project "$PROJECT_KEY" '.[]? | select(.scope == "project") | select(.project_key == $project) | .name' "$project_stages_v2_file" 2>/dev/null > "$stages_file" || touch "$stages_file"
             count=$(wc -l < "$stages_file" 2>/dev/null || echo 0)
             echo "✅ Found $count stages via v2 project API" >&2
         fi
@@ -545,7 +547,11 @@ discover_project_stages() {
         local code3=$(jfrog_api_call "GET" "/access/api/v2/stages" "$all_stages_file" "curl" "" "all stages")
         
         if is_success "$code3" && [[ -s "$all_stages_file" ]]; then
-            jq -r --arg project "$PROJECT_KEY" '.[]? | select(.project_key == $project) | .name' "$all_stages_file" 2>/dev/null > "$stages_file" || touch "$stages_file"
+            # Filter for project-scoped stages only (exclude global stages)
+            jq -r --arg project "$PROJECT_KEY" '.[]? | 
+                select(.scope == "project") | 
+                select(.project_key == $project) |
+                .name' "$all_stages_file" 2>/dev/null > "$stages_file" || touch "$stages_file"
             count=$(wc -l < "$stages_file" 2>/dev/null || echo 0)
             
             if [[ "$count" -gt 0 ]]; then
@@ -816,8 +822,14 @@ run_discovery_preview() {
         jfrog_api_call "GET" "/access/api/v2/lifecycle/?project_key=$PROJECT_KEY" "$lifecycle_file" "curl" "" "get lifecycle for stage usage" >/dev/null || true
 
         if [[ -s "$lifecycle_file" ]] && jq -e . "$lifecycle_file" >/dev/null 2>&1; then
+            # Handle the actual lifecycle API response structure with categories
             stages_json=$(jq -R -s --arg project "$PROJECT_KEY" --argfile lif "$lifecycle_file" '
-                ( ($lif|try .promote_stages catch []) ) as $ps
+                # Extract promote stages from the actual lifecycle structure
+                ( ($lif|try .categories // []) | 
+                  map(select(.category == "promote")) | 
+                  .[0].stages // [] |
+                  map(.name)
+                ) as $ps
                 | split("\n")
                 | map(select(length>0))
                 | map({name:., project:$project, in_use: ( ($ps|index(.)) != null )})

@@ -79,7 +79,7 @@ validate_inputs() {
     log_info "Validating inputs..."
     
     if [[ -n "$NEW_JFROG_URL" ]]; then
-        log_info "NEW_JFROG_URL length: ${
+        log_info "NEW_JFROG_URL length: ${#NEW_JFROG_URL}"
         log_info "NEW_JFROG_URL starts with: ${NEW_JFROG_URL:0:8}..."
         log_info "NEW_JFROG_URL ends with: ...${NEW_JFROG_URL: -10}"
     else
@@ -349,7 +349,7 @@ update_repository_secrets_and_variables() {
 update_all_repositories() {
     log_info "Updating all BookVerse repositories..."
     
-    local total_count=${
+    local total_count=${#BOOKVERSE_REPOS[@]}
     local success_count=0
 
     for repo in "${BOOKVERSE_REPOS[@]}"; do
@@ -418,7 +418,7 @@ update_all_repositories() {
 }
 
 final_verification_pass() {
-    if [[ ${
+    if [[ ${#FAILED_REPOS[@]} -eq 0 ]]; then
         return 0
     fi
 
@@ -499,16 +499,16 @@ main() {
     docker_registry=$(extract_docker_registry)
     
     local failed_count
-    failed_count=${
+    failed_count=${#FAILED_REPOS[@]}
     local success_count
-    success_count=${
+    success_count=${#SUCCEEDED_REPOS[@]}
 
     echo "🎯 JPD Platform Switch Summary"
     echo "================================="
     echo "New Configuration:"
     echo "  JFROG_URL: $NEW_JFROG_URL"
     echo "  DOCKER_REGISTRY: $docker_registry"
-    echo "  Total repositories: ${
+    echo "  Total repositories: ${#BOOKVERSE_REPOS[@]}"
     echo "  Success: ${success_count}"
     echo "  Failed: ${failed_count}"
 

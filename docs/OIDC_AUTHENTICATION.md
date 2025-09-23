@@ -1,20 +1,23 @@
 # BookVerse Platform - OIDC Authentication Guide
 
-**Zero-trust configuration, token management, and troubleshooting for secure CI/CD and platform access**
+## Zero-trust configuration, token management, and troubleshooting for secure CI/CD and platform access
 
-The BookVerse Platform implements comprehensive OpenID Connect (OIDC) authentication providing passwordless, zero-trust security for GitHub Actions CI/CD workflows, JFrog Platform access, and service-to-service communication with automated token management and secure key rotation.
+The BookVerse Platform implements comprehensive OpenID Connect (OIDC) authentication
+providing passwordless, zero-trust security for GitHub Actions CI/CD workflows,
+JFrog Platform access, and service-to-service communication with automated token
+management and secure key rotation.
 
 ---
 
 ## 📋 Table of Contents
 
-- [OIDC Architecture Overview](#-oidc-architecture-overview)
+- [OIDC Architecture Overview](#️-oidc-architecture-overview)
 - [GitHub Actions OIDC Integration](#-github-actions-oidc-integration)
 - [JFrog Platform OIDC Configuration](#-jfrog-platform-oidc-configuration)
 - [Token Management and Lifecycle](#-token-management-and-lifecycle)
 - [Service-to-Service Authentication](#-service-to-service-authentication)
 - [JWKS Key Management](#-jwks-key-management)
-- [Zero-Trust Security Implementation](#-zero-trust-security-implementation)
+- [Zero-Trust Security Implementation](#️-zero-trust-security-implementation)
 - [Monitoring and Audit](#-monitoring-and-audit)
 - [Troubleshooting Guide](#-troubleshooting-guide)
 - [Security Best Practices](#-security-best-practices)
@@ -2390,4 +2393,6 @@ For additional information, see:
 
 ---
 
-*This OIDC authentication guide provides comprehensive zero-trust security implementation with automated token management, robust validation, and enterprise-grade compliance capabilities.*
+*This OIDC authentication guide provides comprehensive zero-trust security
+implementation with automated token management, robust validation, and
+enterprise-grade compliance capabilities.*

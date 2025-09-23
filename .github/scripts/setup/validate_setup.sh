@@ -275,7 +275,7 @@ echo "🐙 Validating GitHub repositories..."
 echo ""
 set +e
 
-expected_repos=("inventory" "recommendations" "checkout" "platform" "web" "helm" "demo-assets")
+expected_repos=("inventory" "recommendations" "checkout" "platform" "web" "helm")
 github_repos_ok=0
 
 for service in "${expected_repos[@]}"; do
@@ -349,7 +349,7 @@ echo "   • Applications: $app_count (expected: 4)"
 echo "   • Stages: $stage_count (expected: 3)"  
 echo "   • OIDC Integrations: $oidc_count (expected: 5)"
 echo ""
-echo "🐙 GitHub Repositories: $github_repos_ok/8 (checking access)"
+echo "🐙 GitHub Repositories: $github_repos_ok/6 (checking access)"
 echo ""
 
 issues_found=0
@@ -369,8 +369,8 @@ if [[ "$oidc_count" -lt 5 ]]; then
     ((issues_found++))
 fi
 
-if [[ "$github_repos_ok" -lt 7 ]]; then
-    echo "⚠️  Issue: GitHub repository count below expected (7)"
+if [[ "$github_repos_ok" -lt 6 ]]; then
+    echo "⚠️  Issue: GitHub repository count below expected (6)"
     ((issues_found++))
 fi
 

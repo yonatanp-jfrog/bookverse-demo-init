@@ -72,9 +72,7 @@
 
 [Get](#get)
 
-### 
-
-# Application Operations {#application-operations}
+## Application Operations
 
 ## Create Application {#create-application}
 
@@ -114,7 +112,7 @@ POST https://{{artifactory-host}}/apptrust/api/v1/applications/
 
 #### Response
 
-##### On Success 
+##### On Success
 
 HTTP Return code: 201
 
@@ -212,7 +210,7 @@ POST 'https://{host}.jfrog.io/apptrust/api/v1/applications'Content-Type: applic
 
 Command:  
 jf apptrust app-create \<app-key\> \--application-name \[application-name\] \[--project “\<project-key\>”\] \[--desc "\<description\>"\] \[--business-criticality "\<level\>"\] \[--maturity-level "\<level\>"\] \[--labels "\<key1\>=\<value1\>;\<key2\>=\<value2\>"\] \[--user-owners "\<user-owner1\>,\<user-owner2\>"\] \[--group-owners "\<group-owner1\>, \<group-owner2\>"\] \[--signing-key “myKey”\]  
- \[--spec “/file1.txt”\] \[--spec-vars “key1:val1, key2:val2”\] 
+ \[--spec "/file1.txt"\] \[--spec-vars "key1:val1, key2:val2"\]
 
 Short command: jf at ac
 
@@ -231,7 +229,7 @@ Short command: jf at ac
 * \--maturity-level "\<level\>": Optional \- The Maturity Level of the application. Choices include:  
   * unspecified (default)  
   * experimental  
-  * production   
+  * production
   * end\_of\_life  
 * \--labels "\<key1\>=\<value1\>; \<key2\>=\<value2\>": Optional \- Key-value pairs to label the application. Each key and value should be free text, limited to 255 characters, beginning and ending with an alphanumeric character (\[a-z0-9A-Z\]) with dashes (-), underscores (\_), dots (.), and alphanumerics between.  
   * Example for labels: "tier" : "frontend", "release" : "canary", "AppGroup" : "wordpress"  
@@ -293,7 +291,7 @@ GET https://{{artifactory-host}}/apptrust/api/v1/applications/
 
 #### Response
 
-##### On Success 
+##### On Success
 
 HTTP Return code: 200
 
@@ -392,7 +390,7 @@ GET https://{{artifactory-host}}/apptrust/api/v1/applications/{{application\_key
 
 #### Response
 
-##### On Success 
+##### On Success
 
 HTTP Return code: 200
 
@@ -492,7 +490,7 @@ PATCH https://{{artifactory-host}}/apptrust/v1/applications/{application\_key}
 
 #### Response
 
-##### On Success 
+##### On Success
 
 HTTP Return code: 200
 
@@ -640,7 +638,7 @@ DELETE https://{{artifactory-host}}/apptrust/api/v1/applications/{application\_k
 
 #### Response
 
-##### On Success 
+##### On Success
 
 HTTP Return code: 204 (synchronous) or 202 (asynchronous)
 
@@ -756,7 +754,7 @@ POST https://{{artifactory-host}}/apptrust/api/v1/applications/{{application\_ke
 
 #### Response
 
-##### On Success 
+##### On Success
 
 HTTP Return code: 201 (synchronous) or 202 (asynchronous)
 
@@ -895,7 +893,7 @@ GET https://{{artifactory-host}}/apptrust/api/v1/applications/{{application\_key
 
 #### Response
 
-##### On Success 
+##### On Success
 
 HTTP Return code: 200
 
@@ -1015,7 +1013,7 @@ GET https://{{artifactory-host}}/apptrust/api/v1/applications/{{application\_key
 
 #### Response
 
-##### On Success HTTP Return code: 200
+##### On SuccessHTTP Return code: 200
 
 | Parameter Name |  | Type | Description |
 | :---- | ----- | :---- | :---- |
@@ -1331,7 +1329,7 @@ PATCH https://{{artifactory-host}}/apptrust/api/v1/applications/{{application\_k
 
 #### Response
 
-##### On Success 
+##### On Success
 
 HTTP Return code: 200
 
@@ -1444,7 +1442,7 @@ DELETE https://{{artifactory-host}}/apptrust/api/v1/applications/{{application\_
 
 #### Response
 
-##### On Success 
+##### On Success
 
 HTTP Return code: 204 (synchronous) or 202 (asynchronous)
 
@@ -1506,7 +1504,7 @@ POST https://{{artifactory-host}}/apptrust/api/v1/applications/{{application\_ke
 
 #### Response
 
-##### On Success 
+##### On Success
 
 HTTP Return code: 201 (synchronous) or 200 (asynchronous)
 
@@ -1869,7 +1867,7 @@ POST https://{{artifactory-host}}/apptrust/api/v1/applications/{{application\_ke
 
 #### Response
 
-##### On Success 
+##### On Success
 
 HTTP Return code: 200 (synchronous) or 202 (asynchronous)
 
@@ -2087,7 +2085,7 @@ POST https://{{artifactory-host}}/apptrust/api/v1/applications/{{application\_ke
 
 #### Response
 
-##### On Success 
+##### On Success
 
 HTTP Return code: 200 or 202
 
@@ -2184,7 +2182,7 @@ GET https://{{artifactory-host}}/apptrust/api/v1/applications/{{application\_key
 
 #### Response
 
-##### On Success 
+##### On Success
 
 HTTP Return code: 200
 
@@ -2329,7 +2327,7 @@ POST https://{{artifactory-host}}/access/api/v2/stages/
 
 #### Response
 
-##### On Success 
+##### On Success
 
 HTTP Return code: 201
 
@@ -2422,7 +2420,7 @@ GET https://{{artifactory-host}}/access/api/v2/stages/{{stage-name}}
 
 #### Response
 
-##### On Success 
+##### On Success
 
 HTTP Return code: 200
 
@@ -2514,7 +2512,7 @@ GET https://{{artifactory-host}}/access/api/v2/stages/
 
 #### Response
 
-##### On Success 
+##### On Success
 
 HTTP Return code: 200
 
@@ -2627,7 +2625,7 @@ PATCH https://{{artifactory-host}}/access/api/v2/stages/{{stage-name}}
 
 #### Response
 
-##### On Success 
+##### On Success
 
 HTTP Return code: 200
 
@@ -2716,7 +2714,7 @@ DELETE https://{{artifactory-host}}/access/api/v2/stages/{{stage-name}}
 
 #### Response
 
-##### On Success 
+##### On Success
 
 HTTP Return code: 204
 
@@ -2790,7 +2788,7 @@ GET https://{{artifactory-host}}/access/api/v2/lifecycle/
 
 #### Response
 
-##### On Success 
+##### On Success
 
 HTTP Return code: 202
 
@@ -2880,7 +2878,7 @@ PATCH https://{{artifactory-host}}/access/api/v2/lifecycle/
 
 #### Response
 
-##### On Success 
+##### On Success
 
 HTTP Return code: 202
 
@@ -2979,7 +2977,7 @@ GET https://{{artifactory-host}}/apptrust/api/v1/applications/{{application\_key
 
 #### Response
 
-##### On Success 
+##### On Success
 
 HTTP Return code: 200
 
@@ -3077,7 +3075,7 @@ GET https://{{artifactory-host}}/apptrust/api/v1/applications/{{application\_key
 
 #### Response
 
-##### On Success 
+##### On Success
 
 HTTP Return code: 200
 
@@ -3173,7 +3171,7 @@ POST https://{{artifactory-host}}/apptrust/api/v1/applications/{{application\_ke
 
 #### Response
 
-##### On Success 
+##### On Success
 
 HTTP Return code: 201
 
@@ -3259,7 +3257,7 @@ DELETE https://{{artifactory-host}}/apptrust/api/v1/applications/{{application\_
 
 #### Response
 
-##### On Success 
+##### On Success
 
 HTTP Return code: 204
 
@@ -3341,7 +3339,7 @@ GET  https://{{artifactory-host}}/apptrust/api/v1/activity/log
 
 #### Response
 
-##### On Success 
+##### On Success
 
 HTTP Return code: 200
 
@@ -3576,7 +3574,7 @@ GET https://{{artifactory-host}}/lifecycle/api/v2/release\_bundle/internal/detai
 
 #### Response
 
-##### On Success HTTP Return code: 200
+##### On SuccessHTTP Return code: 200
 
 | Parameter Name |  | Type | Description |
 | :---- | ----- | :---- | :---- |
@@ -4174,7 +4172,7 @@ GET https://{{artifactory-host}}/…
 
 #### Response
 
-##### On Success 
+##### On Success
 
 HTTP Return code: 200
 
@@ -4304,7 +4302,7 @@ GET https://{{artifactory-host}}/lifecycle/
 
 #### Response
 
-##### On Success 
+##### On Success
 
 HTTP Return code: 200
 

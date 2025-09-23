@@ -1,14 +1,19 @@
 # BookVerse Demo-Init - Setup Automation Guide
 
-**GitHub Actions Workflows, JFrog Provisioning, and Repository Creation**
+## GitHub Actions Workflows, JFrog Provisioning, and Repository Creation
 
-This guide provides comprehensive documentation of the automated setup processes that provision and configure the complete BookVerse platform infrastructure, from JFrog Platform setup to GitHub repository creation and CI/CD pipeline deployment.
+This guide provides comprehensive documentation of the automated setup processes
+that provision and configure the complete BookVerse platform infrastructure,
+from JFrog Platform setup to GitHub repository creation and CI/CD pipeline
+deployment.
 
 ---
 
 ## 🚀 GitHub Actions Workflow Architecture
 
-The Demo-Init repository implements a sophisticated GitHub Actions workflow system that orchestrates the complete platform setup process through multiple specialized workflows.
+The Demo-Init repository implements a sophisticated GitHub Actions workflow system
+that orchestrates the complete platform setup process through multiple
+specialized workflows.
 
 ```mermaid
 graph TB
@@ -56,7 +61,8 @@ graph TB
 ### Core Workflow Overview
 
 #### **🚀 Setup Platform Workflow**
-The primary automation workflow that provisions the complete BookVerse platform infrastructure.
+The primary automation workflow that provisions the complete BookVerse
+platform infrastructure.
 
 **Trigger Conditions:**
 - Manual execution via `workflow_dispatch`
@@ -83,7 +89,8 @@ variables:
 ```
 
 #### **🔄 Switch Platform Workflow**
-Enables dynamic switching between different JFrog Platform instances while preserving all configurations.
+Enables dynamic switching between different JFrog Platform instances while
+preserving all configurations.
 
 **Use Cases:**
 - Migration between development and production platforms
@@ -104,7 +111,9 @@ Enables dynamic switching between different JFrog Platform instances while prese
 
 ### Project Creation and Configuration
 
-The JFrog Platform provisioning process follows a carefully orchestrated sequence that establishes the complete infrastructure required for the BookVerse platform.
+The JFrog Platform provisioning process follows a carefully orchestrated
+sequence that establishes the complete infrastructure required for the
+BookVerse platform.
 
 #### **Project Architecture**
 ```bash
@@ -204,7 +213,9 @@ configure_project_settings() {
 
 ### Repository Matrix Creation
 
-The repository creation process establishes a comprehensive matrix of repositories that support all package types and deployment stages required by the BookVerse platform.
+The repository creation process establishes a comprehensive matrix of
+repositories that support all package types and deployment stages required by
+the BookVerse platform.
 
 #### **Repository Architecture Strategy**
 ```mermaid
@@ -300,7 +311,8 @@ create_repository_matrix() {
         echo "📦 Processing service: ${service} (${visibility})"
         
         for package_type in $packages; do
-            create_service_repositories "${project_key}" "${service}" "${package_type}" "${visibility}"
+            create_service_repositories "${project_key}" "${service}" \
+                "${package_type}" "${visibility}"
         done
     done
     
@@ -321,11 +333,13 @@ create_service_repositories() {
     if [[ "${package_type}" == "docker" ]]; then
         # Create environment-specific Docker repositories
         for environment in dev qa staging prod; do
-            create_docker_repository "${project_key}" "${service}" "${environment}" "${visibility}"
+            create_docker_repository "${project_key}" "${service}" \
+                "${environment}" "${visibility}"
         done
     else
         # Create single repository for non-Docker package types
-        create_package_repository "${project_key}" "${service}" "${package_type}" "${visibility}"
+        create_package_repository "${project_key}" "${service}" \
+            "${package_type}" "${visibility}"
     fi
 }
 
@@ -342,7 +356,8 @@ create_docker_repository() {
         --arg key "${repo_key}" \
         --arg rclass "local" \
         --arg packageType "docker" \
-        --arg description "Docker repository for ${service} service in ${environment} environment" \
+        --arg description "Docker repository for ${service} service \
+            in ${environment} environment" \
         --arg projectKey "${project_key}" \
         --arg environment "${environment^^}" \
         '{
@@ -378,16 +393,20 @@ create_package_repository() {
     local repo_config
     case "${package_type}" in
         "pypi")
-            repo_config=$(build_pypi_repository_config "${repo_key}" "${project_key}" "${service}")
+            repo_config=$(build_pypi_repository_config \
+                "${repo_key}" "${project_key}" "${service}")
             ;;
         "npm")
-            repo_config=$(build_npm_repository_config "${repo_key}" "${project_key}" "${service}")
+            repo_config=$(build_npm_repository_config \
+                "${repo_key}" "${project_key}" "${service}")
             ;;
         "helm")
-            repo_config=$(build_helm_repository_config "${repo_key}" "${project_key}" "${service}")
+            repo_config=$(build_helm_repository_config \
+                "${repo_key}" "${project_key}" "${service}")
             ;;
         "generic")
-            repo_config=$(build_generic_repository_config "${repo_key}" "${project_key}" "${service}")
+            repo_config=$(build_generic_repository_config \
+                "${repo_key}" "${project_key}" "${service}")
             ;;
         *)
             echo "❌ Unsupported package type: ${package_type}"
@@ -468,7 +487,9 @@ execute_repository_creation() {
 
 ### Zero-Trust Authentication Configuration
 
-The OIDC (OpenID Connect) setup establishes secure, passwordless authentication between GitHub Actions and JFrog Platform, implementing zero-trust security principles.
+The OIDC (OpenID Connect) setup establishes secure, passwordless
+authentication between GitHub Actions and JFrog Platform, implementing
+zero-trust security principles.
 
 #### **OIDC Trust Relationship Architecture**
 ```mermaid
@@ -626,7 +647,8 @@ create_service_identity_mapping() {
             },
             "token_spec": {
                 "username": "'$project_key'-'$service'-ci",
-                "scope": "applied-permissions/groups:readers applied-permissions/groups:'$project_key'-developers",
+                "scope": "applied-permissions/groups:readers \
+                    applied-permissions/groups:'$project_key'-developers",
                 "project_key": $projectKey,
                 "access_token": {
                     "expires_in": 3600,
@@ -791,7 +813,9 @@ configure_single_repository_permissions() {
 
 ### Service Repository Creation
 
-The GitHub repository generation process creates seven fully configured service repositories with complete CI/CD pipelines, security configurations, and development workflows.
+The GitHub repository generation process creates seven fully configured service
+repositories with complete CI/CD pipelines, security configurations, and
+development workflows.
 
 #### **Repository Generation Architecture**
 ```bash
@@ -818,7 +842,8 @@ create_github_repositories() {
     # Create repositories in parallel for efficiency
     for service in "${!SERVICES[@]}"; do
         {
-            create_service_repository "${github_org}" "${service}" "${SERVICES[$service]}" "${project_key}"
+            create_service_repository "${github_org}" "${service}" \
+                "${SERVICES[$service]}" "${project_key}"
         } &
     done
     
@@ -910,9 +935,17 @@ configure_branch_protection() {
     gh api \
         --method PUT \
         "/repos/${github_org}/${repo_name}/branches/main/protection" \
-        --field required_status_checks='{"strict":true,"contexts":["ci/build","ci/test","ci/security-scan"]}' \
+        --field required_status_checks='{
+            "strict":true,
+            "contexts":["ci/build","ci/test","ci/security-scan"]
+        }' \
         --field enforce_admins=true \
-        --field required_pull_request_reviews='{"required_approving_review_count":1,"dismiss_stale_reviews":true,"require_code_owner_reviews":true,"require_last_push_approval":true}' \
+        --field required_pull_request_reviews='{
+          "required_approving_review_count":1,
+          "dismiss_stale_reviews":true,
+          "require_code_owner_reviews":true,
+          "require_last_push_approval":true
+        }' \
         --field restrictions='{"users":[],"teams":[],"apps":[]}' \
         --field allow_force_pushes=false \
         --field allow_deletions=false \
@@ -1146,11 +1179,15 @@ jobs:
       
       - name: Authenticate with JFrog Platform
         run: |
-          jf c add bookverse --url "\$JFROG_URL" --access-token "\${{ secrets.JFROG_ACCESS_TOKEN }}" --interactive=false
+          jf c add bookverse --url "\$JFROG_URL" \
+            --access-token "\${{ secrets.JFROG_ACCESS_TOKEN }}" \
+            --interactive=false
           jf c use bookverse
           
           # Configure OIDC authentication
-          jf c add bookverse-oidc --url "\$JFROG_URL" --oidc-provider-name "github-actions-\$PROJECT_KEY" --interactive=false
+          jf c add bookverse-oidc --url "\$JFROG_URL" \
+            --oidc-provider-name "github-actions-\$PROJECT_KEY" \
+            --interactive=false
           jf c use bookverse-oidc
       
       - name: Determine version
@@ -1170,7 +1207,7 @@ $(generate_service_specific_build_steps "${service}")
       - name: Build and scan Docker image
         id: build
         run: |
-          IMAGE_TAG="\$PROJECT_KEY-\$SERVICE_NAME-internal-docker-dev-local.jfrog.io/\$SERVICE_NAME:\${{ steps.version.outputs.version }}"
+          IMAGE_TAG="\$PROJECT_KEY-\$SERVICE_NAME-internal-docker-dev-local.\\\njfrog.io/\$SERVICE_NAME:\${{ steps.version.outputs.version }}"
           
           # Build image
           docker build -t "\$IMAGE_TAG" .
@@ -1264,7 +1301,10 @@ generate_service_specific_build_steps() {
       - name: Build Python package
         run: |
           python setup.py sdist bdist_wheel
-          jf rt upload "dist/*.whl" "\$PROJECT_KEY-\$SERVICE_NAME-internal-pypi-local/" --build-name="\$SERVICE_NAME" --build-number="\${{ steps.version.outputs.version }}"
+          jf rt upload "dist/*.whl" \
+            "\$PROJECT_KEY-\$SERVICE_NAME-internal-pypi-local/" \
+            --build-name="\$SERVICE_NAME" \
+            --build-number="\${{ steps.version.outputs.version }}"
 EOF
             ;;
         "web")
@@ -1289,7 +1329,10 @@ EOF
         run: |
           npm run build
           tar -czf "\$SERVICE_NAME-\${{ steps.version.outputs.version }}.tar.gz" -C dist .
-          jf rt upload "\$SERVICE_NAME-\${{ steps.version.outputs.version }}.tar.gz" "\$PROJECT_KEY-\$SERVICE_NAME-internal-generic-local/" --build-name="\$SERVICE_NAME" --build-number="\${{ steps.version.outputs.version }}"
+          jf rt upload "\$SERVICE_NAME-\${{ steps.version.outputs.version }}.tar.gz" \
+            "\$PROJECT_KEY-\$SERVICE_NAME-internal-generic-local/" \
+            --build-name="\$SERVICE_NAME" \
+            --build-number="\${{ steps.version.outputs.version }}"
 EOF
             ;;
         "helm")
@@ -1306,8 +1349,12 @@ EOF
       
       - name: Package Helm chart
         run: |
-          helm package charts/\$SERVICE_NAME/ --version "\${{ steps.version.outputs.version }}"
-          jf rt upload "\$SERVICE_NAME-\${{ steps.version.outputs.version }}.tgz" "\$PROJECT_KEY-\$SERVICE_NAME-internal-helm-local/" --build-name="\$SERVICE_NAME" --build-number="\${{ steps.version.outputs.version }}"
+          helm package charts/\$SERVICE_NAME/ \
+            --version "\${{ steps.version.outputs.version }}"
+          jf rt upload "\$SERVICE_NAME-\${{ steps.version.outputs.version }}.tgz" \
+            "\$PROJECT_KEY-\$SERVICE_NAME-internal-helm-local/" \
+            --build-name="\$SERVICE_NAME" \
+            --build-number="\${{ steps.version.outputs.version }}"
 EOF
             ;;
     esac
@@ -1320,7 +1367,8 @@ EOF
 
 ### Cross-Service Coordination
 
-The setup automation includes sophisticated cross-service coordination mechanisms that ensure all components work together seamlessly.
+The setup automation includes sophisticated cross-service coordination
+mechanisms that ensure all components work together seamlessly.
 
 #### **Service Dependency Management**
 ```yaml
@@ -1355,7 +1403,8 @@ jobs:
     steps:
       - name: Test service integration
         run: |
-          echo "Testing ${{ matrix.service }} with dependencies: ${{ join(matrix.dependencies, ', ') }}"
+          echo "Testing ${{ matrix.service }} with dependencies: \
+${{ join(matrix.dependencies, ', ') }}"
           
           # Start dependency services
           for dep in ${{ join(matrix.dependencies, ' ') }}; do
@@ -1438,7 +1487,7 @@ update_service_dependency() {
         --method POST \
         "/repos/${GITHUB_ORG}/bookverse-${service}/dispatches" \
         --field event_type="dependency_update" \
-        --field client_payload="{\"library\":\"bookverse-core\",\"version\":\"${CORE_VERSION}\"}"
+        --field client_payload=\"{\\\n\"library\":\"bookverse-core\",\"version\":\"${CORE_VERSION}\"}\""
 }
 ```
 
@@ -1446,7 +1495,8 @@ update_service_dependency() {
 
 ## 🔗 Related Documentation
 
-- **[Orchestration Overview](ORCHESTRATION_OVERVIEW.md)**: High-level platform orchestration architecture
+- **[Orchestration Overview](ORCHESTRATION_OVERVIEW.md)**: High-level platform
+  orchestration architecture
 - **[Script Reference](SCRIPT_REFERENCE.md)**: Detailed documentation of all setup scripts
 - **[Demo Operations Guide](DEMO_OPERATIONS.md)**: Daily operations and maintenance procedures
 - **[GitHub Actions Workflow Guide](../GITHUB_ACTIONS.md)**: Complete CI/CD workflow documentation

@@ -1,14 +1,18 @@
 # BookVerse Platform - JFrog Integration Guide
 
-**Platform Configuration, Repository Setup, and OIDC Authentication**
+## Platform Configuration, Repository Setup, and OIDC Authentication
 
-This guide provides comprehensive documentation for configuring and managing JFrog Platform integration within the BookVerse ecosystem, covering repository architecture, security configuration, and operational best practices.
+This guide provides comprehensive documentation for configuring and managing JFrog
+Platform integration within the BookVerse ecosystem, covering repository
+architecture, security configuration, and operational best practices.
 
 ---
 
 ## 🏗️ JFrog Platform Architecture
 
-The BookVerse platform leverages JFrog Platform's comprehensive capabilities to implement a secure, scalable artifact management and software supply chain solution.
+The BookVerse platform leverages JFrog Platform's comprehensive capabilities to
+implement a secure, scalable artifact management and software supply chain
+solution.
 
 ```mermaid
 graph TB
@@ -88,7 +92,8 @@ graph TB
 
 ### Multi-Environment Repository Strategy
 
-The BookVerse platform implements a sophisticated repository architecture that supports multiple package types, environments, and promotion workflows.
+The BookVerse platform implements a sophisticated repository architecture that
+supports multiple package types, environments, and promotion workflows.
 
 #### **Repository Naming Convention**
 ```
@@ -204,7 +209,8 @@ create_repository_matrix() {
         echo "📦 Creating repositories for ${service} (${visibility})"
         
         for package_type in $packages; do
-            create_service_repositories "${project_key}" "${service}" "${package_type}" "${visibility}"
+            create_service_repositories "${project_key}" "${service}" \
+                "${package_type}" "${visibility}"
         done
     done
     
@@ -222,7 +228,8 @@ create_service_repositories() {
             create_docker_repositories "${project_key}" "${service}" "${visibility}"
             ;;
         "pypi"|"npm"|"generic")
-            create_single_repository "${project_key}" "${service}" "${package_type}" "${visibility}" "nonprod"
+            create_single_repository "${project_key}" "${service}" \
+                "${package_type}" "${visibility}" "nonprod"
             ;;
         "helm")
             create_helm_repositories "${project_key}" "${service}" "${visibility}"
@@ -257,7 +264,8 @@ create_docker_repositories() {
             --arg key "${repo_key}" \
             --arg rclass "local" \
             --arg packageType "docker" \
-            --arg description "Docker repository for ${service} service in ${environment} environment" \
+            --arg description "Docker repository for ${service} service \
+                in ${environment} environment" \
             --arg projectKey "${project_key}" \
             --arg environment "${environment^^}" \
             '{
@@ -312,7 +320,8 @@ create_single_repository() {
             repo_config=$(build_npm_repository_config "${repo_key}" "${project_key}" "${service}")
             ;;
         "generic")
-            repo_config=$(build_generic_repository_config "${repo_key}" "${project_key}" "${service}")
+            repo_config=$(build_generic_repository_config \
+                "${repo_key}" "${project_key}" "${service}")
             ;;
     esac
     
@@ -428,7 +437,8 @@ configure_repository_policies() {
 
 ### Zero-Trust Authentication Setup
 
-The BookVerse platform implements comprehensive OIDC authentication to enable secure, passwordless CI/CD workflows with JFrog Platform.
+The BookVerse platform implements comprehensive OIDC authentication to enable
+secure, passwordless CI/CD workflows with JFrog Platform.
 
 #### **OIDC Provider Configuration**
 ```bash
@@ -522,7 +532,8 @@ setup_identity_mappings() {
     local services=("inventory" "recommendations" "checkout" "platform" "web" "helm" "infra")
     
     for service in "${services[@]}"; do
-        create_service_identity_mapping "${project_key}" "${github_org}" "${service}" "${provider_name}"
+        create_service_identity_mapping "${project_key}" "${github_org}" \
+            "${service}" "${provider_name}"
     done
 }
 
@@ -564,7 +575,8 @@ create_service_identity_mapping() {
             },
             "token_spec": {
                 "username": "'${project_key}'-'${service}'-ci",
-                "scope": "applied-permissions/groups:'${project_key}'-developers applied-permissions/groups:readers",
+                "scope": "applied-permissions/groups:'${project_key}'-developers \
+                         applied-permissions/groups:readers",
                 "project_key": $projectKey,
                 "access_token": {
                     "expires_in": 3600,
@@ -639,7 +651,8 @@ claims_validation:
 
 ### Application Lifecycle Configuration
 
-BookVerse integrates with AppTrust to implement comprehensive application lifecycle management with evidence collection and compliance reporting.
+BookVerse integrates with AppTrust to implement comprehensive application
+lifecycle management with evidence collection and compliance reporting.
 
 #### **Lifecycle Stage Configuration**
 ```bash
@@ -769,7 +782,10 @@ build_prod_stage_config() {
                 "enabled": false,
                 "criteria": {
                     "build_status": "success",
-                    "quality_gates": ["unit_tests", "integration_tests", "e2e_tests", "performance_tests"],
+                    "quality_gates": [
+                        "unit_tests", "integration_tests", 
+                        "e2e_tests", "performance_tests"
+                    ],
                     "security_scans": ["sast", "dast", "dependency_check", "container_scan"],
                     "manual_approval": true,
                     "approvers": ["platform-team", "security-team"],
@@ -861,7 +877,8 @@ configure_promotion_workflow() {
             },
             "automation": {
                 "trigger_type": "webhook",
-                "webhook_url": "https://api.github.com/repos/'${GITHUB_ORG}'/bookverse-platform/dispatches",
+                "webhook_url": \
+                    "https://api.github.com/repos/'${GITHUB_ORG}'/bookverse-platform/dispatches",
                 "webhook_secret": "'${WEBHOOK_SECRET}'",
                 "retry_policy": {
                     "max_retries": 3,
@@ -876,7 +893,8 @@ configure_promotion_workflow() {
         -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
         -H "Content-Type: application/json" \
         -d "${workflow_config}" \
-        "${JFROG_URL}/lifecycle/api/v2/projects/${project_key}/promotions/${source_stage}-${target_stage}"
+        "${JFROG_URL}/lifecycle/api/v2/projects/${project_key}/promotions/\
+${source_stage}-${target_stage}"
 }
 ```
 
@@ -1151,7 +1169,8 @@ promote_artifact() {
         --comment="Automated promotion from ${source_stage}" \
         --copy=true \
         --dependencies=true \
-        --props="promoted.from=${source_stage};promoted.to=${target_stage};promoted.at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+        --props="promoted.from=${source_stage};promoted.to=${target_stage};\
+promotion.at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
     
     echo "✅ Promotion completed successfully"
 }

@@ -1,8 +1,10 @@
 # BookVerse Platform - Getting Started Guide
 
-**Complete setup and deployment instructions for the BookVerse microservices platform**
+## Complete setup and deployment instructions for the BookVerse microservices platform
 
-This guide provides step-by-step instructions to deploy BookVerse in your environment, from initial setup through full platform deployment and verification.
+This guide provides step-by-step instructions to deploy BookVerse in your
+environment, from initial setup through full platform deployment and
+verification.
 
 ---
 
@@ -12,9 +14,9 @@ This guide provides step-by-step instructions to deploy BookVerse in your enviro
 
 | Requirement | Description | Purpose |
 |-------------|-------------|---------|
-| **JFrog Platform** | Admin privileges on Artifactory + AppTrust | Platform provisioning and artifact management |
-| **GitHub Organization** | Repository creation permissions | Source code hosting and CI/CD automation |
-| **Domain Access** | DNS configuration capability | Platform ingress and service routing |
+| **JFrog Platform** | Admin on Artifactory + AppTrust | Platform provisioning & artifacts |
+| **GitHub Organization** | Repository creation permissions | Source hosting & CI/CD automation |
+| **Domain Access** | DNS configuration capability | Platform ingress & routing |
 
 ### 🛠️ **Required Tools**
 
@@ -36,8 +38,7 @@ helm version       # Helm package manager (v3.7+)
 
 ### 💻 **Tool Installation**
 
-<details>
-<summary><strong>📱 macOS Installation</strong></summary>
+#### 📱 macOS Installation
 
 ```bash
 # Install Homebrew (if not already installed)
@@ -54,10 +55,8 @@ for tool in gh curl jq git; do
   echo "✓ $tool: $($tool --version | head -1)"
 done
 ```
-</details>
 
-<details>
-<summary><strong>🐧 Linux Installation (Ubuntu/Debian)</strong></summary>
+#### 🐧 Linux Installation (Ubuntu/Debian)
 
 ```bash
 # Update package list
@@ -67,8 +66,10 @@ sudo apt update
 sudo apt install -y curl jq git
 
 # Install GitHub CLI
-curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | \
+  sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | \
+  sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
 sudo apt update && sudo apt install -y gh
 
 # Optional: Container tools
@@ -77,10 +78,8 @@ curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stabl
 sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
 curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 ```
-</details>
 
-<details>
-<summary><strong>🪟 Windows Installation (PowerShell)</strong></summary>
+#### 🪟 Windows Installation (PowerShell)
 
 ```powershell
 # Install using winget (Windows Package Manager)
@@ -99,7 +98,6 @@ winget install --id Helm.Helm
 # Verify installations
 gh --version; git --version; jq --version; curl --version
 ```
-</details>
 
 ---
 
@@ -164,8 +162,7 @@ tail -f setup.log
 
 #### **Manual Setup (Advanced)**
 
-<details>
-<summary><strong>🔧 Manual Setup Steps</strong></summary>
+#### 🔧 Manual Setup Steps
 
 ```bash
 # 1. Validate environment
@@ -195,7 +192,6 @@ tail -f setup.log
 # 8. Configure repository variables
 ./scripts/configure-repositories.sh
 ```
-</details>
 
 ### ✅ **Step 4: Deployment Verification**
 
@@ -397,8 +393,7 @@ cat docs/development/LOCAL_DEVELOPMENT.md
 
 ### 🔍 **Common Setup Issues**
 
-<details>
-<summary><strong>❌ JFrog connectivity issues</strong></summary>
+#### ❌ JFrog connectivity issues
 
 **Problem**: Cannot connect to JFrog Platform
 
@@ -414,10 +409,8 @@ curl -s -H "Authorization: Bearer $JFROG_ADMIN_TOKEN" "$JFROG_URL/artifactory/ap
 # 3. Verify token permissions
 ./scripts/validate-token.sh
 ```
-</details>
 
-<details>
-<summary><strong>❌ GitHub authentication problems</strong></summary>
+#### ❌ GitHub authentication problems
 
 **Problem**: GitHub CLI authentication fails
 
@@ -434,10 +427,8 @@ gh repo list --limit 1  # Test API access
 # 3. Check organization membership
 gh api user/orgs | jq '.[].login'
 ```
-</details>
 
-<details>
-<summary><strong>❌ Repository creation failures</strong></summary>
+#### ❌ Repository creation failures
 
 **Problem**: Cannot create GitHub repositories
 
@@ -452,14 +443,13 @@ gh api orgs/$GITHUB_ORG | jq '.plan'
 # 3. Manual repository creation
 ./scripts/setup/create-repositories.sh --manual --repo inventory
 ```
-</details>
 
 ### 📞 **Getting Help**
 
 - **📖 [Troubleshooting Guide](TROUBLESHOOTING.md)** - Comprehensive issue resolution
 - **🐛 [Issue Tracker](../../issues)** - Report bugs and request features  
 - **💬 [Discussions](../../discussions)** - Community support and questions
-- **📧 Support**: For enterprise support, contact support@bookverse.com
+- **📧 Support**: For enterprise support, contact <support@bookverse.com>
 
 ---
 

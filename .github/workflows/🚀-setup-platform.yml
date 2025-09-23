@@ -314,12 +314,27 @@ jobs:
             echo "" >> $GITHUB_STEP_SUMMARY
             
             echo "**OIDC Integrations:**" >> $GITHUB_STEP_SUMMARY
-            echo "- \`${project_key}-inventory-github\` → frank.inventory@bookverse.com" >> $GITHUB_STEP_SUMMARY
-            echo "- \`${project_key}-recommendations-github\` → grace.ai@bookverse.com" >> $GITHUB_STEP_SUMMARY
-            echo "- \`${project_key}-checkout-github\` → pipeline.checkout@bookverse.com" >> $GITHUB_STEP_SUMMARY
-            echo "- \`${project_key}-platform-github\` → diana.architect@bookverse.com" >> $GITHUB_STEP_SUMMARY
-            echo "- \`${project_key}-web-github\` → pipeline.web@bookverse.com" >> $GITHUB_STEP_SUMMARY
-            echo "- \`${project_key}-infra-github\` → charlie.devops@bookverse.com" >> $GITHUB_STEP_SUMMARY
+            
+            # Check if JPD workaround is enabled (default: true)
+            use_workaround="${USE_PLATFORM_ADMIN_WORKAROUND:-true}"
+            if [[ "$use_workaround" == "true" ]]; then
+                echo "" >> $GITHUB_STEP_SUMMARY
+                echo "⚠️ **JPD Workaround Active**: Due to a JFrog Platform bug, all OIDC integrations use the \`cicd\` platform admin user instead of service-specific users." >> $GITHUB_STEP_SUMMARY
+                echo "" >> $GITHUB_STEP_SUMMARY
+                echo "- \`${project_key}-inventory-github\` → \`cicd\` (platform admin) *[intended: frank.inventory@bookverse.com]*" >> $GITHUB_STEP_SUMMARY
+                echo "- \`${project_key}-recommendations-github\` → \`cicd\` (platform admin) *[intended: grace.ai@bookverse.com]*" >> $GITHUB_STEP_SUMMARY
+                echo "- \`${project_key}-checkout-github\` → \`cicd\` (platform admin) *[intended: pipeline.checkout@bookverse.com]*" >> $GITHUB_STEP_SUMMARY
+                echo "- \`${project_key}-platform-github\` → \`cicd\` (platform admin) *[intended: diana.architect@bookverse.com]*" >> $GITHUB_STEP_SUMMARY
+                echo "- \`${project_key}-web-github\` → \`cicd\` (platform admin) *[intended: pipeline.web@bookverse.com]*" >> $GITHUB_STEP_SUMMARY
+                echo "- \`${project_key}-infra-github\` → \`cicd\` (platform admin) *[intended: pipeline.infra@bookverse.com]*" >> $GITHUB_STEP_SUMMARY
+            else
+                echo "- \`${project_key}-inventory-github\` → frank.inventory@bookverse.com" >> $GITHUB_STEP_SUMMARY
+                echo "- \`${project_key}-recommendations-github\` → grace.ai@bookverse.com" >> $GITHUB_STEP_SUMMARY
+                echo "- \`${project_key}-checkout-github\` → pipeline.checkout@bookverse.com" >> $GITHUB_STEP_SUMMARY
+                echo "- \`${project_key}-platform-github\` → diana.architect@bookverse.com" >> $GITHUB_STEP_SUMMARY
+                echo "- \`${project_key}-web-github\` → pipeline.web@bookverse.com" >> $GITHUB_STEP_SUMMARY
+                echo "- \`${project_key}-infra-github\` → pipeline.infra@bookverse.com" >> $GITHUB_STEP_SUMMARY
+            fi
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "**Evidence Keys:**" >> $GITHUB_STEP_SUMMARY
             echo "- Smart conflict resolution implemented" >> $GITHUB_STEP_SUMMARY

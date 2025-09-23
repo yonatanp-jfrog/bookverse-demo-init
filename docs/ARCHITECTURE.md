@@ -1,14 +1,17 @@
 # BookVerse Platform - Architecture Guide
 
-**Comprehensive system architecture and design documentation**
+## Comprehensive system architecture and design documentation
 
-This document provides a detailed technical overview of BookVerse's architecture, design decisions, and implementation patterns for architects, developers, and operations teams.
+This document provides a detailed technical overview of BookVerse's architecture,
+design decisions, and implementation patterns for architects, developers, and
+operations teams.
 
 ---
 
 ## 🏗️ System Architecture Overview
 
-BookVerse implements a cloud-native microservices architecture with secure CI/CD pipelines and enterprise-grade deployment automation.
+BookVerse implements a cloud-native microservices architecture with secure CI/CD
+pipelines and enterprise-grade deployment automation.
 
 ```mermaid
 graph TB
@@ -299,10 +302,10 @@ graph TB
 
 | Service | Database | Purpose | Justification |
 |---------|----------|---------|---------------|
-| **Inventory** | SQLite | Product catalog & stock | Lightweight, embedded, ACID compliance |
-| **Checkout** | PostgreSQL | Orders & transactions | ACID compliance, complex queries, JSON support |
-| **Recommendations** | Redis | Cache & session data | High-performance caching, TTL support |
-| **Platform** | Configuration files | Service settings | Git-versioned, environment-specific |
+| **Inventory** | SQLite | Product catalog & stock | Lightweight, embedded, ACID |
+| **Checkout** | PostgreSQL | Orders & transactions | ACID, complex queries, JSON |
+| **Recommendations** | Redis | Cache & session data | High-performance caching, TTL |
+| **Platform** | Config files | Service settings | Git-versioned, env-specific |
 
 ### 🔄 **Data Flow Patterns**
 
@@ -382,7 +385,7 @@ graph TB
 |---------|----------------|---------|
 | **Network Security** | TLS 1.3, Private networks | Encrypted communication |
 | **Access Control** | RBAC, Least privilege | Limited service access |
-| **Secrets Management** | External secrets, Rotation | Secure credential handling |
+| **Secrets Management** | External secrets, Rotation | Secure credentials |
 | **Vulnerability Scanning** | Automated scanning, SBOM | Supply chain security |
 | **Evidence Collection** | Cryptographic signing | Compliance and audit |
 
@@ -576,7 +579,7 @@ graph LR
 | **Web Application** | Horizontal | CPU > 70% | Response time < 100ms |
 | **Inventory Service** | Horizontal | Memory > 80% | Throughput > 1000 RPS |
 | **Recommendations** | Horizontal | Queue depth > 100 | Response time < 200ms |
-| **Checkout Service** | Vertical then Horizontal | CPU > 60% | Success rate > 99.9% |
+| **Checkout Service** | Vertical then Horizontal | CPU > 60% | Success > 99.9% |
 | **Database** | Vertical | Connection pool > 80% | Query time < 50ms |
 
 ### ⚡ **Performance Optimizations**

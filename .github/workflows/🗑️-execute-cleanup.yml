@@ -275,7 +275,7 @@ jobs:
             if grep -Eq "❌ (Failed to delete|Stage '.*' still exists|Some deletions failed|PROJECT DELETION INCOMPLETE)" "$exec_log"; then
               failed_any="true"
             fi
-            if grep -Eq "✅ Project '.*' deleted successfully" "$exec_log"; then
+            if grep -Eq "✅ project '.*' deleted successfully" "$exec_log"; then
               project_deleted="yes"
             elif grep -Eq "❌ Failed to delete project '.*'" "$exec_log"; then
               project_deleted="no"
@@ -408,7 +408,7 @@ jobs:
               echo "" >> $GITHUB_STEP_SUMMARY
               echo "**Project That Would Be Deleted:**" >> $GITHUB_STEP_SUMMARY
             else
-              project_status=$(grep -E "✅ Project '.*' deleted successfully" "$exec_log" | sed -E "s/.*Project '([^']+)'.*/- \1/") || true
+              project_status=$(grep -E "✅ project '.*' deleted successfully" "$exec_log" | sed -E "s/.*project '([^']+)'.*/- \1/") || true
               echo "" >> $GITHUB_STEP_SUMMARY
               echo "**Project Deleted:**" >> $GITHUB_STEP_SUMMARY
             fi

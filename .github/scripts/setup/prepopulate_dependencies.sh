@@ -262,9 +262,24 @@ if command -v jf >/dev/null 2>&1; then
   # Use the already-verified authentication status from above
   if [[ "$USE_JF_DOCKER" != "false" ]]; then
     echo "✅ Using JFrog CLI for secure Docker operations"
-    echo "ℹ️ This prevents unencrypted credential storage in ~/.docker/config.json"
+    echo "ℹ️ Configuring Docker authentication for JFrog registry..."
     
-    export USE_JF_DOCKER="true"
+    # Get username from JWT token for Docker login
+    jwt_payload=$(echo "${JFROG_ADMIN_TOKEN}" | cut -d'.' -f2)
+    case $((${#jwt_payload} % 4)) in
+      2) jwt_payload="${jwt_payload}==" ;;
+      3) jwt_payload="${jwt_payload}=" ;;
+    esac
+    username=$(echo "${jwt_payload}" | base64 -d 2>/dev/null | jq -r '.sub' 2>/dev/null | cut -d'/' -f3 2>/dev/null || echo "admin")
+    
+    # Configure Docker authentication to JFrog registry
+    if echo "${JFROG_ADMIN_TOKEN}" | docker login "${DOCKER_REG_HOST}" --username "${username}" --password-stdin >/dev/null 2>&1; then
+      echo "✅ Docker authentication configured for ${DOCKER_REG_HOST}"
+      export USE_JF_DOCKER="true"
+    else
+      echo "⚠️ Docker authentication failed, falling back to API operations"
+      export USE_JF_DOCKER="false"
+    fi
     
   else
     echo "❌ JFrog CLI authentication not available"

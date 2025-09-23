@@ -153,32 +153,11 @@ create_role() {
 }
 
 
-echo "Creating Kubernetes Image Pull role..."
-
-k8s_permissions='[
-    "READ_REPOSITORY",
-    "READ_RELEASE_BUNDLE",
-    "READ_APPLICATION"
-]'
-
-k8s_environments='["PROD"]'
-
-create_role \
-    "k8s_image_pull" \
-    "Kubernetes Image Pull - Read access to PROD Docker repositories for container deployment" \
-    "$k8s_permissions" \
-    "$k8s_environments"
-
-
 echo "📋 Role creation summary:"
 echo ""
-echo "✅ k8s_image_pull (Project Custom Role)"
-echo "   • Purpose: K8s image pull access for container deployment"
-echo "   • Permissions: READ_REPOSITORY, READ_RELEASE_BUNDLE, READ_APPLICATION"
-echo "   • Environments: PROD only"
-echo "   • Scope: Project-level role for BookVerse project"
+echo "ℹ️  Note: The 'k8s_image_pull' project role is created automatically by create_users.sh"
+echo "          when K8s users are processed, ensuring proper permissions for image pulls."
 echo ""
 
 echo "🎯 Custom roles are now available for assignment to users"
-echo "ℹ️  Note: K8s users receive project-scoped roles via create_users.sh"
 echo ""

@@ -1,5 +1,9 @@
 name: '🗑️ Cleanup (Preview & Execute)'
 
+concurrency:
+  group: cleanup-${{ vars.PROJECT_KEY || 'bookverse' }}
+  cancel-in-progress: false
+
 on:
   workflow_dispatch:
     inputs:

@@ -103,6 +103,7 @@
 # =============================================================================
 
 source "$(dirname "$0")/common.sh"
+source "$(dirname "$0")/config.sh"
 
 init_script "$(basename "$0")" "Validating JFrog platform environment"
 
@@ -114,8 +115,7 @@ if [[ -z "${JFROG_ADMIN_TOKEN}" ]]; then
     exit 1
 fi
 
-log_success "JFROG_ADMIN_TOKEN present (length: ${
-
+log_success "JFROG_ADMIN_TOKEN present (length: ${#JFROG_ADMIN_TOKEN})"
 
 validate_jfrog_connectivity
 

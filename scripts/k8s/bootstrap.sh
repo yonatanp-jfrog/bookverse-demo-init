@@ -210,7 +210,7 @@ Examples:
   ./scripts/k8s/bootstrap.sh --port-forward
 
   export JFROG_URL='https://apptrustswampupc.jfrog.io'
-  export REGISTRY_SERVER="${JFROG_URL
+  export REGISTRY_SERVER="${JFROG_URL}/bookverse-docker"
   export REGISTRY_USERNAME='k8s.pull@bookverse.com'
   export REGISTRY_PASSWORD='K8sPull2024!'
   export REGISTRY_EMAIL='k8s.pull@bookverse.com'

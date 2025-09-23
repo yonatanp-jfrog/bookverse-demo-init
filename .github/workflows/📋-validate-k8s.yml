@@ -1,5 +1,9 @@
 name: '📋 Validate K8s Manifests'
 
+concurrency:
+  group: validate-k8s-${{ vars.PROJECT_KEY || 'bookverse' }}-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   push:
     paths:

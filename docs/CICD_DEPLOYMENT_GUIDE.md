@@ -415,17 +415,11 @@ For critical situations, the rollback workflow can be triggered immediately and 
 4. **Image Scanning**: Scan images for vulnerabilities
 
 
-```
 
 
 ```
 
-
-```
-
-## Demo vs Production Considerations
-
-### Demo Environment (Local K8s on Mac)
+## Demo Environment (Local K8s on Mac)
 For demonstration purposes, the focus is on showcasing the CI/CD workflow and resilience patterns:
 
 **What's Important for Demo:**
@@ -460,10 +454,3 @@ For real production deployment, you would add:
 6. **📈 Scalable Concept**: Same patterns work in production with more resources
 
 
-## Support
-
-For deployment issues:
-1. Check the GitHub Actions logs in each repository
-2. Review Kubernetes events: `kubectl get events -n bookverse-prod`
-3. Check service logs: `kubectl logs -l app=<service-name> -n bookverse-prod`
-4. Verify JFrog connectivity and permissions

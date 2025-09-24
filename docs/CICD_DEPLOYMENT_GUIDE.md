@@ -20,39 +20,38 @@ bookverse-demo/
 
 ## CI/CD Flow Overview
 
-The BookVerse platform follows a streamlined CI/CD process that automatically builds, tests, and deploys code changes:
+The BookVerse platform uses a multi-stage CI/CD process with service-level and platform-level workflows:
 
-**Code Commit** → **Commit Analysis** → **Build & Deploy** → **Platform Release** → **Kubernetes Deployment**
+**Service Level**: Code Commit → GitHub Workflow → Build/Promote/Release → Trusted Release for Internal Use
 
-### The Process
+**Platform Level**: Bi-weekly Trigger → Aggregate Services → Promote/Release for Public Use → Webhook → K8s Update
 
-1. **Developer commits code** to any service repository (inventory, recommendations, checkout, web)
+### The Actual Process
 
-2. **System analyzes the commit** to decide the deployment path:
-   - **Full Pipeline**: Feature/fix commits → Complete deployment through all environments
-   - **Build Only**: Documentation/test changes → Build tracking without deployment
+#### Service Deployment (Individual Services)
+1. **Developer commits code** to a service repository (inventory, recommendations, checkout, web)
 
-3. **Service CI Pipeline** (for full deployments):
-   - Build & Test the service
-   - Create Application Version in AppTrust
-   - Auto-Promote through environments: DEV → QA → STAGING → PROD
+2. **GitHub workflow triggers automatically** and executes:
+   - Build the service
+   - Promote through environments
+   - Release the application version as a **trusted release for internal use**
 
-4. **Platform Aggregation** (bi-weekly or on-demand):
-   - Collect latest versions of all services
-   - Build & Test the complete platform
-   - Auto-Promote through: DEV → QA → STAGING
-   - Manual approval for final PROD promotion
+#### Platform Aggregation (Bi-weekly)
+3. **Bi-weekly GitHub workflow triggers** and executes:
+   - Aggregate the latest trusted releases for all internal services
+   - Promote the aggregated platform
+   - Release for **public use**
 
-5. **Kubernetes Deployment**:
-   - Update Helm charts with new versions
-   - Deploy to Kubernetes cluster
-   - Verify deployment health
+#### Kubernetes Deployment
+4. **Webhook triggers** the update-k8s workflow in GitHub Actions
 
-### Key Benefits
-- **Automatic**: No manual intervention needed for most deployments
-- **Safe**: Every change tested through multiple environments
-- **Fast**: Individual services deploy in minutes, full platform in under an hour
-- **Traceable**: Complete audit trail from commit to production
+5. **ArgoCD updates** the Kubernetes cluster automatically
+
+### Key Characteristics
+- **Service Independence**: Each service deploys independently to trusted internal releases
+- **Platform Coordination**: Bi-weekly aggregation coordinates all services for public release
+- **GitOps Integration**: ArgoCD handles the final Kubernetes deployment
+- **Webhook-Driven**: Platform releases automatically trigger infrastructure updates
 
 ### CI/CD Flow
 

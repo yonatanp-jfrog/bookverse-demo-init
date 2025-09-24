@@ -440,13 +440,13 @@ discover_project_applications() {
     local apps_file="$TEMP_DIR/project_applications.json"
     local filtered_apps="$TEMP_DIR/project_applications.txt"
     
-    local code=$(jfrog_api_call "GET" "/apptrust/api/v1/applications?project_key=$PROJECT_KEY" "$apps_file" "curl" "" "project applications")
+    local code=$(jfrog_api_call "GET" "/apptrust/api/v1/applications?project_key=$PROJECT_KEY" "" "$apps_file")
     
     if is_success "$code" && [[ -s "$apps_file" ]]; then
         jq -r '.[] | .application_key' "$apps_file" > "$filtered_apps" 2>/dev/null || touch "$filtered_apps"
         if [[ ! -s "$filtered_apps" ]]; then
             local all_apps_file="$TEMP_DIR/all_applications.json"
-            local code2=$(jfrog_api_call "GET" "/apptrust/api/v1/applications" "$all_apps_file" "curl" "" "all applications")
+            local code2=$(jfrog_api_call "GET" "/apptrust/api/v1/applications" "" "$all_apps_file")
             if is_success "$code2" && [[ -s "$all_apps_file" ]]; then
                 jq -r --arg project "$PROJECT_KEY" '.[] | select(.project_key == $project) | .application_key' "$all_apps_file" > "$filtered_apps" 2>/dev/null || true
             fi

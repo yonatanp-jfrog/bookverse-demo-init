@@ -264,7 +264,7 @@ gh run list --workflow="🚀-setup-platform.yml"
 
 The Setup Platform workflow will automatically:
 - Create the `bookverse` project in JFrog Platform
-- Set up repositories across all package types (Docker, Python, npm, etc.)
+- Set up JFrog artifact repositories across all package types (Docker, Python, npm, etc.)
 - Configure AppTrust applications with lifecycle stages
 - Create OIDC integrations for GitHub authentication
 - Set up users and role-based access control
@@ -275,10 +275,12 @@ The Setup Platform workflow will automatically:
 
 ---
 
-## 🎯 Repository Overview
-The BookVerse demo consists of these repositories:
+## 🎯 GitHub Repository Overview
 
-| Repository | Purpose | Technology Stack |
+The BookVerse demo consists of these **GitHub repositories** (source code):
+
+> **Note**: This section describes GitHub repositories containing source code. The JFrog Platform will automatically create separate artifact repositories (Docker, Python, npm, etc.) for storing build artifacts.
+| GitHub Repository | Purpose | Technology Stack |
 |------------|---------|------------------|
 | **bookverse-inventory** | Product catalog & inventory management | Python, FastAPI, SQLite |
 | **bookverse-recommendations** | AI-powered recommendation engine | Python, scikit-learn, FastAPI |
@@ -592,7 +594,7 @@ Use this checklist to ensure successful demo setup:
 - [ ] Rancher Desktop installed and running
 
 ### 📥 **Repository Setup**
-- [ ] All service repositories cloned (inventory, recommendations, checkout, platform, web, helm, infra)
+- [ ] All GitHub service repositories cloned (inventory, recommendations, checkout, platform, web, helm, infra)
 - [ ] Demo orchestration repository cloned (bookverse-demo-init)
 - [ ] JFrog Platform connectivity verified
 

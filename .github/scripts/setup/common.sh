@@ -379,10 +379,8 @@ jfrog_api_call() {
     
     if [[ "$output_file" != "/dev/null" ]]; then
         # Debug: Check temp file content before copying
-        if [[ "$JFROG_CLI_ENV_EXCLUDE" == *"DEBUG"* ]] || [[ "${DEBUG_API:-}" == "true" ]]; then
-            echo "🔍 DEBUG: temp_file size: $(wc -c < "$temp_file" 2>/dev/null || echo "0") bytes" >&2
-            echo "🔍 DEBUG: temp_file content: $(head -c 200 "$temp_file" 2>/dev/null || echo "empty")" >&2
-        fi
+        echo "🔍 DEBUG: temp_file size: $(wc -c < "$temp_file" 2>/dev/null || echo "0") bytes" >&2
+        echo "🔍 DEBUG: temp_file content: $(head -c 200 "$temp_file" 2>/dev/null || echo "empty")" >&2
         cp "$temp_file" "$output_file"
     fi
     

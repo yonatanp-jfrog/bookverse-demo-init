@@ -106,8 +106,8 @@ case "$PHASE" in
                             echo "  📋 Found $version_count versions for application '$app_name'"
                             
                             if [[ "$version_count" -gt 0 ]]; then
-                                local app_success=0
-                                local app_failed=0
+                                app_success=0
+                                app_failed=0
                                 
                                 # Extract version names and delete each one
                                 jq -r '.[].name' "$versions_response" 2>/dev/null | while read -r version_name; do

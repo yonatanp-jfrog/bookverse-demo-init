@@ -444,7 +444,12 @@ discover_project_applications() {
     echo "🔍 DEBUG: JFROG_URL='$JFROG_URL'" >&2
     local url_no_slash="${JFROG_URL%/}"
     echo "🔍 DEBUG: url_no_slash='$url_no_slash'" >&2
-    local full_url="${url_no_slash}/apptrust/api/v1/applications?project_key=$PROJECT_KEY"
+    local full_url="${url_no_slash}/apptrust/api/v1/applications?project_key=${PROJECT_KEY}"
+    
+    # Try direct curl to test if jfrog_api_call is the issue
+    echo "🔍 DEBUG: Testing direct curl..." >&2
+    curl -s -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" -H "Content-Type: application/json" \
+         -w "Direct curl HTTP: %{http_code}" -o /dev/null "$full_url" >&2 || echo "Direct curl failed" >&2
     echo "🔍 DEBUG: full_url='$full_url'" >&2
     
     # Try the API call and check for empty response  

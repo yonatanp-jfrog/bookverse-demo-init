@@ -14,7 +14,7 @@ BookVerse is a comprehensive microservices platform that delivers modern softwar
 Choose your path based on your needs:
 
 - **🚀 Quick Start**: Follow the [Getting Started Guide](docs/GETTING_STARTED.md) for rapid deployment
-- **🏗️ Deep Dive**: Explore the [Architecture Overview](docs/ARCHITECTURE.md) for detailed system understanding  
+- **🏗️ Deep Dive**: Explore the [Platform Architecture Overview](docs/ARCHITECTURE.md) for detailed system understanding  
 - **🎮 Demo**: Run through the [Demo Runbook](docs/DEMO_RUNBOOK.md) for hands-on experience
 
 ---
@@ -163,7 +163,7 @@ BookVerse consists of seven integrated components that work together to deliver 
 ### 🚀 **Platform Setup & Architecture**
 
 - [📖 **Getting Started**](docs/GETTING_STARTED.md) - Complete setup and deployment instructions
-- [🏗️ **Architecture Overview**](docs/ARCHITECTURE.md) - System design and component relationships
+- [🏗️ **Platform Architecture Overview**](docs/ARCHITECTURE.md) - System design and component relationships
 - [🎮 **Demo Runbook**](docs/DEMO_RUNBOOK.md) - Step-by-step demo execution guide
 - [⚙️ **Repository Architecture**](docs/REPO_ARCHITECTURE.md) - Code organization and structure
 
@@ -201,7 +201,7 @@ BookVerse provides everything you need to implement enterprise-grade microservic
 
 **Choose your next step:**
 - **New to BookVerse?** Start with the [Getting Started Guide](docs/GETTING_STARTED.md)
-- **Want to understand the architecture?** Read the [Architecture Overview](docs/ARCHITECTURE.md)
+- **Want to understand the architecture?** Read the [Platform Architecture Overview](docs/ARCHITECTURE.md)
 - **Ready to run a demo?** Follow the [Demo Runbook](docs/DEMO_RUNBOOK.md)
 
 For additional support and documentation, explore the comprehensive guides above or visit the individual service repositories.

@@ -113,7 +113,32 @@ curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 The BookVerse demo consists of multiple service repositories that need to be cloned individually:
 
 ```bash
-# 1. Create workspace directory
+# 1. Authenticate with GitHub (required for private repositories)
+gh auth login
+gh auth status  # Verify authentication
+
+# 2. Create workspace directory
+mkdir bookverse-demo
+cd bookverse-demo
+
+# 3. Clone all service repositories
+git clone https://github.com/your-org/bookverse-inventory.git
+git clone https://github.com/your-org/bookverse-recommendations.git
+git clone https://github.com/your-org/bookverse-checkout.git
+git clone https://github.com/your-org/bookverse-platform.git
+git clone https://github.com/your-org/bookverse-web.git
+git clone https://github.com/your-org/bookverse-helm.git
+git clone https://github.com/your-org/bookverse-infra.git
+
+# 4. Clone the demo orchestration repository
+git clone https://github.com/your-org/bookverse-demo-init.git
+
+# 5. Verify all repositories are cloned
+ls -la
+# Expected: bookverse-inventory/, bookverse-recommendations/, bookverse-checkout/, 
+#          bookverse-platform/, bookverse-web/, bookverse-helm/, bookverse-infra/,
+#          bookverse-demo-init/
+```# 1. Create workspace directory
 mkdir bookverse-demo
 cd bookverse-demo
 

@@ -72,11 +72,11 @@ graph TB
 - **Service Independence**: Each service owns its data and business logic
 - **API-First**: All communication through well-defined REST APIs
 - **Database per Service**: Dedicated data stores for service autonomy
-- **Failure Isolation**: Circuit breakers and graceful degradation
+- **Failure Isolation**: Retry mechanisms with exponential backoff and graceful degradation
 
 ### 🔐 **Security by Design**
-- **Zero-Trust Authentication**: OIDC-based identity verification
-- **Secure Communication**: TLS encryption for all service communication
+- ****Authentication Framework**: JWT-based authentication with demo mode support
+- **Secure Communication**: HTTP-based service communication with authentication headers
 - **Least Privilege**: Minimal permissions and role-based access control
 - **Evidence-Based Compliance**: Cryptographic audit trails
 

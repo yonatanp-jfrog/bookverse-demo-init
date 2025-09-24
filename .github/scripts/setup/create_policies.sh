@@ -10,13 +10,13 @@
 # enforcement, and lifecycle gate automation.
 #
 # 🚀 POLICY ARCHITECTURE:
-#     - DEV Stage: Entry gates for Jira and SLSA, Exit gate for smoke tests
+#     - DEV Stage: Entry gates for Jira, SLSA, build evidence (SonarQube), Docker evidence (SAST), and package evidence (unit tests); Exit gate for smoke tests
 #     - QA Stage: Exit gates for DAST and Postman collection testing
 #     - STAGING Stage: Exit gates for penetration testing, change management, and IaC scanning
 #     - PROD Stage: Release gates for stage completion verification
 #
 # 📋 POLICIES CREATED:
-#     DEV Entry: Atlassian Jira Required, SLSA Provenance Required
+#     DEV Entry: Atlassian Jira Required, SLSA Provenance Required, Build Quality Gate Required, Docker SAST Evidence Required, Package Unit Test Evidence Required
 #     DEV Exit: Smoke Test Required
 #     QA Exit: Invicti DAST Required, Postman Collection Required
 #     STAGING Exit: Cobalt Pentest Required, ServiceNow Change Required, Snyk IaC Required
@@ -146,6 +146,33 @@ if ! policy_exists "BookVerse DEV Entry - SLSA Provenance Required"; then
         "$PROJECT_KEY-DEV" \
         "entry" \
         "BookVerse SLSA Provenance Evidence - DEV Entry"
+fi
+
+if ! policy_exists "BookVerse DEV Entry - Build Quality Gate Required"; then
+    create_policy \
+        "BookVerse DEV Entry - Build Quality Gate Required" \
+        "Requires SonarQube quality gate evidence attached to build info for DEV stage entry" \
+        "$PROJECT_KEY-DEV" \
+        "entry" \
+        "BookVerse DEV Entry - Build Quality Gate Required"
+fi
+
+if ! policy_exists "BookVerse DEV Entry - Docker SAST Evidence Required"; then
+    create_policy \
+        "BookVerse DEV Entry - Docker SAST Evidence Required" \
+        "Requires SAST scan evidence attached to Docker images for DEV stage entry" \
+        "$PROJECT_KEY-DEV" \
+        "entry" \
+        "BookVerse DEV Entry - Docker SAST Evidence Required"
+fi
+
+if ! policy_exists "BookVerse DEV Entry - Package Unit Test Evidence Required"; then
+    create_policy \
+        "BookVerse DEV Entry - Package Unit Test Evidence Required" \
+        "Requires unit test results evidence attached to packages for DEV stage entry" \
+        "$PROJECT_KEY-DEV" \
+        "entry" \
+        "BookVerse DEV Entry - Package Unit Test Evidence Required"
 fi
 
 if ! policy_exists "BookVerse DEV Exit - Smoke Test Required"; then

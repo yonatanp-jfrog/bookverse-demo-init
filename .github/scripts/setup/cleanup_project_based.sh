@@ -440,9 +440,31 @@ discover_project_applications() {
     local apps_file="$TEMP_DIR/project_applications.json"
     local filtered_apps="$TEMP_DIR/project_applications.txt"
     
-    # Enable debug mode for API calls
-    export DEBUG_API=true
-    local code=$(jfrog_api_call "GET" "/apptrust/api/v1/applications?project_key=$PROJECT_KEY" "" "$apps_file")
+    # Try the API call and check for empty response
+    local code=$(jfrog_api_call "GET" "${JFROG_URL}/apptrust/api/v1/applications?project_key=$PROJECT_KEY" "" "$apps_file")
+    
+    # If empty response with 200, try without project_key filter (get all apps and filter locally)
+    if [[ "$code" -eq 200 ]] && [[ ! -s "$apps_file" ]]; then
+        echo "🔍 DEBUG: Project-specific query returned empty, trying fallback to all applications..." >&2
+        local all_apps_file="$TEMP_DIR/all_applications.json"
+        local code2=$(jfrog_api_call "GET" "${JFROG_URL}/apptrust/api/v1/applications" "" "$all_apps_file")
+        
+        if [[ "$code2" -eq 200 ]] && [[ -s "$all_apps_file" ]]; then
+            echo "🔍 DEBUG: All applications API returned data, filtering for project '$PROJECT_KEY'..." >&2
+            echo "🔍 DEBUG: All apps content (first 500 chars): $(head -c 500 "$all_apps_file")" >&2
+            
+            # Filter for our project and copy to the main apps file
+            jq --arg project "$PROJECT_KEY" '[.[] | select(.project_key == $project)]' "$all_apps_file" > "$apps_file" 2>/dev/null || touch "$apps_file"
+            
+            if [[ -s "$apps_file" ]]; then
+                echo "🔍 DEBUG: Successfully filtered applications for project '$PROJECT_KEY'" >&2
+            else
+                echo "🔍 DEBUG: No applications found for project '$PROJECT_KEY' after filtering" >&2
+            fi
+        else
+            echo "🔍 DEBUG: Fallback to all applications also failed (HTTP $code2)" >&2
+        fi
+    fi
     
     echo "🔍 DEBUG: Applications API returned HTTP $code" >&2
     if [[ -s "$apps_file" ]]; then
@@ -485,7 +507,7 @@ discover_project_applications() {
         fi
         if [[ ! -s "$filtered_apps" ]]; then
             local all_apps_file="$TEMP_DIR/all_applications.json"
-            local code2=$(jfrog_api_call "GET" "/apptrust/api/v1/applications" "" "$all_apps_file")
+            local code2=$(jfrog_api_call "GET" "${JFROG_URL}/apptrust/api/v1/applications" "" "$all_apps_file")
             if is_success "$code2" && [[ -s "$all_apps_file" ]]; then
                 jq -r --arg project "$PROJECT_KEY" '.[] | select(.project_key == $project) | .application_key' "$all_apps_file" > "$filtered_apps" 2>/dev/null || true
             fi

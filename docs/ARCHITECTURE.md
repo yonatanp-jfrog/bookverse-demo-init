@@ -214,39 +214,71 @@ graph TB
 
 ```mermaid
 graph TB
-    subgraph "Web Application"
-        SPA[Single Page App]
-        RT[Router]
-        ST[State Management]
-        UI[UI Components]
+    subgraph "Application Layer"
+        MAIN[Main Bootstrap]
+        ROUTER[Client-Side Router]
+        CONFIG[Configuration]
         
-        SPA --> RT
-        RT --> UI
-        UI --> ST
+        MAIN --> ROUTER
+        MAIN --> CONFIG
     end
     
-    subgraph "Services Integration"
-        HTTP[HTTP Client]
-        API[Service APIs]
-        AUTH[Authentication]
+    subgraph "UI Components"
+        HOME[Home Page]
+        CATALOG[Book Catalog]
+        BOOK[Book Details]
+        CART[Shopping Cart]
+        AUTH_UI[Auth Interface]
         
-        ST --> HTTP
-        HTTP --> API
-        HTTP --> AUTH
+        ROUTER --> HOME
+        ROUTER --> CATALOG
+        ROUTER --> BOOK
+        ROUTER --> CART
+        ROUTER --> AUTH_UI
     end
+    
+    subgraph "Services Layer"
+        HTTP[HTTP Client]
+        INV_SVC[Inventory Service]
+        REC_SVC[Recommendations Service]
+        CHK_SVC[Checkout Service]
+        AUTH_SVC[Auth Service]
+        
+        HTTP --> INV_SVC
+        HTTP --> REC_SVC
+        HTTP --> CHK_SVC
+        HTTP --> AUTH_SVC
+    end
+    
+    subgraph "State & Utilities"
+        CART_STORE[Cart State]
+        UTILS[Utilities]
+        THEME[Styling]
+        
+        UI_COMPONENTS --> CART_STORE
+        UI_COMPONENTS --> UTILS
+    end
+    
+    HOME --> HTTP
+    CATALOG --> HTTP
+    BOOK --> HTTP
+    CART --> HTTP
+    AUTH_UI --> HTTP
 ```
 
 **Key Components:**
-- **Vanilla JavaScript**: Lightweight, modern JavaScript implementation
-- **Client-Side Routing**: Single-page application navigation
-- **Responsive Design**: Mobile-first responsive UI
-- **Service Integration**: Direct API consumption with error handling
+- **Modular Architecture**: Separate modules for routing, UI components, services, and state
+- **Client-Side Routing**: Hash-based navigation with parameterized routes
+- **Component-Based UI**: Individual modules for home, catalog, book details, cart, and auth
+- **Service Integration**: Dedicated service clients for each backend API
+- **Vanilla JavaScript**: No framework dependencies, modern ES6+ implementation
 
 **Responsibilities:**
-- User interface and experience
-- Client-side state management
-- API integration and error handling
-- Authentication and session management
+- Multi-page user interface with client-side routing
+- Modular component system with clear separation of concerns
+- API integration through dedicated service clients
+- Shopping cart state management
+- Authentication and session handling
 
 ### 🔧 **Platform Aggregation**
 

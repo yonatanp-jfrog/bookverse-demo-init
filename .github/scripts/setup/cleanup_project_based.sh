@@ -452,14 +452,17 @@ discover_project_applications() {
          -w "Direct curl HTTP: %{http_code}" -o /dev/null "$full_url" >&2 || echo "Direct curl failed" >&2
     echo "🔍 DEBUG: full_url='$full_url'" >&2
     
-    # Try the API call and check for empty response  
-    local code=$(jfrog_api_call "GET" "$full_url" "" "$apps_file")
+    # Use direct curl since jfrog_api_call mangles the URL
+    echo "🔍 DEBUG: Using direct curl instead of jfrog_api_call..." >&2
+    local code=$(curl -s -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" -H "Content-Type: application/json" \
+                     -w "%{http_code}" -o "$apps_file" "$full_url")
     
     # If empty response with 200, try without project_key filter (get all apps and filter locally)
     if [[ "$code" -eq 200 ]] && [[ ! -s "$apps_file" ]]; then
         echo "🔍 DEBUG: Project-specific query returned empty, trying fallback to all applications..." >&2
         local all_apps_file="$TEMP_DIR/all_applications.json"
-        local code2=$(jfrog_api_call "GET" "${url_no_slash}/apptrust/api/v1/applications" "" "$all_apps_file")
+        local code2=$(curl -s -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" -H "Content-Type: application/json" \
+                          -w "%{http_code}" -o "$all_apps_file" "${url_no_slash}/apptrust/api/v1/applications")
         
         if [[ "$code2" -eq 200 ]] && [[ -s "$all_apps_file" ]]; then
             echo "🔍 DEBUG: All applications API returned data, filtering for project '$PROJECT_KEY'..." >&2
@@ -519,7 +522,8 @@ discover_project_applications() {
         fi
         if [[ ! -s "$filtered_apps" ]]; then
             local all_apps_file="$TEMP_DIR/all_applications.json"
-            local code2=$(jfrog_api_call "GET" "${url_no_slash}/apptrust/api/v1/applications" "" "$all_apps_file")
+            local code2=$(curl -s -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" -H "Content-Type: application/json" \
+                              -w "%{http_code}" -o "$all_apps_file" "${url_no_slash}/apptrust/api/v1/applications")
             if is_success "$code2" && [[ -s "$all_apps_file" ]]; then
                 jq -r --arg project "$PROJECT_KEY" '.[] | select(.project_key == $project) | .application_key' "$all_apps_file" > "$filtered_apps" 2>/dev/null || true
             fi

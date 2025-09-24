@@ -138,31 +138,6 @@ ls -la
 # Expected: bookverse-inventory/, bookverse-recommendations/, bookverse-checkout/, 
 #          bookverse-platform/, bookverse-web/, bookverse-helm/, bookverse-infra/,
 #          bookverse-demo-init/
-```# 1. Create workspace directory
-mkdir bookverse-demo
-cd bookverse-demo
-
-# 2. Clone all service repositories
-git clone https://github.com/your-org/bookverse-inventory.git
-git clone https://github.com/your-org/bookverse-recommendations.git
-git clone https://github.com/your-org/bookverse-checkout.git
-git clone https://github.com/your-org/bookverse-platform.git
-git clone https://github.com/your-org/bookverse-web.git
-git clone https://github.com/your-org/bookverse-helm.git
-git clone https://github.com/your-org/bookverse-infra.git
-
-# 3. Clone the demo orchestration repository
-git clone https://github.com/your-org/bookverse-demo-init.git
-
-# 4. Authenticate with GitHub
-gh auth login
-gh auth status  # Verify authentication
-
-# 5. Verify all repositories are cloned
-ls -la
-# Expected: bookverse-inventory/, bookverse-recommendations/, bookverse-checkout/, 
-#          bookverse-platform/, bookverse-web/, bookverse-helm/, bookverse-infra/,
-#          bookverse-demo-init/
 ```
 
 ### 🔧 **Step 2: Configure JFrog Platform Connection**
@@ -180,17 +155,6 @@ gh secret set JFROG_ADMIN_TOKEN --body "$JFROG_ADMIN_TOKEN"
 echo "✅ JFROG_ADMIN_TOKEN secret configured for repository"
 
 # 4. Verify connectivity
-curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
-  "${JFROG_URL}/artifactory/api/system/ping"
-# Expected output: OK
-```# 1. Navigate to the orchestration repository
-cd bookverse-demo-init
-
-# 2. Set up your JFrog Platform connection
-export JFROG_URL="https://your-instance.jfrog.io"
-export JFROG_ADMIN_TOKEN="your-admin-token"
-
-# 3. Verify connectivity
 curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
   "${JFROG_URL}/artifactory/api/system/ping"
 # Expected output: OK

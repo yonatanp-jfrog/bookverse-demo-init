@@ -200,15 +200,7 @@ Each service (web, inventory, recommendations, checkout) follows this workflow:
 
 ## Deployment Process
 
-## Demo-Optimized Automatic Pipeline
-
-**Perfect for demonstrating:**
-- Modern CI/CD best practices
-- Resilience and error recovery
-- JFrog + AppTrust integration
-- Kubernetes deployment automation
-
-#### For Service Updates (Demo Flow):
+### For Service Updates (Demo Flow):
 1. **You commit** code changes to any service repository (inventory, recommendations, checkout, web)
    ```bash
    # Example: Fix a bug in the inventory service
@@ -422,120 +414,13 @@ For critical situations, the rollback workflow can be triggered immediately and 
 3. **Secret Management**: Store secrets in Kubernetes secrets
 4. **Image Scanning**: Scan images for vulnerabilities
 
-## 2. JFrog connectivity issues
 
-
-#### 3. GitHub Actions workflow failures
-```bash
-# Check Helm release status
-helm status platform -n bookverse-prod
-helm get values platform -n bookverse-prod
 ```
 
-### Demo Implementation Examples
 
-#### Demo-Optimized Commit Filter:
-```bash
-#!/bin/bash
-# scripts/analyze-commit-demo.sh
-# =============================================================================
-# DEMO-OPTIMIZED COMMIT ANALYSIS
-# =============================================================================
-# This script is optimized for demonstration purposes to show CI/CD workflows
-# in action. Production systems would use more conservative defaults.
-#
-# DEMO BEHAVIOR: Favors creating application versions for visibility
-# PRODUCTION BEHAVIOR: Would default to build-info-only for safety
-# =============================================================================
-
-COMMIT_MSG="${1:-$(git log -1 --pretty=%B)}"
-CHANGED_FILES="${2:-$(git diff --name-only HEAD~1)}"
-
-echo "🎯 DEMO MODE: Analyzing commit for CI/CD demonstration"
-echo "📝 Commit: $COMMIT_MSG"
-
-# Demo: Simple rules for clarity (production would have 10-15 rules)
-if [[ "$COMMIT_MSG" =~ \[skip-version\] ]]; then
-  echo "create_version=false" >> $GITHUB_OUTPUT
-  echo "🔨 Demo: Build info only (explicit skip)"
-  # PRODUCTION NOTE: Would have many more skip patterns
-  
-elif [[ "$COMMIT_MSG" =~ ^docs?: ]] && [[ "$CHANGED_FILES" =~ ^[[:space:]]*$ || $(echo "$CHANGED_FILES" | grep -v '\.md$\|^docs/' | wc -l) -eq 0 ]]; then
-  echo "create_version=false" >> $GITHUB_OUTPUT
-  echo "🔨 Demo: Build info only (docs-only)"
-  # PRODUCTION NOTE: Would include README, wikis, comments, etc.
-  
-elif [[ "$COMMIT_MSG" =~ ^test?: ]] && [[ $(echo "$CHANGED_FILES" | grep -v '^tests\?/\|_test\.' | wc -l) -eq 0 ]]; then
-  echo "create_version=false" >> $GITHUB_OUTPUT
-  echo "🔨 Demo: Build info only (tests-only)"
-  # PRODUCTION NOTE: Would include spec files, fixtures, mocks, etc.
-  
-else
-  # DEMO DEFAULT: Create application version for pipeline visibility
-  echo "create_version=true" >> $GITHUB_OUTPUT
-  echo "✅ Demo: Creating app version (showing full pipeline)"
-  echo "📝 Production note: Real systems would default to build-info-only here"
-fi
-
-# =============================================================================
-# PRODUCTION IMPLEMENTATION (for reference):
-# =============================================================================
-# Production systems would use conservative defaults:
-#
-# echo "create_version=false" >> $GITHUB_OUTPUT  # Safe default
-# 
-# # Only create versions for explicit release-ready patterns:
-# if [[ "$COMMIT_MSG" =~ ^(feat|fix|perf)!?: ]] ||     # Breaking changes
-#    [[ "$COMMIT_MSG" =~ \[release\] ]] ||              # Explicit release
-#    [[ "$GITHUB_REF" =~ ^refs/heads/(release|hotfix)/ ]] || # Release branches
-#    [[ semantic_version_bump_detected ]]; then         # Automated detection
-#   echo "create_version=true" >> $GITHUB_OUTPUT
-# fi
 ```
 
-#### Demo vs Production Monitoring:
 
-**Demo Approach (Current):**
-```bash
-# Simple logging for demo visibility
-echo "🎯 DEMO: Decision made - $DECISION"
-echo "📊 Reason: $REASON" 
-echo "🚀 Watch the pipeline in GitHub Actions!"
-
-# PRODUCTION would add:
-# - Structured JSON logging
-# - Metrics collection (Prometheus/DataDog)
-# - Decision audit trail
-# - Team notification integration
-# - False positive/negative tracking
-```
-
-#### Auto-Promotion Workflow:
-```yaml
-# .github/workflows/promote-auto.yml
-name: Auto-Promote
-on:
-  workflow_call:
-    inputs:
-      app_version:
-        required: true
-        type: string
-      from_stage:
-        required: true
-        type: string
-      to_stage:
-        required: true
-        type: string
-
-jobs:
-  promote:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Promote Application
-        run: |
-          # Call AppTrust promotion API
-          # Add stage-specific validation
-          # Trigger next stage if successful
 ```
 
 ## Demo vs Production Considerations

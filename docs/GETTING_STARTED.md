@@ -298,7 +298,7 @@ cd bookverse-demo-init
 
 # This script will:
 # - Detect your Kubernetes context
-# - Install ArgoCD
+# - Install ArgoCD (for GitOps deployment)
 # - Deploy BookVerse applications
 # - Configure ingress and networking
 # - Set up demo data
@@ -330,7 +330,9 @@ The BookVerse applications will become available after:
 2. **Promoting through stages** (DEV → QA → STAGING → PROD)
 3. **Production deployment** completes via ArgoCD
 
-Until then, only ArgoCD will be accessible - the application pods remain undeployed.``````
+Until then, only ArgoCD will be accessible - the application pods remain undeployed.
+
+> **📖 Want to understand what this setup does?** See the [GitOps Deployment Guide](GITOPS_DEPLOYMENT.md) for a detailed explanation of the ArgoCD configuration and GitOps workflow that gets automatically configured.``````
 
 ### 🔧 **Alternative Kubernetes Options**
 
@@ -533,7 +535,7 @@ Ready to explore BookVerse? Here's what you can do:
 - **🏗️ [Architecture Guide](ARCHITECTURE.md)** - Understanding system design
 - **🔄 [CI/CD Deployment](CICD_DEPLOYMENT_GUIDE.md)** - Pipeline configuration and automation
 - **🔐 [OIDC Authentication](OIDC_AUTHENTICATION.md)** - Zero-trust authentication setup
-- **🚀 [GitOps Deployment](GITOPS_DEPLOYMENT.md)** - Continuous deployment workflows
+- **🚀 [GitOps Deployment](GITOPS_DEPLOYMENT.md)** - Understanding the automated ArgoCD setup
 - **🔗 [JFrog Integration](JFROG_INTEGRATION.md)** - Artifact management and security
 
 ---

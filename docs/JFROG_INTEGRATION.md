@@ -1213,6 +1213,3 @@ generate_and_upload_sbom() {
 
 ---
 
-**Authors**: BookVerse Platform Team  
-**Version**: 1.0.0  
-**Last Updated**: 2024-01-01

@@ -1182,6 +1182,3 @@ store_evidence_package() {
 
 ---
 
-**Authors**: BookVerse Platform Team  
-**Version**: 1.0.0  
-**Last Updated**: 2024-01-01

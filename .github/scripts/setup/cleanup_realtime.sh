@@ -109,17 +109,21 @@ case "$PHASE" in
                                 app_success=0
                                 app_failed=0
                                 
-                                # Extract version names and delete each one  
+                                # Extract version names and delete each one using array instead of while loop
                                 echo "  🔍 DEBUG: Parsing versions from response..." >&2
-                                version_names=$(jq -r '.versions[]?.version' "$versions_response" 2>/dev/null || echo "")
-                                if [[ -z "$version_names" ]]; then
+                                
+                                # Read version names into an array to avoid subshell issues
+                                mapfile -t version_array < <(jq -r '.versions[]?.version' "$versions_response" 2>/dev/null || true)
+                                
+                                if [[ ${#version_array[@]} -eq 0 ]]; then
                                     echo "  ⚠️  No version names could be parsed from response" >&2
                                     echo "  🔍 DEBUG: Response content: $(cat "$versions_response")" >&2
                                 else
-                                    echo "  🔍 DEBUG: Found version names: $version_names" >&2
+                                    echo "  🔍 DEBUG: Found ${#version_array[@]} version names to delete" >&2
                                 fi
                                 
-                                echo "$version_names" | while read -r version_name; do
+                                # Delete each version
+                                for version_name in "${version_array[@]}"; do
                                     if [[ -n "$version_name" ]]; then
                                         echo "    🗑️  Deleting version: $version_name"
                                         version_delete_code=$(curl -s \

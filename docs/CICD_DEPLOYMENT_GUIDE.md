@@ -226,32 +226,6 @@ Each service (web, inventory, recommendations, checkout) follows this workflow:
 
 3. **Creates trusted release** for internal use and platform aggregation
 
-#### For Platform Releases (Demo Flow):
-1. **Trigger platform aggregation** (manual for demo control):
-   ```bash
-   # From bookverse-helm repository
-   gh workflow run update-k8s.yml
-   ```
-
-2. **Platform service automatically**:
-   - Collects latest PROD versions: inventory v1.2.3, web v2.1.5, etc.
-   - Creates platform manifest
-   - Generates platform release v2.1.40
-
-3. **Helm deployment automatically**:
-   - Updates `values.yaml` with new image tags
-   - Deploys to your local Kubernetes cluster
-   - Performs rolling update (zero downtime)
-
-4. **You can immediately verify**:
-   ```bash
-   # Check deployment status
-   kubectl get pods -n bookverse-prod
-   
-   # Test the updated service via professional demo URL
-   curl http://bookverse.demo/api/v1/books
-   ```
-
 #### Demo Advantages:
 
 **🎯 Great for Presentations:**
@@ -315,40 +289,6 @@ docker build -t bookverse-web:resilient .
 docker tag bookverse-web:resilient apptrustswampupc.jfrog.io/bookverse-web-internal-docker-release-local/web:resilient
 # Push to registry (requires authentication)
 docker push apptrustswampupc.jfrog.io/bookverse-web-internal-docker-release-local/web:resilient
-```
-
-#### Step 2: Update Helm Values Manually
-
-```bash
-cd /path/to/bookverse-helm
-# Edit values.yaml to pin the new image tag
-vim charts/platform/values.yaml
-# Update the web.tag field to 'resilient'
-```
-
-#### Step 3: Deploy via Helm
-
-```bash
-# Deploy to the cluster
-helm upgrade platform ./charts/platform -n bookverse-prod
-# Verify deployment
-kubectl rollout status deployment/platform-web -n bookverse-prod
-```
-
-### Method 3: Trigger Helm Workflow Manually
-
-You can trigger the Helm workflow directly:
-
-```bash
-# Using GitHub CLI
-gh workflow run update-k8s.yml \
-  --repo your-org/bookverse-helm \
-  --field platform_version="2.1.38" \
-  --field build_number="manual-$(date +%s)"
-
-# Or via GitHub UI
-# Go to: https://github.com/your-org/bookverse-helm/actions/workflows/update-k8s.yml
-# Click "Run workflow"
 ```
 
 ## Current Deployment Status

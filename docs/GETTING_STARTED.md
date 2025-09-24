@@ -264,13 +264,12 @@ gh run list --workflow="🚀-setup-platform.yml"
 
 The Setup Platform workflow will automatically:
 - Create the `bookverse` project in JFrog Platform
-- Set up 14 repositories across all package types  
-- Configure 4 AppTrust applications with lifecycle stages
-- Create 5 OIDC integrations for GitHub authentication
+- Set up repositories across all package types (Docker, Python, npm, etc.)
+- Configure AppTrust applications with lifecycle stages
+- Create OIDC integrations for GitHub authentication
 - Set up users and role-based access control
 - Generate evidence keys for cryptographic signing
 - Configure all GitHub repository variables
-
 ### ✅ **Step 5: Verify Platform Setup**
 
 ```bash
@@ -281,9 +280,9 @@ cd bookverse-demo-init
 # Expected output:
 # ✅ JFrog Platform connectivity verified
 # ✅ Project 'bookverse' exists  
-# ✅ Found 14 repositories across all package types
-# ✅ Found 4 applications with lifecycle stages
-# ✅ Found 5 OIDC integrations configured
+# ✅ Found repositories across all package types
+# ✅ Found applications with lifecycle stages
+# ✅ Found OIDC integrations configured
 # ✅ GitHub repositories configured with correct variables
 
 # 2. Check repository variables for each service

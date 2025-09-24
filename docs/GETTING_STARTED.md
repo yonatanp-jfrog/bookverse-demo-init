@@ -10,6 +10,8 @@ This guide provides step-by-step instructions to set up the complete BookVerse d
 
 ### 🔑 **Required Access & Accounts**
 
+> **Note for Local Demo**: The requirements below are for the JFrog Platform setup and GitHub integration. No external domain access is needed - the local demo uses `bookverse.demo` and `argocd.demo` domains configured in your local `/etc/hosts` file.
+
 | Requirement | Description | Purpose |
 |-------------|-------------|---------|
 | **JFrog Platform** | Admin privileges on Artifactory + AppTrust | Platform provisioning and artifact management |
@@ -332,7 +334,12 @@ After successful deployment:
 # The demo script will configure local DNS and provide access URLs:
 echo "🌐 BookVerse Demo: http://bookverse.demo"
 echo "🔧 ArgoCD Interface: https://argocd.demo"
-```
+
+# How this works:
+# 1. The demo script modifies /etc/hosts to point demo domains to 127.0.0.1
+# 2. Traefik ingress controller routes requests to the appropriate services
+# 3. No external DNS or domain registration required
+``````
 
 ### 🔧 **Alternative Kubernetes Options**
 

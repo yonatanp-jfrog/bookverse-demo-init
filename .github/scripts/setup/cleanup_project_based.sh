@@ -442,8 +442,45 @@ discover_project_applications() {
     
     local code=$(jfrog_api_call "GET" "/apptrust/api/v1/applications?project_key=$PROJECT_KEY" "" "$apps_file")
     
+    echo "🔍 DEBUG: Applications API returned HTTP $code" >&2
+    if [[ -s "$apps_file" ]]; then
+        echo "🔍 DEBUG: Response file size: $(wc -c < "$apps_file") bytes" >&2
+        echo "🔍 DEBUG: Response content (first 500 chars): $(head -c 500 "$apps_file")" >&2
+    else
+        echo "🔍 DEBUG: Response file is empty" >&2
+    fi
+    
     if is_success "$code" && [[ -s "$apps_file" ]]; then
+        # Try different JSON parsing approaches
+        echo "🔍 DEBUG: Attempting to parse applications..." >&2
+        
+        # First try the original approach
         jq -r '.[] | .application_key' "$apps_file" > "$filtered_apps" 2>/dev/null || touch "$filtered_apps"
+        local parsed_count=$(wc -l < "$filtered_apps" 2>/dev/null || echo "0")
+        echo "🔍 DEBUG: Original parsing found $parsed_count applications" >&2
+        
+        # If that didn't work, try alternative JSON structures
+        if [[ "$parsed_count" -eq 0 ]]; then
+            echo "🔍 DEBUG: Trying alternative JSON parsing..." >&2
+            # Try if it's wrapped in a data field
+            jq -r '.data[]? | .application_key' "$apps_file" > "$filtered_apps" 2>/dev/null || touch "$filtered_apps"
+            parsed_count=$(wc -l < "$filtered_apps" 2>/dev/null || echo "0")
+            echo "🔍 DEBUG: Data wrapper parsing found $parsed_count applications" >&2
+            
+            # Try if it's a single object instead of array
+            if [[ "$parsed_count" -eq 0 ]]; then
+                jq -r '.application_key' "$apps_file" > "$filtered_apps" 2>/dev/null || touch "$filtered_apps"
+                parsed_count=$(wc -l < "$filtered_apps" 2>/dev/null || echo "0")
+                echo "🔍 DEBUG: Single object parsing found $parsed_count applications" >&2
+            fi
+            
+            # Try different field names
+            if [[ "$parsed_count" -eq 0 ]]; then
+                jq -r '.[] | .name' "$apps_file" > "$filtered_apps" 2>/dev/null || touch "$filtered_apps"
+                parsed_count=$(wc -l < "$filtered_apps" 2>/dev/null || echo "0")
+                echo "🔍 DEBUG: Name field parsing found $parsed_count applications" >&2
+            fi
+        fi
         if [[ ! -s "$filtered_apps" ]]; then
             local all_apps_file="$TEMP_DIR/all_applications.json"
             local code2=$(jfrog_api_call "GET" "/apptrust/api/v1/applications" "" "$all_apps_file")

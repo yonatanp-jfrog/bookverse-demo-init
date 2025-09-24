@@ -285,8 +285,10 @@ The BookVerse demo consists of these **GitHub repositories** (source code):
 ## ☸️ Kubernetes Demo Deployment
 
 #### **BookVerse Demo Deployment**
-If you set up Kubernetes in Step 3, you can now deploy the demo:
 
+If you set up Kubernetes in Step 3, you can now prepare the demo infrastructure:
+
+> **⚠️ Important**: This step sets up the Kubernetes infrastructure (ArgoCD, namespaces, ingress) but **no application pods will be deployed initially**. Application pods only deploy after platform application versions are released to production through the CI/CD promotion workflow. This is preparation for when you later trigger builds and promotions.
 ```bash
 # 1. Navigate to demo-init repository (if not already there)
 cd bookverse-demo-init
@@ -301,27 +303,34 @@ cd bookverse-demo-init
 # - Configure ingress and networking
 # - Set up demo data
 
-# 3. Verify deployment
-kubectl get pods -n bookverse-prod
-kubectl get ingress -n bookverse-prod
+# 3. Verify infrastructure deployment
+kubectl get pods -n argocd  # Check ArgoCD is running
+kubectl get namespace bookverse-prod  # Check namespace exists
+kubectl get ingress -n bookverse-prod  # Check ingress is configured
 
-# 4. Wait for all pods to be ready (may take 5-10 minutes)
-kubectl wait --for=condition=Ready pods --all -n bookverse-prod --timeout=600s```
+# Note: Application pods will be empty initially - they deploy after CI/CD promotes versions
+kubectl get pods -n bookverse-prod  # Will show "No resources found" initially
+### 🌐 **Access Demo Infrastructure**
 
-### 🌐 **Access Demo Application**
-
-After successful deployment:
-
+After successful infrastructure deployment:
 ```bash
 # The demo script will configure local DNS and provide access URLs:
-echo "🌐 BookVerse Demo: http://bookverse.demo"
-echo "🔧 ArgoCD Interface: https://argocd.demo"
+echo "🔧 ArgoCD Interface: https://argocd.demo"  # Available immediately
+echo "🌐 BookVerse Demo: http://bookverse.demo"   # Available after CI/CD promotes versionsecho "🔧 ArgoCD Interface: https://argocd.demo"
 
 # How this works:
 # 1. The demo script modifies /etc/hosts to point demo domains to 127.0.0.1
 # 2. Traefik ingress controller routes requests to the appropriate services
 # 3. No external DNS or domain registration required
-``````
+
+### 🚀 **When Will Applications Be Available?**
+
+The BookVerse applications will become available after:
+1. **Triggering CI/CD builds** for each service (make code changes and push)
+2. **Promoting through stages** (DEV → QA → STAGING → PROD)
+3. **Production deployment** completes via ArgoCD
+
+Until then, only ArgoCD will be accessible - the application pods remain undeployed.``````
 
 ### 🔧 **Alternative Kubernetes Options**
 

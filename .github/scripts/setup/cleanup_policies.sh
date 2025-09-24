@@ -60,10 +60,22 @@ delete_policy() {
     fi
 }
 
-# Get all BookVerse policies
+# Get all policies and filter for BookVerse project client-side
 log_info "🔍 Finding BookVerse policies to delete..."
 
-policies_response=$(curl -s -H "$AUTH_HEADER" "$API_BASE/policies?projectKey=$PROJECT_KEY" || echo '{"items":[]}')
+# CRITICAL: The API projectKey filter doesn't work reliably, so we get all policies
+# and filter client-side to ensure we only delete policies that actually belong to this project
+all_policies_response=$(curl -s -H "$AUTH_HEADER" "$API_BASE/policies" || echo '{"items":[]}')
+
+# Filter for policies that actually belong to the BookVerse project
+policies_response=$(echo "$all_policies_response" | jq --arg project "$PROJECT_KEY" '
+{
+  items: [.items[]? | select(
+    (.scope.type == "project" and (.scope.project_keys // []) | contains([$project])) or
+    (.scope.project_keys // []) | contains([$project])
+  )]
+}')
+
 policy_count=$(echo "$policies_response" | jq '.items | length')
 
 if [[ "$policy_count" -eq 0 ]]; then
@@ -72,6 +84,17 @@ if [[ "$policy_count" -eq 0 ]]; then
 fi
 
 log_info "📊 Found $policy_count BookVerse policies to delete"
+
+# SAFETY CHECK: If we find more than 20 policies, something is likely wrong with filtering
+if [[ "$policy_count" -gt 20 ]]; then
+    log_error "🚨 SAFETY CHECK FAILED: Found $policy_count policies to delete, but expected fewer than 20 for a single project"
+    log_error "This suggests the filtering logic may be incorrect. Aborting to prevent accidental deletion of policies from other projects."
+    exit 1
+fi
+
+# Double-check by listing the policy names for verification
+log_info "🔍 Policies to be deleted:"
+echo "$policies_response" | jq -r '.items[]? | "  - \(.name) (Project: \(.scope.project_keys // ["unknown"] | join(",")))"'
 
 # Extract policy information
 policies_info=$(echo "$policies_response" | jq -r '.items[] | "\(.id)|\(.name)"')

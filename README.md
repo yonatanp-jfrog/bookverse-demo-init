@@ -200,29 +200,33 @@ After successful deployment:
 
 - [📖 **Installation Guide**](docs/GETTING_STARTED.md) - Complete setup and deployment instructions
 - [🏗️ **Architecture Overview**](docs/ARCHITECTURE.md) - System design and component relationships
-- [⚙️ **Configuration Reference**](docs/CONFIGURATION.md) - Environment setup and customization
+- [🎮 **Demo Runbook**](docs/DEMO_RUNBOOK.md) - Step-by-step demo execution guide
+- [⚡ **Quick Start Guide**](../docs/QUICKSTART.md) - Fast-track platform setup
 
-### 🔧 **Service Guides**
+### 🔧 **Service Documentation**
 
-- [📦 **Inventory Service**](../bookverse-inventory/docs/) - Catalog management and stock operations
-- [🤖 **Recommendations Service**](../bookverse-recommendations/docs/) - ML algorithms and recommendation engine
-- [💳 **Checkout Service**](../bookverse-checkout/docs/) - Order processing and payment flows
-- [🌐 **Web Application**](../bookverse-web/docs/) - Frontend architecture and development
-- [🏢 **Platform Service**](../bookverse-platform/docs/) - Service orchestration and coordination
+- [📦 **Inventory Service**](../bookverse-inventory/docs/SERVICE_OVERVIEW.md) - Catalog management and stock operations
+- [🤖 **Recommendations Service**](../bookverse-recommendations/docs/SERVICE_GUIDE.md) - ML algorithms and recommendation engine
+- [🧠 **ML Algorithms Guide**](../bookverse-recommendations/docs/ALGORITHM_GUIDE.md) - Machine learning implementation details
+- [🏢 **Platform Patterns**](../bookverse-platform/docs/AGGREGATION_PATTERNS.md) - Service aggregation and coordination
+- [📊 **Release Management**](../bookverse-platform/docs/RELEASE_MANAGEMENT.md) - Version coordination across services
+- [⎈ **Helm Charts**](../bookverse-helm/docs/HELM_CHARTS.md) - Kubernetes deployment configuration
 
-### ⚙️ **Operations**
+### ⚙️ **Operations & Integration**
 
-- [🔄 **CI/CD Workflows**](docs/operations/CICD.md) - Pipeline configuration and automation
-- [☸️ **Kubernetes Deployment**](docs/operations/KUBERNETES.md) - Container orchestration and scaling
-- [🔐 **Security Configuration**](docs/operations/SECURITY.md) - Authentication, authorization, and compliance
-- [📊 **Monitoring & Observability**](docs/operations/MONITORING.md) - Metrics, logging, and alerting
+- [🔄 **CI/CD Deployment**](docs/CICD_DEPLOYMENT_GUIDE.md) - Pipeline configuration and automation
+- [🔐 **OIDC Authentication**](docs/OIDC_AUTHENTICATION.md) - Zero-trust authentication setup
+- [🏗️ **Setup Automation**](docs/SETUP_AUTOMATION.md) - Platform provisioning and configuration
+- [📈 **Evidence Collection**](docs/EVIDENCE_COLLECTION.md) - Compliance and audit trail automation
+- [🚀 **GitOps Deployment**](docs/GITOPS_DEPLOYMENT.md) - Continuous deployment workflows
+- [🔗 **JFrog Integration**](docs/JFROG_INTEGRATION.md) - Artifact management and security
 
-### 💻 **Development**
+### 🔧 **Advanced Topics**
 
-- [🛠️ **Developer Setup**](docs/development/SETUP.md) - Local development environment
-- [🧪 **Testing Guide**](docs/development/TESTING.md) - Testing strategies and frameworks
-- [📝 **API Reference**](docs/api/) - Complete API documentation for all services
-- [🤝 **Contributing**](docs/development/CONTRIBUTING.md) - Development guidelines and contribution process
+- [🔄 **Promotion Workflows**](docs/PROMOTION_WORKFLOWS.md) - Multi-stage deployment strategies
+- [📋 **AppTrust Lifecycle**](docs/APPTRUST_LIFECYCLE.md) - Software supply chain security
+- [🏗️ **Orchestration Overview**](docs/ORCHESTRATION_OVERVIEW.md) - Platform coordination patterns
+- [⚙️ **Repository Architecture**](docs/REPO_ARCHITECTURE.md) - Code organization and structure
 
 ---
 
@@ -264,7 +268,6 @@ Ready to get started with BookVerse? Choose your path:
 
 - **🚀 Quick Start**: Follow the [Installation Guide](docs/GETTING_STARTED.md) for rapid deployment
 - **🏗️ Deep Dive**: Explore the [Architecture Guide](docs/ARCHITECTURE.md) for detailed system understanding  
-- **💻 Development**: Set up your [Development Environment](docs/development/SETUP.md) for customization
-- **⚙️ Operations**: Configure [Production Deployment](docs/operations/) for your environment
+- **🎮 Demo**: Run through the [Demo Runbook](docs/DEMO_RUNBOOK.md) for hands-on experience
 
 **BookVerse provides everything you need to implement enterprise-grade microservices with secure, automated software delivery.**

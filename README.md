@@ -6,9 +6,19 @@ BookVerse is a comprehensive microservices platform that delivers modern softwar
 
 ---
 
+## 🎯 Where Do You Want to Start?
+
+Choose your path based on your needs:
+
+- **🚀 Quick Start**: Follow the [Getting Started Guide](docs/GETTING_STARTED.md) for rapid deployment
+- **🏗️ Deep Dive**: Explore the [Architecture Overview](docs/ARCHITECTURE.md) for detailed system understanding  
+- **🎮 Demo**: Run through the [Demo Runbook](docs/DEMO_RUNBOOK.md) for hands-on experience
+
+---
+
 ## 🏗️ Platform Architecture
 
-BookVerse consists of seven integrated components that work together to deliver a complete microservices ecosystem:
+BookVerse consists of seven integrated components that work together to deliver a complete microservices ecosystem, each showcasing different CI/CD patterns and deployment strategies:
 
 ### 📦 **Inventory Service**
 
@@ -19,6 +29,8 @@ BookVerse consists of seven integrated components that work together to deliver 
 - SQLite database with comprehensive book metadata
 - Automated stock level monitoring and alerts
 
+**Build Pattern**: Single-container application - demonstrates basic containerized service deployment with minimal complexity
+
 ### 🤖 **Recommendations Service**
 
 #### AI-powered personalized recommendations
@@ -27,6 +39,8 @@ BookVerse consists of seven integrated components that work together to deliver 
 - Real-time recommendation generation (sub-200ms response times)
 - Scalable worker architecture for background processing
 - Configurable recommendation models and scoring factors
+
+**Build Pattern**: Multi-container orchestration - showcases complex service deployment with multiple Docker images, worker processes, and supporting artifacts
 
 ### 💳 **Checkout Service**
 
@@ -37,6 +51,8 @@ BookVerse consists of seven integrated components that work together to deliver 
 - Order state tracking and inventory coordination
 - Event-driven architecture with order notifications
 
+**Build Pattern**: Service with dependencies - demonstrates deployment coordination with external services and database migrations
+
 ### 🌐 **Web Application**
 
 #### Modern responsive frontend
@@ -46,14 +62,29 @@ BookVerse consists of seven integrated components that work together to deliver 
 - Real-time integration with all backend services
 - Client-side routing and state management
 
+**Build Pattern**: Static asset deployment - showcases frontend build pipelines with asset optimization and CDN distribution
+
 ### 🏢 **Platform Service**
 
-#### Service orchestration and coordination
+#### Integration testing and validation
 
-- Cross-service version management and release coordination
-- Health monitoring and service discovery
-- Centralized configuration and feature flag management
-- API gateway functionality and request routing
+- Cross-service integration testing as a unified platform
+- End-to-end validation of service interactions
+- Platform-wide health verification and monitoring
+- Component compatibility and version validation
+
+**Build Pattern**: Aggregation service - demonstrates platform-level testing patterns that validate multiple services working together
+
+### 🏗️ **Infrastructure Libraries**
+
+#### Shared libraries and DevOps tooling
+
+- Core business logic shared across services (bookverse-core)
+- DevOps automation and deployment scripts (bookverse-devops)
+- Common utilities and configuration management
+- Evidence collection and compliance frameworks
+
+**Build Pattern**: Multi-artifact library publishing - showcases shared library management with separate core and DevOps build pipelines
 
 ### ⎈ **Helm Charts**
 
@@ -64,101 +95,31 @@ BookVerse consists of seven integrated components that work together to deliver 
 - GitOps deployment workflows with ArgoCD integration
 - Automated scaling and resource management
 
-### 🚀 **Orchestration Layer**
+**Build Pattern**: Infrastructure as Code - demonstrates versioned deployment artifacts and environment promotion strategies
 
-#### Platform setup and configuration automation
+### 🚀 **Demo Orchestration Layer**
+
+#### Platform setup and configuration automation (Demo Infrastructure)
 
 - Automated JFrog Platform provisioning and configuration
 - GitHub repository creation and CI/CD setup
 - OIDC integration and security configuration
 - Environment validation and health checking
 
----
+**Build Pattern**: Setup automation - showcases demo environment provisioning and platform configuration (not part of the BookVerse application itself)
 
-## ✨ Core Capabilities
+### Summary
 
-### 🔐 **Zero-Trust Security**
-
-- **OIDC Authentication**: Passwordless CI/CD with GitHub Actions integration
-- **Cryptographic Evidence**: Digital signing and verification of all artifacts
-- **SBOM Generation**: Automated Software Bill of Materials for supply chain security
-- **Vulnerability Scanning**: Continuous security assessment throughout the pipeline
-
-### 🔄 **Advanced CI/CD**
-
-- **Multi-Stage Promotion**: Automated promotion through DEV → QA → STAGING → PROD
-- **Intelligent Filtering**: Smart commit analysis for optimized build decisions
-- **Artifact Traceability**: End-to-end tracking from source code to production
-- **Evidence Collection**: Comprehensive audit trails for compliance requirements
-
-### ☸️ **Cloud-Native Deployment**
-
-- **Container-First**: Docker-based deployment across all services
-- **Kubernetes Ready**: Production-grade Helm charts and manifests
-- **GitOps Integration**: Automated deployment with ArgoCD
-- **Multi-Environment**: Consistent deployment across development, staging, and production
-
-### 📊 **Enterprise Operations**
-
-- **Monitoring & Observability**: Built-in health checks and metrics collection
-- **Scalability**: Horizontal scaling support for all services
-- **Resilience**: Circuit breakers, retries, and graceful degradation
-- **Configuration Management**: Environment-specific configuration with secrets management
-
----
-
-## 🚀 Quick Start
-
-### Prerequisites
-
-Ensure you have the following tools and access:
-
-- **JFrog Platform** with admin privileges (Artifactory + AppTrust)
-- **GitHub Organization** with repository creation permissions  
-- **GitHub CLI** (`gh`) installed and authenticated
-- **Basic Tools**: `curl`, `jq`, `bash`
-- **Optional**: Kubernetes cluster for runtime deployment
-
-### Installation
-
-```bash
-# 1. Clone the platform
-git clone https://github.com/your-org/bookverse-platform.git
-cd bookverse-platform
-
-# 2. Configure your environment
-export JFROG_URL="https://your-instance.jfrog.io"
-export JFROG_ADMIN_TOKEN="your-admin-token"
-
-# 3. Run automated setup
-./scripts/setup-platform.sh
-
-# 4. Verify deployment
-./scripts/validate-platform.sh
-```
-
-### Access Your Platform
-
-After successful deployment:
-
-- **📊 Platform Dashboard**: `https://bookverse.your-domain.com`
-- **📚 API Documentation**: `https://api.bookverse.your-domain.com/docs`
-- **🔧 Admin Interface**: `https://admin.bookverse.your-domain.com`
-- **📈 Monitoring**: `https://monitoring.bookverse.your-domain.com`
-
----
-
-## 📋 Platform Components
-
-| Component | Purpose | Technology Stack | Deployment |
-|-----------|---------|------------------|------------|
-| **Inventory** | Product catalog & inventory management | Python, FastAPI, SQLite | Container + K8s |
-| **Recommendations** | AI-powered recommendation engine | Python, scikit-learn, FastAPI | Container + K8s |
-| **Checkout** | Order processing & payments | Python, FastAPI, PostgreSQL | Container + K8s |
-| **Web App** | Frontend user interface | Vanilla JS, Vite, HTML5 | Static + CDN |
-| **Platform** | Service orchestration | Python, FastAPI | Container + K8s |
-| **Helm Charts** | K8s deployment automation | Helm 3, YAML | GitOps |
-| **Orchestration** | Platform automation | Python, Shell, GitHub Actions | Automation |
+| Component | Purpose | Technology Stack | Deployment | Build Pattern |
+|-----------|---------|------------------|------------|---------------|
+| **Inventory** | Product catalog & inventory management | Python, FastAPI, SQLite | Container + K8s | Single-container |
+| **Recommendations** | AI-powered recommendation engine | Python, scikit-learn, FastAPI | Container + K8s | Multi-container |
+| **Checkout** | Order processing & payments | Python, FastAPI, PostgreSQL | Container + K8s | Service dependencies |
+| **Web App** | Frontend user interface | Vanilla JS, Vite, HTML5 | Static + CDN | Static assets |
+| **Platform** | Integration testing & validation | Python, FastAPI | Container + K8s | Aggregation service |
+| **Infrastructure** | Shared libraries & DevOps tooling | Python, Shell | Multi-artifact | Library publishing |
+| **Helm Charts** | K8s deployment automation | Helm 3, YAML | GitOps | Infrastructure as Code |
+| **Demo Orchestration** | Platform setup automation | Python, Shell, GitHub Actions | Automation | Setup automation |
 
 ---
 
@@ -196,21 +157,12 @@ After successful deployment:
 
 ## 📚 Documentation
 
-### 🚀 **Getting Started**
+### 🚀 **Platform Setup & Architecture**
 
-- [📖 **Installation Guide**](docs/GETTING_STARTED.md) - Complete setup and deployment instructions
+- [📖 **Getting Started**](docs/GETTING_STARTED.md) - Complete setup and deployment instructions
 - [🏗️ **Architecture Overview**](docs/ARCHITECTURE.md) - System design and component relationships
 - [🎮 **Demo Runbook**](docs/DEMO_RUNBOOK.md) - Step-by-step demo execution guide
-- [⚡ **Quick Start Guide**](../docs/QUICKSTART.md) - Fast-track platform setup
-
-### 🔧 **Service Documentation**
-
-- [📦 **Inventory Service**](../bookverse-inventory/docs/SERVICE_OVERVIEW.md) - Catalog management and stock operations
-- [🤖 **Recommendations Service**](../bookverse-recommendations/docs/SERVICE_GUIDE.md) - ML algorithms and recommendation engine
-- [🧠 **ML Algorithms Guide**](../bookverse-recommendations/docs/ALGORITHM_GUIDE.md) - Machine learning implementation details
-- [🏢 **Platform Patterns**](../bookverse-platform/docs/AGGREGATION_PATTERNS.md) - Service aggregation and coordination
-- [📊 **Release Management**](../bookverse-platform/docs/RELEASE_MANAGEMENT.md) - Version coordination across services
-- [⎈ **Helm Charts**](../bookverse-helm/docs/HELM_CHARTS.md) - Kubernetes deployment configuration
+- [⚙️ **Repository Architecture**](docs/REPO_ARCHITECTURE.md) - Code organization and structure
 
 ### ⚙️ **Operations & Integration**
 
@@ -226,48 +178,38 @@ After successful deployment:
 - [🔄 **Promotion Workflows**](docs/PROMOTION_WORKFLOWS.md) - Multi-stage deployment strategies
 - [📋 **AppTrust Lifecycle**](docs/APPTRUST_LIFECYCLE.md) - Software supply chain security
 - [🏗️ **Orchestration Overview**](docs/ORCHESTRATION_OVERVIEW.md) - Platform coordination patterns
-- [⚙️ **Repository Architecture**](docs/REPO_ARCHITECTURE.md) - Code organization and structure
+- [🔑 **Evidence Key Deployment**](docs/EVIDENCE_KEY_DEPLOYMENT.md) - Cryptographic key management
+- [🔧 **JFrog Platform Switch**](docs/SWITCH_JFROG_PLATFORM.md) - Platform migration procedures
 
 ---
 
-## 🌟 Key Features
+## 🌟 Platform Highlights
 
-### ✅ **Production Ready**
-
-- Enterprise-grade security and compliance
-- Scalable microservices architecture
-- Comprehensive monitoring and observability
-- Multi-environment deployment support
-
-### ✅ **Developer Friendly**
-
-- Clear documentation and examples
-- Local development environment
-- Automated testing and quality gates
-- Modern development practices
-
-### ✅ **Operations Focused**
-
-- GitOps deployment workflows
-- Infrastructure as Code
-- Automated scaling and healing
-- Comprehensive audit trails
-
-### ✅ **Secure by Design**
-
-- Zero-trust authentication
-- Encrypted communication
-- Vulnerability scanning
-- Compliance automation
+- **Zero-Trust Security**: OIDC authentication, cryptographic evidence, SBOM generation, and vulnerability scanning
+- **Advanced CI/CD**: Multi-stage promotion, intelligent filtering, and comprehensive audit trails  
+- **Cloud-Native**: Container-first deployment with Kubernetes and GitOps integration
+- **Enterprise Ready**: Scalable architecture with monitoring, automated testing, and multi-environment support
 
 ---
 
-## 🎯 What's Next?
+## 🚀 Ready to Get Started?
 
-Ready to get started with BookVerse? Choose your path:
+BookVerse provides everything you need to implement enterprise-grade microservices with secure, automated software delivery.
 
-- **🚀 Quick Start**: Follow the [Installation Guide](docs/GETTING_STARTED.md) for rapid deployment
-- **🏗️ Deep Dive**: Explore the [Architecture Guide](docs/ARCHITECTURE.md) for detailed system understanding  
-- **🎮 Demo**: Run through the [Demo Runbook](docs/DEMO_RUNBOOK.md) for hands-on experience
+**Choose your next step:**
+- **New to BookVerse?** Start with the [Getting Started Guide](docs/GETTING_STARTED.md)
+- **Want to understand the architecture?** Read the [Architecture Overview](docs/ARCHITECTURE.md)
+- **Ready to run a demo?** Follow the [Demo Runbook](docs/DEMO_RUNBOOK.md)
 
-**BookVerse provides everything you need to implement enterprise-grade microservices with secure, automated software delivery.**
+For additional support and documentation, explore the comprehensive guides above or visit the individual service repositories.
+
+---
+
+> **Note**: Individual service documentation is available in each service repository:
+> - [Inventory Service](https://github.com/yonatanp-jfrog/bookverse-inventory)
+> - [Recommendations Service](https://github.com/yonatanp-jfrog/bookverse-recommendations)  
+> - [Checkout Service](https://github.com/yonatanp-jfrog/bookverse-checkout)
+> - [Platform Service](https://github.com/yonatanp-jfrog/bookverse-platform)
+> - [Web Application](https://github.com/yonatanp-jfrog/bookverse-web)
+> - [Helm Charts](https://github.com/yonatanp-jfrog/bookverse-helm)
+> - [Infrastructure Libraries](https://github.com/yonatanp-jfrog/bookverse-infra)

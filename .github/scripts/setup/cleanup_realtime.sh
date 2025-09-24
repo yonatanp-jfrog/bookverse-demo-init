@@ -106,8 +106,8 @@ case "$PHASE" in
                             echo "  📋 Found $version_count versions for application '$app_name'"
                             
                             if [[ "$version_count" -gt 0 ]]; then
-                                app_success=0
-                                app_failed=0
+                                local app_success=0
+                                local app_failed=0
                                 
                                 # Extract version names and delete each one using array instead of while loop
                                 echo "  🔍 DEBUG: Parsing versions from response..." >&2

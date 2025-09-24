@@ -102,15 +102,15 @@ case "$PHASE" in
                         
                         if [[ "$versions_code" -eq 200 ]]; then
                             # Parse versions and delete each one individually
-                            version_count=$(jq -r 'length' "$versions_response" 2>/dev/null || echo "0")
+                            version_count=$(jq -r '.versions | length' "$versions_response" 2>/dev/null || echo "0")
                             echo "  📋 Found $version_count versions for application '$app_name'"
                             
                             if [[ "$version_count" -gt 0 ]]; then
                                 app_success=0
                                 app_failed=0
                                 
-                                # Extract version names and delete each one
-                                jq -r '.[].name' "$versions_response" 2>/dev/null | while read -r version_name; do
+                                # Extract version names and delete each one  
+                                jq -r '.versions[]?.version' "$versions_response" 2>/dev/null | while read -r version_name; do
                                     if [[ -n "$version_name" ]]; then
                                         echo "    🗑️  Deleting version: $version_name"
                                         version_delete_code=$(curl -s \
@@ -149,7 +149,7 @@ case "$PHASE" in
                                         -w "%{http_code}" -o "$remaining_response" \
                                         "${JFROG_URL}/apptrust/api/v1/applications/${app_name}/versions")
                                     
-                                    if [[ "$remaining_code" -eq 404 ]] || [[ "$(jq -r 'length' "$remaining_response" 2>/dev/null || echo "0")" -eq 0 ]]; then
+                                    if [[ "$remaining_code" -eq 404 ]] || [[ "$(jq -r '.versions | length' "$remaining_response" 2>/dev/null || echo "0")" -eq 0 ]]; then
                                         echo "  ✅ All versions for application '$app_name' deleted successfully"
                                         successful_deletions=$((successful_deletions + 1))
                                     else

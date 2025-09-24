@@ -440,6 +440,8 @@ discover_project_applications() {
     local apps_file="$TEMP_DIR/project_applications.json"
     local filtered_apps="$TEMP_DIR/project_applications.txt"
     
+    # Enable debug mode for API calls
+    export DEBUG_API=true
     local code=$(jfrog_api_call "GET" "/apptrust/api/v1/applications?project_key=$PROJECT_KEY" "" "$apps_file")
     
     echo "🔍 DEBUG: Applications API returned HTTP $code" >&2

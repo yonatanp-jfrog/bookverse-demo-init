@@ -352,6 +352,12 @@ log_config() {
     echo -e "${CYAN}🔧 $1${NC}"
 }
 
+log_section() {
+    echo ""
+    echo -e "${YELLOW}📋 === $1 ===${NC}"
+    echo ""
+}
+
 
 jfrog_api_call() {
     local method="$1"
@@ -663,6 +669,23 @@ validate_environment() {
     fi
 }
 
+check_env_vars() {
+    local missing_vars=()
+    for var in "$@"; do
+        if [[ -z "${!var:-}" ]]; then
+            missing_vars+=("$var")
+        fi
+    done
+    
+    if [[ ${#missing_vars[@]} -gt 0 ]]; then
+        log_error "Missing required environment variables:"
+        printf '   - %s\n' "${missing_vars[@]}"
+        echo ""
+        echo "Please set these variables and try again."
+        exit 1
+    fi
+}
+
 show_config() {
     log_config "Current BookVerse Configuration:"
     log_config "Project Key: ${PROJECT_KEY}"
@@ -700,9 +723,9 @@ validate_jfrog_connectivity() {
 }
 
 export -f setup_error_handling error_handler
-export -f log_info log_success log_warning log_error log_step log_config
+export -f log_info log_success log_warning log_error log_step log_config log_section
 export -f jfrog_api_call resource_exists handle_api_response
 export -f build_project_payload build_user_payload build_application_payload
 export -f build_stage_payload build_oidc_integration_payload build_oidc_mapping_payload
 export -f init_script finalize_script process_batch 
-export -f validate_environment show_config validate_jfrog_connectivity
+export -f validate_environment check_env_vars show_config validate_jfrog_connectivity

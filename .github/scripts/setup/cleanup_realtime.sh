@@ -134,13 +134,13 @@ case "$PHASE" in
                                         
                                         if [[ "$version_delete_code" -ge 200 && "$version_delete_code" -lt 300 ]]; then
                                             echo "    ✅ Version '$version_name' deleted successfully"
-                                            ((app_success++))
+                                            app_success=$((app_success + 1))
                                         elif [[ "$version_delete_code" -eq 404 ]]; then
                                             echo "    ℹ️  Version '$version_name' not found (already deleted)"
-                                            ((app_success++))
+                                            app_success=$((app_success + 1))
                                         else
                                             echo "    ❌ Failed to delete version '$version_name' (HTTP $version_delete_code)"
-                                            ((app_failed++))
+                                            app_failed=$((app_failed + 1))
                                         fi
                                     fi
                                 done

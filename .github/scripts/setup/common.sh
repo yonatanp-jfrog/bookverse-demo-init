@@ -357,6 +357,11 @@ log_section() {
     echo -e "${YELLOW}📋 === $1 ===${NC}"
     echo ""
 }
+log_debug() {
+    if [[ "${DEBUG:-false}" == "true" ]]; then
+        echo -e "${CYAN}🔍 $1${NC}"
+    fi
+}
 
 
 jfrog_api_call() {
@@ -723,7 +728,7 @@ validate_jfrog_connectivity() {
 }
 
 export -f setup_error_handling error_handler
-export -f log_info log_success log_warning log_error log_step log_config log_section
+export -f log_info log_success log_warning log_error log_step log_config log_section log_debug
 export -f jfrog_api_call resource_exists handle_api_response
 export -f build_project_payload build_user_payload build_application_payload
 export -f build_stage_payload build_oidc_integration_payload build_oidc_mapping_payload

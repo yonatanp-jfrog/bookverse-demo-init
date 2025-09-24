@@ -422,10 +422,7 @@ For critical situations, the rollback workflow can be triggered immediately and 
 3. **Secret Management**: Store secrets in Kubernetes secrets
 4. **Image Scanning**: Scan images for vulnerabilities
 
-## Common Issues
-
-
-#### 2. JFrog connectivity issues
+## 2. JFrog connectivity issues
 
 
 #### 3. GitHub Actions workflow failures
@@ -434,66 +431,6 @@ For critical situations, the rollback workflow can be triggered immediately and 
 helm status platform -n bookverse-prod
 helm get values platform -n bookverse-prod
 ```
-
-## Phase 1: Enable Automatic Triggers (Immediate)
-
-1. **Update Service CI Workflows**:
-   ```bash
-   # For each service repository (inventory, recommendations, checkout, web)
-   # Update .github/workflows/ci.yml to change from:
-   on:
-     workflow_dispatch:
-   # To:
-   on:
-     push:
-       branches: [main]
-     pull_request:
-       branches: [main]
-     workflow_dispatch:  # Keep for manual testing
-   ```
-
-2. **Add Commit Filtering Logic**:
-   - Create new job `analyze-commit` in each service CI workflow
-   - Implement commit message and file change analysis
-   - Set conditional execution for application version creation
-
-### Phase 2: Implement Auto-Promotion (Week 1-2)
-
-1. **Create Promotion Workflows**:
-   - Add automatic promotion triggers after successful CI
-   - Implement service-to-platform aggregation workflow
-   - Add configurable delays and approval gates
-
-2. **Configure Repository Dispatch**:
-   - Set up cross-repository triggers
-   - Enable service CI to trigger promotion workflows
-
-### Phase 3: Enable Platform Aggregation (Week 2-3)
-
-1. **Enable Scheduled Aggregation**:
-   ```yaml
-   # In bookverse-platform/.github/workflows/aggregate.yml
-   # Uncomment the schedule trigger:
-   schedule:
-     - cron: '0 9 */14 * 1'  # Every second Monday at 09:00 UTC
-   ```
-
-2. **Add Hotfix Capability**:
-   - Enhance platform aggregation workflow with hotfix input
-   - Create API endpoint or webhook for emergency triggers
-   - Add notification system for hotfix deployments
-
-### Phase 4: Complete Automation (Week 3-4)
-
-1. **Integrate Helm Auto-Deployment**:
-   - Connect platform releases to Helm workflow triggers
-   - Add deployment verification and rollback capabilities
-   - Implement blue-green deployment strategy
-
-2. **Add Monitoring & Alerting**:
-   - Set up deployment success/failure notifications
-   - Implement health checks and automatic rollback
-   - Add metrics collection for deployment frequency and success rates
 
 ### Demo Implementation Examples
 

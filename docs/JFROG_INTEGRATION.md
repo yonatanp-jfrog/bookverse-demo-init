@@ -1213,3 +1213,5 @@ generate_and_upload_sbom() {
 
 ---
 
+
+- **[Webhook Configuration Guide](WEBHOOK_CONFIGURATION.md)**: Real-time event automation and CI/CD webhook integration

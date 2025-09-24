@@ -110,7 +110,16 @@ case "$PHASE" in
                                 app_failed=0
                                 
                                 # Extract version names and delete each one  
-                                jq -r '.versions[]?.version' "$versions_response" 2>/dev/null | while read -r version_name; do
+                                echo "  🔍 DEBUG: Parsing versions from response..." >&2
+                                version_names=$(jq -r '.versions[]?.version' "$versions_response" 2>/dev/null || echo "")
+                                if [[ -z "$version_names" ]]; then
+                                    echo "  ⚠️  No version names could be parsed from response" >&2
+                                    echo "  🔍 DEBUG: Response content: $(cat "$versions_response")" >&2
+                                else
+                                    echo "  🔍 DEBUG: Found version names: $version_names" >&2
+                                fi
+                                
+                                echo "$version_names" | while read -r version_name; do
                                     if [[ -n "$version_name" ]]; then
                                         echo "    🗑️  Deleting version: $version_name"
                                         version_delete_code=$(curl -s \

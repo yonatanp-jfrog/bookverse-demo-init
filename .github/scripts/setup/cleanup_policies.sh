@@ -27,7 +27,10 @@ source "$(dirname "$0")/config.sh"
 log_info "🗑️ Cleaning up BookVerse Unified Policies..."
 
 # Check required environment variables
-check_env_vars JFROG_URL JFROG_ADMIN_TOKEN PROJECT_KEY
+if [[ -z "$JFROG_URL" || -z "$JFROG_ADMIN_TOKEN" || -z "$PROJECT_KEY" ]]; then
+    echo "❌ Missing required environment variables: JFROG_URL, JFROG_ADMIN_TOKEN, PROJECT_KEY"
+    exit 1
+fi
 
 API_BASE="$JFROG_URL/unifiedpolicy/api/v1"
 AUTH_HEADER="Authorization: Bearer $JFROG_ADMIN_TOKEN"
@@ -52,7 +55,7 @@ delete_policy() {
         return 0
     else
         log_warning "⚠️ Failed to delete policy: $policy_name (HTTP $http_code)"
-        log_debug "Response: $body"
+        echo "   Response: $body"
         return 1
     fi
 }
@@ -74,7 +77,7 @@ log_info "📊 Found $policy_count BookVerse policies to delete"
 policies_info=$(echo "$policies_response" | jq -r '.items[] | "\(.id)|\(.name)"')
 
 # Delete policies
-log_section "Deleting BookVerse Policies"
+log_info "📋 Deleting BookVerse Policies"
 
 deleted_count=0
 failed_count=0
@@ -90,7 +93,7 @@ while IFS='|' read -r policy_id policy_name; do
 done <<< "$policies_info"
 
 # Verification
-log_section "Cleanup Verification"
+log_info "🔍 Cleanup Verification"
 
 remaining_policies=$(curl -s -H "$AUTH_HEADER" "$API_BASE/policies?projectKey=$PROJECT_KEY" | \
                     jq '.items | length')

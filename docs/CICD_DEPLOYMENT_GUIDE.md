@@ -422,9 +422,7 @@ For critical situations, the rollback workflow can be triggered immediately and 
 3. **Secret Management**: Store secrets in Kubernetes secrets
 4. **Image Scanning**: Scan images for vulnerabilities
 
-## Troubleshooting
-
-### Common Issues
+## Common Issues
 
 
 #### 2. JFrog connectivity issues

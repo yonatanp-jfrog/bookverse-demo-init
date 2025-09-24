@@ -14,7 +14,7 @@ This guide covers all aspects of working with evidence in the BookVerse platform
 - [Evidence Collection Implementation](#-evidence-collection-implementation)
 - [Key Management](#-key-management)
 - [Evidence Templates](#-evidence-templates)
-- [Web UI Integration](#-web-ui-integration)
+- [Policy-Driven Evidence Requirements](#-policy-driven-evidence-requirements)- [Web UI Integration](#-web-ui-integration)
 - [CI/CD Integration](#-cicd-integration)
 - [Troubleshooting](#-troubleshooting)
 - [Best Practices](#-best-practices)

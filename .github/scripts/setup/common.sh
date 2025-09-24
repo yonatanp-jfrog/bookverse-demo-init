@@ -374,6 +374,11 @@ jfrog_api_call() {
         curl_args+=(-d "$data")
     fi
     
+    # Debug the curl command
+    echo "🔍 DEBUG: jfrog_api_call called with url='$url'" >&2
+    echo "🔍 DEBUG: curl_args=(${curl_args[*]})" >&2
+    echo "🔍 DEBUG: About to run: curl ${curl_args[*]} '$url'" >&2
+    
     local response_code
     response_code=$(curl "${curl_args[@]}" "$url")
     

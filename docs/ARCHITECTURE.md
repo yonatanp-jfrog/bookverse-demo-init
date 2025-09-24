@@ -638,13 +638,13 @@ graph LR
 
 ## 🎯 **Demo Platform Notice**
 
-**This is a demonstration platform** designed to showcase JFrog AppTrust integration patterns and modern DevOps workflows. The architecture described in this document reflects the actual implementation of this demo system.
+**This is a demonstration platform** designed to showcase JFrog AppTrust integration patterns and modern DevOps workflows. The architecture described in this document may be more aspirational than what is actually implemented. As a demo platform, some features and capabilities described here may be simplified or not fully implemented.
 
 ### **Important Notes:**
 - **Demo-focused implementation**: Some components use simplified configurations suitable for demonstration purposes
 - **Production considerations**: A production deployment would likely include additional monitoring, security hardening, and scalability features not present in this demo
 - **Educational purpose**: This platform serves as a reference implementation and learning tool for AppTrust integration patterns
-- **Actual vs. aspirational**: This documentation has been updated to accurately reflect what is actually implemented rather than ideal production architecture
+- **Documentation disclaimer**: Some architectural descriptions may be more aspirational than the actual demo implementation
 
 For production deployments, additional enterprise-grade features such as comprehensive monitoring, distributed tracing, advanced security controls, and high-availability configurations would typically be required.
 

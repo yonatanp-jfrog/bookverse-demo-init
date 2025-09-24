@@ -205,8 +205,8 @@ case "$PHASE" in
             echo "   ❌ Failed to delete: $failed_deletions"
             
             if [[ $failed_deletions -gt 0 ]]; then
-                echo "❌ Some application version deletions failed!"
-                exit 1
+                echo "⚠️  Some application version deletions failed, but continuing with cleanup"
+                echo "   This may cause issues with repository deletion due to remaining Release Bundle v2 versions"
             elif [[ $total_resources -eq 0 ]]; then
                 echo "ℹ️  No applications found in project"
             else

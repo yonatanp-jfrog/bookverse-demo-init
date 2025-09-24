@@ -2,6 +2,9 @@
 
 ## Enterprise Microservices Platform with Secure Software Supply Chain Management
 
+![BookVerse Homepage](images/bookverse-homepage.png)
+*BookVerse web application showcasing the complete microservices platform with product catalog, recommendations, and checkout functionality*
+
 BookVerse is a comprehensive microservices platform that delivers modern software development practices, secure CI/CD pipelines, and enterprise-grade deployment automation. Built with industry-leading technologies, BookVerse provides organizations with a complete reference architecture for scalable, secure, and compliant software delivery.
 
 ---

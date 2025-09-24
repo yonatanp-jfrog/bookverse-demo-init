@@ -1,0 +1,24 @@
+{
+  "name": "bookverse-demo-init",
+  "version": "1.0.0",
+  "description": "BookVerse is a comprehensive microservices platform that delivers modern software development practices, secure CI/CD pipelines, and enterprise-grade deployment automation. Built with industry-leading technologies, BookVerse provides organizations with a complete reference architecture for scalable, secure, and compliant software delivery.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yonatanp-jfrog/bookverse-demo-init.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/yonatanp-jfrog/bookverse-demo-init/issues"
+  },
+  "homepage": "https://github.com/yonatanp-jfrog/bookverse-demo-init#readme"
+}

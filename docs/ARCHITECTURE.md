@@ -633,20 +633,18 @@ graph LR
 
 ---
 
-## 📞 Architecture Support
-
-### 🤝 **Getting Help**
-- **📖 [Troubleshooting Guide](TROUBLESHOOTING.md)** - Architecture-specific issues
-- **⚡ [Performance Guide](PERFORMANCE.md)** - Optimization strategies
-- **🔐 [Security Guide](operations/SECURITY.md)** - Security configuration
-- **💬 [Architecture Discussions](../../discussions)** - Community support
-
-### 🏗️ **Architecture Reviews**
-- **Design Reviews**: For significant architectural changes
-- **Performance Reviews**: For scaling and optimization decisions
-- **Security Reviews**: For security-critical modifications
-- **Compliance Reviews**: For regulatory and audit requirements
 
 ---
 
-*This architecture documentation is maintained alongside the codebase. For questions or suggestions, please [open a discussion](../../discussions) or [create an issue](../../issues).*
+## 🎯 **Demo Platform Notice**
+
+**This is a demonstration platform** designed to showcase JFrog AppTrust integration patterns and modern DevOps workflows. The architecture described in this document reflects the actual implementation of this demo system.
+
+### **Important Notes:**
+- **Demo-focused implementation**: Some components use simplified configurations suitable for demonstration purposes
+- **Production considerations**: A production deployment would likely include additional monitoring, security hardening, and scalability features not present in this demo
+- **Educational purpose**: This platform serves as a reference implementation and learning tool for AppTrust integration patterns
+- **Actual vs. aspirational**: This documentation has been updated to accurately reflect what is actually implemented rather than ideal production architecture
+
+For production deployments, additional enterprise-grade features such as comprehensive monitoring, distributed tracing, advanced security controls, and high-availability configurations would typically be required.
+

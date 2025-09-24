@@ -30,7 +30,7 @@ graph TB
     subgraph "Platform Services"
         WEB[Web Application]
         API[API Gateway]
-        PLAT[Platform Service]
+        
     end
     
     subgraph "Core Services"
@@ -45,29 +45,23 @@ graph TB
         CACHE[(Redis Cache)]
     end
     
-    subgraph "DevOps & Security"
-        CICD[CI/CD Pipelines]
-        MON[Monitoring]
-        LOG[Logging]
-        SEC[Security Scanning]
-    end
     
     U --> IGW
     IGW --> WEB
     IGW --> API
     
-    API --> PLAT
-    PLAT --> INV
-    PLAT --> REC
-    PLAT --> CHK
+    API --> INV
+    API --> REC
+    API --> CHK
     
     INV --> INVDB
     CHK --> CHKDB
     REC --> CACHE
     
-    GH --> CICD
-    CICD --> JF
-    JF --> PLAT
+    JF --> INV
+    JF --> REC
+    JF --> CHK
+    JF --> WEB
 ```
 
 ---
@@ -254,11 +248,13 @@ graph TB
 - API integration and error handling
 - Authentication and session management
 
-### 🏢 **Platform Service**
+### 🔧 **Platform Aggregation**
+
+> **Note**: The Platform Aggregation Layer is an aggregation layer that coordinates deployment and configuration across services. It does not represent a standalone deployable service, but rather serves as an orchestration point for managing the other core services.
 
 ```mermaid
 graph TB
-    subgraph "Platform Service"
+    subgraph "Platform Aggregation Layer"
         AGG[Service Aggregator]
         VER[Version Manager]
         HEALTH[Health Monitor]
@@ -283,7 +279,7 @@ graph TB
 ```
 
 **Key Components:**
-- **Service Orchestration**: Coordinated deployment and management
+- **Service Coordination**: Coordinated deployment and management
 - **Version Management**: Cross-service version compatibility
 - **Health Monitoring**: Centralized service health checking
 - **Configuration Management**: Environment-specific configuration
@@ -313,18 +309,18 @@ graph TB
 sequenceDiagram
     participant U as User
     participant W as Web App
-    participant P as Platform
+    participant A as API Gateway
     participant I as Inventory
     participant R as Recommendations
     participant C as Checkout
     
     U->>W: Browse catalog
-    W->>P: Request products
-    P->>I: Get inventory
-    I-->>P: Product data
-    P->>R: Get recommendations
-    R-->>P: Suggested products
-    P-->>W: Combined response
+    W->>A: Request products
+    A->>I: Get inventory
+    I-->>A: Product data
+    A->>R: Get recommendations
+    R-->>A: Suggested products
+    A-->>W: Combined response
     W-->>U: Display products
     
     U->>W: Add to cart
@@ -405,7 +401,7 @@ graph TB
         
         subgraph "Application Tier"
             WEB[Web App Deployment]
-            PLAT[Platform Deployment]
+            
             INV[Inventory Deployment]
             REC[Recommendations Deployment]
             CHK[Checkout Deployment]
@@ -419,25 +415,25 @@ graph TB
         
         subgraph "Operations Tier"
             ARGO[ArgoCD]
-            PROM[Prometheus]
-            GRAF[Grafana]
         end
     end
     
     ING --> WEB
-    ING --> PLAT
-    PLAT --> INV
-    PLAT --> REC
-    PLAT --> CHK
+    ING --> INV
+    ING --> REC
+    ING --> CHK
+    API --> INV
+    API --> REC
+    API --> CHK
     
     INV --> PVC
     CHK --> PVC
     REC --> REDIS
     
     ARGO --> WEB
-    ARGO --> PLAT
-    PROM --> INV
-    GRAF --> PROM
+    ARGO --> INV
+    ARGO --> REC
+    ARGO --> CHK
 ```
 
 ### 🔄 **CI/CD Architecture**
@@ -515,7 +511,6 @@ graph LR
 | **HTTP Client** | httpx | Async HTTP client |
 | **Caching** | Redis | High-performance caching |
 | **Testing** | pytest + coverage | Test automation |
-| **Monitoring** | Prometheus + Grafana | Observability stack |
 | **GitOps** | ArgoCD | Deployment automation |
 
 ---

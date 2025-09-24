@@ -1,10 +1,8 @@
 # BookVerse Platform - Getting Started Guide
 
-## Complete setup and deployment instructions for the BookVerse microservices platform
+**Complete setup and deployment instructions for the BookVerse microservices demo**
 
-This guide provides step-by-step instructions to deploy BookVerse in your
-environment, from initial setup through full platform deployment and
-verification.
+This guide provides step-by-step instructions to set up the complete BookVerse demo environment, including all microservices and the JFrog Platform configuration for secure software delivery.
 
 ---
 
@@ -14,9 +12,9 @@ verification.
 
 | Requirement | Description | Purpose |
 |-------------|-------------|---------|
-| **JFrog Platform** | Admin on Artifactory + AppTrust | Platform provisioning & artifacts |
-| **GitHub Organization** | Repository creation permissions | Source hosting & CI/CD automation |
-| **Domain Access** | DNS configuration capability | Platform ingress & routing |
+| **JFrog Platform** | Admin privileges on Artifactory + AppTrust | Platform provisioning and artifact management |
+| **GitHub Organization** | Repository creation permissions | Source code hosting and CI/CD automation |
+| **GitHub Personal Access Token** | Classic token with repo and workflow permissions | Repository management and workflow execution |
 
 ### 🛠️ **Required Tools**
 
@@ -29,8 +27,22 @@ jq --version      # JSON processor (required: v1.6+)
 git --version     # Git client (required: v2.25+)
 ```
 
-#### **Container Tools** (Optional - for local development)
+#### **Container Tools** (Optional - for manual setup)
 ```bash
+docker --version   # Container runtime (v20.10+)
+kubectl version    # Kubernetes client (v1.21+)
+helm version       # Helm package manager (v3.7+)
+```
+
+#### **Kubernetes Tools** (Required for local demo)
+```bash
+# Rancher Desktop (Recommended for macOS/Windows)
+# Download and install from: https://rancherdesktop.io/
+# - Provides Docker, kubectl, and Kubernetes cluster
+# - No additional configuration needed for BookVerse demo
+rancher-desktop --version  # Verify installation
+
+# Alternative: Docker Desktop + kubectl
 docker --version   # Container runtime (v20.10+)
 kubectl version    # Kubernetes client (v1.21+)
 helm version       # Helm package manager (v3.7+)
@@ -38,7 +50,8 @@ helm version       # Helm package manager (v3.7+)
 
 ### 💻 **Tool Installation**
 
-#### 📱 macOS Installation
+<details>
+<summary><strong>📱 macOS Installation</strong></summary>
 
 ```bash
 # Install Homebrew (if not already installed)
@@ -47,16 +60,24 @@ helm version       # Helm package manager (v3.7+)
 # Install core tools
 brew install gh curl jq git
 
-# Optional: Container tools
-brew install docker kubectl helm
+# Install Rancher Desktop (Recommended for BookVerse demo)
+brew install --cask rancher
+
+# Optional: Install tools separately if not using Rancher Desktop
+# brew install docker kubectl helm
 
 # Verify installations
 for tool in gh curl jq git; do
   echo "✓ $tool: $($tool --version | head -1)"
 done
-```
 
-#### 🐧 Linux Installation (Ubuntu/Debian)
+# Verify Rancher Desktop
+echo "✓ Rancher Desktop: Check Applications folder or run from Applications"
+```
+</details>
+
+<details>
+<summary><strong>🐧 Linux Installation (Ubuntu/Debian)</strong></summary>
 
 ```bash
 # Update package list
@@ -66,11 +87,12 @@ sudo apt update
 sudo apt install -y curl jq git
 
 # Install GitHub CLI
-curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | \
-  sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | \
-  sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
 sudo apt update && sudo apt install -y gh
+
+# Install Rancher Desktop
+# Download from: https://rancherdesktop.io/
 
 # Optional: Container tools
 curl -fsSL https://get.docker.com -o get-docker.sh && sh get-docker.sh
@@ -78,314 +100,299 @@ curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stabl
 sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
 curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 ```
-
-#### 🪟 Windows Installation (PowerShell)
-
-```powershell
-# Install using winget (Windows Package Manager)
-winget install --id GitHub.cli
-winget install --id Git.Git
-winget install --id jqlang.jq
-
-# Install curl (usually pre-installed on Windows 10+)
-# If needed: winget install --id cURL.cURL
-
-# Optional: Container tools
-winget install --id Docker.DockerDesktop
-winget install --id Kubernetes.kubectl
-winget install --id Helm.Helm
-
-# Verify installations
-gh --version; git --version; jq --version; curl --version
-```
+</details>
 
 ---
 
-## 🚀 Platform Deployment
+## 🚀 BookVerse Demo Setup
 
-### 📥 **Step 1: Repository Setup**
+### 📥 **Step 1: Clone All BookVerse Repositories**
+
+The BookVerse demo consists of multiple service repositories that need to be cloned individually:
 
 ```bash
-# 1. Clone the BookVerse platform
-git clone https://github.com/your-org/bookverse-platform.git
-cd bookverse-platform
+# 1. Create workspace directory
+mkdir bookverse-demo
+cd bookverse-demo
 
-# 2. Authenticate with GitHub
+# 2. Clone all service repositories
+git clone https://github.com/your-org/bookverse-inventory.git
+git clone https://github.com/your-org/bookverse-recommendations.git
+git clone https://github.com/your-org/bookverse-checkout.git
+git clone https://github.com/your-org/bookverse-platform.git
+git clone https://github.com/your-org/bookverse-web.git
+git clone https://github.com/your-org/bookverse-helm.git
+git clone https://github.com/your-org/bookverse-infra.git
+
+# 3. Clone the demo orchestration repository
+git clone https://github.com/your-org/bookverse-demo-init.git
+
+# 4. Authenticate with GitHub
 gh auth login
 gh auth status  # Verify authentication
 
-# 3. Verify directory structure
+# 5. Verify all repositories are cloned
 ls -la
-# Expected: README.md, docs/, scripts/, gitops/, .github/
+# Expected: bookverse-inventory/, bookverse-recommendations/, bookverse-checkout/, 
+#          bookverse-platform/, bookverse-web/, bookverse-helm/, bookverse-infra/,
+#          bookverse-demo-init/
 ```
 
-### 🔧 **Step 2: Environment Configuration**
-
-Create your environment configuration file:
+### 🔧 **Step 2: Configure JFrog Platform Connection**
 
 ```bash
-# Create configuration file
-cat > .env << EOF
-# JFrog Platform Configuration
-JFROG_URL="https://your-instance.jfrog.io"
-JFROG_ADMIN_TOKEN="your-admin-token"
+# 1. Navigate to the orchestration repository
+cd bookverse-demo-init
 
-# GitHub Configuration
-GITHUB_ORG="your-github-org"
-GH_TOKEN="$(gh auth token)"
+# 2. Set up your JFrog Platform connection
+export JFROG_URL="https://your-instance.jfrog.io"
+export JFROG_ADMIN_TOKEN="your-admin-token"
 
-# Platform Configuration
-PROJECT_KEY="bookverse"
-DOCKER_REGISTRY="${JFROG_URL#https://}"  # Extracts hostname
-PLATFORM_DOMAIN="bookverse.your-domain.com"
-
-# Optional: Kubernetes Configuration
-KUBE_CONTEXT="your-k8s-context"
-NAMESPACE="bookverse"
-EOF
-
-# Load environment variables
-source .env
+# 3. Verify connectivity
+curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+  "${JFROG_URL}/artifactory/api/system/ping"
+# Expected output: OK
 ```
 
-### 🏗️ **Step 3: Platform Provisioning**
+### 🔄 **Step 3: Switch Platform (Configure Target JFrog Platform)**
 
-#### **Automated Setup (Recommended)**
+Run the Switch Platform workflow to configure your JFrog Platform instance:
 
 ```bash
-# Run the automated platform setup
-./scripts/setup-platform.sh
+# Navigate to GitHub Actions in your bookverse-demo-init repository
+# Go to: https://github.com/your-org/bookverse-demo-init/actions
 
-# Monitor setup progress
-tail -f setup.log
+# 1. Select "🔄 Switch Platform" workflow
+# 2. Click "Run workflow" 
+# 3. Enter the following inputs:
+#    - JFrog Platform Host: https://your-instance.jfrog.io
+#    - Admin Token: your-admin-token (optional if secret is set)
+#    - Confirmation: SWITCH
+#    - Update K8s: false (unless you need Kubernetes registry updates)
+
+# OR run via GitHub CLI:
+gh workflow run "🔄-switch-platform.yml" \
+  --field jpd_host="https://your-instance.jfrog.io" \
+  --field admin_token="your-admin-token" \
+  --field confirm_switch="SWITCH" \
+  --field update_k8s=false
 ```
 
-#### **Manual Setup (Advanced)**
+### 🚀 **Step 4: Setup Platform (Provision Complete Environment)**
 
-#### 🔧 Manual Setup Steps
+Run the Setup Platform workflow to provision the entire BookVerse environment:
 
 ```bash
-# 1. Validate environment
-./scripts/validate-environment.sh
+# Navigate to GitHub Actions in your bookverse-demo-init repository
+# Go to: https://github.com/your-org/bookverse-demo-init/actions
 
-# 2. Create JFrog project and repositories
-./scripts/setup/create-project.sh
-./scripts/setup/create-repositories.sh
+# 1. Select "🚀 Setup Platform" workflow  
+# 2. Click "Run workflow"
+# 3. Monitor the workflow progress
 
-# 3. Configure AppTrust lifecycle
-./scripts/setup/create-stages.sh
-./scripts/setup/create-applications.sh
+# OR run via GitHub CLI:
+gh workflow run "🚀-setup-platform.yml"
 
-# 4. Setup OIDC authentication
-./scripts/setup/create-oidc.sh
-
-# 5. Configure users and permissions
-./scripts/setup/create-users.sh
-./scripts/setup/create-roles.sh
-
-# 6. Generate evidence keys
-./scripts/setup/evidence-keys-setup.sh
-
-# 7. Create GitHub repositories
-./scripts/setup/create-repositories.sh
-
-# 8. Configure repository variables
-./scripts/configure-repositories.sh
+# Monitor workflow status
+gh run list --workflow="🚀-setup-platform.yml"
 ```
 
-### ✅ **Step 4: Deployment Verification**
+The Setup Platform workflow will automatically:
+- Create the `bookverse` project in JFrog Platform
+- Set up 14 repositories across all package types  
+- Configure 4 AppTrust applications with lifecycle stages
+- Create 5 OIDC integrations for GitHub authentication
+- Set up users and role-based access control
+- Generate evidence keys for cryptographic signing
+- Configure all GitHub repository variables
+
+### ✅ **Step 5: Verify Platform Setup**
 
 ```bash
-# Run comprehensive validation
-./scripts/validate-platform.sh
+# 1. Run the validation script
+cd bookverse-demo-init
+./.github/scripts/setup/validate_setup.sh
 
 # Expected output:
 # ✅ JFrog Platform connectivity verified
-# ✅ Project 'bookverse' configured successfully
+# ✅ Project 'bookverse' exists  
 # ✅ Found 14 repositories across all package types
 # ✅ Found 4 applications with lifecycle stages
 # ✅ Found 5 OIDC integrations configured
-# ✅ GitHub repositories created and configured
-# ✅ CI/CD pipelines ready for deployment
+# ✅ GitHub repositories configured with correct variables
+
+# 2. Check repository variables for each service
+for repo in inventory recommendations checkout platform web; do
+  echo "Checking bookverse-${repo}..."
+  gh variable list -R your-org/bookverse-${repo}
+done
+
+# Expected variables in each repository:
+# PROJECT_KEY=bookverse
+# JFROG_URL=https://your-instance.jfrog.io  
+# DOCKER_REGISTRY=your-instance.jfrog.io
 ```
 
 ---
 
-## ☸️ Kubernetes Deployment (Optional)
+## 🎯 Repository Overview
 
-### 🎯 **Prerequisites for Kubernetes**
+The BookVerse demo consists of these repositories:
 
-- Kubernetes cluster (v1.21+) with admin access
-- kubectl configured and authenticated
-- Helm 3.7+ installed
-- Ingress controller configured
-- DNS configuration capability
+| Repository | Purpose | Technology Stack |
+|------------|---------|------------------|
+| **bookverse-inventory** | Product catalog & inventory management | Python, FastAPI, SQLite |
+| **bookverse-recommendations** | AI-powered recommendation engine | Python, scikit-learn, FastAPI |
+| **bookverse-checkout** | Order processing & payments | Python, FastAPI, PostgreSQL |
+| **bookverse-platform** | Service orchestration & aggregation | Python, FastAPI |
+| **bookverse-web** | Frontend user interface | Vanilla JS, Vite, HTML5 |
+| **bookverse-helm** | Kubernetes deployment charts | Helm 3, YAML |
+| **bookverse-infra** | Shared libraries & DevOps tools | Python (bookverse-core), Shell scripts |
+| **bookverse-demo-init** | Demo orchestration & platform setup | GitHub Actions, Shell scripts |
 
-### 🚀 **Kubernetes Setup**
+---
+
+## ☸️ Kubernetes Deployment
+
+### 🎯 **Kubernetes Options**
+
+BookVerse demo supports multiple Kubernetes deployment options:
+
+#### **Option 1: Rancher Desktop (Recommended for Local Development)**
+- **Pros**: Easy setup, includes Docker + Kubernetes + kubectl
+- **Cons**: Local only, resource intensive
+- **Best for**: Development, testing, demos
+
+#### **Option 2: Cloud Kubernetes (AWS EKS, GKE, AKS)**
+- **Pros**: Production-grade, scalable, managed
+- **Cons**: Requires cloud account, cost implications
+- **Best for**: Production deployments, team environments
+
+#### **Option 3: Other Local Options**
+- **Docker Desktop**: Alternative to Rancher Desktop
+- **minikube**: Lightweight local Kubernetes
+- **k3s**: Lightweight Kubernetes distribution
+
+### 🚀 **Setup Instructions**
+
+#### **Rancher Desktop Setup (Default)**
 
 ```bash
-# 1. Verify Kubernetes access
+# 1. Install Rancher Desktop (if not already installed)
+# macOS: brew install --cask rancher
+# Windows: Download from https://rancherdesktop.io/
+# Linux: Download from https://rancherdesktop.io/
+
+# 2. Start Rancher Desktop
+# - Open Rancher Desktop application
+# - Enable Kubernetes in settings
+# - Wait for cluster to be ready (green status)
+
+# 3. Verify Kubernetes cluster
 kubectl cluster-info
 kubectl get nodes
 
-# 2. Create namespace
-kubectl create namespace bookverse
-kubectl config set-context --current --namespace=bookverse
-
-# 3. Install ArgoCD
-./scripts/k8s/bootstrap.sh
-
-# 4. Configure ingress
-./scripts/k8s/configure-ingress.sh
-
-# 5. Deploy platform services
-helm upgrade --install bookverse-platform ./charts/platform \
-  --namespace bookverse \
-  --set global.domain=$PLATFORM_DOMAIN \
-  --set global.registry=$DOCKER_REGISTRY
-
-# 6. Verify deployment
-kubectl get pods -n bookverse
-kubectl get ingress -n bookverse
+# Expected output:
+# Kubernetes control plane is running at https://127.0.0.1:6443
+# NAME                   STATUS   ROLES                  AGE
+# rancher-desktop        Ready    control-plane,master   1m
 ```
 
-### 🌐 **Access URLs**
+#### **BookVerse Demo Deployment**
 
-After successful Kubernetes deployment:
+Once your Kubernetes cluster is ready:
 
 ```bash
-# Display access URLs
-echo "Platform Dashboard: https://$PLATFORM_DOMAIN"
-echo "API Documentation: https://api.$PLATFORM_DOMAIN/docs"
-echo "ArgoCD Interface: https://argocd.$PLATFORM_DOMAIN"
-echo "Monitoring: https://monitoring.$PLATFORM_DOMAIN"
+# 1. Navigate to demo-init repository
+cd bookverse-demo-init
+
+# 2. Run the demo bootstrap script
+./scripts/bookverse-demo.sh --setup
+
+# This script will:
+# - Detect your Kubernetes context
+# - Install ArgoCD
+# - Deploy BookVerse applications
+# - Configure ingress and networking
+# - Set up demo data
+
+# 3. Verify deployment
+kubectl get pods -n bookverse-prod
+kubectl get ingress -n bookverse-prod
+
+# 4. Wait for all pods to be ready (may take 5-10 minutes)
+kubectl wait --for=condition=Ready pods --all -n bookverse-prod --timeout=600s
 ```
 
----
+### 🌐 **Access Demo Application**
 
-## 🔐 Security Configuration
-
-### 🔑 **OIDC Authentication Setup**
-
-BookVerse uses OIDC for zero-trust CI/CD authentication:
+After successful deployment:
 
 ```bash
-# Verify OIDC configuration
-./scripts/validate-oidc.sh
-
-# Expected OIDC integrations:
-# ✅ github-bookverse-inventory
-# ✅ github-bookverse-recommendations  
-# ✅ github-bookverse-checkout
-# ✅ github-bookverse-platform
-# ✅ github-bookverse-web
+# The demo script will configure local DNS and provide access URLs:
+echo "🌐 BookVerse Demo: http://bookverse.demo"
+echo "🔧 ArgoCD Interface: https://argocd.demo"
 ```
 
-### 🔏 **Evidence Key Management**
+### 🔧 **Alternative Kubernetes Options**
+
+<details>
+<summary><strong>🌥️ Cloud Kubernetes (AWS EKS)</strong></summary>
 
 ```bash
-# Generate evidence signing keys
-./scripts/setup/evidence-keys-setup.sh
+# Prerequisites: AWS CLI configured with appropriate permissions
 
-# Verify key deployment
-./scripts/validate-evidence-keys.sh
+# 1. Create EKS cluster
+eksctl create cluster \
+  --name bookverse-demo \
+  --region us-west-2 \
+  --nodegroup-name workers \
+  --node-type t3.medium \
+  --nodes 2 \
+  --nodes-min 1 \
+  --nodes-max 3
 
-# Output shows:
-# ✅ Private key securely stored in JFrog
-# ✅ Public key configured for verification
-# ✅ Evidence collection enabled for all applications
+# 2. Update kubeconfig
+aws eks update-kubeconfig --region us-west-2 --name bookverse-demo
+
+# 3. Verify cluster
+kubectl cluster-info
+kubectl get nodes
 ```
+</details>
 
-### 🛡️ **Security Validation**
+<details>
+<summary><strong>🐳 Docker Desktop Alternative</strong></summary>
 
 ```bash
-# Run security validation
-./scripts/validate-security.sh
+# 1. Install Docker Desktop
+# Download from: https://www.docker.com/products/docker-desktop
 
-# Checks performed:
-# ✅ OIDC token exchange working
-# ✅ Repository permissions configured
-# ✅ Evidence signing functional
-# ✅ SBOM generation enabled
-# ✅ Vulnerability scanning active
+# 2. Enable Kubernetes
+# Docker Desktop → Settings → Kubernetes → Enable Kubernetes
+
+# 3. Verify setup
+kubectl cluster-info
+kubectl get nodes
 ```
+</details>
 
----
-
-## 🧪 Platform Testing
-
-### 🔄 **CI/CD Pipeline Testing**
+<details>
+<summary><strong>⚡ minikube Setup</strong></summary>
 
 ```bash
-# Test service CI/CD pipelines
-./scripts/test-pipelines.sh
+# 1. Install minikube
+# macOS: brew install minikube
+# Linux: curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
 
-# This will:
-# 1. Trigger builds for all services
-# 2. Verify artifact creation
-# 3. Test promotion workflows
-# 4. Validate evidence collection
+# 2. Start minikube
+minikube start --memory=8192 --cpus=4
+
+# 3. Verify setup
+kubectl cluster-info
+kubectl get nodes
 ```
-
-### 📊 **End-to-End Testing**
-
-```bash
-# Run comprehensive E2E tests
-./scripts/test-e2e.sh
-
-# Test scenarios:
-# ✅ Service deployment and health checks
-# ✅ Inter-service communication
-# ✅ API endpoint functionality
-# ✅ Database connectivity
-# ✅ Authentication flows
-# ✅ Order processing workflows
-```
-
-### 🌐 **Web Application Testing**
-
-```bash
-# Test web application deployment
-curl -s https://$PLATFORM_DOMAIN/health | jq
-
-# Expected response:
-# {
-#   "status": "healthy",
-#   "services": {
-#     "inventory": "up",
-#     "recommendations": "up", 
-#     "checkout": "up",
-#     "platform": "up"
-#   },
-#   "version": "1.0.0"
-# }
-```
-
----
-
-## 🎯 Next Steps
-
-### 🏗️ **Development Setup**
-
-Ready to start developing? Set up your local environment:
-
-```bash
-# Follow the development setup guide
-cat docs/development/LOCAL_DEVELOPMENT.md
-```
-
-### 📚 **Explore the Platform**
-
-- **📖 [Architecture Guide](ARCHITECTURE.md)** - Understanding system design
-- **🔧 [Operations Guide](operations/)** - Platform management and monitoring
-- **📝 [API Documentation](api/)** - Service APIs and integration patterns
-- **🧪 [Testing Guide](development/TESTING.md)** - Testing strategies and frameworks
-
-### 🔧 **Configuration & Customization**
-
-- **⚙️ [Configuration Reference](CONFIGURATION.md)** - Environment and service configuration
-- **🎨 [Customization Guide](CUSTOMIZATION.md)** - Adapting BookVerse for your needs
-- **🔌 [Integration Patterns](INTEGRATION.md)** - Connecting with external systems
+</details>
 
 ---
 
@@ -393,7 +400,8 @@ cat docs/development/LOCAL_DEVELOPMENT.md
 
 ### 🔍 **Common Setup Issues**
 
-#### ❌ JFrog connectivity issues
+<details>
+<summary><strong>❌ JFrog connectivity issues</strong></summary>
 
 **Problem**: Cannot connect to JFrog Platform
 
@@ -407,10 +415,12 @@ curl -s -H "Authorization: Bearer $JFROG_ADMIN_TOKEN" "$JFROG_URL/artifactory/ap
 # Expected: OK
 
 # 3. Verify token permissions
-./scripts/validate-token.sh
+curl -s -H "Authorization: Bearer $JFROG_ADMIN_TOKEN" "$JFROG_URL/access/api/v1/system/ping"
 ```
+</details>
 
-#### ❌ GitHub authentication problems
+<details>
+<summary><strong>❌ GitHub authentication problems</strong></summary>
 
 **Problem**: GitHub CLI authentication fails
 
@@ -424,74 +434,139 @@ gh auth login --with-token < your-token-file
 gh auth status
 gh repo list --limit 1  # Test API access
 
-# 3. Check organization membership
-gh api user/orgs | jq '.[].login'
+# 3. Check workflow permissions
+gh api repos/your-org/bookverse-demo-init/actions/permissions
 ```
+</details>
 
-#### ❌ Repository creation failures
+<details>
+<summary><strong>❌ Rancher Desktop setup issues</strong></summary>
 
-**Problem**: Cannot create GitHub repositories
+**Problem**: Rancher Desktop cluster not ready
 
 **Solutions**:
 ```bash
-# 1. Verify organization permissions
-gh api orgs/$GITHUB_ORG/members/$GITHUB_USERNAME
+# 1. Check Rancher Desktop status
+# Open Rancher Desktop → Troubleshooting → Reset Kubernetes
 
-# 2. Check repository limits
-gh api orgs/$GITHUB_ORG | jq '.plan'
+# 2. Verify Docker is working
+docker ps
 
-# 3. Manual repository creation
-./scripts/setup/create-repositories.sh --manual --repo inventory
+# 3. Check kubectl context
+kubectl config current-context
+kubectl config get-contexts
+
+# 4. Restart Rancher Desktop if needed
+# Quit application and restart
+```
+</details>
+
+<details>
+<summary><strong>❌ Kubernetes deployment issues</strong></summary>
+
+**Problem**: Pods stuck in Pending state
+
+**Solutions**:
+```bash
+# 1. Check node resources
+kubectl describe nodes
+kubectl top nodes
+
+# 2. Check pod details
+kubectl describe pod <pod-name> -n bookverse-prod
+
+# 3. Check for resource constraints
+kubectl get events --sort-by=.metadata.creationTimestamp -n bookverse-prod
 ```
 
-### 📞 **Getting Help**
+**Problem**: Cannot access demo URLs
 
-- **📖 [Troubleshooting Guide](TROUBLESHOOTING.md)** - Comprehensive issue resolution
-- **🐛 [Issue Tracker](../../issues)** - Report bugs and request features  
-- **💬 [Discussions](../../discussions)** - Community support and questions
-- **📧 Support**: For enterprise support, contact <support@bookverse.com>
+**Solutions**:
+```bash
+# 1. Check ingress configuration
+kubectl get ingress -n bookverse-prod
+kubectl describe ingress -n bookverse-prod
+
+# 2. Verify /etc/hosts modifications
+cat /etc/hosts | grep bookverse
+
+# 3. Check if demo script completed successfully
+./scripts/bookverse-demo.sh
+```
+</details>
+
+<details>
+<summary><strong>❌ Workflow execution failures</strong></summary>
+
+**Problem**: GitHub Actions workflows fail
+
+**Solutions**:
+```bash
+# 1. Check workflow run details
+gh run list --workflow="🚀-setup-platform.yml"
+gh run view --log <run-id>
+
+# 2. Verify repository secrets and variables
+gh secret list -R your-org/bookverse-demo-init
+gh variable list -R your-org/bookverse-demo-init
+
+# 3. Check workflow permissions
+# Go to Settings > Actions > General > Workflow permissions
+# Ensure "Read and write permissions" is selected
+```
+</details>
 
 ---
 
-## ✅ Deployment Checklist
+## 🎯 Next Steps
 
-Use this checklist to ensure successful platform deployment:
+### 🏗️ **Explore the Demo**
+
+Ready to explore BookVerse? Here's what you can do:
+
+- **📊 Monitor Pipelines**: Watch CI/CD pipelines in GitHub Actions
+- **🔐 Explore AppTrust**: Review evidence collection and SBOM generation in JFrog Platform
+- **☸️ Deploy to Kubernetes**: Use the optional Kubernetes deployment for runtime testing
+- **🧪 Test Services**: Make changes to services and observe the promotion workflows
+
+### 📚 **Learn More**
+
+- **📖 [Demo Runbook](DEMO_RUNBOOK.md)** - Step-by-step demo execution guide
+- **🏗️ [Architecture Guide](ARCHITECTURE.md)** - Understanding system design
+- **⚙️ [Operations Guide](operations/)** - Platform management and monitoring
+
+---
+
+## ✅ Setup Checklist
+
+Use this checklist to ensure successful demo setup:
 
 ### 🔧 **Prerequisites**
 - [ ] JFrog Platform access with admin privileges
 - [ ] GitHub organization with repository creation permissions
-- [ ] Required tools installed and verified
-- [ ] Environment configuration completed
+- [ ] Required tools installed and verified (gh, curl, jq, git)
+- [ ] GitHub CLI authenticated
+- [ ] Rancher Desktop installed and running
 
-### 🏗️ **Platform Setup**
-- [ ] BookVerse repository cloned and configured
-- [ ] Environment variables configured in `.env`
-- [ ] JFrog project and repositories created
-- [ ] AppTrust lifecycle and applications configured
-- [ ] OIDC integrations created and tested
+### 📥 **Repository Setup**
+- [ ] All service repositories cloned (inventory, recommendations, checkout, platform, web, helm, infra)
+- [ ] Demo orchestration repository cloned (bookverse-demo-init)
+- [ ] JFrog Platform connectivity verified
 
-### 🔐 **Security Configuration**
-- [ ] Evidence keys generated and deployed
-- [ ] Repository permissions configured
-- [ ] Security validation passed
-- [ ] SBOM generation verified
-
-### 🚀 **Deployment Verification**
+### 🔄 **Platform Configuration**
+- [ ] Switch Platform workflow executed successfully
+- [ ] Setup Platform workflow executed successfully
 - [ ] Platform validation script passed
-- [ ] All services health checks passing
-- [ ] CI/CD pipelines functional
-- [ ] Web application accessible
-- [ ] API endpoints responding correctly
+- [ ] Repository variables configured correctly
 
-### ☸️ **Kubernetes (Optional)**
-- [ ] Kubernetes cluster access verified
-- [ ] ArgoCD installed and configured
-- [ ] Platform services deployed
-- [ ] Ingress configuration working
-- [ ] DNS records configured
+### ☸️ **Kubernetes Deployment**
+- [ ] Kubernetes cluster access verified (Rancher Desktop or alternative)
+- [ ] Demo bootstrap script executed
+- [ ] Applications deployed and accessible
+- [ ] All pods running and healthy
 
-**🎉 Congratulations! Your BookVerse platform is ready for use.**
+**🎉 Congratulations! Your BookVerse demo environment is ready.**
 
 ---
 
-*Need help? Check our [comprehensive documentation](../README.md) or reach out to the [BookVerse community](../../discussions).*
+*Need help? Check our [Demo Runbook](DEMO_RUNBOOK.md) or reach out to the BookVerse team.*

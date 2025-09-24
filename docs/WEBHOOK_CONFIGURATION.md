@@ -1,420 +1,416 @@
-# BookVerse Platform - Webhook Configuration Guide
+# BookVerse Platform - JFrog Event Webhook Configuration
 
-## Real-time Event Automation and CI/CD Integration
+## "bookverse-release-to-github-action" Webhook Integration
 
-This guide provides comprehensive documentation for configuring and managing webhook integration within the BookVerse platform, covering JFrog Platform webhook setup, platform automation triggers, and operational best practices.
+This document explains the **bookverse-release-to-github-action** webhook that is configured in the JFrog Platform during the BookVerse setup process. This webhook provides automated integration between JFrog AppTrust release events and GitHub Actions workflows.
 
 ---
 
 ## 📋 Table of Contents
 
 - [Overview](#-overview)
-- [Current Implementation](#-current-implementation-status)
-- [JFrog Webhook Integration](#-jfrog-webhook-integration-analysis)
-- [Platform Implementation](#-bookverse-platform-webhook-implementation)
-- [Security Configuration](#-webhook-security-configuration)
-- [Platform Automation](#-integration-with-platform-automation)
-- [Deployment Integration](#-deployment-integration)
-- [Configuration with Admin Token](#-configuration-with-admin-token)
-- [Future Enhancements](#-future-enhancements)
-- [Troubleshooting](#-troubleshooting-webhook-issues)
+- [Webhook Configuration](#-webhook-configuration)
+- [Event Flow](#-event-flow)
+- [Payload Structure](#-payload-structure)
+- [GitHub Actions Integration](#-github-actions-integration)
+- [Setup Process](#-setup-process)
+- [Troubleshooting](#-troubleshooting)
+- [Related Components](#-related-components)
 
 ---
 
 ## 🎯 Overview
 
-The BookVerse platform includes webhook configuration support for real-time event automation and CI/CD integration. This guide documents the current implementation status, configuration approaches, and integration patterns discovered through analysis of the platform setup.
+The **bookverse-release-to-github-action** webhook is a JFrog Platform Event Subscription that automatically triggers GitHub repository dispatch events when AppTrust releases are completed. This enables seamless integration between JFrog Platform release management and GitHub Actions CI/CD workflows.
 
-### Key Benefits
+### Key Purpose
 
-- **Real-time Automation**: Trigger platform operations based on JFrog events
-- **CI/CD Integration**: Seamless integration with deployment pipelines
-- **Event-Driven Architecture**: Responsive platform aggregation workflows
-- **Security & Compliance**: Validated webhook processing with audit trails
-
----
-
-## 📊 Current Implementation Status
-
-### Platform Webhook Configuration
-
-The BookVerse platform includes a webhook configuration placeholder in the Helm charts:
-
-```yaml
-# Helm Chart Configuration: charts/platform/values.yaml
-platformWebhook: {}  # Placeholder for webhook configuration
-```
-
-**Analysis Result**: The `platformWebhook` configuration is currently defined as an empty object in the Helm values, providing a structure for future webhook implementations.
-
-### Platform Service Foundation
-
-The platform aggregation service (`bookverse-platform/app/main.py`) includes the infrastructure for webhook-triggered operations:
-
-- **Service Discovery**: Automated detection of BookVerse service updates
-- **Version Resolution**: Intelligent semantic version parsing and selection
-- **Manifest Generation**: Platform manifests with webhook event correlation
-- **AppTrust Integration**: Full lifecycle management through event triggers
+- **Automated Deployment**: Trigger downstream deployment workflows when releases are completed
+- **Cross-Platform Integration**: Bridge JFrog AppTrust events with GitHub Actions
+- **Event-Driven Architecture**: Enable reactive deployment patterns based on release events
+- **Platform Orchestration**: Coordinate multi-repository workflows from central release events
 
 ---
 
-## 🔗 JFrog Webhook Integration Analysis
+## ⚙️ Webhook Configuration
 
-### API Research Results
+### Event Subscription Details
 
-Based on analysis using the JFrog admin token (`apptrustswampupc.jfrog.io`), webhook configuration in JFrog Platform involves:
+The webhook is configured as a **JFrog Platform Event Subscription** with the following specifications:
 
-**1. Event Types**
-- Repository events (artifact published, deleted)
-- Build events (build completed, failed)
-- Security events (vulnerability detected)
-- Distribution events (release promoted)
-
-**2. API Endpoints**
-- **Artifactory Webhooks**: `/artifactory/api/webhooks`
-- **Distribution Webhooks**: `/distribution/api/v1/webhooks`
-- **Access Events**: `/access/api/v1/events/webhooks`
-
-> **Note**: Current API endpoint analysis shows these endpoints may require specific JFrog Platform licensing or configuration. Alternative configuration through the JFrog Platform UI may be necessary.
-
-**3. Standard Configuration Structure**
 ```json
 {
-  "url": "https://your-webhook-endpoint.com/webhook",
-  "events": ["deployed", "deleted", "promoted"],
-  "criteria": {
-    "anyRepo": false,
-    "selectedRepos": ["bookverse-*-docker-*"],
-    "includePatterns": ["**/*.tar"],
-    "excludePatterns": ["**/test/**"]
+  "key": "bookverse-release-to-github-action",
+  "enabled": true,
+  "event_filter": {
+    "domain": "app_trust",
+    "event_types": [
+      "release_completed"
+    ],
+    "criteria": {}
   },
   "handlers": [
     {
-      "handlerType": "webhook",
-      "url": "https://your-endpoint.com/webhook",
-      "secret": "your-secret-token",
-      "httpMethod": "POST",
-      "customHttpHeaders": {
-        "X-BookVerse-Event": "artifact-deployed"
-      }
+      "handler_type": "custom-webhook",
+      "url": "https://api.github.com/repos/yonatanp-jfrog/bookverse-helm/dispatches",
+      "method": "POST",
+      "payload": "{\"event_type\": \"release_completed\", \"client_payload\": {\"domain\": \"app_trust\", \"event_type\": \"release_completed\", \"data\": {\"application_key\": \"{{.data.application_key}}\", \"application_version\": \"{{.data.application_version}}\", \"stage\": \"{{.data.stage}}\"}, \"subscription_key\": \"bookverse-release-to-github-action\", \"jpd_origin\": \"https://apptrustswampupc.jfrog.io\", \"source\": \"AppTrust\"}}",
+      "http_headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{.secrets.github_token}}"
+        },
+        {
+          "name": "Accept", 
+          "value": "application/vnd.github+json"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "github_token"
+        }
+      ]
     }
-  ]
+  ],
+  "debug": false,
+  "project_key": "bookverse"
 }
+```
+
+### Configuration Breakdown
+
+**1. Event Filter**
+- **Domain**: `app_trust` - Listens to AppTrust domain events
+- **Event Types**: `release_completed` - Triggers on release completion
+- **Criteria**: `{}` - No additional filtering (all releases)
+
+**2. Handler Configuration**
+- **Type**: `custom-webhook` - Custom webhook handler
+- **Target**: GitHub API repository dispatch endpoint
+- **Method**: `POST` - HTTP POST request
+- **Authentication**: Bearer token using GitHub token secret
+
+**3. Payload Template**
+The webhook sends a GitHub repository dispatch event with:
+- **Event Type**: `release_completed`
+- **Application Data**: Key, version, and stage information
+- **Metadata**: Source tracking and correlation information
+
+---
+
+## 🔄 Event Flow
+
+### Trigger Sequence
+
+1. **AppTrust Release Completion**
+   - A release is completed in JFrog AppTrust
+   - Release includes application version and target stage information
+
+2. **Event Subscription Activation**
+   - JFrog Platform detects the `release_completed` event
+   - Event matches the `bookverse-release-to-github-action` subscription filter
+
+3. **Webhook Payload Generation**
+   - JFrog Platform generates webhook payload using template
+   - Substitutes dynamic values (application_key, version, stage)
+   - Includes metadata for tracking and correlation
+
+4. **GitHub API Call**
+   - HTTP POST to GitHub repository dispatch API
+   - Authenticated using stored GitHub token secret
+   - Triggers repository dispatch event in target repository
+
+5. **GitHub Actions Workflow Trigger**
+   - GitHub receives repository dispatch event
+   - Workflows listening for `release_completed` events are triggered
+   - Downstream deployment/update processes begin
+
+### Event Processing Pipeline
+
+```mermaid
+graph LR
+    A[AppTrust Release] --> B[release_completed Event]
+    B --> C[Event Subscription Match]
+    C --> D[Payload Template Processing]
+    D --> E[GitHub API Call]
+    E --> F[Repository Dispatch]
+    F --> G[GitHub Actions Trigger]
+    G --> H[Deployment Workflow]
 ```
 
 ---
 
-## 🏗️ BookVerse Platform Webhook Implementation
+## 📦 Payload Structure
 
-### Webhook Receiver Service
+### GitHub Repository Dispatch Payload
 
-The platform includes infrastructure for webhook processing:
+When the webhook triggers, it sends the following payload to GitHub:
+
+```json
+{
+  "event_type": "release_completed",
+  "client_payload": {
+    "domain": "app_trust",
+    "event_type": "release_completed",
+    "data": {
+      "application_key": "bookverse-platform",
+      "application_version": "2024.09.24.143022",
+      "stage": "PROD"
+    },
+    "subscription_key": "bookverse-release-to-github-action",
+    "jpd_origin": "https://apptrustswampupc.jfrog.io",
+    "source": "AppTrust"
+  }
+}
+```
+
+### Payload Fields Explanation
+
+**Event Metadata**
+- `event_type`: Always "release_completed" for this webhook
+- `domain`: Source domain (app_trust)
+- `subscription_key`: Identifies the specific webhook subscription
+
+**Release Data**
+- `application_key`: The AppTrust application that was released
+- `application_version`: The version that was released
+- `stage`: The target stage for the release (typically "PROD")
+
+**Tracking Information**
+- `jpd_origin`: Source JFrog Platform instance URL
+- `source`: Always "AppTrust" to identify the event source
+
+---
+
+## 🚀 GitHub Actions Integration
+
+### Target Repository
+
+The webhook targets the **bookverse-helm** repository:
+- **URL**: `https://api.github.com/repos/yonatanp-jfrog/bookverse-helm/dispatches`
+- **Purpose**: Central Helm charts repository for BookVerse platform
+- **Role**: Manages Kubernetes deployment manifests and versions
+
+### GitHub Actions Workflow Pattern
+
+GitHub Actions workflows in the target repository can listen for these events:
 
 ```yaml
-# Platform Service Configuration
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: platform-webhook-receiver
-  namespace: bookverse-prod
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: platform-webhook-receiver
-  template:
-    metadata:
-      labels:
-        app: platform-webhook-receiver
-    spec:
-      containers:
-      - name: webhook-receiver
-        image: bookverse-platform:latest
-        ports:
-        - containerPort: 8080
-        env:
-        - name: WEBHOOK_SECRET
-          valueFrom:
-            secretKeyRef:
-              name: webhook-secrets
-              key: secret-token
-        - name: JFROG_URL
-          value: "https://apptrustswampupc.jfrog.io"
-        - name: PLATFORM_APP_KEY
-          value: "bookverse-platform"
+# Example workflow in bookverse-helm repository
+name: Handle Release Completed
+on:
+  repository_dispatch:
+    types: [release_completed]
+
+jobs:
+  update-deployment:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Extract Release Information
+        run: |
+          echo "Application: ${{ github.event.client_payload.data.application_key }}"
+          echo "Version: ${{ github.event.client_payload.data.application_version }}"
+          echo "Stage: ${{ github.event.client_payload.data.stage }}"
+          echo "Source: ${{ github.event.client_payload.jpd_origin }}"
+      
+      - name: Update Helm Values
+        run: |
+          # Update Helm chart values with new version
+          # Commit changes to trigger ArgoCD sync
+          # Update deployment manifests
 ```
 
-### Integration with Existing Platform Service
+### Repository Dispatch Token
 
-The current platform service can be enhanced with webhook endpoints:
+The webhook uses a GitHub token stored as a secret in JFrog Platform:
+- **Secret Name**: `github_token`
+- **Purpose**: Authenticate GitHub API calls
+- **Permissions Required**: Repository dispatch permissions
+- **Configuration**: Set during platform setup process
 
-```python
-# Enhancement to bookverse-platform/app/main.py
-def handle_webhook_event(event_type: str, payload: dict) -> dict:
-    """
-    Process incoming webhook events for platform automation.
-    
-    Based on the existing platform aggregation logic, this function
-    can trigger automated platform version creation when BookVerse
-    services are updated.
-    """
-    if event_type == "artifact_deployed":
-        repo_name = payload.get('repo_name', '')
-        if is_bookverse_repository(repo_name):
-            # Use existing aggregation logic
-            return trigger_platform_aggregation_workflow(payload)
-    
-    return {"status": "event_ignored", "reason": "non_bookverse_event"}
+---
 
-def is_bookverse_repository(repo_name: str) -> bool:
-    """Check if repository belongs to BookVerse services."""
-    bookverse_repos = [
-        "bookverse-inventory-internal-docker-release-local",
-        "bookverse-recommendations-internal-docker-release-local",
-        "bookverse-checkout-internal-docker-release-local", 
-        "bookverse-web-internal-docker-release-local"
-    ]
-    return repo_name in bookverse_repos
+## 🔧 Setup Process
+
+### When Is This Webhook Created?
+
+The webhook is created during the **setup-platform workflow** process, though the exact setup script that creates it is part of the platform initialization. Based on the configuration pattern, it's likely created through:
+
+1. **JFrog Platform API**: Using the Event Subscriptions API
+2. **Setup Script**: As part of automated platform configuration
+3. **Admin Token**: Using elevated permissions for webhook creation
+
+### Required Components
+
+**JFrog Platform Configuration**
+- Event subscriptions feature enabled
+- AppTrust domain configured
+- Project key: "bookverse"
+- GitHub token secret configured
+
+**GitHub Repository Setup**
+- Repository dispatch permissions
+- GitHub Actions workflows configured to handle events
+- Appropriate token permissions for API access
+
+### Configuration API Endpoint
+
+The webhook is managed through the JFrog Platform Event API:
+```bash
+# List event subscriptions
+curl -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+  "${JFROG_URL}/event/api/v1/subscriptions"
+
+# Get specific subscription
+curl -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+  "${JFROG_URL}/event/api/v1/subscriptions/bookverse-release-to-github-action"
 ```
 
 ---
 
-## 🔐 Webhook Security Configuration
+## 🔧 Troubleshooting
 
-### 1. Secret Token Management
+### Common Issues
 
+**1. Webhook Not Triggering**
 ```bash
-#!/bin/bash
-# Create webhook secret for secure validation
+# Check webhook status
+curl -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+  "${JFROG_URL}/event/api/v1/subscriptions/bookverse-release-to-github-action" | jq .enabled
 
-# Generate secure webhook secret
-WEBHOOK_SECRET=$(openssl rand -hex 32)
-
-# Store in Kubernetes secret
-kubectl create secret generic webhook-secrets \
-  --from-literal=secret-token="${WEBHOOK_SECRET}" \
-  --namespace=bookverse-prod
-
-echo "🔐 Webhook secret created: ${WEBHOOK_SECRET:0:8}..."
+# Verify event filter matches release events
+curl -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+  "${JFROG_URL}/event/api/v1/subscriptions/bookverse-release-to-github-action" | jq .event_filter
 ```
 
-### 2. Network Security Configuration
-
-```yaml
-# Ingress configuration for webhook endpoint
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: webhook-ingress
-  namespace: bookverse-prod
-  annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: web
-spec:
-  ingressClassName: traefik
-  rules:
-  - host: bookverse.demo
-    http:
-      paths:
-      - path: /platform/webhooks
-        pathType: Prefix
-        backend:
-          service:
-            name: platform-service
-            port:
-              number: 8080
-```
-
----
-
-## 🛠️ Configuration with Admin Token
-
-### JFrog Platform Webhook Setup
-
-Using the provided JFrog admin token, webhook configuration can be managed:
-
+**2. GitHub Authentication Failures**
 ```bash
-#!/bin/bash
-# Comprehensive Webhook Configuration Script
+# Test GitHub token permissions
+curl -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+  "https://api.github.com/repos/yonatanp-jfrog/bookverse-helm"
 
-# Environment Configuration
-JFROG_URL="https://apptrustswampupc.jfrog.io"
-WEBHOOK_ENDPOINT="https://bookverse.demo/platform/webhooks"
-JFROG_ADMIN_TOKEN="[YOUR-ADMIN-TOKEN]"
-
-# Manual Configuration Guide
-configure_webhook_manually() {
-    echo "🔧 Webhook Configuration Guide"
-    echo "==============================================="
-    echo ""
-    echo "Since webhook API endpoints may require specific licensing,"
-    echo "configure webhooks through the JFrog Platform UI:"
-    echo ""
-    echo "1. Navigate to JFrog Platform UI:"
-    echo "   URL: ${JFROG_URL}"
-    echo ""
-    echo "2. Go to Administration > Artifactory > General > Webhooks"
-    echo ""
-    echo "3. Create new webhook with these settings:"
-    echo "   Name: bookverse-platform-webhook"
-    echo "   URL: ${WEBHOOK_ENDPOINT}"
-    echo "   Events: Deployed, Deleted"
-    echo ""
-    echo "4. Repository Selection:"
-    echo "   - bookverse-inventory-internal-docker-release-local"
-    echo "   - bookverse-recommendations-internal-docker-release-local"
-    echo "   - bookverse-checkout-internal-docker-release-local"
-    echo "   - bookverse-web-internal-docker-release-local"
-    echo ""
-    echo "5. Security Configuration:"
-    echo "   - Set webhook secret for signature validation"
-    echo "   - Add custom headers:"
-    echo "     X-BookVerse-Source: jfrog-artifactory"
-    echo "     X-BookVerse-Platform: bookverse-demo"
-    echo ""
-}
-
-# Test webhook endpoint accessibility
-test_webhook_endpoint() {
-    echo "🌐 Testing webhook endpoint accessibility..."
-    
-    local response
-    response=$(curl -s -w "HTTPSTATUS:%{http_code}" \
-        -X POST \
-        -H "Content-Type: application/json" \
-        -H "X-BookVerse-Test: true" \
-        "${WEBHOOK_ENDPOINT}" \
-        -d '{"test": true}' 2>/dev/null || echo "HTTPSTATUS:000")
-    
-    local http_code
-    http_code=$(echo "$response" | sed -n 's/.*HTTPSTATUS:\([0-9]*\)$/\1/p')
-    
-    if [[ "$http_code" -eq 200 ]]; then
-        echo "✅ Webhook endpoint is accessible"
-    else
-        echo "⚠️  Webhook endpoint test failed (HTTP $http_code)"
-        echo "   Ensure platform service is running and accessible"
-    fi
-}
-
-# Execute configuration
-configure_webhook_manually
-test_webhook_endpoint
-```
-
----
-
-## 🚀 Future Enhancements
-
-### 1. Event Processing Pipeline
-
-- **Webhook Event Validation**: Comprehensive event validation and routing
-- **Asynchronous Processing**: Event queues for reliable processing
-- **Event Correlation**: Aggregate related events for intelligent triggers
-- **Retry Logic**: Robust retry mechanisms for failed operations
-
-### 2. Advanced Integrations
-
-- **Notification System**: Slack/Teams notifications for deployment events
-- **GitHub Integration**: Status updates and PR automation
-- **Custom Business Logic**: Configurable webhook response workflows
-- **Multi-Environment Support**: Environment-specific webhook behaviors
-
-### 3. Monitoring and Analytics
-
-- **Webhook Metrics**: Delivery success rates and processing times
-- **Event Analytics**: Platform aggregation trigger analysis
-- **Error Tracking**: Detailed webhook failure investigation
-- **Performance Monitoring**: Webhook processing performance optimization
-
----
-
-## 🔧 Troubleshooting Webhook Issues
-
-### Common Issues and Solutions
-
-**1. Webhook Endpoint Not Found (404)**
-```bash
-# Verify ingress configuration
-kubectl get ingress -n bookverse-prod
-
-# Check service endpoints
-kubectl get endpoints platform-service -n bookverse-prod
-
-# Test platform service
-kubectl port-forward svc/platform-service 8080:8080 -n bookverse-prod &
-curl -X POST http://localhost:8080/platform/webhooks -d '{"test": true}'
-```
-
-**2. Authentication Failures (401)**
-```bash
-# Verify webhook secret exists
-kubectl get secret webhook-secrets -n bookverse-prod
-
-# Test webhook endpoint with proper headers
+# Verify repository dispatch permissions
 curl -X POST \
+  -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+  -H "Accept: application/vnd.github+json" \
+  "https://api.github.com/repos/yonatanp-jfrog/bookverse-helm/dispatches" \
+  -d '{"event_type":"test","client_payload":{"test":true}}'
+```
+
+**3. Payload Template Issues**
+- Check payload template syntax in subscription configuration
+- Verify template variable substitution ({{.data.application_key}})
+- Ensure JSON formatting is valid
+
+**4. Event Filtering Problems**
+- Verify event domain matches AppTrust events
+- Check event type matches release_completed
+- Ensure project_key filtering is correct
+
+### Debug Mode
+
+Enable debug mode for detailed webhook execution logs:
+```bash
+# Enable debug mode
+curl -X PUT \
+  -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
   -H "Content-Type: application/json" \
-  -H "X-Webhook-Secret: your-secret-here" \
-  "${WEBHOOK_ENDPOINT}" \
-  -d '{"test": true}'
+  "${JFROG_URL}/event/api/v1/subscriptions/bookverse-release-to-github-action" \
+  -d '{"debug": true}'
 ```
 
-**3. Platform Service Issues**
+### Webhook Delivery Verification
+
+Check webhook delivery status and logs:
 ```bash
-# Check platform service logs
-kubectl logs -n bookverse-prod deployment/platform-service | grep webhook
-
-# Verify environment variables
-kubectl get deployment platform-service -n bookverse-prod -o yaml | grep -A 20 env:
-
-# Test platform aggregation manually
-kubectl exec -it deployment/platform-service -n bookverse-prod -- python -c "
-from app.main import main
-print('Platform service is functional')
-"
-```
-
-### Debug Commands
-
-**Manual Webhook Testing**
-```bash
-# Send test webhook to platform
-WEBHOOK_ENDPOINT="https://bookverse.demo/platform/webhooks"
-
-curl -X POST \
-  -H "Content-Type: application/json" \
-  -H "X-BookVerse-Test: true" \
-  "${WEBHOOK_ENDPOINT}" \
-  -d '{
-    "event_type": "artifact_deployed",
-    "repo_name": "bookverse-inventory-internal-docker-release-local",
-    "artifact_name": "inventory:1.2.3",
-    "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"
-  }'
-```
-
-**Platform Service Health Check**
-```bash
-# Verify platform service health
-kubectl get pods -n bookverse-prod -l app=platform-service
-
-# Check resource usage
-kubectl top pods -n bookverse-prod --containers
-
-# Verify connectivity to JFrog Platform
-kubectl exec -it deployment/platform-service -n bookverse-prod -- \
-  curl -s -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
-  "${JFROG_URL}/artifactory/api/system/ping"
+# Check recent webhook deliveries (if available)
+curl -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+  "${JFROG_URL}/event/api/v1/subscriptions/bookverse-release-to-github-action/deliveries"
 ```
 
 ---
 
-## 📚 Related Documentation
+## 🔗 Related Components
 
-- **[JFrog Integration Guide](JFROG_INTEGRATION.md)**: Complete JFrog Platform integration documentation
-- **[Platform Orchestration](ORCHESTRATION_OVERVIEW.md)**: Platform automation and orchestration workflows
-- **[Setup Automation Guide](SETUP_AUTOMATION.md)**: Automated platform provisioning and configuration
-- **[GitOps Deployment Guide](GITOPS_DEPLOYMENT.md)**: GitOps deployment patterns and ArgoCD integration
+### BookVerse Repository Structure
+
+The webhook integrates with the following repositories:
+
+**Target Repository**
+- **bookverse-helm**: Helm charts and Kubernetes manifests
+  - Receives repository dispatch events
+  - Contains GitHub Actions workflows for deployment
+  - Manages ArgoCD application configurations
+
+**Source Applications**
+- **bookverse-platform**: Platform aggregation service
+- **bookverse-inventory**: Inventory microservice  
+- **bookverse-recommendations**: Recommendations service
+- **bookverse-checkout**: Checkout service
+- **bookverse-web**: Web frontend application
+
+### Integration Points
+
+**JFrog AppTrust**
+- Release completion events trigger the webhook
+- Application versions and stages are included in payload
+- Project-scoped filtering ensures relevant events only
+
+**GitHub Actions**
+- Repository dispatch events trigger workflows
+- Workflow can access release data from payload
+- Enables automated deployment updates
+
+**ArgoCD GitOps**
+- GitHub Actions can update Helm values
+- ArgoCD detects changes and syncs deployments
+- Provides automated deployment pipeline
+
+### Configuration Scripts
+
+Related scripts in the BookVerse platform:
+
+**Repository Dispatch Validation**
+- `scripts/validate_repo_dispatch.py`: Tests repository dispatch functionality
+- Used to verify GitHub token permissions and connectivity
+
+**Service Secrets Configuration**
+- `scripts/configure_service_secrets.sh`: Configures repository secrets
+- Sets up `GH_REPO_DISPATCH_TOKEN` for cross-repository communication
 
 ---
 
-*This guide documents the webhook configuration approach for the BookVerse platform based on analysis of the current implementation and JFrog Platform capabilities.*
+## 📚 Additional Information
+
+### Event Subscription Management
+
+The webhook is part of the JFrog Platform Event Subscriptions system:
+- **API Endpoint**: `/event/api/v1/subscriptions`
+- **Management**: Through JFrog Platform UI or API
+- **Scope**: Project-level (bookverse project)
+- **Security**: Token-based authentication with GitHub
+
+### Best Practices
+
+**Security**
+- Use dedicated GitHub tokens with minimal required permissions
+- Regularly rotate authentication tokens
+- Monitor webhook delivery success rates
+
+**Monitoring**
+- Enable debug mode during initial setup
+- Monitor GitHub Actions workflow execution
+- Track release event frequency and patterns
+
+**Maintenance**
+- Verify webhook configuration after platform updates
+- Test end-to-end flow periodically
+- Update GitHub token when repository permissions change
+
+---
+
+*This webhook enables seamless integration between JFrog AppTrust releases and GitHub Actions workflows, providing automated deployment triggers for the BookVerse platform.*

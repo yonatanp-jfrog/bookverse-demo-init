@@ -200,11 +200,7 @@ Each service (web, inventory, recommendations, checkout) follows this workflow:
 
 ## Deployment Process
 
-### Method 1: Automatic Pipeline (Recommended for Demo & Production)
-
-The fully automated pipeline handles deployments with minimal manual intervention. Here's how it works in your demo environment:
-
-#### Demo-Optimized Automatic Pipeline
+## Demo-Optimized Automatic Pipeline
 
 **Perfect for demonstrating:**
 - Modern CI/CD best practices
@@ -228,15 +224,7 @@ The fully automated pipeline handles deployments with minimal manual interventio
    - Runs tests
    - Pushes to JFrog registry
 
-3. **AppTrust creates application version** and auto-promotes:
-   ```
-   inventory v1.2.3 → DEV (immediate)
-   inventory v1.2.3 → QA (after 2 minutes)
-   inventory v1.2.3 → STAGING (after 5 minutes)
-   inventory v1.2.3 → PROD (after 10 minutes)
-   ```
-
-4. **Service is ready** for next platform aggregation
+3. **Creates trusted release** for internal use and platform aggregation
 
 #### For Platform Releases (Demo Flow):
 1. **Trigger platform aggregation** (manual for demo control):
@@ -591,7 +579,7 @@ helm get values platform -n bookverse-prod
 
 1. **Create Promotion Workflows**:
    - Add automatic promotion triggers after successful CI
-   - Implement stage-by-stage promotion (DEV → QA → STAGING → PROD)
+   - Implement service-to-platform aggregation workflow
    - Add configurable delays and approval gates
 
 2. **Configure Repository Dispatch**:

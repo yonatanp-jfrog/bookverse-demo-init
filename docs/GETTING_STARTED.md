@@ -578,10 +578,12 @@ Ready to explore BookVerse? Here's what you can do:
 
 - **📖 [Demo Runbook](DEMO_RUNBOOK.md)** - Step-by-step demo execution guide
 - **🏗️ [Architecture Guide](ARCHITECTURE.md)** - Understanding system design
-- **⚙️ [Operations Guide](operations/)** - Platform management and monitoring
+- **🔄 [CI/CD Deployment](CICD_DEPLOYMENT_GUIDE.md)** - Pipeline configuration and automation
+- **🔐 [OIDC Authentication](OIDC_AUTHENTICATION.md)** - Zero-trust authentication setup
+- **🚀 [GitOps Deployment](GITOPS_DEPLOYMENT.md)** - Continuous deployment workflows
+- **🔗 [JFrog Integration](JFROG_INTEGRATION.md)** - Artifact management and security
 
 ---
-
 ## ✅ Setup Checklist
 
 Use this checklist to ensure successful demo setup:

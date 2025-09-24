@@ -160,32 +160,56 @@ curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
 # Expected output: OK
 ```
 
-### 🎯 **Step 2.5: Kubernetes Setup (Optional but Recommended)**
+### ☸️ **Step 3: Kubernetes Setup (Optional but Recommended)**
 
-If you plan to deploy the demo to Kubernetes (recommended for full experience), set up your cluster now:
+If you plan to deploy the demo to Kubernetes (recommended for full experience), set up your cluster now.
 
-#### **Option A: Rancher Desktop (Recommended)**
+#### **🎯 Kubernetes Options**
+
+BookVerse demo supports multiple Kubernetes deployment options:
+
+**Option 1: Rancher Desktop (Recommended for Local Development)**
+- **Pros**: Easy setup, includes Docker + Kubernetes + kubectl
+- **Cons**: Local only, resource intensive  
+- **Best for**: Development, testing, demos
+
+**Option 2: Cloud Kubernetes (AWS EKS, GKE, AKS)**
+- **Pros**: Production-grade, scalable, managed
+- **Cons**: Requires cloud account, cost implications
+- **Best for**: Production deployments, team environments
+
+**Option 3: Other Local Options**
+- **Docker Desktop**: Alternative to Rancher Desktop
+- **minikube**: Lightweight local Kubernetes
+- **k3s**: Lightweight Kubernetes distribution
+
+#### **🚀 Rancher Desktop Setup (Recommended)**
+
 ```bash
-# 1. Start Rancher Desktop application
-# 2. Enable Kubernetes in settings
-# 3. Wait for cluster to be ready (green status)
+# 1. Install Rancher Desktop (if not already installed)
+# macOS: brew install --cask rancher
+# Windows: Download from https://rancherdesktop.io/
+# Linux: Download from https://rancherdesktop.io/
 
-# 4. Verify Kubernetes cluster
+# 2. Start Rancher Desktop
+# - Open Rancher Desktop application
+# - Enable Kubernetes in settings  
+# - Wait for cluster to be ready (green status)
+
+# 3. Verify Kubernetes cluster
 kubectl cluster-info
 kubectl get nodes
 
 # Expected output:
 # Kubernetes control plane is running at https://127.0.0.1:6443
+# NAME                   STATUS   ROLES                  AGE
+# rancher-desktop        Ready    control-plane,master   1m
 ```
 
-#### **Option B: Other Kubernetes Options**
-See the [Alternative Kubernetes Options](#-alternative-kubernetes-options) section below for Docker Desktop, minikube, or cloud setups.
-
-> **Note**: If you set up Kubernetes now, make sure to set `Update K8s: true` in Step 3 to configure the registry for your cluster.
+> **Note**: If you set up Kubernetes now, make sure to set `Update K8s: true` in Step 4 to configure the registry for your cluster.
 
 ---
-
-### 🔄 **Step 3: Switch Platform (Configure Target JFrog Platform)**
+### 🔄 **Step 4: Switch Platform (Configure Target JFrog Platform)**
 
 Run the Switch Platform workflow to configure your JFrog Platform instance:
 
@@ -199,7 +223,7 @@ Run the Switch Platform workflow to configure your JFrog Platform instance:
 #    - JFrog Platform Host: https://your-instance.jfrog.io
 #    - Admin Token: (leave empty - secret is already configured)
 #    - Confirmation: SWITCH
-#    - Update K8s: true (if you set up Kubernetes in Step 2.5) or false (if skipping Kubernetes)
+#    - Update K8s: true (if you set up Kubernetes in Step 3) or false (if skipping Kubernetes)
 
 # OR run via GitHub CLI (admin token not needed since secret is configured):
 gh workflow run "🔄-switch-platform.yml" \
@@ -207,7 +231,7 @@ gh workflow run "🔄-switch-platform.yml" \
   --field confirm_switch="SWITCH" \
   --field update_k8s=true```
 
-### 🚀 **Step 4: Setup Platform (Provision Complete Environment)**
+### 🚀 **Step 5: Setup Platform (Provision Complete Environment)**
 
 Run the Setup Platform workflow to provision the entire BookVerse environment:
 
@@ -257,55 +281,10 @@ The BookVerse demo consists of these **GitHub repositories** (source code):
 
 ---
 
-## ☸️ Kubernetes Deployment
-
-### 🎯 **Kubernetes Options**
-
-BookVerse demo supports multiple Kubernetes deployment options:
-
-#### **Option 1: Rancher Desktop (Recommended for Local Development)**
-- **Pros**: Easy setup, includes Docker + Kubernetes + kubectl
-- **Cons**: Local only, resource intensive
-- **Best for**: Development, testing, demos
-
-#### **Option 2: Cloud Kubernetes (AWS EKS, GKE, AKS)**
-- **Pros**: Production-grade, scalable, managed
-- **Cons**: Requires cloud account, cost implications
-- **Best for**: Production deployments, team environments
-
-#### **Option 3: Other Local Options**
-- **Docker Desktop**: Alternative to Rancher Desktop
-- **minikube**: Lightweight local Kubernetes
-- **k3s**: Lightweight Kubernetes distribution
-
-### 🚀 **Setup Instructions**
-
-#### **Rancher Desktop Setup (Default)**
-
-```bash
-# 1. Install Rancher Desktop (if not already installed)
-# macOS: brew install --cask rancher
-# Windows: Download from https://rancherdesktop.io/
-# Linux: Download from https://rancherdesktop.io/
-
-# 2. Start Rancher Desktop
-# - Open Rancher Desktop application
-# - Enable Kubernetes in settings
-# - Wait for cluster to be ready (green status)
-
-# 3. Verify Kubernetes cluster
-kubectl cluster-info
-kubectl get nodes
-
-# Expected output:
-# Kubernetes control plane is running at https://127.0.0.1:6443
-# NAME                   STATUS   ROLES                  AGE
-# rancher-desktop        Ready    control-plane,master   1m
-```
+## ☸️ Kubernetes Demo Deployment
 
 #### **BookVerse Demo Deployment**
-
-If you set up Kubernetes in Step 2.5, you can now deploy the demo:
+If you set up Kubernetes in Step 3, you can now deploy the demo:
 
 ```bash
 # 1. Navigate to demo-init repository (if not already there)

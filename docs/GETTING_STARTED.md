@@ -268,6 +268,7 @@ The Setup Platform workflow will automatically:
 The BookVerse demo consists of these **GitHub repositories** (source code):
 
 > **Note**: This section describes GitHub repositories containing source code. The JFrog Platform will automatically create separate artifact repositories (Docker, Python, npm, etc.) for storing build artifacts.
+
 | GitHub Repository | Purpose | Technology Stack |
 |------------|---------|------------------|
 | **bookverse-inventory** | Product catalog & inventory management | Python, FastAPI, SQLite |

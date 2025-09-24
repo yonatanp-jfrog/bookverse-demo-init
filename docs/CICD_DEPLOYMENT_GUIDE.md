@@ -281,12 +281,6 @@ Each service (web, inventory, recommendations, checkout) follows this workflow:
    # Watch it deploy automatically
    ```
 
-2. **Resilience Recovery:**
-   ```bash
-   # Simulate a service failure
-   kubectl delete pod -l app=inventory -n bookverse-prod
-   # Show how the system recovers and maintains availability
-   ```
 
 
 4. **Multi-Service Update:**
@@ -368,13 +362,6 @@ Based on the analysis of your current setup:
 - ✅ **Helm Charts**: Configured for deployment
 - ✅ **GitHub Actions**: Automated workflows in place
 
-### Service Status
-```bash
-# Check current deployments
-kubectl get pods -n bookverse-prod
-kubectl get services -n bookverse-prod
-kubectl get deployments -n bookverse-prod
-```
 
 ## Deploying the Resilience Improvements
 
@@ -409,26 +396,7 @@ cd /path/to/bookverse-platform
 gh workflow run update-k8s.yml --repo your-org/bookverse-helm
 ```
 
-### Manual Override (Fastest for Testing)
-
-If you want to test immediately:
-
-```bash
-# 1. Build and push the web image
-cd /path/to/bookverse-web
-docker build -t apptrustswampupc.jfrog.io/bookverse-web-internal-docker-release-local/web:resilient-$(date +%s) .
-docker push apptrustswampupc.jfrog.io/bookverse-web-internal-docker-release-local/web:resilient-$(date +%s)
-
-# 2. Update the deployment directly
-kubectl set image deployment/platform-web web=apptrustswampupc.jfrog.io/bookverse-web-internal-docker-release-local/web:resilient-$(date +%s) -n bookverse-prod
-
-# 3. Wait for rollout
-kubectl rollout status deployment/platform-web -n bookverse-prod
-```
-
-## Monitoring and Verification
-
-### Health Checks
+## Health Checks
 ```bash
 # Check pod status
 kubectl get pods -n bookverse-prod
@@ -519,21 +487,10 @@ For critical situations, the rollback workflow can be triggered immediately and 
 ### Common Issues
 
 
-#### 2. Service connectivity issues
-```bash
-# Test internal service connectivity
-kubectl exec deployment/platform-web -n bookverse-prod -- nslookup inventory
-kubectl exec deployment/platform-web -n bookverse-prod -- wget -qO- http://inventory/health
-```
+#### 2. JFrog connectivity issues
 
-#### 3. Image pull errors
-```bash
-# Check image pull secrets
-kubectl get secrets -n bookverse-prod
-kubectl describe pod <pod-name> -n bookverse-prod
-```
 
-#### 4. Helm deployment failures
+#### 3. GitHub Actions workflow failures
 ```bash
 # Check Helm release status
 helm status platform -n bookverse-prod
@@ -732,21 +689,6 @@ For real production deployment, you would add:
 - Production monitoring stack
 - External ingress with real domains
 - Persistent storage and backup strategies
-
-### Key Differences: Demo vs Production
-
-| Aspect | Demo (Local K8s on Mac) | Production |
-|--------|-------------------------|------------|
-| **Access Method** | `kubectl port-forward` + `localhost:8080` | External load balancer + real domain |
-| **SSL/TLS** | Not needed (localhost) | Required with certificates |
-| **Scaling** | Single replica per service | Multiple replicas + autoscaling |
-| **Storage** | EmptyDir volumes (ephemeral) | Persistent volumes + backups |
-| **Monitoring** | kubectl logs + basic health checks | Prometheus, Grafana, alerting |
-| **Network** | ClusterIP services + port-forward | Ingress controller + external IPs |
-| **Resource Limits** | Minimal (demo data) | Production-sized limits |
-| **High Availability** | Single node (your Mac) | Multi-node cluster |
-| **Disaster Recovery** | Git restore + redeploy | Backup/restore procedures |
-| **Security** | Basic (demo environment) | Network policies, RBAC, secrets |
 
 ### Why This Demo Setup is Perfect:
 

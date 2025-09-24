@@ -57,16 +57,16 @@ The BookVerse platform uses a multi-stage CI/CD process with service-level and p
 
 ```mermaid
 graph TD
-    A[Code Commit] --> B{Commit Filter}
+    A[Code Commit to Service Repo] --> B{Commit Filter}
     B -->|Build Only| C[Create Build Info]
-    B -->|Release Ready| D[Service CI Pipeline<br/>• Build & Test<br/>• Create Application Version<br/>• Auto-Promote to DEV<br/>• Auto-Promote to QA<br/>• Auto-Promote to STAGING<br/>• Auto-Promote to PROD]
-    D --> E[Bi-weekly Platform Aggregation<br/>• Build & Test<br/>• Create Application Version<br/>• Auto-Promote to DEV<br/>• Auto-Promote to QA<br/>• Auto-Promote to STAGING]
-    E --> F[Auto-Promote to PROD]
-    F --> G[Platform Release]
-    G --> H[Helm Chart Update]
-    H --> I[Kubernetes Deployment]
+    B -->|Release Ready| D[Service GitHub Workflow<br/>• Build & Test<br/>• Create Application Version<br/>• Release as Trusted Internal Version]
     
-    J[Hotfix Trigger] --> E
+    E[Bi-weekly Trigger] --> F[Platform Aggregation Workflow<br/>• Collect Latest Trusted Releases<br/>• Build Platform<br/>• Release for Public Use]
+    F --> G[Webhook Trigger]
+    G --> H[Update-K8s GitHub Workflow]
+    H --> I[ArgoCD Updates Kubernetes]
+    
+    J[Hotfix Trigger] --> F
 ```
 
 ### Current Status vs Target State
@@ -74,13 +74,13 @@ graph TD
 **Current State (Production Ready):**
 - ✅ Automatic CI triggers on code commits
 - ✅ Intelligent commit filtering
-- ✅ Automatic promotion through all stages
+- ✅ Automatic service releases to trusted internal versions
 - ✅ Bi-weekly scheduled platform aggregation
 - ✅ Hotfix capability for urgent releases
 
 **Implementation Status:**
 - ✅ **Service CI Pipelines**: Fully automated with intelligent commit filtering
-- ✅ **Auto-Promotion Workflows**: DEV → QA → STAGING → PROD pipeline active
+- ✅ **Service Release Workflows**: Trusted internal releases for platform aggregation
 - ✅ **Platform Aggregation**: Bi-weekly scheduled releases with hotfix capability
 - ✅ **Helm Deployment**: Automated Kubernetes deployment through GitOps
 - ✅ **Monitoring & Rollback**: Health checks and rollback procedures in place
@@ -101,7 +101,7 @@ When you push code to any BookVerse service repository, the system examines:
 Based on this analysis, the system makes one of two decisions:
 
 #### Decision 1: Create Application Version (Full Pipeline)
-**What Happens**: Triggers the complete CI/CD pipeline including build, test, and automatic promotion through all environments (DEV → QA → STAGING → PROD).
+**What Happens**: Triggers the complete CI/CD pipeline including build, test, and release as a trusted version for internal use.
 
 **When This Happens**:
 - **Feature Commits**: Messages starting with `feat:`, `fix:`, `perf:`, `refactor:`
@@ -149,9 +149,9 @@ Based on this analysis, the system makes one of two decisions:
 - **Version Control**: Clear separation between builds and releases
 - **Evidence Collection**: Full audit trail for regulatory requirements
 
-### 2. Automatic Service CI/CD Pipeline
+### 2. Service CI/CD Pipeline
 
-Each service (web, inventory, recommendations, checkout) follows this enhanced pipeline:
+Each service (web, inventory, recommendations, checkout) follows this workflow:
 
 #### Triggers:
 - **Automatic**: Push to main branch, pull request merge
@@ -163,18 +163,32 @@ Each service (web, inventory, recommendations, checkout) follows this enhanced p
 3. **Artifact Creation**: 
    - Always: Create build info in JFrog
    - Conditionally: Create application version in AppTrust (based on commit filter)
-4. **Auto-Promotion**: If application version created, automatically promote through stages:
-   - DEV → QA → STAGING → PROD (with configurable delays/approvals)
+4. **Release**: If application version created, release as **trusted version for internal use**
+
+#### Key Points:
+- **No Environment Promotion**: Services don't promote through DEV/QA/STAGING environments
+- **Internal Trusted Releases**: Each service creates trusted releases ready for platform aggregation
+- **Independent Deployment**: Services deploy independently without waiting for platform releases
 
 ### 3. Platform Aggregation & Release
 
 #### Bi-weekly Scheduled Aggregation:
 - **Schedule**: Every second Monday at 09:00 UTC
 - **Process**: 
-  1. Collect latest PROD versions of all services
-  2. Create platform manifest
-  3. Generate platform release
-  4. Trigger Helm deployment
+  1. Collect latest trusted releases of all internal services
+  2. Build and test the aggregated platform
+  3. Create platform manifest
+  4. Release for **public use**
+  5. Trigger webhook to initiate Kubernetes deployment
+
+#### Webhook-Driven Deployment:
+- **Trigger**: Platform release completion automatically sends webhook
+- **Target**: update-k8s workflow in GitHub Actions
+- **Process**: 
+  1. Webhook triggers update-k8s GitHub workflow
+  2. Workflow updates Helm charts with new platform versions
+  3. ArgoCD detects changes and updates Kubernetes cluster
+  4. Rolling deployment with zero downtime
 
 #### Hotfix Capability:
 - **Trigger**: Manual workflow dispatch or API call
@@ -182,29 +196,7 @@ Each service (web, inventory, recommendations, checkout) follows this enhanced p
   - Critical security patches
   - Production incidents requiring immediate deployment
   - Emergency rollbacks
-
-#### Configuration:
-```yaml
-# bookverse-platform/.github/workflows/aggregate.yml
-on:
-  schedule:
-    - cron: '0 9 */14 * 1'  # Every second Monday at 09:00 UTC
-  workflow_dispatch:
-    inputs:
-      hotfix:
-        description: 'Hotfix deployment (bypasses schedule)'
-        type: boolean
-        default: false
-```
-
-### 4. Helm Chart Updates & Deployment
-- **Automatic Trigger**: Platform release completion
-- **Process**: 
-  1. Fetch platform content from AppTrust
-  2. Pin image tags in `values.yaml`
-  3. Package Helm chart
-  4. Deploy to Kubernetes cluster
-  5. Verify deployment health
+- **Process**: Same as bi-weekly aggregation but triggered on-demand
 
 ## Deployment Process
 

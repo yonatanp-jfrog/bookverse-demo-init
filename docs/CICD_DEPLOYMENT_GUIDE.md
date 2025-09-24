@@ -363,9 +363,9 @@ kubectl exec deployment/platform-web -n bookverse-prod -- nginx -t
 
 ## Rollback Procedures
 
-The BookVerse platform includes an automated rollback workflow that handles deployment rollbacks safely and efficiently.
+The BookVerse platform includes a user-triggered rollback workflow that handles deployment rollbacks safely and efficiently.
 
-### Automated Rollback Workflow
+### User-Triggered Rollback Workflow
 
 **Trigger**: Use the dedicated rollback workflow when you need to revert to a previous version.
 
@@ -390,7 +390,7 @@ gh workflow run rollback.yml --repo your-org/bookverse-helm \
 4. **Verifies** the rollback was successful
 5. **Notifies** the team of rollback completion
 
-### Benefits of Automated Rollback
+### Benefits of Workflow-Based Rollback
 - **Safe**: Uses the same tested deployment pipeline
 - **Traceable**: Creates full audit trail of the rollback
 - **Verified**: Includes health checks and validation

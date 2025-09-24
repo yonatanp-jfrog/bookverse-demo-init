@@ -196,6 +196,31 @@ curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
 # Expected output: OK
 ```
 
+### 🎯 **Step 2.5: Kubernetes Setup (Optional but Recommended)**
+
+If you plan to deploy the demo to Kubernetes (recommended for full experience), set up your cluster now:
+
+#### **Option A: Rancher Desktop (Recommended)**
+```bash
+# 1. Start Rancher Desktop application
+# 2. Enable Kubernetes in settings
+# 3. Wait for cluster to be ready (green status)
+
+# 4. Verify Kubernetes cluster
+kubectl cluster-info
+kubectl get nodes
+
+# Expected output:
+# Kubernetes control plane is running at https://127.0.0.1:6443
+```
+
+#### **Option B: Other Kubernetes Options**
+See the [Alternative Kubernetes Options](#-alternative-kubernetes-options) section below for Docker Desktop, minikube, or cloud setups.
+
+> **Note**: If you set up Kubernetes now, make sure to set `Update K8s: true` in Step 3 to configure the registry for your cluster.
+
+---
+
 ### 🔄 **Step 3: Switch Platform (Configure Target JFrog Platform)**
 
 Run the Switch Platform workflow to configure your JFrog Platform instance:
@@ -210,13 +235,13 @@ Run the Switch Platform workflow to configure your JFrog Platform instance:
 #    - JFrog Platform Host: https://your-instance.jfrog.io
 #    - Admin Token: (leave empty - secret is already configured)
 #    - Confirmation: SWITCH
-#    - Update K8s: false (unless you need Kubernetes registry updates)
+#    - Update K8s: true (if you set up Kubernetes in Step 2.5) or false (if skipping Kubernetes)
 
 # OR run via GitHub CLI (admin token not needed since secret is configured):
 gh workflow run "🔄-switch-platform.yml" \
   --field jpd_host="https://your-instance.jfrog.io" \
   --field confirm_switch="SWITCH" \
-  --field update_k8s=false```
+  --field update_k8s=true```
 
 ### 🚀 **Step 4: Setup Platform (Provision Complete Environment)**
 
@@ -340,10 +365,10 @@ kubectl get nodes
 
 #### **BookVerse Demo Deployment**
 
-Once your Kubernetes cluster is ready:
+If you set up Kubernetes in Step 2.5, you can now deploy the demo:
 
 ```bash
-# 1. Navigate to demo-init repository
+# 1. Navigate to demo-init repository (if not already there)
 cd bookverse-demo-init
 
 # 2. Run the demo bootstrap script
@@ -361,8 +386,7 @@ kubectl get pods -n bookverse-prod
 kubectl get ingress -n bookverse-prod
 
 # 4. Wait for all pods to be ready (may take 5-10 minutes)
-kubectl wait --for=condition=Ready pods --all -n bookverse-prod --timeout=600s
-```
+kubectl wait --for=condition=Ready pods --all -n bookverse-prod --timeout=600s```
 
 ### 🌐 **Access Demo Application**
 
@@ -597,6 +621,11 @@ Use this checklist to ensure successful demo setup:
 - [ ] All service repositories cloned (inventory, recommendations, checkout, platform, web, helm, infra)
 - [ ] Demo orchestration repository cloned (bookverse-demo-init)
 - [ ] JFrog Platform connectivity verified
+
+### ☸️ **Kubernetes Setup (Optional)**
+- [ ] Kubernetes cluster running (Rancher Desktop or alternative)
+- [ ] kubectl access verified
+- [ ] Cluster ready for deployment
 
 ### 🔄 **Platform Configuration**
 - [ ] Switch Platform workflow executed successfully

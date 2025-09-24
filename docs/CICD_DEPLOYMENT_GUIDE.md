@@ -258,7 +258,7 @@ Each service (web, inventory, recommendations, checkout) follows this workflow:
 - **Visible Progress**: Watch GitHub Actions workflows in real-time
 - **Immediate Results**: Changes appear in your local cluster within minutes
 - **Error Recovery**: Demonstrate how the system handles failures gracefully
-- **Rollback Demo**: Show instant rollback capabilities
+- **Rollback Demo**: Show automated rollback workflow
 
 **⚡ Fast Iteration:**
 - **No Manual Steps**: Commit → Deploy automatically
@@ -288,11 +288,6 @@ Each service (web, inventory, recommendations, checkout) follows this workflow:
    # Show how the system recovers and maintains availability
    ```
 
-3. **Rollback Demonstration:**
-   ```bash
-   # If something goes wrong, instant rollback
-   kubectl rollout undo deployment/platform-web -n bookverse-prod
-   ```
 
 4. **Multi-Service Update:**
    ```bash
@@ -467,6 +462,17 @@ The BookVerse platform includes an automated rollback workflow that handles depl
 **Trigger**: Use the dedicated rollback workflow when you need to revert to a previous version.
 
 **How to Execute**:
+```bash
+# Trigger the rollback workflow
+gh workflow run rollback.yml --repo your-org/bookverse-helm \
+  --field service="platform" \
+  --field target_version="previous"
+
+# Or rollback to a specific version
+gh workflow run rollback.yml --repo your-org/bookverse-helm \
+  --field service="inventory" \
+  --field target_version="v1.2.3"
+```
 
 
 **What the Workflow Does**:
@@ -485,26 +491,7 @@ The BookVerse platform includes an automated rollback workflow that handles depl
 ### Emergency Rollback
 For critical situations, the rollback workflow can be triggered immediately and will bypass normal approval gates while maintaining full traceability.
 
-## Quick Rollback
-```bash
-# Rollback to previous deployment
-kubectl rollout undo deployment/platform-web -n bookverse-prod
 
-# Check rollback status
-kubectl rollout status deployment/platform-web -n bookverse-prod
-```
-
-### Helm Rollback
-```bash
-# List releases
-helm list -n bookverse-prod
-
-# Rollback to previous release
-helm rollback platform -n bookverse-prod
-
-# Verify rollback
-kubectl get pods -n bookverse-prod
-```
 
 ## Best Practices
 

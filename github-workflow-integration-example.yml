@@ -1,0 +1,318 @@
+# =============================================================================
+# BookVerse Platform - Enhanced CI/CD Workflow with Comprehensive Reporting
+# =============================================================================
+#
+# This workflow demonstrates how to integrate the enhanced summary and promotion
+# failure handling scripts to provide accurate, actionable CI/CD reporting.
+#
+# Key Features:
+# ✅ Accurate job status reporting (fixes false success indicators)
+# ✅ Stage lifecycle tracking (shows progression: Unassigned → DEV → QA → etc.)
+# ✅ Real artifact information (fixes N/A values)
+# ✅ Contextual infrastructure info (only when relevant)
+# ✅ Detailed promotion failure analysis (policy-specific guidance)
+#
+# Authors: BookVerse Platform Team
+# Version: 1.0.0
+# =============================================================================
+
+name: Enhanced CI/CD with Comprehensive Reporting
+
+on:
+  workflow_dispatch:
+    inputs:
+      force_app_version:
+        description: 'Force application version creation'
+        required: false
+        default: 'false'
+        type: boolean
+      target_stage:
+        description: 'Target stage for promotion'
+        required: false
+        default: 'bookverse-QA'
+        type: choice
+        options:
+          - 'bookverse-QA'
+          - 'bookverse-STAGING'
+          - 'PROD'
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # Job 1: Code Analysis (Demo-Optimized)
+  analyze-commit:
+    name: "Demo: Analyze Commit (Demo-Optimized)"
+    runs-on: ubuntu-latest
+    outputs:
+      should_create_version: ${{ steps.analyze.outputs.should_create_version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Analyze Commit for Version Creation
+        id: analyze
+        run: |
+          # Demo logic for version creation decision
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.force_app_version }}" == "true" ]]; then
+            echo "should_create_version=true" >> $GITHUB_OUTPUT
+            echo "✅ Version creation forced via workflow dispatch"
+          elif [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "should_create_version=true" >> $GITHUB_OUTPUT
+            echo "✅ Version creation enabled for main branch push"
+          else
+            echo "should_create_version=false" >> $GITHUB_OUTPUT
+            echo "ℹ️ Version creation skipped (build-info only)"
+          fi
+
+  # Job 2: Build, Test, and Publish (Always Runs)
+  build-test-publish:
+    name: "Build & Test (Always Runs)"
+    runs-on: ubuntu-latest
+    outputs:
+      app_version: ${{ steps.version.outputs.app_version }}
+      docker_tag: ${{ steps.version.outputs.docker_tag }}
+      coverage_percent: ${{ steps.test.outputs.coverage_percent }}
+      current_stage: ${{ steps.stage.outputs.current_stage }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Setup JFrog CLI
+        uses: jfrog/setup-jfrog-cli@v4
+        env:
+          JF_URL: ${{ vars.JFROG_URL }}
+        with:
+          oidc-provider-name: ${{ vars.OIDC_PROVIDER_NAME }}
+
+      - name: Generate Version Information
+        id: version
+        run: |
+          # Generate semantic version
+          APP_VERSION="2.7.$(( ${{ github.run_number }} + 24 ))"
+          DOCKER_TAG="1.5.$(( ${{ github.run_number }} + 25 ))"
+          
+          echo "app_version=$APP_VERSION" >> $GITHUB_OUTPUT
+          echo "docker_tag=$DOCKER_TAG" >> $GITHUB_OUTPUT
+          echo "APP_VERSION=$APP_VERSION" >> $GITHUB_ENV
+          echo "IMAGE_TAG=$DOCKER_TAG" >> $GITHUB_ENV
+          
+          echo "✅ Generated versions: App=$APP_VERSION, Docker=$DOCKER_TAG"
+
+      - name: Run Tests with Coverage
+        id: test
+        run: |
+          # Simulated test execution with coverage
+          echo "🧪 Running comprehensive test suite..."
+          
+          # Simulate test results
+          COVERAGE_PERCENT="85.0"
+          echo "coverage_percent=$COVERAGE_PERCENT" >> $GITHUB_OUTPUT
+          echo "COVERAGE_PERCENT=$COVERAGE_PERCENT" >> $GITHUB_ENV
+          
+          echo "📊 Test Coverage: $COVERAGE_PERCENT%"
+
+      - name: Determine Current Stage
+        id: stage
+        run: |
+          # Determine current application stage
+          CURRENT_STAGE="bookverse-DEV"
+          echo "current_stage=$CURRENT_STAGE" >> $GITHUB_OUTPUT
+          echo "CURRENT_STAGE=$CURRENT_STAGE" >> $GITHUB_ENV
+          
+          echo "📍 Current Stage: $CURRENT_STAGE"
+
+      - name: Build Docker Image
+        run: |
+          echo "🐳 Building Docker image: inventory:${{ env.IMAGE_TAG }}"
+          
+          # Docker build simulation
+          echo "✅ Docker image built successfully"
+
+      - name: Publish Build Info
+        run: |
+          echo "📋 Publishing build information to JFrog"
+          
+          # Build info publication
+          echo "BUILD_INFO_PUBLISH_STATUS=SUCCESS" >> $GITHUB_ENV
+          echo "✅ Build info published successfully"
+
+  # Job 3: Create Application Version & Promote (Conditional)
+  create-promote:
+    name: "Create Application Version & Promote (Conditional)"
+    runs-on: ubuntu-latest
+    needs: [analyze-commit, build-test-publish]
+    if: needs.analyze-commit.outputs.should_create_version == 'true'
+    outputs:
+      promotion_status: ${{ steps.promote.outputs.status }}
+      failure_json: ${{ steps.promote.outputs.failure_json }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Checkout Enhanced Scripts
+        uses: actions/checkout@v4
+        with:
+          repository: 'your-org/bookverse-demo-init'  # Replace with actual repo
+          path: 'enhanced-scripts'
+          
+      - name: Setup JFrog CLI
+        uses: jfrog/setup-jfrog-cli@v4
+        env:
+          JF_URL: ${{ vars.JFROG_URL }}
+        with:
+          oidc-provider-name: ${{ vars.OIDC_PROVIDER_NAME }}
+
+      - name: Create Application Version
+        run: |
+          echo "📦 Creating application version: ${{ needs.build-test-publish.outputs.app_version }}"
+          
+          # Application version creation logic
+          echo "✅ Application version created successfully"
+
+      - name: Promote to DEV Stage
+        run: |
+          echo "🚀 Promoting to DEV stage"
+          echo "✅ Successfully promoted to DEV"
+
+      - name: Promote to Target Stage
+        id: promote
+        run: |
+          TARGET_STAGE="${{ inputs.target_stage || 'bookverse-QA' }}"
+          echo "🚀 Attempting promotion to: $TARGET_STAGE"
+          
+          # Simulate promotion failure with policy violations
+          # This represents the actual AppTrust API call that failed
+          FAILURE_JSON='{
+            "application_key": "bookverse-inventory",
+            "version": "${{ needs.build-test-publish.outputs.app_version }}",
+            "source_stage": "${{ needs.build-test-publish.outputs.current_stage }}",
+            "target_stage": "'$TARGET_STAGE'",
+            "promotion_type": "move",
+            "status": "failed",
+            "message": "move promotion from '\''${{ needs.build-test-publish.outputs.current_stage }}'\'' to '\''$TARGET_STAGE'\'' failed due to policy violations.",
+            "evaluations": {
+              "exit_gate": {
+                "stage": "${{ needs.build-test-publish.outputs.current_stage }}",
+                "eval_id": "1970842971956858881",
+                "decision": "warn",
+                "explanation": "PR Merge policy {evaluation} failed due to violated policies: [BookVerse DEV Exit - Smoke Test Required]."
+              },
+              "entry_gate": {
+                "stage": "'$TARGET_STAGE'",
+                "eval_id": "1970842974630850561", 
+                "decision": "warn",
+                "explanation": "PR Merge policy {evaluation} failed due to violated policies: [BookVerse QA Entry Gate - Evidence Required], [BookVerse QA Entry Gate - SBOM Required], [BookVerse QA Entry - Custom Integration Tests]."
+              }
+            }
+          }'
+          
+          echo "failure_json=$FAILURE_JSON" >> $GITHUB_OUTPUT
+          echo "status=failed" >> $GITHUB_OUTPUT
+          
+          echo "❌ Promotion to $TARGET_STAGE failed due to policy violations"
+          echo "$FAILURE_JSON"
+          exit 1
+
+  # Enhanced Summary Generation (Always Runs)
+  generate-comprehensive-summary:
+    name: "📊 Generate Comprehensive Summary"
+    runs-on: ubuntu-latest
+    needs: [analyze-commit, build-test-publish, create-promote]
+    if: always()  # Always run, regardless of previous job outcomes
+    steps:
+      - name: Checkout Enhanced Scripts
+        uses: actions/checkout@v4
+        with:
+          repository: 'your-org/bookverse-demo-init'  # Replace with actual repo
+          path: 'scripts'
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Generate Enhanced CI/CD Summary
+        run: |
+          # Set up environment variables from job outputs
+          export SERVICE_NAME="inventory"
+          export APP_VERSION="${{ needs.build-test-publish.outputs.app_version || 'N/A' }}"
+          export BUILD_NAME="bookverse-inventory_CI"
+          export BUILD_NUMBER="${{ github.run_number }}"
+          export GITHUB_SHA="${{ github.sha }}"
+          export GITHUB_REF_NAME="${{ github.ref_name }}"
+          
+          # Map job conclusions to our status format
+          export JOB_1_STATUS="${{ needs.analyze-commit.result }}"
+          export JOB_2_STATUS="${{ needs.build-test-publish.result }}"
+          export JOB_3_STATUS="${{ needs.create-promote.result }}"
+          
+          # Stage and promotion information
+          export CURRENT_STAGE="${{ needs.build-test-publish.outputs.current_stage || 'bookverse-DEV' }}"
+          export TARGET_STAGE="${{ inputs.target_stage || 'bookverse-QA' }}"
+          
+          # Promotion failure detection
+          if [[ "${{ needs.create-promote.result }}" == "failure" ]]; then
+            export PROMOTION_FAILED="true"
+            export FAILURE_DATA='${{ needs.create-promote.outputs.failure_json }}'
+          else
+            export PROMOTION_FAILED="false"
+          fi
+          
+          # Artifact information
+          export IMAGE_TAG="${{ needs.build-test-publish.outputs.docker_tag }}"
+          export COVERAGE_PERCENT="${{ needs.build-test-publish.outputs.coverage_percent }}"
+          export BUILD_INFO_PUBLISH_STATUS="SUCCESS"
+          
+          # Generate comprehensive summary
+          chmod +x scripts/scripts/integrated_workflow_summary.sh
+          VERBOSE=1 scripts/scripts/integrated_workflow_summary.sh
+        env:
+          GITHUB_STEP_SUMMARY: ${{ github.step_summary }}
+
+      - name: Upload Summary Artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: workflow-summary
+          path: |
+            ${{ github.step_summary }}
+          retention-days: 30
+
+# =============================================================================
+# Usage Instructions:
+# =============================================================================
+#
+# 1. Replace 'your-org/bookverse-demo-init' with your actual repository
+# 2. Ensure the enhanced scripts are available in your repository
+# 3. Configure the following repository variables:
+#    - JFROG_URL: Your JFrog platform URL
+#    - OIDC_PROVIDER_NAME: Your OIDC provider name
+#
+# 4. The workflow will automatically:
+#    - Generate accurate job status reports
+#    - Show stage lifecycle progression
+#    - Display real artifact information
+#    - Provide detailed promotion failure analysis
+#    - Create actionable remediation guidance
+#
+# 5. When promotion fails, developers will see:
+#    - Specific policy violations
+#    - Required evidence types
+#    - Step-by-step remediation actions
+#    - Documentation links
+#    - Support contact information
+#
+# 6. The summary addresses all reported issues:
+#    ✅ Job 3 status shows FAILED instead of Completed when promotion fails
+#    ✅ Lifecycle path shows: Unassigned → DEV → 🚫 QA → STAGING → PROD
+#    ✅ Docker image shows: inventory:1.5.26 instead of N/A
+#    ✅ Infrastructure components explained contextually
+#    ✅ Promotion failure details with policy-specific guidance
+# =============================================================================

@@ -13,7 +13,7 @@ This demo uses Argo CD to deploy across all environments (DEV, QA, STAGING, PROD
 2. Apply `gitops/projects/bookverse-*.yaml` (creates ArgoCD projects for each environment).
 3. Apply `gitops/apps/*/platform.yaml` (creates applications for each environment).
 
-See `docs/K8S_ARGO_BOOTSTRAP.md` for one-command local bootstrap.
+See the **Quick Kubernetes Bootstrap** section in `docs/GETTING_STARTED.md` for one-command local bootstrap.
 
 ### Policies
 Policies are placeholders for demo purposes and are not enforced. See `gitops/policies/` for notes.

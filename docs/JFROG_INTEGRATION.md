@@ -1209,7 +1209,6 @@ generate_and_upload_sbom() {
 - **[OIDC Authentication Guide](OIDC_AUTHENTICATION.md)**: Detailed OIDC setup and troubleshooting
 - **[AppTrust Lifecycle Guide](APPTRUST_LIFECYCLE.md)**: Application lifecycle management and promotion workflows
 - **[Evidence Collection Guide](EVIDENCE_COLLECTION.md)**: Comprehensive evidence collection and compliance
-- **[Orchestration Overview](ORCHESTRATION_OVERVIEW.md)**: Platform orchestration and automation
 
 ---
 

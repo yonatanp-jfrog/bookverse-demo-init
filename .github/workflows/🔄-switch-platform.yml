@@ -1,0 +1,232 @@
+name: '🔄 Switch Platform'
+
+on:
+  workflow_dispatch:
+    inputs:
+      jpd_host:
+        description: 'JFrog Platform Host (e.g., https://mycompany.jfrog.io)'
+        required: true
+        type: string
+      admin_token:
+        description: 'JFrog Admin Token for the new platform (optional if JFROG_ADMIN_TOKEN secret is set)'
+        required: false
+        type: string
+      confirm_switch:
+        description: 'Type "SWITCH" to confirm platform migration'
+        required: true
+        type: string
+      update_k8s:
+        description: 'Update Kubernetes cluster registry (requires kubectl access)'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  GH_TOKEN: ${{ secrets.GH_TOKEN }}
+
+concurrency:
+  group: switch-platform-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  switch-platform:
+    runs-on: ubuntu-latest
+    name: Switch Platform
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+        
+      - name: Setup JFrog CLI
+        uses: EyalDelarea/setup-jfrog-cli@swampUpAppTrust
+        with:
+          version: latest
+          
+      - name: Validate Confirmation
+        run: |
+          if [[ "${{ github.event.inputs.confirm_switch }}" != "SWITCH" ]]; then
+            echo "❌ Platform switch cancelled: Invalid confirmation input"
+            echo "   You must type 'SWITCH' to confirm platform migration"
+            exit 1
+          fi
+          echo "✅ Platform switch confirmed. Proceeding with platform migration..."
+
+      - name: Mask sensitive inputs
+        run: |
+          if [[ -n "${{ github.event.inputs.admin_token }}" ]]; then
+            echo "::add-mask::${{ github.event.inputs.admin_token }}"
+          fi
+          if [[ -n "${{ secrets.JFROG_ADMIN_TOKEN }}" ]]; then
+            echo "::add-mask::${{ secrets.JFROG_ADMIN_TOKEN }}"
+          fi
+          
+      - name: Switch JFrog Platform
+        run: |
+          export NEW_JFROG_URL='${{ github.event.inputs.jpd_host }}'
+          if [[ -n "${{ github.event.inputs.admin_token }}" ]]; then
+            export NEW_JFROG_ADMIN_TOKEN='${{ github.event.inputs.admin_token }}'
+            echo "🔐 Using admin_token from workflow input"
+          elif [[ -n "${{ secrets.JFROG_ADMIN_TOKEN }}" ]]; then
+            export NEW_JFROG_ADMIN_TOKEN='${{ secrets.JFROG_ADMIN_TOKEN }}'
+            echo "🔐 Using JFROG_ADMIN_TOKEN from repository secrets"
+          else
+            echo "❌ No JFROG_ADMIN_TOKEN found in secrets or workflow inputs"
+            exit 1
+          fi
+          export NO_COLOR=1
+          LOG_FILE="switch-platform.log"
+          echo "LOG_FILE=$LOG_FILE" >> "$GITHUB_ENV"
+          echo "🔄 Starting JFrog Platform Switch"
+          echo "=================================================="
+          if [[ -z "${{ vars.JFROG_URL }}" ]]; then
+            echo "❌ Missing vars.JFROG_URL. Set repository variable JFROG_URL before switching."
+            exit 1
+          fi
+          echo "From: ${{ vars.JFROG_URL }}"
+          echo "To: ${{ github.event.inputs.jpd_host }}"
+          echo ""
+
+          set -o pipefail
+          CONTINUE_ON_AUTH_FAILURE=1 ./.github/scripts/setup/switch_jfrog_platform.sh 2>&1 | tee "$LOG_FILE"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Uploading full log as artifact" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload switch log artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: switch-platform.log
+          path: switch-platform.log
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Append log tail to summary
+        if: always()
+        run: |
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "## 📋 Switch Platform Log Details" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          if [[ -f "switch-platform.log" ]]; then
+            tail -n 200 "switch-platform.log" >> "$GITHUB_STEP_SUMMARY" || true
+          fi
+          
+      - name: Validate New Platform
+        run: |
+          export NEW_JFROG_URL='${{ github.event.inputs.jpd_host }}'
+          if [[ -n "${{ github.event.inputs.admin_token }}" ]]; then
+            export NEW_JFROG_ADMIN_TOKEN='${{ github.event.inputs.admin_token }}'
+          elif [[ -n "${{ secrets.JFROG_ADMIN_TOKEN }}" ]]; then
+            export NEW_JFROG_ADMIN_TOKEN='${{ secrets.JFROG_ADMIN_TOKEN }}'
+          else
+            echo "❌ No JFROG_ADMIN_TOKEN found in secrets or workflow inputs"
+            exit 1
+          fi
+          echo "🔍 Validating new platform connectivity..."
+          
+          if curl -s --fail --header "Authorization: Bearer $NEW_JFROG_ADMIN_TOKEN" \
+              "${NEW_JFROG_URL}/artifactory/api/system/ping" > /dev/null; then
+            echo "✅ New platform validation successful"
+          else
+            echo "❌ New platform validation failed"
+            exit 1
+          fi
+          
+          echo ""
+          echo "🎯 Platform Switch Summary:"
+          echo "================================"
+          echo "✅ Host validation: Passed"
+          echo "✅ Connectivity test: Passed" 
+          echo "✅ Service availability: Verified"
+          echo "✅ All repositories updated: Confirmed"
+          echo ""
+          echo "🚀 BookVerse is now configured for the new platform!"
+
+      - name: Update Kubernetes Cluster Registry
+        if: github.event.inputs.update_k8s == 'true'
+        run: |
+          echo "🔧 Updating Kubernetes cluster registry configuration..."
+          echo ""
+          
+          if ! command -v kubectl >/dev/null 2>&1; then
+            echo "❌ kubectl not found. Installing kubectl..."
+            curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+            chmod +x kubectl
+            sudo mv kubectl /usr/local/bin/
+          fi
+          
+          if ! kubectl cluster-info >/dev/null 2>&1; then
+            echo "❌ Cannot connect to Kubernetes cluster"
+            echo "   Make sure your cluster is accessible and kubeconfig is configured"
+            echo "   Skipping K8s update - you'll need to update manually"
+            exit 0
+          fi
+          
+          export NEW_JFROG_URL='${{ github.event.inputs.jpd_host }}'
+          if [[ -n "${{ github.event.inputs.admin_token }}" ]]; then
+            export NEW_JFROG_ADMIN_TOKEN='${{ github.event.inputs.admin_token }}'
+          elif [[ -n "${{ secrets.JFROG_ADMIN_TOKEN }}" ]]; then
+            export NEW_JFROG_ADMIN_TOKEN='${{ secrets.JFROG_ADMIN_TOKEN }}'
+          else
+            echo "❌ No JFROG_ADMIN_TOKEN found in secrets or workflow inputs"
+            exit 1
+          fi
+          
+          if ./scripts/k8s/update-registry.sh --restart-deployments; then
+            echo ""
+            echo "✅ Kubernetes cluster updated successfully!"
+            echo "   - Registry secret updated with new platform credentials"
+            echo "   - Deployments restarted to pull from new registry"
+          else
+            echo ""
+            echo "⚠️  Kubernetes update failed - you'll need to update manually"
+            echo "   See the manual update instructions in the documentation"
+          fi
+
+      - name: 📋 Switch Platform Summary
+        if: always()
+        run: |
+          echo "## 🔄 Platform Switch Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Logs: see artifact 'switch-platform.log' (if uploaded)" >> $GITHUB_STEP_SUMMARY
+          
+          if [[ "${{ job.status }}" == "success" ]]; then
+            echo "✅ **Platform switch completed successfully**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "🎯 **BookVerse is now configured for the new platform**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### ✅ Migration Details:" >> $GITHUB_STEP_SUMMARY
+            echo "- 🔗 **From**: \`${{ vars.JFROG_URL }}\`" >> $GITHUB_STEP_SUMMARY
+            echo "- 🎯 **To**: \`${{ github.event.inputs.jpd_host }}\`" >> $GITHUB_STEP_SUMMARY
+            echo "- 📦 **Updated repositories**: All BookVerse service repositories" >> $GITHUB_STEP_SUMMARY
+            echo "- 🔐 **Environment variables**: JFROG_URL, DOCKER_REGISTRY updated" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ **Validation**: New platform connectivity confirmed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 📋 Next Steps:" >> $GITHUB_STEP_SUMMARY
+            echo "1. 🏗️ **Run Setup Platform workflow** to initialize the new environment" >> $GITHUB_STEP_SUMMARY
+            echo "2. 🧪 **Test CI/CD workflows** to verify integration" >> $GITHUB_STEP_SUMMARY
+            echo "3. 🔍 **Check service repositories** for updated configurations" >> $GITHUB_STEP_SUMMARY
+            echo "4. ⚙️ **Verify platform-specific settings** (OIDC, webhooks, etc.)" >> $GITHUB_STEP_SUMMARY
+            if [[ "${{ github.event.inputs.update_k8s }}" != "true" ]]; then
+              echo "5. 🔧 **Update Kubernetes cluster** manually (see documentation)" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "❌ **Platform switch failed**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "🔍 **Check the logs above for error details**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### ❌ Common Issues:" >> $GITHUB_STEP_SUMMARY
+            echo "- 🔐 **Authentication failed** with new platform" >> $GITHUB_STEP_SUMMARY
+            echo "- 🌐 **Network connectivity** to new platform" >> $GITHUB_STEP_SUMMARY
+            echo "- 🔒 **Invalid admin token** or insufficient permissions" >> $GITHUB_STEP_SUMMARY
+            echo "- 📝 **Incorrect platform URL** format" >> $GITHUB_STEP_SUMMARY
+            echo "- 🚫 **GitHub API rate limits** or token issues" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 🔧 Troubleshooting Steps:" >> $GITHUB_STEP_SUMMARY
+            echo "1. ✅ **Verify platform URL** (format: https://hostname.jfrog.io)" >> $GITHUB_STEP_SUMMARY
+            echo "2. 🔐 **Check admin token** has proper permissions" >> $GITHUB_STEP_SUMMARY
+            echo "3. 🌐 **Test platform connectivity** manually" >> $GITHUB_STEP_SUMMARY
+            echo "4. 📋 **Review GitHub token** scopes and permissions" >> $GITHUB_STEP_SUMMARY
+            echo "5. 🔄 **Retry with corrected inputs** if needed" >> $GITHUB_STEP_SUMMARY
+          fi

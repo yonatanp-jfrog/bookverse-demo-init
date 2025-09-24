@@ -337,6 +337,107 @@ Until then, only ArgoCD will be accessible - the application pods remain undeplo
 ### 🔧 **Alternative Kubernetes Options**
 
 <details>
+<summary><strong>⚡ Quick Kubernetes Bootstrap (K8s-Only Path)</strong></summary>
+
+**For users who want to skip JFrog Platform setup and deploy directly to Kubernetes**
+
+This streamlined path uses the lightweight bootstrap script for immediate Kubernetes deployment without the full platform provisioning workflow. Perfect for evaluation, testing, or when you already have container images available.
+
+> **💡 Note**: This path skips JFrog Platform setup and CI/CD integration. For the complete experience with automated builds and promotions, follow the main Getting Started flow above.
+
+#### Prerequisites
+- kubectl and helm installed
+- A local cluster (Rancher Desktop recommended)  
+- Container registry credentials (hostname, username, password/token; email optional)
+
+#### Important Configuration Notes
+
+⚠️ **Web Application Backend URLs**: The BookVerse web application requires different backend URL configurations:
+
+- **Production/Kubernetes**: Uses internal service names (`http://inventory`, `http://recommendations`, `http://checkout`)
+- **Local Development**: Requires localhost URLs with port-forwarding (`http://localhost:8001`, `http://localhost:8003`, `http://localhost:8002`)
+
+For local testing with port-forwarding, you may need to update the web configuration manually. See the troubleshooting section in DEMO_RUNBOOK.md for details.
+
+#### Quick Setup Steps
+
+**1) Start from a clean slate (optional)**
+```bash
+cd bookverse-demo-init
+./scripts/k8s/cleanup.sh --all
+```
+
+**2) Bootstrap Argo CD and deploy BookVerse (PROD)**
+```bash
+cd bookverse-demo-init
+export REGISTRY_SERVER='your-instance.jfrog.io'       # JFrog hostname (without https://)
+export REGISTRY_USERNAME='<jfrog-username>'
+export REGISTRY_PASSWORD='<jfrog-password-or-token>'
+export REGISTRY_EMAIL='you@example.com'   # optional; your JFrog user email is fine
+./scripts/k8s/bootstrap.sh --port-forward
+
+# Or local JFrog (example)
+export REGISTRY_SERVER='localhost:8082'
+export REGISTRY_USERNAME='admin'
+export REGISTRY_PASSWORD='<admin-password-or-token>'
+# REGISTRY_EMAIL optional
+./scripts/k8s/bootstrap.sh --port-forward
+
+# Access URLs:
+# Argo CD UI: https://localhost:8081 (accept self-signed cert)
+# ArgoCD admin password: S7w7PDUML4HT6sEw
+# Web app: http://localhost:8080
+```
+
+**What the bootstrap script does:**
+- Installs Argo CD in `argocd` namespace
+- Creates `bookverse-prod` namespace
+- Adds `imagePullSecrets` if all REGISTRY_* vars are provided (no defaults assumed)
+- Applies `gitops/projects/bookverse-prod.yaml` and `gitops/apps/prod/platform.yaml`
+- Configures ArgoCD with production settings (TLS, security headers, proper ingress)
+- Waits for the Argo CD Application to be Synced and Healthy
+- Optionally starts port-forwards for Argo CD and the web app
+
+**3) Verify deployment**
+```bash
+kubectl -n argocd get applications.argoproj.io platform-prod
+kubectl -n bookverse-prod get deploy,svc,pod
+```
+
+#### ArgoCD Production Configuration
+
+The bootstrap includes bulletproof ArgoCD configuration that provides:
+- **Secure TLS**: Self-signed certificates with proper SANs for demo use
+- **Production Security**: Security headers, CSP, and HSTS via Traefik middleware  
+- **gRPC-Web Support**: Full UI functionality with secure transport
+- **Proper Ingress**: Correct routing to ArgoCD's internal HTTPS port (8080)
+- **Automatic Setup**: No manual configuration required
+
+#### Troubleshooting
+- **ImagePullBackOff**: ensure `REGISTRY_*` variables were set before running bootstrap; re-run `bootstrap.sh` or restart deployments:
+```bash
+kubectl -n bookverse-prod rollout restart deploy
+```
+- **Argo CD app OutOfSync/Missing tags**: confirm `bookverse-helm/charts/platform/values.yaml` on `main` contains non-empty tags for all services (the demo CI/CD sets these on release).
+- **ArgoCD connectivity issues**: The bootstrap now automatically applies production configuration. If issues persist, manually run:
+```bash
+./scripts/k8s/configure-argocd-production.sh --host argocd.demo
+```
+- **Access without port-forward**: enable Ingress in the Helm chart (`web.ingress.enabled=true`, set `web.ingress.host`) and expose via your local ingress controller (e.g., Traefik).
+
+#### Uninstall
+```bash
+cd bookverse-demo-init
+./scripts/k8s/cleanup.sh --all
+```
+
+**Notes:**
+- This demo intentionally deploys only to `bookverse-prod`. DEV/QA/STAGING are not connected or monitored by Argo CD.
+- Argo CD pulls manifests from the public `bookverse-helm` GitHub repo; images are pulled from JFrog registry using your provided credentials.
+
+</details>
+
+<details>
 <summary><strong>🌥️ Cloud Kubernetes (AWS EKS)</strong></summary>
 
 ```bash

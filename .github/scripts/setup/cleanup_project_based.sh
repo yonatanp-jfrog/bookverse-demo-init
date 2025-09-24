@@ -440,9 +440,15 @@ discover_project_applications() {
     local apps_file="$TEMP_DIR/project_applications.json"
     local filtered_apps="$TEMP_DIR/project_applications.txt"
     
-    # Try the API call and check for empty response  
+    # Debug the URL construction
+    echo "🔍 DEBUG: JFROG_URL='$JFROG_URL'" >&2
     local url_no_slash="${JFROG_URL%/}"
-    local code=$(jfrog_api_call "GET" "${url_no_slash}/apptrust/api/v1/applications?project_key=$PROJECT_KEY" "" "$apps_file")
+    echo "🔍 DEBUG: url_no_slash='$url_no_slash'" >&2
+    local full_url="${url_no_slash}/apptrust/api/v1/applications?project_key=$PROJECT_KEY"
+    echo "🔍 DEBUG: full_url='$full_url'" >&2
+    
+    # Try the API call and check for empty response  
+    local code=$(jfrog_api_call "GET" "$full_url" "" "$apps_file")
     
     # If empty response with 200, try without project_key filter (get all apps and filter locally)
     if [[ "$code" -eq 200 ]] && [[ ! -s "$apps_file" ]]; then

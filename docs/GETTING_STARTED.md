@@ -270,37 +270,12 @@ The Setup Platform workflow will automatically:
 - Set up users and role-based access control
 - Generate evidence keys for cryptographic signing
 - Configure all GitHub repository variables
-### ✅ **Step 5: Verify Platform Setup**
 
-```bash
-# 1. Run the validation script
-cd bookverse-demo-init
-./.github/scripts/setup/validate_setup.sh
-
-# Expected output:
-# ✅ JFrog Platform connectivity verified
-# ✅ Project 'bookverse' exists  
-# ✅ Found repositories across all package types
-# ✅ Found applications with lifecycle stages
-# ✅ Found OIDC integrations configured
-# ✅ GitHub repositories configured with correct variables
-
-# 2. Check repository variables for each service
-for repo in inventory recommendations checkout platform web; do
-  echo "Checking bookverse-${repo}..."
-  gh variable list -R your-org/bookverse-${repo}
-done
-
-# Expected variables in each repository:
-# PROJECT_KEY=bookverse
-# JFROG_URL=https://your-instance.jfrog.io  
-# DOCKER_REGISTRY=your-instance.jfrog.io
-```
+**The workflow includes comprehensive validation and will fail if any setup step encounters issues. No additional verification is needed.**
 
 ---
 
 ## 🎯 Repository Overview
-
 The BookVerse demo consists of these repositories:
 
 | Repository | Purpose | Technology Stack |
@@ -629,7 +604,7 @@ Use this checklist to ensure successful demo setup:
 ### 🔄 **Platform Configuration**
 - [ ] Switch Platform workflow executed successfully
 - [ ] Setup Platform workflow executed successfully
-- [ ] Platform validation script passed
+
 - [ ] Repository variables configured correctly
 
 ### ☸️ **Kubernetes Deployment**

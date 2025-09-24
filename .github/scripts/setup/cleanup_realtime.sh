@@ -101,19 +101,69 @@ case "$PHASE" in
                             "${JFROG_URL}/apptrust/api/v1/applications/${app_name}/versions")
                         
                         if [[ "$versions_code" -eq 200 ]]; then
-                            # Delete all versions
-                            deletion_code=$(curl -s \
-                                --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
-                                -X DELETE \
-                                -w "%{http_code}" \
-                                "${JFROG_URL}/apptrust/api/v1/applications/${app_name}/versions")
+                            # Parse versions and delete each one individually
+                            version_count=$(jq -r 'length' "$versions_response" 2>/dev/null || echo "0")
+                            echo "  📋 Found $version_count versions for application '$app_name'"
                             
-                            if [[ "$deletion_code" -ge 200 && "$deletion_code" -lt 300 ]]; then
-                                echo "  ✅ Application versions '$app_name' deleted successfully"
-                                successful_deletions=$((successful_deletions + 1))
+                            if [[ "$version_count" -gt 0 ]]; then
+                                local app_success=0
+                                local app_failed=0
+                                
+                                # Extract version names and delete each one
+                                jq -r '.[].name' "$versions_response" 2>/dev/null | while read -r version_name; do
+                                    if [[ -n "$version_name" ]]; then
+                                        echo "    🗑️  Deleting version: $version_name"
+                                        version_delete_code=$(curl -s \
+                                            --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+                                            -X DELETE \
+                                            -w "%{http_code}" \
+                                            "${JFROG_URL}/apptrust/api/v1/applications/${app_name}/versions/${version_name}")
+                                        
+                                        if [[ "$version_delete_code" -ge 200 && "$version_delete_code" -lt 300 ]]; then
+                                            echo "    ✅ Version '$version_name' deleted successfully"
+                                            ((app_success++))
+                                        elif [[ "$version_delete_code" -eq 404 ]]; then
+                                            echo "    ℹ️  Version '$version_name' not found (already deleted)"
+                                            ((app_success++))
+                                        else
+                                            echo "    ❌ Failed to delete version '$version_name' (HTTP $version_delete_code)"
+                                            ((app_failed++))
+                                        fi
+                                    fi
+                                done
+                                
+                                # Note: The while loop runs in a subshell, so we can't update outer counters directly
+                                # We'll do a final check by re-querying the versions
+                                final_check_code=$(curl -s \
+                                    --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+                                    -X GET \
+                                    -w "%{http_code}" -o /dev/null \
+                                    "${JFROG_URL}/apptrust/api/v1/applications/${app_name}/versions")
+                                
+                                if [[ "$final_check_code" -eq 404 ]] || [[ "$final_check_code" -eq 200 ]]; then
+                                    # Check if any versions remain
+                                    remaining_response=$(mktemp)
+                                    remaining_code=$(curl -s \
+                                        --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+                                        -X GET \
+                                        -w "%{http_code}" -o "$remaining_response" \
+                                        "${JFROG_URL}/apptrust/api/v1/applications/${app_name}/versions")
+                                    
+                                    if [[ "$remaining_code" -eq 404 ]] || [[ "$(jq -r 'length' "$remaining_response" 2>/dev/null || echo "0")" -eq 0 ]]; then
+                                        echo "  ✅ All versions for application '$app_name' deleted successfully"
+                                        successful_deletions=$((successful_deletions + 1))
+                                    else
+                                        echo "  ⚠️  Some versions for application '$app_name' may still exist"
+                                        failed_deletions=$((failed_deletions + 1))
+                                    fi
+                                    rm -f "$remaining_response"
+                                else
+                                    echo "  ❌ Failed to verify version deletion for application '$app_name'"
+                                    failed_deletions=$((failed_deletions + 1))
+                                fi
                             else
-                                echo "  ❌ Failed to delete application versions '$app_name' (HTTP $deletion_code)"
-                                failed_deletions=$((failed_deletions + 1))
+                                echo "  ℹ️  No versions found for application '$app_name'"
+                                successful_deletions=$((successful_deletions + 1))
                             fi
                         elif [[ "$versions_code" -eq 404 ]]; then
                             echo "  ℹ️  Application '$app_name' not found (already deleted or never existed)"

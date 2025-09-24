@@ -175,6 +175,21 @@ cd bookverse-demo-init
 export JFROG_URL="https://your-instance.jfrog.io"
 export JFROG_ADMIN_TOKEN="your-admin-token"
 
+# 3. Configure GitHub repository secret (recommended)
+gh secret set JFROG_ADMIN_TOKEN --body "$JFROG_ADMIN_TOKEN"
+echo "✅ JFROG_ADMIN_TOKEN secret configured for repository"
+
+# 4. Verify connectivity
+curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
+  "${JFROG_URL}/artifactory/api/system/ping"
+# Expected output: OK
+```# 1. Navigate to the orchestration repository
+cd bookverse-demo-init
+
+# 2. Set up your JFrog Platform connection
+export JFROG_URL="https://your-instance.jfrog.io"
+export JFROG_ADMIN_TOKEN="your-admin-token"
+
 # 3. Verify connectivity
 curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
   "${JFROG_URL}/artifactory/api/system/ping"
@@ -193,17 +208,15 @@ Run the Switch Platform workflow to configure your JFrog Platform instance:
 # 2. Click "Run workflow" 
 # 3. Enter the following inputs:
 #    - JFrog Platform Host: https://your-instance.jfrog.io
-#    - Admin Token: your-admin-token (optional if secret is set)
+#    - Admin Token: (leave empty - secret is already configured)
 #    - Confirmation: SWITCH
 #    - Update K8s: false (unless you need Kubernetes registry updates)
 
-# OR run via GitHub CLI:
+# OR run via GitHub CLI (admin token not needed since secret is configured):
 gh workflow run "🔄-switch-platform.yml" \
   --field jpd_host="https://your-instance.jfrog.io" \
-  --field admin_token="your-admin-token" \
   --field confirm_switch="SWITCH" \
-  --field update_k8s=false
-```
+  --field update_k8s=false```
 
 ### 🚀 **Step 4: Setup Platform (Provision Complete Environment)**
 

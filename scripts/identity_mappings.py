@@ -35,7 +35,7 @@ class HttpResponse:
 
 
 class AccessClient:
-    def __init__(self, base_url: str, token: str, timeout_seconds: int = 30) -> None:
+    def __init__(self, base_url: str, token: str, timeout_seconds: int = 300) -> None:
         self.base_url = base_url.rstrip("/")
         self.token = token
         self.timeout_seconds = timeout_seconds

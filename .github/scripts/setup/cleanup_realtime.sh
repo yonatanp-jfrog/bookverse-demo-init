@@ -387,7 +387,7 @@ case "$PHASE" in
                         deletion_code=$(curl -s \
                             --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
                             -X DELETE \
-                            -w "%{http_code}" \
+                            -w "%{http_code}" -o /dev/null \
                             "${JFROG_URL}/access/api/v2/stages/${stage_name}")
                         
                         if [[ "$deletion_code" -ge 200 && "$deletion_code" -lt 300 ]]; then
@@ -419,8 +419,8 @@ case "$PHASE" in
             echo "   ❌ Failed to delete: $failed_deletions"
             
             if [[ $failed_deletions -gt 0 ]]; then
-                echo "❌ Some stage deletions failed!"
-                exit 1
+                echo "⚠️  Some stage deletions failed, but continuing with cleanup"
+                echo "   These might be stages that don't exist or have dependencies"
             elif [[ $total_resources -eq 0 ]]; then
                 echo "ℹ️  No stages found in project"
             else

@@ -282,19 +282,15 @@ graph TB
 
 ### 🔧 **Platform Aggregation**
 
-> **Note**: The Platform Aggregation Layer is an aggregation layer that coordinates deployment and configuration across services. It does not represent a standalone deployable service, but rather serves as an orchestration point for managing the other core services.
+> **Note**: The Platform Aggregation Layer is an aggregation layer that coordinates version management and service aggregation. It does not represent a standalone deployable service, but rather serves as an orchestration point for managing the other core services.
 
 ```mermaid
 graph TB
     subgraph "Platform Aggregation Layer"
         AGG[Service Aggregator]
         VER[Version Manager]
-        HEALTH[Health Monitor]
-        CONF[Configuration]
         
         AGG --> VER
-        AGG --> HEALTH
-        VER --> CONF
     end
     
     subgraph "Managed Services"
@@ -313,13 +309,12 @@ graph TB
 **Key Components:**
 - **Service Coordination**: Coordinated deployment and management
 - **Version Management**: Cross-service version compatibility
-- **Health Monitoring**: Centralized service health checking
-- **Configuration Management**: Environment-specific configuration
+- ****Service Aggregation**: Collecting and coordinating microservice versions
 
 **Responsibilities:**
 - Cross-service coordination and communication
-- Platform-wide configuration management
-- Service discovery and health monitoring
+- Version resolution and platform release orchestration
+- Service aggregation and version management
 - Release orchestration and rollback capabilities
 
 ---

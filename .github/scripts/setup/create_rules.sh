@@ -155,7 +155,7 @@ create_rule \
 create_rule \
     "BookVerse Smoke Test Evidence - DEV Exit" \
     "Requires smoke test evidence for DEV stage exit" \
-    "https://bookverse.com/evidence/smoke-tests/v1"
+    "https://testing.io/evidence/smoke-tests/v1"
 
 # QA Stage Rules
 log_section "QA Stage Rules"

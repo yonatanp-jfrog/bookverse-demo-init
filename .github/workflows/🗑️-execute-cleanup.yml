@@ -397,6 +397,33 @@ jobs:
           fi
           if [[ -n "$repos" ]]; then echo "$repos" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
 
+          # Unified Policies and Rules
+          if [[ "$MODE" == "preview" ]]; then
+            # Extract rules that would be deleted from the detailed listing
+            rules=$(grep -A 50 "🔍 Rules to be deleted:" "$exec_log" | grep -E "^  - .*\(ID: [0-9]+\)" | sed -E "s/^  - (.*)\(ID: [0-9]+\)/- \1/" | sort -u) || true
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Unified Policy Rules That Would Be Deleted:**" >> $GITHUB_STEP_SUMMARY
+            if [[ -n "$rules" ]]; then echo "$rules" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
+            
+            # Extract policies that would be deleted from the detailed listing
+            policies=$(grep -A 50 "🔍 Policies to be deleted:" "$exec_log" | grep -E "^  - .*\(ID: [0-9]+\)" | sed -E "s/^  - (.*)\(ID: [0-9]+\)/- \1/" | sort -u) || true
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Unified Policies That Would Be Deleted:**" >> $GITHUB_STEP_SUMMARY
+            if [[ -n "$policies" ]]; then echo "$policies" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
+          else
+            # Extract rules that were actually deleted
+            rules=$(grep -E "✅ Deleted rule:" "$exec_log" | sed -E "s/.*Deleted rule: (.+)/- \1/" | sort -u) || true
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Unified Policy Rules Deleted:**" >> $GITHUB_STEP_SUMMARY
+            if [[ -n "$rules" ]]; then echo "$rules" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
+            
+            # Extract policies that were actually deleted
+            policies=$(grep -E "✅ Deleted policy:" "$exec_log" | sed -E "s/.*Deleted policy: (.+)/- \1/" | sort -u) || true
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Unified Policies Deleted:**" >> $GITHUB_STEP_SUMMARY
+            if [[ -n "$policies" ]]; then echo "$policies" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
+          fi
+
             if [[ "$MODE" == "preview" ]]; then
               users=$(grep -E "🔍 \[DRY RUN\] Would delete user:|🔍 \[DRY RUN\] Would remove user:" "$exec_log" | sed -E "s/.*Would (delete|remove) user: (.+)/- \2/") || true
               echo "" >> $GITHUB_STEP_SUMMARY

@@ -134,7 +134,7 @@ jobs:
                   ts=$(jq -r '.metadata.timestamp // "unknown"' .github/cleanup-report.json)
                   pretty_ts=$(date -u -d "$ts" +"%a, %b %d %Y %H:%M:%S %Z" 2>/dev/null || echo "$ts")
                   echo "Report is not usable - missing, invalid, or expired." >> $GITHUB_STEP_SUMMARY
-                  echo "- Last report timestamp: $pretty_ts" >> $GITHUB_STEP_SUMMARY
+                  echo "- Report timestamp: $pretty_ts" >> $GITHUB_STEP_SUMMARY
                 else
                   echo "No cleanup report found. Run this workflow in 'preview' mode first to generate a fresh report." >> $GITHUB_STEP_SUMMARY
                 fi
@@ -364,15 +364,13 @@ jobs:
             fi
           fi
           if [[ -n "$project_key" ]]; then echo "- **Project**: $project_key" >> $GITHUB_STEP_SUMMARY; fi
-          if [[ -n "$ts_pretty" ]]; then echo "- **Last report timestamp**: $ts_pretty UTC" >> $GITHUB_STEP_SUMMARY; fi
-          if [[ -n "$report_status" ]]; then echo "- **Report status**: $report_status" >> $GITHUB_STEP_SUMMARY; fi
-          if [[ -n "$total_items" ]]; then echo "- **Items in report**: $total_items" >> $GITHUB_STEP_SUMMARY; fi
+          if [[ -n "$total_items" ]]; then echo "- **Items processed**: $total_items" >> $GITHUB_STEP_SUMMARY; fi
           if [[ "$project_deleted" == "yes" ]]; then echo "- **Project deletion**: ✅ deleted" >> $GITHUB_STEP_SUMMARY; fi
           if [[ "$project_deleted" == "no" ]]; then echo "- **Project deletion**: ❌ failed" >> $GITHUB_STEP_SUMMARY; fi
 
           if [[ "$overall" != "SUCCESS" ]]; then
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "> The workflow run can be green even if cleanup failed. This section reflects the cleanup outcome from logs and the report." >> $GITHUB_STEP_SUMMARY
+            echo "> 📝 **Note**: Review the detailed results below for specific failed operations." >> $GITHUB_STEP_SUMMARY
           fi
 
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -543,34 +541,5 @@ jobs:
             echo "Preview mode completed successfully"
           fi
 
-      - name: 🔒 Commit report changes (preview or post-execution)
-        if: ${{ always() && steps.validate.outputs.report_valid == 'true' }}
-        run: |
-          set -euo pipefail
-          report_file=".github/cleanup-report.json"
-          if [[ -f "$report_file" ]]; then
-            if [[ "${{ inputs.mode }}" == "preview" ]]; then
-              echo "Committing fresh discovery report from preview mode..."
-              commit_msg="chore: Update cleanup discovery report (preview mode)"
-            else
-              echo "Committing cleanup report changes after execution..."
-              commit_msg="chore: Update cleanup report after execution"
-            fi
-            
-            git config --global user.name "BookVerse Cleanup Bot"
-            git config --global user.email "cleanup@bookverse.demo"
-            git add "$report_file"
-            if git diff --cached --quiet; then
-              echo "📋 No changes to commit for cleanup report"
-            else
-              echo "📋 Pulling latest changes before commit..."
-              git pull --rebase origin ${{ github.ref_name }} || {
-                echo "⚠️ Pull failed, but continuing with commit..."
-              }
-              git commit -m "$commit_msg"
-              git push origin ${{ github.ref_name }}
-              echo "📋 Cleanup report changes pushed"
-            fi
-          else
-            echo "No cleanup report found to invalidate"
-          fi
+      # NOTE: Automatic report committing has been removed as it's no longer needed
+      # Reports are now generated and used within the same workflow run

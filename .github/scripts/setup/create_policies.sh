@@ -37,6 +37,10 @@ log_info "🔐 Creating BookVerse Unified Policies..."
 # Check required environment variables
 check_env_vars JFROG_URL JFROG_ADMIN_TOKEN PROJECT_KEY
 
+# First, ensure all rules are created/updated with correct predicate types
+log_info "🔧 Creating/updating unified policy rules first..."
+"$(dirname "$0")/create_rules.sh"
+
 API_BASE="$JFROG_URL/unifiedpolicy/api/v1"
 AUTH_HEADER="Authorization: Bearer $JFROG_ADMIN_TOKEN"
 
@@ -223,7 +227,7 @@ if ! policy_exists "BookVerse STAGING Exit - ServiceNow Change Required"; then
         "Requires ServiceNow change approval evidence for STAGING stage exit" \
         "$PROJECT_KEY-STAGING" \
         "exit" \
-        "BookVerse ServiceNow Change Evidence - STAGING"
+        "BookVerse ServiceNow Change Evidence - STAGING Exit"
 fi
 
 if ! policy_exists "BookVerse STAGING Exit - Snyk IaC Required"; then
@@ -242,7 +246,7 @@ if ! policy_exists "BookVerse PROD Release - DEV Completion Required"; then
     create_policy \
         "BookVerse PROD Release - DEV Completion Required" \
         "Requires DEV stage completion before PROD release" \
-        "$PROJECT_KEY-PROD" \
+        "PROD" \
         "release" \
         "BookVerse DEV Stage Completion for PROD"
 fi
@@ -251,7 +255,7 @@ if ! policy_exists "BookVerse PROD Release - QA Completion Required"; then
     create_policy \
         "BookVerse PROD Release - QA Completion Required" \
         "Requires QA stage completion before PROD release" \
-        "$PROJECT_KEY-PROD" \
+        "PROD" \
         "release" \
         "BookVerse QA Stage Completion for PROD"
 fi
@@ -260,7 +264,7 @@ if ! policy_exists "BookVerse PROD Release - STAGING Completion Required"; then
     create_policy \
         "BookVerse PROD Release - STAGING Completion Required" \
         "Requires STAGING stage completion before PROD release" \
-        "$PROJECT_KEY-PROD" \
+        "PROD" \
         "release" \
         "BookVerse STAGING Stage Completion for PROD"
 fi

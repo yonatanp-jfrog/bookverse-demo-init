@@ -400,13 +400,13 @@ jobs:
           # Unified Policies and Rules
           if [[ "$MODE" == "preview" ]]; then
             # Extract rules that would be deleted from the detailed listing
-            rules=$(sed 's/\x1b[[0-9;]*m//g' "$exec_log" | grep -A 50 "🔍 Rules to be deleted:" | grep -E "^  - .*\(ID: [0-9]+\)" | sed -E "s/^  - (.*)\(ID: [0-9]+\)/- \1/" | sort -u) || true
+            rules=$(sed 's/\x1b[[0-9;]*m//g' "$exec_log" | grep -A 50 "🔍 Rules to be deleted:" | grep -E "^\[DRY RUN\]   - .*\(ID: [0-9]+\)" | sed -E "s/^\[DRY RUN\]   - (.*)\(ID: [0-9]+\)/- \1/" | sort -u) || true
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "**Unified Policy Rules That Would Be Deleted:**" >> $GITHUB_STEP_SUMMARY
             if [[ -n "$rules" ]]; then echo "$rules" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
             
             # Extract policies that would be deleted from the detailed listing
-            policies=$(sed 's/\x1b[[0-9;]*m//g' "$exec_log" | grep -A 50 "🔍 Policies to be deleted:" | grep -E "^  - .*\(ID: [0-9]+\)" | sed -E "s/^  - (.*)\(ID: [0-9]+\)/- \1/" | sort -u) || true
+            policies=$(sed 's/\x1b[[0-9;]*m//g' "$exec_log" | grep -A 50 "🔍 Policies to be deleted:" | grep -E "^\[DRY RUN\]   - .*\(ID: [0-9]+\)" | sed -E "s/^\[DRY RUN\]   - (.*)\(ID: [0-9]+\)/- \1/" | sort -u) || true
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "**Unified Policies That Would Be Deleted:**" >> $GITHUB_STEP_SUMMARY
             if [[ -n "$policies" ]]; then echo "$policies" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi

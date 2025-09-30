@@ -291,6 +291,18 @@ jobs:
             dep_list=$(echo "$repo_keys" | grep -E "^${project_key}-(pypi|npm|dockerhub)-(remote|cache-local|virtual)$" || true)
             if [[ -n "$dep_list" ]]; then echo "$dep_list" | sed 's/^/- `&`/' >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
             echo "" >> $GITHUB_STEP_SUMMARY
+            # Get unified policy rules and policies created
+            echo "**Unified Policy Rules Created:**" >> $GITHUB_STEP_SUMMARY
+            rules_response=$(curl -s -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" "${JFROG_URL}/unifiedpolicy/api/v1/rules" 2>/dev/null || echo '{"items":[]}')
+            created_rules=$(echo "$rules_response" | jq -r '.items[]? | select(.is_custom == true and (.name | type == "string") and (.name | startswith("BookVerse"))) | .name' 2>/dev/null | sort || true)
+            if [[ -n "$created_rules" ]]; then echo "$created_rules" | sed 's/^/- `&`/' >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
+            echo "" >> $GITHUB_STEP_SUMMARY
+
+            echo "**Unified Policies Created:**" >> $GITHUB_STEP_SUMMARY
+            policies_response=$(curl -s -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" "${JFROG_URL}/unifiedpolicy/api/v1/policies?projectKey=${project_key}" 2>/dev/null || echo '{"items":[]}')
+            created_policies=$(echo "$policies_response" | jq -r '.items[]? | select((.name | type == "string") and (.name | startswith("BookVerse"))) | .name' 2>/dev/null | sort || true)
+            if [[ -n "$created_policies" ]]; then echo "$created_policies" | sed 's/^/- `&`/' >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
+            echo "" >> $GITHUB_STEP_SUMMARY
 
             
             echo "**Management Users:**" >> $GITHUB_STEP_SUMMARY

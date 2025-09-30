@@ -192,9 +192,9 @@ jobs:
           DRY_RUN=${{ inputs.mode == 'preview' && 'true' || 'false' }}
           if [[ "$DRY_RUN" == "true" ]]; then
             echo "🔍 [DRY RUN] Would delete unified policies"
-            ./.github/scripts/setup/cleanup_policies.sh | sed 's/^/[DRY RUN] /' 2>&1 | tee -a /tmp/cleanup_execution.log || true
+            ./.github/scripts/setup/cleanup_policies.sh true | sed 's/^/[DRY RUN] /' 2>&1 | tee -a /tmp/cleanup_execution.log || true
           else
-            ./.github/scripts/setup/cleanup_policies.sh 2>&1 | tee -a /tmp/cleanup_execution.log || {
+            ./.github/scripts/setup/cleanup_policies.sh false 2>&1 | tee -a /tmp/cleanup_execution.log || {
               echo "❌ Policies cleanup failed with exit code $?"
               echo "Check the logs above for specific errors"
               exit 1
@@ -400,25 +400,25 @@ jobs:
           # Unified Policies and Rules
           if [[ "$MODE" == "preview" ]]; then
             # Extract rules that would be deleted from the detailed listing
-            rules=$(grep -A 50 "🔍 Rules to be deleted:" "$exec_log" | grep -E "^  - .*\(ID: [0-9]+\)" | sed -E "s/^  - (.*)\(ID: [0-9]+\)/- \1/" | sort -u) || true
+            rules=$(sed 's/\x1b[[0-9;]*m//g' "$exec_log" | grep -A 50 "🔍 Rules to be deleted:" | grep -E "^  - .*\(ID: [0-9]+\)" | sed -E "s/^  - (.*)\(ID: [0-9]+\)/- \1/" | sort -u) || true
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "**Unified Policy Rules That Would Be Deleted:**" >> $GITHUB_STEP_SUMMARY
             if [[ -n "$rules" ]]; then echo "$rules" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
             
             # Extract policies that would be deleted from the detailed listing
-            policies=$(grep -A 50 "🔍 Policies to be deleted:" "$exec_log" | grep -E "^  - .*\(ID: [0-9]+\)" | sed -E "s/^  - (.*)\(ID: [0-9]+\)/- \1/" | sort -u) || true
+            policies=$(sed 's/\x1b[[0-9;]*m//g' "$exec_log" | grep -A 50 "🔍 Policies to be deleted:" | grep -E "^  - .*\(ID: [0-9]+\)" | sed -E "s/^  - (.*)\(ID: [0-9]+\)/- \1/" | sort -u) || true
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "**Unified Policies That Would Be Deleted:**" >> $GITHUB_STEP_SUMMARY
             if [[ -n "$policies" ]]; then echo "$policies" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
           else
             # Extract rules that were actually deleted
-            rules=$(grep -E "✅ Deleted rule:" "$exec_log" | sed -E "s/.*Deleted rule: (.+)/- \1/" | sort -u) || true
+            rules=$(sed 's/\x1b[[0-9;]*m//g' "$exec_log" | grep -E "✅ Deleted rule:" | sed -E "s/.*Deleted rule: (.+)/- \1/" | sort -u) || true
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "**Unified Policy Rules Deleted:**" >> $GITHUB_STEP_SUMMARY
             if [[ -n "$rules" ]]; then echo "$rules" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
             
             # Extract policies that were actually deleted
-            policies=$(grep -E "✅ Deleted policy:" "$exec_log" | sed -E "s/.*Deleted policy: (.+)/- \1/" | sort -u) || true
+            policies=$(sed 's/\x1b[[0-9;]*m//g' "$exec_log" | grep -E "✅ Deleted policy:" | sed -E "s/.*Deleted policy: (.+)/- \1/" | sort -u) || true
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "**Unified Policies Deleted:**" >> $GITHUB_STEP_SUMMARY
             if [[ -n "$policies" ]]; then echo "$policies" >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi

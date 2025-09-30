@@ -26,7 +26,14 @@ set -euo pipefail
 source "$(dirname "$0")/common.sh"
 source "$(dirname "$0")/config.sh"
 
-log_info "🗑️ Cleaning up BookVerse Unified Policies and Rules..."
+# Support dry-run mode
+DRY_RUN="${1:-false}"
+
+if [[ "$DRY_RUN" == "true" ]]; then
+    log_info "🔍 [DRY RUN] Preview BookVerse Unified Policies and Rules cleanup..."
+else
+    log_info "🗑️ Cleaning up BookVerse Unified Policies and Rules..."
+fi
 
 # Check required environment variables
 if [[ -z "$JFROG_URL" || -z "$JFROG_ADMIN_TOKEN" || -z "$PROJECT_KEY" ]]; then
@@ -41,6 +48,11 @@ AUTH_HEADER="Authorization: Bearer $JFROG_ADMIN_TOKEN"
 delete_policy() {
     local policy_id="$1"
     local policy_name="$2"
+    
+    if [[ "$DRY_RUN" == "true" ]]; then
+        log_info "🔍 [DRY RUN] Would delete policy: $policy_name (ID: $policy_id)"
+        return 0
+    fi
     
     log_info "Deleting policy: $policy_name (ID: $policy_id)"
     
@@ -66,6 +78,11 @@ delete_policy() {
 delete_rule() {
     local rule_id="$1"
     local rule_name="$2"
+    
+    if [[ "$DRY_RUN" == "true" ]]; then
+        log_info "🔍 [DRY RUN] Would delete rule: $rule_name (ID: $rule_id)"
+        return 0
+    fi
     
     log_info "Deleting rule: $rule_name (ID: $rule_id)"
     

@@ -180,9 +180,12 @@ cd bookverse-demo-init
 export JFROG_URL="https://your-instance.jfrog.io"
 export JFROG_ADMIN_TOKEN="your-admin-token"
 
-# 3. Configure GitHub repository secret (recommended)
+# 3. Configure GitHub repository secrets (recommended)
 gh secret set JFROG_ADMIN_TOKEN --body "$JFROG_ADMIN_TOKEN"
 echo "✅ JFROG_ADMIN_TOKEN secret configured for repository"
+
+gh secret set JFROG_URL --body "$JFROG_URL"
+echo "✅ JFROG_URL secret configured for repository"
 
 # 4. Verify connectivity
 curl -s --header "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \

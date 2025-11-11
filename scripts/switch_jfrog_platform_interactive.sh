@@ -44,8 +44,8 @@ prompt_for_project_prefix() {
 prompt_for_jpd_host() {
     echo ""
     log_prompt "Enter the new JFrog Platform host URL:"
-    log_info "Format: https://yourcompany.jfrog.io"
-    log_info "Example: https://acme.jfrog.io"
+    log_info "Format: https://swampupsec.jfrog.io"
+    log_info "Example: https://swampupsec.jfrog.io"
     echo ""
     read -p "JFrog Platform Host URL: " jpd_host
     
@@ -135,7 +135,7 @@ validate_host_format() {
     
     if [[ ! "$host" =~ ^https://[a-zA-Z0-9.-]+\.jfrog\.io$ ]]; then
         log_error "Invalid host format"
-        log_error "Expected: https://host.jfrog.io"
+        log_error "Expected: https://swampupsec.jfrog.io"
         log_error "Received: $host"
         exit 1
     fi

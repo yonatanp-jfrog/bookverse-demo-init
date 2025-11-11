@@ -108,27 +108,30 @@ delete_rule() {
 # STEP 1: CLEANUP UNIFIED POLICY RULES
 # =============================================================================
 
-log_info "🔍 Finding BookVerse rules to delete..."
+log_info "🔍 Finding rules for project '$PROJECT_KEY' to delete..."
 
 # Get all rules and filter for BookVerse rules
 all_rules_response=$(curl -s -H "$AUTH_HEADER" "$API_BASE/rules" || echo '{"items":[]}')
 
-# Filter for rules that belong to BookVerse (custom rules with "BookVerse" in name)
-rules_response=$(echo "$all_rules_response" | jq '
+# Filter for rules that belong to the current project instance (custom rules with project key in name)
+rules_response=$(echo "$all_rules_response" | jq --arg project_key "$PROJECT_KEY" '
 {
   items: [.items[]? | select(
     .is_custom == true and 
     (.name | type == "string") and
-    (.name | startswith("BookVerse"))
+    (
+      (.name | startswith($project_key + " ")) or
+      (.name | contains($project_key))
+    )
   )]
 }')
 
 rule_count=$(echo "$rules_response" | jq '.items | length')
 
 if [[ "$rule_count" -eq 0 ]]; then
-    log_info "✅ No BookVerse rules found to delete"
+    log_info "✅ No rules found for project '$PROJECT_KEY'"
 else
-    log_info "📊 Found $rule_count BookVerse rules to delete"
+    log_info "📊 Found $rule_count rules for project '$PROJECT_KEY' to delete"
     
     # SAFETY CHECK: If we find more than 20 rules, something is likely wrong with filtering
     if [[ "$rule_count" -gt 20 ]]; then
@@ -176,24 +179,28 @@ log_info "🔍 Finding BookVerse policies to delete..."
 # and filter client-side to ensure we only delete policies that actually belong to this project
 all_policies_response=$(curl -s -H "$AUTH_HEADER" "$API_BASE/policies" || echo '{"items":[]}')
 
-# Filter for policies that actually belong to the BookVerse project
-# Use name-based filtering which is more reliable than scope filtering
-policies_response=$(echo "$all_policies_response" | jq '
+# Filter for policies that actually belong to the current project instance
+# Use project-key-based filtering for proper multi-instance support
+policies_response=$(echo "$all_policies_response" | jq --arg project_key "$PROJECT_KEY" '
 {
   items: [.items[]? | select(
     (.name | type == "string") and
-    (.name | startswith("BookVerse"))
+    (
+      (.scope.project_keys[]? == $project_key) or
+      (.name | startswith($project_key + " ")) or
+      (.name | contains($project_key))
+    )
   )]
 }')
 
 policy_count=$(echo "$policies_response" | jq '.items | length')
 
 if [[ "$policy_count" -eq 0 ]]; then
-    log_info "✅ No BookVerse policies found to delete"
+    log_info "✅ No policies found for project '$PROJECT_KEY'"
     exit 0
 fi
 
-log_info "📊 Found $policy_count BookVerse policies to delete"
+log_info "📊 Found $policy_count policies for project '$PROJECT_KEY' to delete"
 
 # SAFETY CHECK: If we find more than 20 policies, something is likely wrong with filtering
 if [[ "$policy_count" -gt 20 ]]; then
@@ -237,7 +244,7 @@ remaining_policies=$(curl -s -H "$AUTH_HEADER" "$API_BASE/policies?projectKey=$P
 
 # Verify remaining rules
 remaining_rules_response=$(curl -s -H "$AUTH_HEADER" "$API_BASE/rules" || echo '{"items":[]}')
-remaining_rules=$(echo "$remaining_rules_response" | jq '[.items[]? | select(.is_custom == true and (.name | type == "string") and (.name | startswith("BookVerse")))] | length')
+remaining_rules=$(echo "$remaining_rules_response" | jq --arg project_key "$PROJECT_KEY" '[.items[]? | select(.is_custom == true and (.name | type == "string") and ((.name | startswith($project_key + " ")) or (.name | contains($project_key))))] | length')
 
 # Calculate totals
 total_deleted=$((${deleted_rules:-0} + ${deleted_count:-0}))

@@ -200,7 +200,7 @@ extract_env_vars() {
     esac
     
     # Stage information
-    CURRENT_STAGE="${CURRENT_STAGE:-bookverse-DEV}"
+    CURRENT_STAGE="${CURRENT_STAGE:-${PROJECT_KEY:-bookverse}-DEV}"
     TARGET_STAGE="${TARGET_STAGE:-}"
     PROMOTION_FAILED="${PROMOTION_FAILED:-false}"
     

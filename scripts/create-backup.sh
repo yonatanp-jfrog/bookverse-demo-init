@@ -63,9 +63,10 @@ if command -v gh >/dev/null 2>&1; then
         gh repo list yonatanp-jfrog --limit 100
         echo ""
         echo "=== Repository Details ==="
-        for repo in bookverse-inventory bookverse-recommendations bookverse-checkout bookverse-platform bookverse-web bookverse-helm; do
-            echo "--- $repo ---"
-            gh repo view "yonatanp-jfrog/$repo" 2>/dev/null || echo "Repository does not exist"
+        for repo in inventory recommendations checkout platform web helm; do
+            repo_name="bookverse-${repo}"
+            echo "--- $repo_name ---"
+            gh repo view "yonatanp-jfrog/$repo_name" 2>/dev/null || echo "Repository does not exist"
             echo ""
         done
     } > "$BACKUP_DIR/github-repos-$TIMESTAMP.txt"

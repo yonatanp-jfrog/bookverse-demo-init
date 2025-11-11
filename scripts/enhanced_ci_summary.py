@@ -42,11 +42,14 @@ class EnhancedCISummary:
     """Enhanced CI/CD Summary generator with accurate reporting."""
     
     def __init__(self):
+        # Get PROJECT_KEY from environment, default to "bookverse" for backward compatibility
+        project_key = os.environ.get("PROJECT_KEY", "bookverse")
+        
         self.stage_flow = {
             "Unassigned": {"next": "DEV", "description": "Initial state before any promotion"},
-            "bookverse-DEV": {"next": "bookverse-QA", "description": "Development stage for testing and validation"},
-            "bookverse-QA": {"next": "bookverse-STAGING", "description": "Quality assurance stage for comprehensive testing"},
-            "bookverse-STAGING": {"next": "PROD", "description": "Staging environment for final validation"},
+            f"{project_key}-DEV": {"next": f"{project_key}-QA", "description": "Development stage for testing and validation"},
+            f"{project_key}-QA": {"next": f"{project_key}-STAGING", "description": "Quality assurance stage for comprehensive testing"},
+            f"{project_key}-STAGING": {"next": "PROD", "description": "Staging environment for final validation"},
             "PROD": {"next": None, "description": "Production environment for live deployment"}
         }
         
@@ -96,7 +99,9 @@ class EnhancedCISummary:
     def generate_lifecycle_path(self, current_stage: str, target_stage: Optional[str] = None,
                                promotion_failed: bool = False) -> str:
         """Generate the lifecycle path showing stage progression."""
-        stages = ["Unassigned", "bookverse-DEV", "bookverse-QA", "bookverse-STAGING", "PROD"]
+        # Get PROJECT_KEY from environment, default to "bookverse" for backward compatibility
+        project_key = os.environ.get("PROJECT_KEY", "bookverse")
+        stages = ["Unassigned", f"{project_key}-DEV", f"{project_key}-QA", f"{project_key}-STAGING", "PROD"]
         
         # Find current position
         try:

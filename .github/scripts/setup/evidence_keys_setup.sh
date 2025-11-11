@@ -104,25 +104,66 @@
 
 set -euo pipefail
 
+# Source configuration to get PROJECT_KEY
+source "$(dirname "$0")/config.sh"
+
 # 🔐 BookVerse Evidence Key Configuration
 # Cryptographic key management and evidence collection configuration
-ALIAS_DEFAULT="BookVerse-Evidence-Key"
+ALIAS_DEFAULT="${PROJECT_KEY}-Evidence-Key"
 KEY_ALIAS="${EVIDENCE_KEY_ALIAS:-$ALIAS_DEFAULT}"
 
 # 📦 BookVerse Service Repository Configuration
 # Complete list of all BookVerse service repositories requiring evidence keys
-SERVICE_REPOS=(
-  "yonatanp-jfrog/bookverse-inventory"      # Core business inventory and stock management
-  "yonatanp-jfrog/bookverse-recommendations" # AI-powered personalization engine
-  "yonatanp-jfrog/bookverse-checkout"      # Secure payment processing and transactions
-  "yonatanp-jfrog/bookverse-platform"      # Unified platform coordination and API gateway
-  "yonatanp-jfrog/bookverse-web"          # Customer-facing frontend and static assets
-  "yonatanp-jfrog/bookverse-helm"         # Kubernetes deployment and infrastructure
-)
+# This list is dynamically generated based on the current GitHub organization
+get_bookverse_repos() {
+    local github_org
+    if [[ -n "${GITHUB_REPOSITORY:-}" ]]; then
+        github_org=$(echo "$GITHUB_REPOSITORY" | cut -d'/' -f1)
+    else
+        github_org="${GITHUB_ORG:-$(gh api user --jq .login)}"
+    fi
+    
+    local base_repos=(
+        "inventory"
+        "recommendations" 
+        "checkout"
+        "platform"
+        "web"
+        "helm"
+        "demo-assets"
+        "demo-init"
+    )
+    
+    local existing_repos=()
+    for repo in "${base_repos[@]}"; do
+        # Construct full repository name
+        local repo_name
+        if [[ "$repo" == "demo-assets" ]]; then
+            repo_name="repos/bookverse-demo-assets"
+        elif [[ "$repo" == "demo-init" ]]; then
+            repo_name="bookverse-demo-init"
+        else
+            repo_name="bookverse-${repo}"
+        fi
+        
+        if gh repo view "$github_org/$repo_name" > /dev/null 2>&1; then
+            existing_repos+=("$github_org/$repo_name")
+        else
+            echo "⚠️  Repository $github_org/$repo_name not found - skipping" >&2
+        fi
+    done
+    
+    printf '%s\n' "${existing_repos[@]}"
+}
+
+# Generate the service repos list dynamically
+mapfile -t SERVICE_REPOS < <(get_bookverse_repos)
 
 echo "🔐 Evidence Keys Setup"
+echo "   🔑 Project: $PROJECT_KEY"
 echo "   🗝️  Alias: $KEY_ALIAS"
 echo "   🐸 JFrog: ${JFROG_URL:-unset}"
+echo "   📦 Repositories: ${#SERVICE_REPOS[@]} found"
 
 if [[ -z "${JFROG_URL:-}" || -z "${JFROG_ADMIN_TOKEN:-}" ]]; then
   echo "❌ Missing JFROG_URL or JFROG_ADMIN_TOKEN in environment" >&2

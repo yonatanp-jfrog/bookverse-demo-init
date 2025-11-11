@@ -105,18 +105,19 @@ set -euo pipefail
 # 🏢 BookVerse Service Architecture
 # Complete list of BookVerse microservices requiring Git push procedures
 SERVICES=(
-    "bookverse-recommendations"  # AI-powered personalization and recommendation engine
-    "bookverse-checkout"        # Secure payment processing and transaction management
-    "bookverse-platform"        # Unified platform coordination and API gateway
-    "bookverse-web"            # Customer-facing frontend and static asset delivery
-    "bookverse-helm"           # Kubernetes deployment manifests and infrastructure-as-code
+    "recommendations"  # AI-powered personalization and recommendation engine
+    "checkout"        # Secure payment processing and transaction management
+    "platform"        # Unified platform coordination and API gateway
+    "web"            # Customer-facing frontend and static asset delivery
+    "helm"           # Kubernetes deployment manifests and infrastructure-as-code
 )
 
 echo "🔧 Fixing and pushing all BookVerse service repositories"
 echo ""
 
 for SERVICE in "${SERVICES[@]}"; do
-    echo "🔄 Processing: $SERVICE"
+    REPO_NAME="bookverse-${SERVICE}"
+    echo "🔄 Processing: $REPO_NAME"
     
     TEMP_DIR=$(mktemp -d)
     echo "📂 Using temp: $TEMP_DIR"

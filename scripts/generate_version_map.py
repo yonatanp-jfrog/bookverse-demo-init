@@ -60,22 +60,25 @@ SEED_RANGES = {
 }
 
 # 📦 Application Configuration: Complete BookVerse application and package mapping
+# Get PROJECT_KEY from environment, default to "bookverse" for backward compatibility
+PROJECT_KEY = os.environ.get("PROJECT_KEY", "bookverse")
+
 APPS = [
     {
-        "key": "bookverse-inventory",
+        "key": f"{PROJECT_KEY}-inventory",
         "packages": [
             {"type": "docker", "name": "inventory-api"},
         ],
     },
     {
-        "key": "bookverse-recommendations",
+        "key": f"{PROJECT_KEY}-recommendations",
         "packages": [
             {"type": "docker", "name": "recommendations-api"},
             {"type": "docker", "name": "recommendations-worker"},
         ],
     },
     {
-        "key": "bookverse-checkout",
+        "key": f"{PROJECT_KEY}-checkout",
         "packages": [
             {"type": "docker", "name": "checkout-api"},
             {"type": "docker", "name": "checkout-worker"},
@@ -83,13 +86,13 @@ APPS = [
         ],
     },
     {
-        "key": "bookverse-web",
+        "key": f"{PROJECT_KEY}-web",
         "packages": [
             {"type": "docker", "name": "web"},
         ],
     },
     {
-        "key": "bookverse-platform",
+        "key": f"{PROJECT_KEY}-platform",
         "packages": [
             # Platform service with no direct packages
         ],

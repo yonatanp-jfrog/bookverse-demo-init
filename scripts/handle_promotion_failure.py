@@ -96,18 +96,21 @@ class PromotionFailureHandler:
             }
         }
         
+        # Get PROJECT_KEY from environment, default to "bookverse" for backward compatibility
+        project_key = os.environ.get("PROJECT_KEY", "bookverse")
+        
         self.stage_guidance = {
-            "bookverse-DEV": {
+            f"{project_key}-DEV": {
                 "description": "Development stage for initial testing and validation",
                 "typical_evidence": ["Build artifacts", "Unit tests", "Security scans"],
                 "exit_requirements": ["All tests pass", "Security scan clean", "Code review complete"]
             },
-            "bookverse-QA": {
+            f"{project_key}-QA": {
                 "description": "Quality assurance stage for comprehensive testing",
                 "typical_evidence": ["Integration tests", "Performance tests", "SBOM"],
                 "entry_requirements": ["DEV stage complete", "Evidence collection", "Policy compliance"]
             },
-            "bookverse-STAGING": {
+            f"{project_key}-STAGING": {
                 "description": "Staging environment for final validation",
                 "typical_evidence": ["E2E tests", "Load tests", "UAT results"],
                 "entry_requirements": ["QA stage complete", "Full test coverage", "Performance validation"]

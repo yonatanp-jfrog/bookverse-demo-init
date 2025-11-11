@@ -226,19 +226,23 @@ discover_project_repositories() {
     if is_success "$code" && [[ -s "$repos_file" ]]; then
         echo "Filtering repositories for project '$PROJECT_KEY'..." >&2
         
-        if jq --arg project "$PROJECT_KEY" '[.[] | select(.key | contains($project)) | select((.key | test("release-bundles-v2$")) | not)]' "$repos_file" > "${repos_file}.filtered" 2>/dev/null && [[ -s "${repos_file}.filtered" ]]; then
+        # Use precise filtering to avoid cross-project contamination
+        # Priority 1: Exact prefix match (most reliable for multi-instance)
+        if jq --arg project "$PROJECT_KEY" '[.[] | select(.key | startswith($project + "-")) | select((.key | test("release-bundles-v2$")) | not)]' "$repos_file" > "${repos_file}.filtered" 2>/dev/null && [[ -s "${repos_file}.filtered" ]]; then
             mv "${repos_file}.filtered" "$repos_file"
-            echo "✅ Filtered by repository key containing '$PROJECT_KEY'" >&2
+            echo "✅ Filtered by repository key prefix '$PROJECT_KEY-'" >&2
             
             echo "📦 Found repositories:" >&2
             jq -r '.[].key' "$repos_file" 2>/dev/null | head -10 | while read -r repo; do
                 echo "   - $repo" >&2
             done
         else
+            # Priority 2: Exact startswith match (fallback)
             if jq --arg project "$PROJECT_KEY" '[.[] | select(.key | startswith($project)) | select((.key | test("release-bundles-v2$")) | not)]' "$repos_file" > "${repos_file}.filtered" 2>/dev/null && [[ -s "${repos_file}.filtered" ]]; then
                 mv "${repos_file}.filtered" "$repos_file"
                 echo "✅ Filtered by repository key prefix '$PROJECT_KEY'" >&2
             else
+                # Priority 3: ProjectKey field match (most reliable when available)
                 if jq --arg project "$PROJECT_KEY" '[.[] | select(.projectKey == $project) | select((.key | test("release-bundles-v2$")) | not)]' "$repos_file" > "${repos_file}.filtered" 2>/dev/null && [[ -s "${repos_file}.filtered" ]]; then
                     mv "${repos_file}.filtered" "$repos_file"
                     echo "✅ Filtered by projectKey field" >&2

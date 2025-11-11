@@ -116,12 +116,12 @@ DRY_RUN="${2:-false}"      # Dry run mode for safe testing and validation
 # 🏢 BookVerse Service Architecture
 # Complete list of all BookVerse microservices requiring clean repository creation
 SERVICES=(
-    "bookverse-inventory"      # Core business inventory and stock management service
-    "bookverse-recommendations" # AI-powered personalization and recommendation engine
-    "bookverse-checkout"       # Secure payment processing and transaction management
-    "bookverse-platform"      # Unified platform coordination and API gateway
-    "bookverse-web"           # Customer-facing frontend and static asset delivery
-    "bookverse-helm"          # Kubernetes deployment manifests and infrastructure-as-code
+    "inventory"      # Core business inventory and stock management service
+    "recommendations" # AI-powered personalization and recommendation engine
+    "checkout"       # Secure payment processing and transaction management
+    "platform"      # Unified platform coordination and API gateway
+    "web"           # Customer-facing frontend and static asset delivery
+    "helm"          # Kubernetes deployment manifests and infrastructure-as-code
 )
 
 echo "🚀 Creating clean BookVerse service repositories"
@@ -138,8 +138,9 @@ TEMP_WORKSPACE=$(mktemp -d)
 echo "📂 Temporary workspace: $TEMP_WORKSPACE"
 
 for SERVICE in "${SERVICES[@]}"; do
+    REPO_NAME="bookverse-${SERVICE}"
     echo ""
-    echo "🔄 Processing service: $SERVICE"
+    echo "🔄 Processing service: $REPO_NAME"
     
     if [[ ! -d "$SERVICE" ]]; then
         echo "⚠️  Directory $SERVICE not found, skipping..."
@@ -174,30 +175,30 @@ for SERVICE in "${SERVICES[@]}"; do
     
     if [[ "$DRY_RUN" != "true" ]]; then
         echo "📋 Step 3: Creating GitHub repository..."
-        if gh repo view "$ORG/$SERVICE" >/dev/null 2>&1; then
-            echo "📦 Repository $ORG/$SERVICE already exists"
+        if gh repo view "$ORG/$REPO_NAME" >/dev/null 2>&1; then
+            echo "📦 Repository $ORG/$REPO_NAME already exists"
             read -p "🤔 Delete and recreate? (y/N): " -n 1 -r
             echo
             if [[ $REPLY =~ ^[Yy]$ ]]; then
-                gh repo delete "$ORG/$SERVICE" --yes
-                gh repo create "$ORG/$SERVICE" --private --description "BookVerse $SERVICE service"
+                gh repo delete "$ORG/$REPO_NAME" --yes
+                gh repo create "$ORG/$REPO_NAME" --private --description "BookVerse $SERVICE service"
             else
-                echo "⏭️  Skipping repository creation for $SERVICE"
+                echo "⏭️  Skipping repository creation for $REPO_NAME"
                 cd - >/dev/null
                 continue
             fi
         else
-            gh repo create "$ORG/$SERVICE" --private --description "BookVerse $SERVICE service"
+            gh repo create "$ORG/$REPO_NAME" --private --description "BookVerse $SERVICE service"
         fi
         
         echo "📋 Step 4: Pushing to GitHub..."
-        git remote add origin "git@github.com:$ORG/$SERVICE.git"
+        git remote add origin "git@github.com:$ORG/$REPO_NAME.git"
         git push -u origin main
         
-        echo "✅ Successfully created $ORG/$SERVICE"
-        echo "🌐 View at: https://github.com/$ORG/$SERVICE"
+        echo "✅ Successfully created $ORG/$REPO_NAME"
+        echo "🌐 View at: https://github.com/$ORG/$REPO_NAME"
     else
-        echo "🔍 DRY RUN: Would create repository $ORG/$SERVICE"
+        echo "🔍 DRY RUN: Would create repository $ORG/$REPO_NAME"
         echo "📁 Files that would be included:"
         find . -type f -name "*.yml" -o -name "*.yaml" -o -name "*.py" -o -name "*.js" -o -name "*.md" | head -10
         if [[ $(find . -type f | wc -l) -gt 10 ]]; then

@@ -3,17 +3,18 @@ set -euo pipefail
 
 
 SERVICES=(
-    "bookverse-checkout"
-    "bookverse-platform"
-    "bookverse-web"
-    "bookverse-helm"
+    "checkout"
+    "platform"
+    "web"
+    "helm"
 )
 
 echo "🚀 Creating remaining BookVerse service repositories"
 echo ""
 
 for SERVICE in "${SERVICES[@]}"; do
-    echo "🔄 Processing: $SERVICE"
+    REPO_NAME="bookverse-${SERVICE}"
+    echo "🔄 Processing: $REPO_NAME"
     ./scripts/simple-split.sh "$SERVICE"
     echo ""
 done

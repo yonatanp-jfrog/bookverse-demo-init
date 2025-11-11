@@ -280,14 +280,14 @@ JFROG_URL="${JFROG_URL:-}"
 JFROG_ADMIN_TOKEN="${JFROG_ADMIN_TOKEN:-}"
 
 BOOKVERSE_REPOS=(
-    "bookverse-inventory"
-    "bookverse-recommendations" 
-    "bookverse-checkout"
-    "bookverse-platform"
-    "bookverse-web"
-    "bookverse-helm"
-    "repos/bookverse-demo-assets"
-    "bookverse-demo-init"
+    "inventory"
+    "recommendations" 
+    "checkout"
+    "platform"
+    "web"
+    "helm"
+    "demo-assets"
+    "demo-init"
 )
 
 
@@ -535,7 +535,17 @@ get_existing_repositories() {
 
     local existing_repos=()
     for repo in "${BOOKVERSE_REPOS[@]}"; do
-        local full_repo="$GITHUB_ORG/$repo"
+        # Construct full repository name
+        local repo_name
+        if [[ "$repo" == "demo-assets" ]]; then
+            repo_name="repos/bookverse-demo-assets"
+        elif [[ "$repo" == "demo-init" ]]; then
+            repo_name="bookverse-demo-init"
+        else
+            repo_name="bookverse-${repo}"
+        fi
+        
+        local full_repo="$GITHUB_ORG/$repo_name"
         if gh repo view "$full_repo" > /dev/null 2>&1; then
             existing_repos+=("$full_repo")
         else

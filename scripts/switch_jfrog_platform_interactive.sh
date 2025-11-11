@@ -17,6 +17,30 @@ log_error() { echo -e "${RED}❌ $1${NC}"; }
 log_prompt() { echo -e "${CYAN}🔹 $1${NC}"; }
 
 
+prompt_for_project_prefix() {
+    echo ""
+    log_prompt "Enter an optional prefix for the BookVerse project (leave empty for no prefix):"
+    log_info "This allows multiple BookVerse instances in the same JPD"
+    log_info "Format: prefix (will create 'prefix-bookverse' project)"
+    log_info "Example: 'demo1' creates 'demo1-bookverse'"
+    echo ""
+    read -p "Project Prefix (optional): " project_prefix
+    
+    # Validate prefix format if provided
+    if [[ -n "$project_prefix" ]]; then
+        if [[ ! "$project_prefix" =~ ^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$ ]]; then
+            log_error "Invalid prefix format. Use lowercase letters, numbers, and hyphens only."
+            log_error "Must start and end with alphanumeric characters."
+            exit 1
+        fi
+        log_info "Using project prefix: '$project_prefix' (project will be '${project_prefix}-bookverse')"
+    else
+        log_info "No prefix specified (project will be 'bookverse')"
+    fi
+    
+    echo "$project_prefix"
+}
+
 prompt_for_jpd_host() {
     echo ""
     log_prompt "Enter the new JFrog Platform host URL:"
@@ -210,10 +234,16 @@ patch_repo_envs() {
 repair_repository_environments() {
     local jpd_host="$1"
     local admin_token="$2"
+    local project_prefix="$3"
 
     log_info "Repairing repository environments mapping (internal → DEV/QA/STAGING, release → PROD)"
 
-    local project_key="${PROJECT_KEY:-bookverse}"
+    local project_key
+    if [[ -n "$project_prefix" ]]; then
+        project_key="${project_prefix}-bookverse"
+    else
+        project_key="bookverse"
+    fi
 
     local dev_envs=("${project_key}-DEV" "${project_key}-QA" "${project_key}-STAGING")
 
@@ -239,23 +269,33 @@ get_bookverse_repos() {
     local github_org
     github_org=$(gh api user --jq .login)
     
-    local repos=(
-        "bookverse-inventory"
-        "bookverse-recommendations" 
-        "bookverse-checkout"
-        "bookverse-platform"
-        "bookverse-web"
-        "bookverse-helm"
-        "repos/bookverse-demo-assets"
-        "bookverse-demo-init"
+    local base_repos=(
+        "inventory"
+        "recommendations" 
+        "checkout"
+        "platform"
+        "web"
+        "helm"
+        "demo-assets"
+        "demo-init"
     )
     
     local existing_repos=()
-    for repo in "${repos[@]}"; do
-        if gh repo view "$github_org/$repo" > /dev/null 2>&1; then
-            existing_repos+=("$github_org/$repo")
+    for repo in "${base_repos[@]}"; do
+        # Construct full repository name
+        local repo_name
+        if [[ "$repo" == "demo-assets" ]]; then
+            repo_name="repos/bookverse-demo-assets"
+        elif [[ "$repo" == "demo-init" ]]; then
+            repo_name="bookverse-demo-init"
         else
-            log_warning "Repository $github_org/$repo not found - skipping"
+            repo_name="bookverse-${repo}"
+        fi
+        
+        if gh repo view "$github_org/$repo_name" > /dev/null 2>&1; then
+            existing_repos+=("$github_org/$repo_name")
+        else
+            log_warning "Repository $github_org/$repo_name not found - skipping"
         fi
     done
     
@@ -266,11 +306,19 @@ update_repository() {
     local full_repo="$1"
     local jpd_host="$2"
     local admin_token="$3"
+    local project_prefix="$4"
     
     log_info "Updating $full_repo..."
     
     local docker_registry
     docker_registry=$(echo "$jpd_host" | sed 's|https://||')
+    
+    local project_key
+    if [[ -n "$project_prefix" ]]; then
+        project_key="${project_prefix}-bookverse"
+    else
+        project_key="bookverse"
+    fi
     
     local success=true
     
@@ -284,6 +332,12 @@ update_repository() {
     
     if ! gh variable set DOCKER_REGISTRY --body "$docker_registry" --repo "$full_repo" 2>/dev/null; then
         log_warning "  → Could not update DOCKER_REGISTRY variable"
+        success=false
+    fi
+    
+    # Update PROJECT_KEY environment variable
+    if ! gh variable set PROJECT_KEY --body "$project_key" --repo "$full_repo" 2>/dev/null; then
+        log_warning "  → Could not update PROJECT_KEY variable"
         success=false
     fi
     
@@ -339,6 +393,7 @@ update_repository() {
 update_all_repositories() {
     local jpd_host="$1"
     local admin_token="$2"
+    local project_prefix="$3"
     
     log_info "Discovering BookVerse repositories..."
     
@@ -355,7 +410,7 @@ update_all_repositories() {
     
     local success_count=0
     for repo in "${repos[@]}"; do
-        if update_repository "$repo" "$jpd_host" "$admin_token"; then
+        if update_repository "$repo" "$jpd_host" "$admin_token" "$project_prefix"; then
             ((success_count++))
         fi
     done
@@ -376,6 +431,9 @@ main() {
     validate_prerequisites
     echo ""
     
+    local project_prefix
+    project_prefix=$(prompt_for_project_prefix)
+    
     local jpd_host
     jpd_host=$(prompt_for_jpd_host)
     
@@ -395,10 +453,10 @@ main() {
     confirm_switch "$jpd_host"
     echo ""
     
-    update_all_repositories "$jpd_host" "$admin_token"
+    update_all_repositories "$jpd_host" "$admin_token" "$project_prefix"
     echo ""
 
-    repair_repository_environments "$jpd_host" "$admin_token"
+    repair_repository_environments "$jpd_host" "$admin_token" "$project_prefix"
     echo ""
     
     local docker_registry
@@ -409,6 +467,11 @@ main() {
     echo "New Configuration:"
     echo "  JFROG_URL: $jpd_host"
     echo "  DOCKER_REGISTRY: $docker_registry"
+    if [[ -n "$project_prefix" ]]; then
+        echo "  PROJECT_KEY: ${project_prefix}-bookverse"
+    else
+        echo "  PROJECT_KEY: bookverse"
+    fi
     echo ""
     echo "✅ All BookVerse repositories have been updated!"
     echo ""

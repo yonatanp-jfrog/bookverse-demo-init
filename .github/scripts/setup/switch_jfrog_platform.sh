@@ -51,14 +51,14 @@ NEW_JFROG_URL="${NEW_JFROG_URL}"
 NEW_JFROG_ADMIN_TOKEN="${NEW_JFROG_ADMIN_TOKEN}"
 
 BOOKVERSE_REPOS=(
-    "bookverse-inventory"
-    "bookverse-recommendations" 
-    "bookverse-checkout"
-    "bookverse-platform"
-    "bookverse-web"
-    "bookverse-helm"
-    "bookverse-demo-assets"
-    "bookverse-demo-init"
+    "inventory"
+    "recommendations" 
+    "checkout"
+    "platform"
+    "web"
+    "helm"
+    "demo-assets"
+    "demo-init"
 )
 
 if [[ -n "$GITHUB_REPOSITORY" ]]; then
@@ -288,6 +288,9 @@ update_repository_secrets_and_variables() {
     local docker_registry
     docker_registry=$(extract_docker_registry)
 
+    # Determine PROJECT_KEY from environment or default to bookverse
+    local project_key="${PROJECT_KEY:-bookverse}"
+
     local repo_ok=1
 
     log_info "  → Updating secrets..."
@@ -316,6 +319,12 @@ update_repository_secrets_and_variables() {
         repo_ok=0
     fi
 
+    # Update PROJECT_KEY environment variable
+    if ! output=$(gh variable set PROJECT_KEY --body "$project_key" --repo "$full_repo" 2>&1); then
+        log_warning "  → Failed to update PROJECT_KEY: ${output}"
+        repo_ok=0
+    fi
+
     if ! verify_variable_with_retry "$full_repo" "JFROG_URL" "$NEW_JFROG_URL"; then
         log_warning "  → JFROG_URL verification failed, retrying update once..."
         gh variable set JFROG_URL --body "$NEW_JFROG_URL" --repo "$full_repo" >/dev/null 2>&1 || true
@@ -332,6 +341,15 @@ update_repository_secrets_and_variables() {
             repo_ok=0
         else
             log_success "  → DOCKER_REGISTRY verified after retry"
+        fi
+    fi
+    if ! verify_variable_with_retry "$full_repo" "PROJECT_KEY" "$project_key"; then
+        log_warning "  → PROJECT_KEY verification failed, retrying update once..."
+        gh variable set PROJECT_KEY --body "$project_key" --repo "$full_repo" >/dev/null 2>&1 || true
+        if ! verify_variable_with_retry "$full_repo" "PROJECT_KEY" "$project_key"; then
+            repo_ok=0
+        else
+            log_success "  → PROJECT_KEY verified after retry"
         fi
     fi
 
@@ -353,17 +371,27 @@ update_all_repositories() {
     local success_count=0
 
     for repo in "${BOOKVERSE_REPOS[@]}"; do
-        if update_repository_secrets_and_variables "$repo"; then
+        # Construct full repository name: bookverse-{service} or {prefix}-bookverse-{service}
+        local repo_name
+        if [[ "$repo" == "demo-assets" ]]; then
+            repo_name="repos/bookverse-demo-assets"
+        elif [[ "$repo" == "demo-init" ]]; then
+            repo_name="bookverse-demo-init"
+        else
+            repo_name="bookverse-${repo}"
+        fi
+        
+        if update_repository_secrets_and_variables "$repo_name"; then
             ((++success_count))
         fi
 
         local default_branch
-        default_branch=$(gh repo view "$GITHUB_ORG/$repo" --json defaultBranchRef --jq .defaultBranchRef.name 2>/dev/null || echo "main")
+        default_branch=$(gh repo view "$GITHUB_ORG/$repo_name" --json defaultBranchRef --jq .defaultBranchRef.name 2>/dev/null || echo "main")
 
         local workdir
         workdir=$(mktemp -d)
         pushd "$workdir" >/dev/null
-        if gh repo clone "$GITHUB_ORG/$repo" repo >/dev/null 2>&1; then
+        if gh repo clone "$GITHUB_ORG/$repo_name" repo >/dev/null 2>&1; then
             cd repo
             git checkout -b chore/switch-platform-$(date +%Y%m%d%H%M%S) >/dev/null 2>&1 || true
 
@@ -371,41 +399,60 @@ update_all_repositories() {
             new_registry=$(extract_docker_registry)
 
             
-            local old_patterns=(
-                "evidencetrial\\.jfrog\\.io"
-                "apptrustswampupc\\.jfrog\\.io"
-                "releases\\.jfrog\\.io"
-            )
-            
             local changes_made=false
             
-            for pattern in "${old_patterns[@]}"; do
-                if rg -l "$pattern" >/dev/null 2>&1; then
-                    rg -l "$pattern" | xargs sed -i '' -e "s|$pattern|${new_registry}|g"
-                    changes_made=true
-                    log_info "  → Replaced $pattern with ${new_registry}"
-                fi
-            done
+            # Deterministic approach: Replace ANY .jfrog.io domain with the new one
+            # This works regardless of what the old platform was
             
-            for pattern in "${old_patterns[@]}"; do
-                local url_pattern="https://$pattern"
-                if rg -l "$url_pattern" >/dev/null 2>&1; then
-                    rg -l "$url_pattern" | xargs sed -i '' -e "s|$url_pattern|${NEW_JFROG_URL}|g"
-                    changes_made=true
-                    log_info "  → Replaced $url_pattern with ${NEW_JFROG_URL}"
+            # Step 1: Replace full URLs (https://anything.jfrog.io -> NEW_JFROG_URL)
+            if grep -RIl --exclude-dir=.git -E "https://[A-Za-z0-9.-]*\.jfrog\.io" . >/dev/null 2>&1; then
+                log_info "  → Found files with JFrog URLs, updating to ${NEW_JFROG_URL}"
+                if [[ "$OSTYPE" == "darwin"* ]]; then
+                    grep -RIl --exclude-dir=.git -E "https://[A-Za-z0-9.-]*\.jfrog\.io" . | \
+                        xargs sed -i '' -E "s|https://[A-Za-z0-9.-]+\.jfrog\.io|${NEW_JFROG_URL}|g"
+                else
+                    grep -RIl --exclude-dir=.git -E "https://[A-Za-z0-9.-]*\.jfrog\.io" . | \
+                        xargs sed -i -E "s|https://[A-Za-z0-9.-]+\.jfrog\.io|${NEW_JFROG_URL}|g"
                 fi
-            done
+                changes_made=true
+            fi
+            
+            # Step 2: Replace registry-only references (anything.jfrog.io -> new_registry)
+            # This handles Docker image references and other registry-only uses
+            if grep -RIl --exclude-dir=.git -E "\b[A-Za-z0-9.-]*\.jfrog\.io\b" . >/dev/null 2>&1; then
+                log_info "  → Found files with JFrog registry references, updating to ${new_registry}"
+                if [[ "$OSTYPE" == "darwin"* ]]; then
+                    grep -RIl --exclude-dir=.git -E "\b[A-Za-z0-9.-]*\.jfrog\.io\b" . | \
+                        xargs sed -i '' -E "s|\b[A-Za-z0-9.-]+\.jfrog\.io\b|${new_registry}|g"
+                else
+                    grep -RIl --exclude-dir=.git -E "\b[A-Za-z0-9.-]*\.jfrog\.io\b" . | \
+                        xargs sed -i -E "s|\b[A-Za-z0-9.-]+\.jfrog\.io\b|${new_registry}|g"
+                fi
+                changes_made=true
+            fi
 
+            # Check if there are actual changes to commit
             if ! git diff --quiet; then
                 git add -A
-                git commit -m "chore: switch platform host to ${new_registry}" >/dev/null 2>&1 || true
-                git push -u origin HEAD >/dev/null 2>&1 || true
-                gh pr create --title "chore: switch platform host to ${new_registry}" \
-                  --body "Automated replacement of hardcoded JFrog hosts with ${NEW_JFROG_URL}." \
-                  --base "$default_branch" >/dev/null 2>&1 || true
-                log_success "  → Opened PR with host replacements in $repo"
+                if git commit -m "chore: switch platform host to ${new_registry}" >/dev/null 2>&1; then
+                    if git push -u origin HEAD >/dev/null 2>&1; then
+                        if gh pr create --title "chore: switch platform host to ${new_registry}" \
+                          --body "Automated replacement of hardcoded JFrog hosts with ${NEW_JFROG_URL}." \
+                          --base "$default_branch" >/dev/null 2>&1; then
+                            log_success "  → Opened PR with host replacements in $repo"
+                        else
+                            log_warning "  → Failed to create PR for $repo, but changes were pushed"
+                        fi
+                    else
+                        log_warning "  → Failed to push changes for $repo"
+                    fi
+                else
+                    log_warning "  → Failed to commit changes for $repo"
+                fi
+            elif [[ "$changes_made" == "true" ]]; then
+                log_info "  → Platform references were processed but no changes detected in $repo"
             else
-                log_info "  → No hardcoded host replacements needed in $repo"
+                log_info "  → No platform references found in $repo"
             fi
         fi
         popd >/dev/null || true
@@ -426,6 +473,9 @@ final_verification_pass() {
 
     local docker_registry
     docker_registry=$(extract_docker_registry)
+    
+    # Determine PROJECT_KEY from environment or default to bookverse
+    local project_key="${PROJECT_KEY:-bookverse}"
 
     local to_check=("${FAILED_REPOS[@]}")
     local still_failed=()
@@ -447,6 +497,13 @@ final_verification_pass() {
         if ! verify_variable_with_retry "$full_repo" "DOCKER_REGISTRY" "$docker_registry"; then
             gh variable set DOCKER_REGISTRY --body "$docker_registry" --repo "$full_repo" >/dev/null 2>&1 || true
             if ! verify_variable_with_retry "$full_repo" "DOCKER_REGISTRY" "$docker_registry"; then
+                ok=0
+            fi
+        fi
+
+        if ! verify_variable_with_retry "$full_repo" "PROJECT_KEY" "$project_key"; then
+            gh variable set PROJECT_KEY --body "$project_key" --repo "$full_repo" >/dev/null 2>&1 || true
+            if ! verify_variable_with_retry "$full_repo" "PROJECT_KEY" "$project_key"; then
                 ok=0
             fi
         fi
@@ -498,6 +555,9 @@ main() {
     local docker_registry
     docker_registry=$(extract_docker_registry)
     
+    # Determine PROJECT_KEY from environment or default to bookverse
+    local project_key="${PROJECT_KEY:-bookverse}"
+    
     local failed_count
     failed_count=${#FAILED_REPOS[@]}
     local success_count
@@ -508,6 +568,7 @@ main() {
     echo "New Configuration:"
     echo "  JFROG_URL: $NEW_JFROG_URL"
     echo "  DOCKER_REGISTRY: $docker_registry"
+    echo "  PROJECT_KEY: $project_key"
     echo "  Total repositories: ${#BOOKVERSE_REPOS[@]}"
     echo "  Success: ${success_count}"
     echo "  Failed: ${failed_count}"

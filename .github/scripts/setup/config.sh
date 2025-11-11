@@ -94,8 +94,16 @@
 # 🏷️ Core Project Identity Configuration
 # These variables define the fundamental project identification used throughout
 # the BookVerse platform for consistent naming and branding across all systems
-export PROJECT_KEY="bookverse"           # Primary project identifier for all platform operations
-export PROJECT_DISPLAY_NAME="BookVerse"  # Human-readable project name for UI and documentation
+
+# Support for multiple instances with optional prefix
+PROJECT_PREFIX="${PROJECT_PREFIX:-}"      # Optional prefix for multi-instance support (from environment)
+if [[ -n "${PROJECT_PREFIX}" ]]; then
+    export PROJECT_KEY="${PROJECT_PREFIX}-bookverse"  # Primary project identifier with prefix
+    export PROJECT_DISPLAY_NAME="${PROJECT_PREFIX} BookVerse"  # Human-readable project name with prefix
+else
+    export PROJECT_KEY="bookverse"           # Primary project identifier for all platform operations
+    export PROJECT_DISPLAY_NAME="BookVerse"  # Human-readable project name for UI and documentation
+fi
 
 # 🔗 JFrog Platform Integration Configuration
 # Critical configuration for JFrog Platform connectivity and authentication

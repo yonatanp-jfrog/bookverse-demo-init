@@ -29,11 +29,11 @@ on:
       target_stage:
         description: 'Target stage for promotion'
         required: false
-        default: 'bookverse-QA'
+        default: '${{ vars.PROJECT_KEY }}-QA'
         type: choice
         options:
-          - 'bookverse-QA'
-          - 'bookverse-STAGING'
+          - '${{ vars.PROJECT_KEY }}-QA'
+          - '${{ vars.PROJECT_KEY }}-STAGING'
           - 'PROD'
   push:
     branches: [main]
@@ -122,7 +122,7 @@ jobs:
         id: stage
         run: |
           # Determine current application stage
-          CURRENT_STAGE="bookverse-DEV"
+          CURRENT_STAGE="${{ vars.PROJECT_KEY }}-DEV"
           echo "current_stage=$CURRENT_STAGE" >> $GITHUB_OUTPUT
           echo "CURRENT_STAGE=$CURRENT_STAGE" >> $GITHUB_ENV
           
@@ -184,13 +184,13 @@ jobs:
       - name: Promote to Target Stage
         id: promote
         run: |
-          TARGET_STAGE="${{ inputs.target_stage || 'bookverse-QA' }}"
+          TARGET_STAGE="${{ inputs.target_stage || format('{0}-QA', vars.PROJECT_KEY) }}"
           echo "🚀 Attempting promotion to: $TARGET_STAGE"
           
           # Simulate promotion failure with policy violations
           # This represents the actual AppTrust API call that failed
           FAILURE_JSON='{
-            "application_key": "bookverse-inventory",
+            "application_key": "${{ vars.PROJECT_KEY }}-inventory",
             "version": "${{ needs.build-test-publish.outputs.app_version }}",
             "source_stage": "${{ needs.build-test-publish.outputs.current_stage }}",
             "target_stage": "'$TARGET_STAGE'",
@@ -202,13 +202,13 @@ jobs:
                 "stage": "${{ needs.build-test-publish.outputs.current_stage }}",
                 "eval_id": "1970842971956858881",
                 "decision": "warn",
-                "explanation": "PR Merge policy {evaluation} failed due to violated policies: [BookVerse DEV Exit - Smoke Test Required]."
+                "explanation": "PR Merge policy {evaluation} failed due to violated policies: [${{ vars.PROJECT_KEY }} DEV Exit - Smoke Test Required]."
               },
               "entry_gate": {
                 "stage": "'$TARGET_STAGE'",
                 "eval_id": "1970842974630850561", 
                 "decision": "warn",
-                "explanation": "PR Merge policy {evaluation} failed due to violated policies: [BookVerse QA Entry Gate - Evidence Required], [BookVerse QA Entry Gate - SBOM Required], [BookVerse QA Entry - Custom Integration Tests]."
+                "explanation": "PR Merge policy {evaluation} failed due to violated policies: [${{ vars.PROJECT_KEY }} QA Entry Gate - Evidence Required], [${{ vars.PROJECT_KEY }} QA Entry Gate - SBOM Required], [${{ vars.PROJECT_KEY }} QA Entry - Custom Integration Tests]."
               }
             }
           }'
@@ -243,7 +243,7 @@ jobs:
           # Set up environment variables from job outputs
           export SERVICE_NAME="inventory"
           export APP_VERSION="${{ needs.build-test-publish.outputs.app_version || 'N/A' }}"
-          export BUILD_NAME="bookverse-inventory_CI"
+          export BUILD_NAME="${{ vars.PROJECT_KEY }}-inventory_CI"
           export BUILD_NUMBER="${{ github.run_number }}"
           export GITHUB_SHA="${{ github.sha }}"
           export GITHUB_REF_NAME="${{ github.ref_name }}"
@@ -254,8 +254,8 @@ jobs:
           export JOB_3_STATUS="${{ needs.create-promote.result }}"
           
           # Stage and promotion information
-          export CURRENT_STAGE="${{ needs.build-test-publish.outputs.current_stage || 'bookverse-DEV' }}"
-          export TARGET_STAGE="${{ inputs.target_stage || 'bookverse-QA' }}"
+          export CURRENT_STAGE="${{ needs.build-test-publish.outputs.current_stage || format('{0}-DEV', vars.PROJECT_KEY) }}"
+          export TARGET_STAGE="${{ inputs.target_stage || format('{0}-QA', vars.PROJECT_KEY) }}"
           
           # Promotion failure detection
           if [[ "${{ needs.create-promote.result }}" == "failure" ]]; then

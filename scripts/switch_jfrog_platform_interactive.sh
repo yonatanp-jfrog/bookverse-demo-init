@@ -353,6 +353,17 @@ update_repository() {
 
     if gh repo clone "$full_repo" repo >/dev/null 2>&1; then
         cd repo
+        
+        # Configure git identity for this repository
+        log_info "  → Configuring git identity for repository commits"
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        
+        # Verify git configuration
+        if ! git config user.name >/dev/null 2>&1 || ! git config user.email >/dev/null 2>&1; then
+            log_warning "  → Failed to configure git identity, commits may fail"
+        fi
+        
         git checkout -b chore/switch-platform-$(date +%Y%m%d%H%M%S) >/dev/null 2>&1 || true
 
         local new_registry

@@ -98,18 +98,18 @@
 #
 # 💡 EXAMPLES:
 #     [Basic Registry Migration]
-#     export NEW_JFROG_URL="https://newplatform.jfrog.io"
+#     export NEW_JFROG_URL="https://swampupsec.jfrog.io"
 #     export NEW_JFROG_ADMIN_TOKEN="your-admin-token"
 #     ./scripts/k8s/update-registry.sh
 #     
 #     [Custom Namespace Migration]
-#     export NEW_JFROG_URL="https://production.jfrog.io"
+#     export NEW_JFROG_URL="https://swampupsec.jfrog.io"
 #     export NEW_JFROG_ADMIN_TOKEN="prod-token"
 #     export K8S_NAMESPACE="bookverse-production"
 #     ./scripts/k8s/update-registry.sh
 #     
 #     [Direct Password Migration]
-#     export NEW_JFROG_URL="https://platform.jfrog.io"
+#     export NEW_JFROG_URL="https://swampupsec.jfrog.io"
 #     export NEW_JFROG_ADMIN_TOKEN="admin-token"
 #     export SKIP_TOKEN_GENERATION="true"
 #     export K8S_PASSWORD="existing-password"
@@ -209,7 +209,7 @@ Usage: ./scripts/k8s/update-registry.sh [OPTIONS]
 Updates existing Kubernetes cluster to use a new JFrog Platform registry.
 
 Environment variables (required):
-  NEW_JFROG_URL           New JFrog Platform URL (e.g., https://acme.jfrog.io)
+  NEW_JFROG_URL           New JFrog Platform URL (e.g., https://swampupsec.jfrog.io)
   NEW_JFROG_ADMIN_TOKEN   Admin token for the new platform
   
 Environment variables (optional):
@@ -225,11 +225,11 @@ Options:
   --help, -h             Show this help message
 
 Examples:
-  export NEW_JFROG_URL='https://acme.jfrog.io'
+  export NEW_JFROG_URL='https://swampupsec.jfrog.io'
   export NEW_JFROG_ADMIN_TOKEN='your-admin-token'
   ./scripts/k8s/update-registry.sh --restart-deployments
 
-  export NEW_JFROG_URL='https://acme.jfrog.io'
+  export NEW_JFROG_URL='https://swampupsec.jfrog.io'
   export NEW_JFROG_ADMIN_TOKEN='your-admin-token'
   export SKIP_TOKEN_GENERATION=true
   export K8S_PASSWORD='existing-user-password-or-token'

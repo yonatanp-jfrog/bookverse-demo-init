@@ -359,6 +359,18 @@ update_repository() {
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
         
+        # Configure git authentication for push operations
+        if [[ -n "${GH_TOKEN:-}" ]]; then
+            log_info "  → Configuring git authentication for push operations"
+            git config url."https://x-access-token:${GH_TOKEN}@github.com/".insteadOf "https://github.com/"
+            # Extract org and repo from full_repo (format: org/repo)
+            local repo_org=$(echo "$full_repo" | cut -d'/' -f1)
+            local repo_name=$(echo "$full_repo" | cut -d'/' -f2)
+            git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${repo_org}/${repo_name}.git"
+        else
+            log_warning "  → GH_TOKEN not available, git push may fail"
+        fi
+        
         # Verify git configuration
         if ! git config user.name >/dev/null 2>&1 || ! git config user.email >/dev/null 2>&1; then
             log_warning "  → Failed to configure git identity, commits may fail"

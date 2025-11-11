@@ -116,6 +116,7 @@ create_event_subscription() {
         --arg project_key "$PROJECT_KEY" \
         --arg github_org "$GITHUB_ORG" \
         --arg jfrog_url "$JFROG_URL" \
+        --arg github_token "$GH_TOKEN" \
         '{
             "key": $key,
             "description": $description,
@@ -149,7 +150,8 @@ create_event_subscription() {
                     ],
                     "secrets": [
                         {
-                            "name": "github_token"
+                            "name": "github_token",
+                            "value": $github_token
                         }
                     ]
                 }
@@ -227,9 +229,9 @@ validate_webhook() {
     fi
 }
 
-# Function to create GitHub token secret in JFrog platform
-create_github_token_secret() {
-    echo "🔑 Creating GitHub token secret in JFrog Platform..."
+# Function to validate GitHub token availability
+validate_github_token() {
+    echo "🔑 Validating GitHub token availability..."
     
     # Check if GH_TOKEN is available
     if [[ -z "${GH_TOKEN:-}" ]]; then
@@ -238,48 +240,9 @@ create_github_token_secret() {
         return 1
     fi
     
-    # Create the secret payload
-    local secret_payload
-    secret_payload=$(jq -n \
-        --arg name "github_token" \
-        --arg value "$GH_TOKEN" \
-        '{
-            "name": $name,
-            "value": $value
-        }')
-    
-    # Create the secret in JFrog platform
-    local temp_response=$(mktemp)
-    local response_code
-    response_code=$(curl -s -w "%{http_code}" -X POST \
-        -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" \
-        -H "Content-Type: application/json" \
-        -d "$secret_payload" \
-        --output "$temp_response" \
-        "${JFROG_URL}/event/api/v1/secrets")
-    
-    local response_body
-    response_body=$(cat "$temp_response")
-    rm -f "$temp_response"
-    
-    case "$response_code" in
-        200|201)
-            echo "✅ GitHub token secret created successfully in JFrog Platform"
-            echo "   Secret name: github_token"
-            echo "   Usage: Webhook authentication for GitHub API calls"
-            return 0
-            ;;
-        409)
-            echo "ℹ️  GitHub token secret already exists in JFrog Platform"
-            return 0
-            ;;
-        *)
-            echo "❌ Failed to create GitHub token secret (HTTP $response_code)"
-            echo "Response: $response_body"
-            echo "   This secret is required for webhook GitHub API authentication"
-            return 1
-            ;;
-    esac
+    echo "✅ GitHub token is available for webhook authentication"
+    echo "   Token will be embedded in webhook configuration"
+    return 0
 }
 
 # Main execution
@@ -300,9 +263,9 @@ if webhook_exists "$WEBHOOK_KEY"; then
 else
     echo "🔗 Creating new event subscription..."
     
-    # Create GitHub token secret in JFrog platform
-    if ! create_github_token_secret; then
-        echo "❌ Failed to create GitHub token secret - webhook creation aborted"
+    # Validate GitHub token availability
+    if ! validate_github_token; then
+        echo "❌ GitHub token validation failed - webhook creation aborted"
         exit 1
     fi
     

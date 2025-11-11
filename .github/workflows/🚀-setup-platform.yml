@@ -193,6 +193,12 @@ jobs:
           # Establish OIDC trust relationships between GitHub Actions and JFrog Platform
           ./.github/scripts/setup/create_oidc.sh
 
+      # 🔗 Event Integration: Create webhook for GitHub Actions integration
+      - name: Create Event Subscription Webhook
+        run: |
+          # Create JFrog event subscription webhook for GitHub Actions integration
+          ./.github/scripts/setup/create_event_subscription.sh
+
       # 🔑 Cryptographic Evidence: Setup evidence keys for compliance and audit trails
       - name: Setup Evidence Keys
         run: |
@@ -302,6 +308,20 @@ jobs:
             policies_response=$(curl -s -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" "${JFROG_URL}/unifiedpolicy/api/v1/policies?projectKey=${project_key}" 2>/dev/null || echo '{"items":[]}')
             created_policies=$(echo "$policies_response" | jq -r '.items[]? | select((.name | type == "string") and (.name | startswith("BookVerse"))) | .name' 2>/dev/null | sort || true)
             if [[ -n "$created_policies" ]]; then echo "$created_policies" | sed 's/^/- `&`/' >> $GITHUB_STEP_SUMMARY; else echo "- None" >> $GITHUB_STEP_SUMMARY; fi
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Event Subscription Webhook:**" >> $GITHUB_STEP_SUMMARY
+            webhook_response=$(curl -s -H "Authorization: Bearer ${JFROG_ADMIN_TOKEN}" "${JFROG_URL}/event/api/v1/subscriptions/bookverse-release-to-github-action" 2>/dev/null || echo "{}")
+            if echo "$webhook_response" | jq -e ".key" >/dev/null 2>&1; then
+                webhook_enabled=$(echo "$webhook_response" | jq -r ".enabled")
+                webhook_target=$(echo "$webhook_response" | jq -r ".handlers[0].url" | sed "s|https://api.github.com/repos/||" | sed "s|/dispatches||")
+                if [[ "$webhook_enabled" == "true" ]]; then
+                    echo "- ✅ `bookverse-release-to-github-action` → $webhook_target" >> $GITHUB_STEP_SUMMARY
+                else
+                    echo "- ⚠️ `bookverse-release-to-github-action` (disabled) → $webhook_target" >> $GITHUB_STEP_SUMMARY
+                fi
+            else
+                echo "- ❌ `bookverse-release-to-github-action` (not found or misconfigured)" >> $GITHUB_STEP_SUMMARY
+            fi
             echo "" >> $GITHUB_STEP_SUMMARY
 
             

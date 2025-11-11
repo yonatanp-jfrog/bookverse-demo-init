@@ -358,13 +358,36 @@ update_repository() {
         local new_registry
         new_registry=$(echo "$jpd_host" | sed 's|https://||')
 
-        if grep -RIl --exclude-dir=.git -e "https://[A-Za-z0-9.-]*\\.jfrog\\.io" . >/dev/null 2>&1; then
-            grep -RIl --exclude-dir=.git -e "https://[A-Za-z0-9.-]*\\.jfrog\\.io" . | xargs sed -i '' -E "s|https://[A-Za-z0-9.-]+\\.jfrog\\.io|${jpd_host}|g"
+        # Comprehensive JFrog platform replacement with improved patterns
+        local exclude_args=(
+            --exclude-dir=.git
+            --exclude-dir=node_modules
+            --exclude-dir=.venv
+            --exclude-dir=__pycache__
+            --exclude="*.pyc"
+            --exclude="*.log"
+            --exclude="*.tmp"
+        )
+
+        # Step 1: Replace HTTPS URLs
+        if grep -RIl "${exclude_args[@]}" -E "https://[A-Za-z0-9.-]*\\.jfrog\\.io" . >/dev/null 2>&1; then
+            log_info "  → Updating HTTPS JFrog URLs to ${jpd_host}"
+            grep -RIl "${exclude_args[@]}" -E "https://[A-Za-z0-9.-]*\\.jfrog\\.io" . | \
+                xargs sed -i '' -E "s|https://[A-Za-z0-9.-]+\\.jfrog\\.io|${jpd_host}|g"
         fi
 
-        if grep -RIl --exclude-dir=.git -e "[A-Za-z0-9.-]*\\.jfrog\\.io" . >/dev/null 2>&1; then
-            grep -RIl --exclude-dir=.git -e "[A-Za-z0-9.-]*\\.jfrog\\.io" . | xargs sed -i '' -E "s|\b[A-Za-z0-9.-]+\\.jfrog\\.io\b|${new_registry}|g"
+        # Step 2: Replace registry-only references
+        if grep -RIl "${exclude_args[@]}" -E "[A-Za-z0-9.-]+\\.jfrog\\.io" . >/dev/null 2>&1; then
+            log_info "  → Updating JFrog registry references to ${new_registry}"
+            grep -RIl "${exclude_args[@]}" -E "[A-Za-z0-9.-]+\\.jfrog\\.io" . | \
+                xargs sed -i '' -E "s|[A-Za-z0-9.-]+\\.jfrog\\.io|${new_registry}|g"
         fi
+
+        # Step 3: Final cleanup for backup files and documentation
+        find . -type f \( -name "*.md*" -o -name "*.txt" -o -name "*.sh" -o -name "*.py" -o -name "*.yaml" -o -name "*.yml" \) \
+            ! -path "./.git/*" ! -path "./node_modules/*" ! -path "./.venv/*" \
+            -exec grep -l "\\.jfrog\\.io" {} \; | \
+            xargs sed -i '' -E "s|[A-Za-z0-9.-]+\\.jfrog\\.io|${new_registry}|g" 2>/dev/null || true
 
         if ! git diff --quiet; then
             git add -A

@@ -398,34 +398,62 @@ update_all_repositories() {
             
             local changes_made=false
             
-            # Deterministic approach: Replace ANY .jfrog.io domain with the new one
-            # This works regardless of what the old platform was
+            # Comprehensive approach: Replace ALL .jfrog.io domain references
+            # This works regardless of what the old platform was and catches all patterns
             
-            # Step 1: Replace full URLs (https://anything.jfrog.io -> NEW_JFROG_URL)
-            if grep -RIl --exclude-dir=.git -E "https://[A-Za-z0-9.-]*\.jfrog\.io" . >/dev/null 2>&1; then
-                log_info "  → Found files with JFrog URLs, updating to ${NEW_JFROG_URL}"
+            # Define file exclusions for better performance and safety
+            local exclude_args=(
+                --exclude-dir=.git
+                --exclude-dir=node_modules
+                --exclude-dir=.venv
+                --exclude-dir=__pycache__
+                --exclude="*.pyc"
+                --exclude="*.log"
+                --exclude="*.tmp"
+            )
+            
+            # Step 1: Replace full HTTPS URLs (https://anything.jfrog.io -> NEW_JFROG_URL)
+            if grep -RIl "${exclude_args[@]}" -E "https://[A-Za-z0-9.-]*\.jfrog\.io" . >/dev/null 2>&1; then
+                log_info "  → Found files with JFrog HTTPS URLs, updating to ${NEW_JFROG_URL}"
                 if [[ "$OSTYPE" == "darwin"* ]]; then
-                    grep -RIl --exclude-dir=.git -E "https://[A-Za-z0-9.-]*\.jfrog\.io" . | \
+                    grep -RIl "${exclude_args[@]}" -E "https://[A-Za-z0-9.-]*\.jfrog\.io" . | \
                         xargs sed -i '' -E "s|https://[A-Za-z0-9.-]+\.jfrog\.io|${NEW_JFROG_URL}|g"
                 else
-                    grep -RIl --exclude-dir=.git -E "https://[A-Za-z0-9.-]*\.jfrog\.io" . | \
+                    grep -RIl "${exclude_args[@]}" -E "https://[A-Za-z0-9.-]*\.jfrog\.io" . | \
                         xargs sed -i -E "s|https://[A-Za-z0-9.-]+\.jfrog\.io|${NEW_JFROG_URL}|g"
                 fi
                 changes_made=true
             fi
             
-            # Step 2: Replace registry-only references (anything.jfrog.io -> new_registry)
-            # This handles Docker image references and other registry-only uses
-            if grep -RIl --exclude-dir=.git -E "\b[A-Za-z0-9.-]*\.jfrog\.io\b" . >/dev/null 2>&1; then
+            # Step 2: Replace registry-only references with word boundaries (anything.jfrog.io -> new_registry)
+            # This handles Docker image references and YAML values
+            if grep -RIl "${exclude_args[@]}" -E "[A-Za-z0-9.-]+\.jfrog\.io" . >/dev/null 2>&1; then
                 log_info "  → Found files with JFrog registry references, updating to ${new_registry}"
                 if [[ "$OSTYPE" == "darwin"* ]]; then
-                    grep -RIl --exclude-dir=.git -E "\b[A-Za-z0-9.-]*\.jfrog\.io\b" . | \
-                        xargs sed -i '' -E "s|\b[A-Za-z0-9.-]+\.jfrog\.io\b|${new_registry}|g"
+                    grep -RIl "${exclude_args[@]}" -E "[A-Za-z0-9.-]+\.jfrog\.io" . | \
+                        xargs sed -i '' -E "s|[A-Za-z0-9.-]+\.jfrog\.io|${new_registry}|g"
                 else
-                    grep -RIl --exclude-dir=.git -E "\b[A-Za-z0-9.-]*\.jfrog\.io\b" . | \
-                        xargs sed -i -E "s|\b[A-Za-z0-9.-]+\.jfrog\.io\b|${new_registry}|g"
+                    grep -RIl "${exclude_args[@]}" -E "[A-Za-z0-9.-]+\.jfrog\.io" . | \
+                        xargs sed -i -E "s|[A-Za-z0-9.-]+\.jfrog\.io|${new_registry}|g"
                 fi
                 changes_made=true
+            fi
+            
+            # Step 3: Handle backup files and documentation (replace with full URL)
+            if grep -RIl "${exclude_args[@]}" -E "[A-Za-z0-9.-]+\.jfrog\.io" . >/dev/null 2>&1; then
+                log_info "  → Performing final cleanup of any remaining JFrog references"
+                if [[ "$OSTYPE" == "darwin"* ]]; then
+                    # Replace any remaining .jfrog.io references that might be in different contexts
+                    find . -type f \( -name "*.md*" -o -name "*.txt" -o -name "*.sh" -o -name "*.py" -o -name "*.yaml" -o -name "*.yml" \) \
+                        ! -path "./.git/*" ! -path "./node_modules/*" ! -path "./.venv/*" \
+                        -exec grep -l "\.jfrog\.io" {} \; | \
+                        xargs sed -i '' -E "s|[A-Za-z0-9.-]+\.jfrog\.io|${new_registry}|g" 2>/dev/null || true
+                else
+                    find . -type f \( -name "*.md*" -o -name "*.txt" -o -name "*.sh" -o -name "*.py" -o -name "*.yaml" -o -name "*.yml" \) \
+                        ! -path "./.git/*" ! -path "./node_modules/*" ! -path "./.venv/*" \
+                        -exec grep -l "\.jfrog\.io" {} \; | \
+                        xargs sed -i -E "s|[A-Za-z0-9.-]+\.jfrog\.io|${new_registry}|g" 2>/dev/null || true
+                fi
             fi
 
             # Check if there are actual changes to commit

@@ -235,7 +235,7 @@ PREREQUISITES:
   - JFROG_URL environment variable set
 
 EXAMPLES:
-  export JFROG_URL='https://apptrustswampupc.jfrog.io'
+  export JFROG_URL='https://swampupsec.jfrog.io'
   ./scripts/bookverse-demo.sh --setup
 
   ./scripts/bookverse-demo.sh
@@ -339,7 +339,7 @@ validate_environment() {
 
   if [[ -z "${JFROG_URL:-}" ]]; then
     log_error "JFROG_URL environment variable not set"
-    log_error "Example: export JFROG_URL='https://apptrustswampupc.jfrog.io'"
+    log_error "Example: export JFROG_URL='https://swampupsec.jfrog.io'"
     exit 1
   fi
 

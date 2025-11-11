@@ -658,7 +658,7 @@ echo "Key alias: ${EVIDENCE_KEY_ALIAS}"
 **Solutions:**
 ```bash
 # Update JFrog authentication
-export JF_URL="https://your-platform.jfrog.io"
+export JF_URL="https://swampupsec.jfrog.io"
 export JF_ACCESS_TOKEN="your-access-token"
 
 # Regenerate evidence keys

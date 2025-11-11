@@ -55,7 +55,7 @@
 #
 # 🌍 ENVIRONMENT VARIABLES:
 #     [Required Configuration]
-#     REGISTRY_SERVER      : Container registry hostname (e.g., company.jfrog.io)
+#     REGISTRY_SERVER      : Container registry hostname (e.g., swampupsec.jfrog.io)
 #     REGISTRY_USERNAME    : Registry authentication username
 #     REGISTRY_PASSWORD    : Registry authentication password or token
 #     
@@ -97,13 +97,13 @@
 #
 # 💡 EXAMPLES:
 #     [Basic Bootstrap with Port Forwarding]
-#     export REGISTRY_SERVER='company.jfrog.io'
+#     export REGISTRY_SERVER='swampupsec.jfrog.io'
 #     export REGISTRY_USERNAME='user'
 #     export REGISTRY_PASSWORD='token'
 #     ./scripts/k8s/bootstrap.sh --port-forward
 #     
 #     [Professional Demo Setup]
-#     export REGISTRY_SERVER='company.jfrog.io'
+#     export REGISTRY_SERVER='swampupsec.jfrog.io'
 #     export REGISTRY_USERNAME='k8s.pull@company.com'
 #     export REGISTRY_PASSWORD='K8sPull2024!'
 #     export REGISTRY_EMAIL='k8s.pull@company.com'
@@ -203,13 +203,13 @@ Behavior:
   - With --resilient-demo, configures professional demo URLs: Argo CD (https://argocd.demo), Web (http://bookverse.demo)
 
 Examples:
-  export REGISTRY_SERVER='your-tenant.jfrog.io'
+  export REGISTRY_SERVER='swampupsec.jfrog.io'
   export REGISTRY_USERNAME='alice'
   export REGISTRY_PASSWORD='***'
   export REGISTRY_EMAIL='alice@example.com'
   ./scripts/k8s/bootstrap.sh --port-forward
 
-  export JFROG_URL='https://apptrustswampupc.jfrog.io'
+  export JFROG_URL='https://swampupsec.jfrog.io'
   export REGISTRY_SERVER="${JFROG_URL}/bookverse-docker"
   export REGISTRY_USERNAME='k8s.pull@bookverse.com'
   export REGISTRY_PASSWORD='K8sPull2024!'

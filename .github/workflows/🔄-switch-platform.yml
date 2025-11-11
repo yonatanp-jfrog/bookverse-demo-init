@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       jpd_host:
-        description: 'JFrog Platform Host (e.g., https://apptrusttraining1.jfrog.io)'
+        description: 'JFrog Platform Host (e.g., https://swampupsec.jfrog.io)'
         required: true
         type: string
       admin_token:
@@ -224,7 +224,7 @@ jobs:
             echo "- 🚫 **GitHub API rate limits** or token issues" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "### 🔧 Troubleshooting Steps:" >> $GITHUB_STEP_SUMMARY
-            echo "1. ✅ **Verify platform URL** (format: https://apptrusttraining1.jfrog.io)" >> $GITHUB_STEP_SUMMARY
+            echo "1. ✅ **Verify platform URL** (format: https://swampupsec.jfrog.io)" >> $GITHUB_STEP_SUMMARY
             echo "2. 🔐 **Check admin token** has proper permissions" >> $GITHUB_STEP_SUMMARY
             echo "3. 🌐 **Test platform connectivity** manually" >> $GITHUB_STEP_SUMMARY
             echo "4. 📋 **Review GitHub token** scopes and permissions" >> $GITHUB_STEP_SUMMARY

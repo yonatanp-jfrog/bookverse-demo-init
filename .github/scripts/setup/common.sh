@@ -74,7 +74,7 @@
 #
 # 🌍 ENVIRONMENT VARIABLES:
 #     [Required Variables]
-#     JFROG_URL              : JFrog Platform URL (e.g., https://apptrusttraining1.jfrog.io)
+#     JFROG_URL              : JFrog Platform URL (e.g., https://swampupsec.jfrog.io)
 #     JFROG_ADMIN_TOKEN      : JFrog admin token for API access
 #     PROJECT_KEY            : BookVerse project identifier
 #     

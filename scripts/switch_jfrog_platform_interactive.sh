@@ -276,7 +276,6 @@ get_bookverse_repos() {
         "platform"
         "web"
         "helm"
-        "demo-assets"
         "demo-init"
     )
     
@@ -284,9 +283,7 @@ get_bookverse_repos() {
     for repo in "${base_repos[@]}"; do
         # Construct full repository name
         local repo_name
-        if [[ "$repo" == "demo-assets" ]]; then
-            repo_name="repos/bookverse-demo-assets"
-        elif [[ "$repo" == "demo-init" ]]; then
+        if [[ "$repo" == "demo-init" ]]; then
             repo_name="bookverse-demo-init"
         else
             repo_name="bookverse-${repo}"

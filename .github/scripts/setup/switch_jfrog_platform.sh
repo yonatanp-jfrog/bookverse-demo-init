@@ -481,10 +481,19 @@ update_all_repositories() {
                 git add -A
                 if git commit -m "chore: switch platform host to ${new_registry}"; then
                     if git push -u origin HEAD; then
-                        if gh pr create --title "chore: switch platform host to ${new_registry}" \
+                        if pr_url=$(gh pr create --title "chore: switch platform host to ${new_registry}" \
                           --body "Automated replacement of hardcoded JFrog hosts with ${NEW_JFROG_URL}." \
-                          --base "$default_branch"; then
-                            log_success "  → Opened PR with host replacements in $repo"
+                          --base "$default_branch"); then
+                            log_info "  → Created PR: $pr_url"
+                            
+                            # Auto-merge the PR since this is an automated platform switch
+                            log_info "  → Auto-merging PR for automated platform switch"
+                            sleep 2  # Brief delay to ensure PR is fully created
+                            if gh pr merge "$pr_url" --squash --delete-branch; then
+                                log_success "  → Successfully merged PR and updated $repo"
+                            else
+                                log_warning "  → Failed to auto-merge PR for $repo, manual merge required: $pr_url"
+                            fi
                         else
                             log_warning "  → Failed to create PR for $repo, but changes were pushed"
                         fi

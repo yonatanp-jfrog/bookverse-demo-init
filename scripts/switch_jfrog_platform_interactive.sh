@@ -416,10 +416,22 @@ update_repository() {
             git add -A
             git commit -m "chore: switch platform host to ${new_registry}" >/dev/null 2>&1 || true
             git push -u origin HEAD >/dev/null 2>&1 || true
-            gh pr create --title "chore: switch platform host to ${new_registry}" \
+            if pr_url=$(gh pr create --title "chore: switch platform host to ${new_registry}" \
               --body "Automated replacement of old host with ${jpd_host}." \
-              --base "$default_branch" >/dev/null 2>&1 || true
-            log_success "  → Opened PR with host replacements in $full_repo"
+              --base "$default_branch" 2>/dev/null); then
+                log_info "  → Created PR: $pr_url"
+                
+                # Auto-merge the PR since this is an automated platform switch
+                log_info "  → Auto-merging PR for automated platform switch"
+                sleep 2  # Brief delay to ensure PR is fully created
+                if gh pr merge "$pr_url" --squash --delete-branch >/dev/null 2>&1; then
+                    log_success "  → Successfully merged PR and updated $full_repo"
+                else
+                    log_warning "  → Failed to auto-merge PR for $full_repo, manual merge required: $pr_url"
+                fi
+            else
+                log_warning "  → Failed to create PR for $full_repo, but changes were pushed"
+            fi
         else
             log_info "  → No host replacements needed in $full_repo"
         fi

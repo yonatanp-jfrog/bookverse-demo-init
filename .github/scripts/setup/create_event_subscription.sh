@@ -132,7 +132,7 @@ create_event_subscription() {
                     "handler_type": "custom-webhook",
                     "url": ("https://api.github.com/repos/" + $github_org + "/bookverse-helm/dispatches"),
                     "method": "POST",
-                    "payload": "{\n  \"event_type\": \"release_completed\",\n  \"client_payload\": {\n    \"domain\": \"app_trust\",\n    \"event_type\": \"release_completed\",\n    \"data\": {\n      \"application_key\": \"{{.data.application_key}}\",\n      \"application_version\": \"{{.data.application_version}}\",\n      \"stage\": \"{{.data.stage}}\"\n    },\n    \"subscription_key\": \"" + $key + "\",\n    \"jpd_origin\": \"" + $jfrog_url + "\",\n    \"source\": \"AppTrust\"\n  }\n}",
+                    "payload": ("{\n  \"event_type\": \"release_completed\",\n  \"client_payload\": {\n    \"domain\": \"app_trust\",\n    \"event_type\": \"release_completed\",\n    \"data\": {\n      \"application_key\": \"{{.data.application_key}}\",\n      \"application_version\": \"{{.data.application_version}}\",\n      \"stage\": \"{{.data.stage}}\"\n    },\n    \"subscription_key\": \"" + $key + "\",\n    \"jpd_origin\": \"" + $jfrog_url + "\",\n    \"source\": \"AppTrust\"\n  }\n}"),
                     "http_headers": [
                         {
                             "name": "Authorization",

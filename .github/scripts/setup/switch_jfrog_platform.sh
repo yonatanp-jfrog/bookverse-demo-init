@@ -431,11 +431,11 @@ update_all_repositories() {
             # Check if there are actual changes to commit
             if ! git diff --quiet; then
                 git add -A
-                if git commit -m "chore: switch platform host to ${new_registry}" >/dev/null 2>&1; then
-                    if git push -u origin HEAD >/dev/null 2>&1; then
+                if git commit -m "chore: switch platform host to ${new_registry}"; then
+                    if git push -u origin HEAD; then
                         if gh pr create --title "chore: switch platform host to ${new_registry}" \
                           --body "Automated replacement of hardcoded JFrog hosts with ${NEW_JFROG_URL}." \
-                          --base "$default_branch" >/dev/null 2>&1; then
+                          --base "$default_branch"; then
                             log_success "  → Opened PR with host replacements in $repo"
                         else
                             log_warning "  → Failed to create PR for $repo, but changes were pushed"

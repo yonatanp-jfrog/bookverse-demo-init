@@ -12,7 +12,7 @@ on:
           - 'setup-platform'
         default: 'switch-platform'
       new_jfrog_url:
-        description: 'New JFrog Platform URL (e.g., https://apptrusttraining1.jfrog.io)'
+        description: 'New JFrog Platform URL (e.g., https://swampupsec.jfrog.io)'
         required: true
         type: string
       new_jfrog_admin_token:
@@ -66,7 +66,7 @@ jobs:
           
           # Validate JFrog URL format
           if [[ ! "${{ inputs.new_jfrog_url }}" =~ ^https://[a-zA-Z0-9.-]+\.jfrog\.io$ ]]; then
-            echo "❌ Invalid JFrog URL format. Expected: https://apptrusttraining1.jfrog.io"
+            echo "❌ Invalid JFrog URL format. Expected: https://swampupsec.jfrog.io"
             exit 1
           fi
           

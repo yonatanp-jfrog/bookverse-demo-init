@@ -54,7 +54,7 @@ The webhook is configured as a **JFrog Platform Event Subscription** with the fo
       "handler_type": "custom-webhook",
       "url": "https://api.github.com/repos/yonatanp-jfrog/bookverse-helm/dispatches",
       "method": "POST",
-      "payload": "{\"event_type\": \"release_completed\", \"client_payload\": {\"domain\": \"app_trust\", \"event_type\": \"release_completed\", \"data\": {\"application_key\": \"{{.data.application_key}}\", \"application_version\": \"{{.data.application_version}}\", \"stage\": \"{{.data.stage}}\"}, \"subscription_key\": \"bookverse-release-to-github-action\", \"jpd_origin\": \"https://apptrusttraining1.jfrog.io\", \"source\": \"AppTrust\"}}",
+      "payload": "{\"event_type\": \"release_completed\", \"client_payload\": {\"domain\": \"app_trust\", \"event_type\": \"release_completed\", \"data\": {\"application_key\": \"{{.data.application_key}}\", \"application_version\": \"{{.data.application_version}}\", \"stage\": \"{{.data.stage}}\"}, \"subscription_key\": \"bookverse-release-to-github-action\", \"jpd_origin\": \"https://swampupsec.jfrog.io\", \"source\": \"AppTrust\"}}",
       "http_headers": [
         {
           "name": "Authorization",
@@ -162,7 +162,7 @@ When the webhook triggers, it sends the following payload to GitHub:
       "stage": "PROD"
     },
     "subscription_key": "bookverse-release-to-github-action",
-    "jpd_origin": "https://apptrusttraining1.jfrog.io",
+    "jpd_origin": "https://swampupsec.jfrog.io",
     "source": "AppTrust"
   }
 }

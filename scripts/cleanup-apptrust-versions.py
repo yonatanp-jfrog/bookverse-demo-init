@@ -82,7 +82,7 @@ class AppTrustClient:
         
     Examples:
         >>> client = AppTrustClient(
-        ...     base_url="https://apptrusttraining1.jfrog.io",
+        ...     base_url="https://swampupsec.jfrog.io",
         ...     token="your-api-token",
         ...     project_key="bookverse",
         ...     verbose=True
@@ -103,7 +103,7 @@ class AppTrustClient:
             
         Examples:
             >>> client = AppTrustClient(
-            ...     "https://apptrusttraining1.jfrog.io",
+            ...     "https://swampupsec.jfrog.io",
             ...     "your-token",
             ...     "bookverse"
             ... )

@@ -105,7 +105,7 @@ validate_host_format() {
     NEW_JFROG_URL=$(echo "$NEW_JFROG_URL" | sed 's:/*$::')
     
     if [[ ! "$NEW_JFROG_URL" =~ ^https://[a-zA-Z0-9.-]+\.jfrog\.io$ ]]; then
-        log_error "Invalid host format. Expected: https://swampupsec.jfrog.io"
+        log_error "Invalid host format. Expected: https://apptrusttraining1.jfrog.io"
         log_error "Received: $NEW_JFROG_URL"
         exit 1
     fi
@@ -432,7 +432,7 @@ update_all_repositories() {
                 --exclude="*.tmp"
             )
             
-            # Step 1: Replace full HTTPS URLs (https://swampupsec.jfrog.io -> NEW_JFROG_URL)
+            # Step 1: Replace full HTTPS URLs (https://apptrusttraining1.jfrog.io -> NEW_JFROG_URL)
             if grep -RIl "${exclude_args[@]}" -E "https://[A-Za-z0-9.-]*\.jfrog\.io" . >/dev/null 2>&1; then
                 log_info "  → Found files with JFrog HTTPS URLs, updating to ${NEW_JFROG_URL}"
                 if [[ "$OSTYPE" == "darwin"* ]]; then
@@ -445,7 +445,7 @@ update_all_repositories() {
                 changes_made=true
             fi
             
-            # Step 2: Replace registry-only references with word boundaries (swampupsec.jfrog.io -> new_registry)
+            # Step 2: Replace registry-only references with word boundaries (apptrusttraining1.jfrog.io -> new_registry)
             # This handles Docker image references and YAML values
             if grep -RIl "${exclude_args[@]}" -E "[A-Za-z0-9.-]+\.jfrog\.io" . >/dev/null 2>&1; then
                 log_info "  → Found files with JFrog registry references, updating to ${new_registry}"

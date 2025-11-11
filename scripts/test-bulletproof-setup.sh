@@ -56,7 +56,7 @@
 #
 # 🌍 ENVIRONMENT VARIABLES:
 #     [Required Configuration]
-#     JFROG_URL            : JFrog Platform URL (e.g., https://swampupsec.jfrog.io)
+#     JFROG_URL            : JFrog Platform URL (e.g., https://apptrusttraining1.jfrog.io)
 #     
 #     [Auto-Generated]
 #     REGISTRY_SERVER      : Docker registry server from JFrog URL
@@ -99,7 +99,7 @@
 #
 # 💡 EXAMPLES:
 #     [Basic Validation]
-#     export JFROG_URL="https://swampupsec.jfrog.io"
+#     export JFROG_URL="https://apptrusttraining1.jfrog.io"
 #     ./scripts/test-bulletproof-setup.sh
 #     
 #     [CI/CD Integration]
@@ -207,7 +207,7 @@ echo "✅ kubectl configured and cluster accessible"
 
 if [[ -z "${JFROG_URL:-}" ]]; then
   echo "❌ JFROG_URL environment variable not set"
-  echo "   Example: export JFROG_URL='https://swampupsec.jfrog.io'"
+  echo "   Example: export JFROG_URL='https://apptrusttraining1.jfrog.io'"
   exit 1
 fi
 

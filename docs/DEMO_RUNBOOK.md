@@ -42,7 +42,7 @@ This runbook provides step-by-step instructions for demonstrating JFrog AppTrust
 
 ```bash
 # Set required environment variables
-export JFROG_URL="https://swampupsec.jfrog.io"
+export JFROG_URL="https://apptrusttraining1.jfrog.io"
 export JFROG_ADMIN_TOKEN=$(cat /Users/yonatanp/playground/JFROG_ADMIN_TOKEN)
 
 # Verify connectivity
@@ -78,8 +78,8 @@ done
 
 # Expected variables:
 # PROJECT_KEY=bookverse
-# JFROG_URL=https://swampupsec.jfrog.io  
-# DOCKER_REGISTRY=swampupsec.jfrog.io
+# JFROG_URL=https://apptrusttraining1.jfrog.io  
+# DOCKER_REGISTRY=apptrusttraining1.jfrog.io
 ```
 
 ## Demo Flow

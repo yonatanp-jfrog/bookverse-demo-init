@@ -54,7 +54,7 @@
 #
 # 🌍 ENVIRONMENT VARIABLES:
 #     [Required Configuration]
-#     JFROG_URL            : JFrog Platform base URL (e.g., https://swampupsec.jfrog.io)
+#     JFROG_URL            : JFrog Platform base URL (e.g., https://apptrusttraining1.jfrog.io)
 #     
 #     [Optional Configuration]
 #     PROJECT_KEY          : JFrog project key (default: bookverse)
@@ -94,7 +94,7 @@
 #
 # 💡 EXAMPLES:
 #     [Dry-Run Preview Mode]
-#     export JFROG_URL='https://swampupsec.jfrog.io'
+#     export JFROG_URL='https://apptrusttraining1.jfrog.io'
 #     ./scripts/cleanup-faulty-docker-images.sh --dry-run
 #     
 #     [Targeted Tag Deletion]
@@ -262,7 +262,7 @@ fi
 # 🌍 Environment Validation: Verify required configuration variables
 if [[ -z "${JFROG_URL:-}" ]]; then
     echo "❌ JFROG_URL environment variable is required"
-    echo "   Example: export JFROG_URL='https://swampupsec.jfrog.io'"
+    echo "   Example: export JFROG_URL='https://apptrusttraining1.jfrog.io'"
     exit 1
 fi
 

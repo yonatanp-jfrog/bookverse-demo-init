@@ -43,7 +43,7 @@
 #     [Environment Variables - Required]
 #     PROJECT_KEY           : Unique project identifier (e.g., "bookverse")
 #     PROJECT_DISPLAY_NAME  : Human-readable project name (e.g., "BookVerse Platform")
-#     JFROG_URL            : JFrog Platform URL (e.g., https://swampupsec.jfrog.io)
+#     JFROG_URL            : JFrog Platform URL (e.g., https://apptrusttraining1.jfrog.io)
 #     JFROG_ADMIN_TOKEN    : JFrog admin token with project creation privileges
 #
 # 🌍 ENVIRONMENT VARIABLES:

@@ -1,0 +1,182 @@
+name: BookVerse Platform Management
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        type: choice
+        options:
+          - 'switch-platform'
+          - 'setup-platform'
+        default: 'switch-platform'
+      new_jfrog_url:
+        description: 'New JFrog Platform URL (e.g., https://company.jfrog.io)'
+        required: true
+        type: string
+      new_jfrog_admin_token:
+        description: 'New JFrog Admin Token'
+        required: true
+        type: string
+      project_prefix:
+        description: 'Optional project prefix for multi-instance support (leave empty for no prefix)'
+        required: false
+        type: string
+      continue_on_auth_failure:
+        description: 'Continue even if authentication tests fail'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  platform-management:
+    name: ${{ inputs.action == 'switch-platform' && 'Switch Platform' || 'Setup Platform' }}
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Environment
+        run: |
+          echo "Setting up environment variables..."
+          
+          # Set PROJECT_KEY based on prefix
+          if [[ -n "${{ inputs.project_prefix }}" ]]; then
+            echo "PROJECT_KEY=${{ inputs.project_prefix }}-bookverse" >> $GITHUB_ENV
+            echo "PROJECT_PREFIX=${{ inputs.project_prefix }}" >> $GITHUB_ENV
+            echo "✅ Using project key: ${{ inputs.project_prefix }}-bookverse"
+          else
+            echo "PROJECT_KEY=bookverse" >> $GITHUB_ENV
+            echo "✅ Using project key: bookverse"
+          fi
+          
+          # Set other environment variables
+          echo "NEW_JFROG_URL=${{ inputs.new_jfrog_url }}" >> $GITHUB_ENV
+          echo "NEW_JFROG_ADMIN_TOKEN=${{ inputs.new_jfrog_admin_token }}" >> $GITHUB_ENV
+          
+          if [[ "${{ inputs.continue_on_auth_failure }}" == "true" ]]; then
+            echo "CONTINUE_ON_AUTH_FAILURE=1" >> $GITHUB_ENV
+          fi
+
+      - name: Validate Inputs
+        run: |
+          echo "🔍 Validating inputs..."
+          
+          # Validate JFrog URL format
+          if [[ ! "${{ inputs.new_jfrog_url }}" =~ ^https://[a-zA-Z0-9.-]+\.jfrog\.io$ ]]; then
+            echo "❌ Invalid JFrog URL format. Expected: https://company.jfrog.io"
+            exit 1
+          fi
+          
+          # Validate project prefix format if provided
+          if [[ -n "${{ inputs.project_prefix }}" ]]; then
+            if [[ ! "${{ inputs.project_prefix }}" =~ ^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$ ]]; then
+              echo "❌ Invalid project prefix format. Use lowercase letters, numbers, and hyphens only."
+              echo "   Must start and end with alphanumeric characters."
+              exit 1
+            fi
+          fi
+          
+          echo "✅ All inputs are valid"
+
+      - name: Switch Platform
+        if: inputs.action == 'switch-platform'
+        run: |
+          echo "🔄 Switching to new JFrog Platform..."
+          chmod +x .github/scripts/setup/switch_jfrog_platform.sh
+          .github/scripts/setup/switch_jfrog_platform.sh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Platform
+        if: inputs.action == 'setup-platform'
+        run: |
+          echo "🔧 Setting up BookVerse Platform..."
+          
+          # Source the configuration to get PROJECT_KEY and other settings
+          source .github/scripts/setup/config.sh
+          
+          echo "📋 Platform Setup Configuration:"
+          echo "  Project Key: $PROJECT_KEY"
+          echo "  JFrog URL: $NEW_JFROG_URL"
+          echo "  Project Prefix: ${PROJECT_PREFIX:-'(none)'}"
+          
+          # Run setup scripts in order
+          echo "🔧 Creating project..."
+          chmod +x .github/scripts/setup/create_project.sh
+          .github/scripts/setup/create_project.sh
+          
+          echo "🔧 Creating repositories..."
+          chmod +x .github/scripts/setup/create_repositories.sh
+          .github/scripts/setup/create_repositories.sh
+          
+          echo "🔧 Creating applications..."
+          chmod +x .github/scripts/setup/create_applications.sh
+          .github/scripts/setup/create_applications.sh
+          
+          echo "🔧 Creating users..."
+          chmod +x .github/scripts/setup/create_users.sh
+          .github/scripts/setup/create_users.sh
+          
+          echo "🔧 Creating roles..."
+          chmod +x .github/scripts/setup/create_roles.sh
+          .github/scripts/setup/create_roles.sh
+          
+          echo "🔧 Creating stages..."
+          chmod +x .github/scripts/setup/create_stages.sh
+          .github/scripts/setup/create_stages.sh
+          
+          echo "🔧 Creating rules..."
+          chmod +x .github/scripts/setup/create_rules.sh
+          .github/scripts/setup/create_rules.sh
+          
+          echo "🔧 Creating policies..."
+          chmod +x .github/scripts/setup/create_policies.sh
+          .github/scripts/setup/create_policies.sh
+          
+          echo "🔧 Creating OIDC configuration..."
+          chmod +x .github/scripts/setup/create_oidc.sh
+          .github/scripts/setup/create_oidc.sh
+          
+          echo "🔧 Creating event subscription webhook..."
+          chmod +x .github/scripts/setup/create_event_subscription.sh
+          .github/scripts/setup/create_event_subscription.sh
+          
+          echo "🔧 Switching platform to update all repositories..."
+          chmod +x .github/scripts/setup/switch_jfrog_platform.sh
+          .github/scripts/setup/switch_jfrog_platform.sh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          JFROG_URL: ${{ inputs.new_jfrog_url }}
+          JFROG_ADMIN_TOKEN: ${{ inputs.new_jfrog_admin_token }}
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "🎯 Platform Management Summary"
+          echo "================================="
+          echo "Action: ${{ inputs.action }}"
+          echo "JFrog URL: ${{ inputs.new_jfrog_url }}"
+          echo "Project Key: ${{ env.PROJECT_KEY }}"
+          if [[ -n "${{ inputs.project_prefix }}" ]]; then
+            echo "Project Prefix: ${{ inputs.project_prefix }}"
+          fi
+          echo ""
+          
+          if [[ "${{ job.status }}" == "success" ]]; then
+            echo "✅ Platform management completed successfully!"
+            echo ""
+            echo "Next steps:"
+            echo "1. Verify that all repository variables have been updated"
+            echo "2. Test workflows in the repositories to ensure they work with the new configuration"
+            echo "3. Update any hardcoded references to the old platform in your code"
+          else
+            echo "❌ Platform management failed. Check the logs above for details."
+            echo ""
+            echo "Troubleshooting:"
+            echo "1. Verify your JFrog URL and admin token are correct"
+            echo "2. Ensure you have admin permissions on all BookVerse repositories"
+            echo "3. Check that the GH_TOKEN has the required scopes (repo, actions, admin:repo_hook)"
+          fi

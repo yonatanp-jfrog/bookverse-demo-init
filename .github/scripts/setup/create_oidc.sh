@@ -112,9 +112,10 @@ source "$(dirname "$0")/config.sh"
 # with project-specific roles, we implement a temporary workaround using
 # a platform admin user instead of service-specific users.
 #
-# 🧪 TESTING: Disabling workaround to test if JPD bug has been fixed
-# USE_PLATFORM_ADMIN_WORKAROUND="${USE_PLATFORM_ADMIN_WORKAROUND:-true}"
-USE_PLATFORM_ADMIN_WORKAROUND="${USE_PLATFORM_ADMIN_WORKAROUND:-false}"
+# 🧪 TEMPORARY: Re-enabling workaround due to OIDC integration not found error
+# The project-specific roles may need more time to propagate or there's still an issue
+USE_PLATFORM_ADMIN_WORKAROUND="${USE_PLATFORM_ADMIN_WORKAROUND:-true}"
+# USE_PLATFORM_ADMIN_WORKAROUND="${USE_PLATFORM_ADMIN_WORKAROUND:-false}"
 CICD_TEMP_USERNAME="cicd"
 CICD_TEMP_PASSWORD="CicdTemp2024!"
 

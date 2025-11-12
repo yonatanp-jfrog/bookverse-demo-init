@@ -338,6 +338,8 @@ jobs:
           if [[ "$MODE" == "preview" ]]; then
             echo "**🔍 Overall Result: Discovery and Preview Completed**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
+            echo "🌐 **Platform URL**: `${JFROG_URL:-${vars.JFROG_URL}}`" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
             echo "This preview shows what **would** be deleted in execute mode." >> $GITHUB_STEP_SUMMARY
             echo "No actual deletions were performed." >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
@@ -357,10 +359,16 @@ jobs:
 
             if [[ "$overall" == "SUCCESS" ]]; then
               echo "**✅ Overall Result: Cleanup Succeeded**" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "🌐 **Platform URL**: `${JFROG_URL:-${vars.JFROG_URL}}`" >> $GITHUB_STEP_SUMMARY
             elif [[ "$overall" == "FAILED" ]]; then
               echo "**❌ Overall Result: Cleanup FAILED**" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "🌐 **Platform URL**: `${JFROG_URL:-${vars.JFROG_URL}}`" >> $GITHUB_STEP_SUMMARY
             else
               echo "**⚠️ Overall Result: Partial/Unknown**" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "🌐 **Platform URL**: `${JFROG_URL:-${vars.JFROG_URL}}`" >> $GITHUB_STEP_SUMMARY
             fi
           fi
           if [[ -n "$project_key" ]]; then echo "- **Project**: $project_key" >> $GITHUB_STEP_SUMMARY; fi

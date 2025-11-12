@@ -277,6 +277,8 @@ jobs:
             fi
             echo "🎯 **BookVerse demo environment is ready**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
+            echo "🌐 **Platform URL**: `${JFROG_URL}`" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             
             echo "- **Project**: \`bookverse\` with full configuration" >> $GITHUB_STEP_SUMMARY
@@ -388,6 +390,8 @@ jobs:
           elif [[ "$actual_status" == "failed_with_errors" ]]; then
             echo "⚠️ **Platform setup completed with errors**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
+            echo "🌐 **Platform URL**: `${JFROG_URL}`" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
             echo "🔍 **Issues detected during setup:**" >> $GITHUB_STEP_SUMMARY
             echo "$setup_errors" | tr ';' '\n' | sed 's/^/- ❌ /' >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
@@ -403,6 +407,8 @@ jobs:
             echo "4. 🔧 **Fix specific issues** and re-run setup if needed" >> $GITHUB_STEP_SUMMARY
           else
             echo "❌ **Platform setup failed**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "🌐 **Platform URL**: `${JFROG_URL}`" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "🔍 **Check the logs above for error details**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY

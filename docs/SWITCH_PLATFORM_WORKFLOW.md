@@ -64,7 +64,7 @@ Before running the workflow, ensure you have:
 2. **Select Workflow**: Choose "🔄 Switch Platform" from the workflow list
 
 3. **Provide Inputs**: Enter the required information:
-   - **Platform Host**: New JFrog Platform URL (e.g., `https://swampupsec.jfrog.io`)
+   - **Platform Host**: New JFrog Platform URL (e.g., `https://apptrusttraining1.jfrog.io`)
    - **Admin Token**: Admin token for the new platform
    - **Confirmation**: Type `SWITCH` to confirm the migration
    - **Update Kubernetes**: Check if you want to update K8s cluster registry

@@ -177,7 +177,7 @@ ls -la
 cd bookverse-demo-init
 
 # 2. Set up your JFrog Platform connection
-export JFROG_URL="https://swampupsec.jfrog.io"
+export JFROG_URL="https://apptrusttraining1.jfrog.io"
 export JFROG_ADMIN_TOKEN="your-admin-token"
 
 # 3. Configure GitHub repository secret (recommended)
@@ -250,14 +250,14 @@ Run the Switch Platform workflow to configure your JFrog Platform instance:
 # 1. Select "🔄 Switch Platform" workflow
 # 2. Click "Run workflow" 
 # 3. Enter the following inputs:
-#    - JFrog Platform Host: https://swampupsec.jfrog.io
+#    - JFrog Platform Host: https://apptrusttraining1.jfrog.io
 #    - Admin Token: (leave empty - secret is already configured)
 #    - Confirmation: SWITCH
 #    - Update K8s: true (if you set up Kubernetes in Step 3) or false (if skipping Kubernetes)
 
 # OR run via GitHub CLI (admin token not needed since secret is configured):
 gh workflow run "🔄-switch-platform.yml" \
-  --field jpd_host="https://swampupsec.jfrog.io" \
+  --field jpd_host="https://apptrusttraining1.jfrog.io" \
   --field confirm_switch="SWITCH" \
   --field update_k8s=true```
 
@@ -400,7 +400,7 @@ cd bookverse-demo-init
 **2) Bootstrap Argo CD and deploy BookVerse (PROD)**
 ```bash
 cd bookverse-demo-init
-export REGISTRY_SERVER='swampupsec.jfrog.io'       # JFrog hostname (without https://)
+export REGISTRY_SERVER='apptrusttraining1.jfrog.io'       # JFrog hostname (without https://)
 export REGISTRY_USERNAME='<jfrog-username>'
 export REGISTRY_PASSWORD='<jfrog-password-or-token>'
 export REGISTRY_EMAIL='you@example.com'   # optional; your JFrog user email is fine
@@ -539,7 +539,7 @@ kubectl get nodes
 **Solutions**:
 ```bash
 # 1. Verify URL format (must include https://)
-echo $JFROG_URL  # Should be: https://swampupsec.jfrog.io
+echo $JFROG_URL  # Should be: https://apptrusttraining1.jfrog.io
 
 # 2. Test connectivity
 curl -s -H "Authorization: Bearer $JFROG_ADMIN_TOKEN" "$JFROG_URL/artifactory/api/system/ping"

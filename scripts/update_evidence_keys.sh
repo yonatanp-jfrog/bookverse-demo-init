@@ -152,17 +152,17 @@
 #
 # 🌍 Multi-Environment Execution:
 #     [Development Environment]
-#     export JFROG_URL="https://swampupsec.jfrog.io"
+#     export JFROG_URL="https://apptrusttraining1.jfrog.io"
 #     export JFROG_ADMIN_TOKEN="dev-token"
 #     ./update_evidence_keys.sh --generate --key-type rsa --alias "dev-evidence-key"
 #     
 #     [Staging Environment]
-#     export JFROG_URL="https://swampupsec.jfrog.io"
+#     export JFROG_URL="https://apptrusttraining1.jfrog.io"
 #     export JFROG_ADMIN_TOKEN="staging-token"
 #     ./update_evidence_keys.sh --generate --key-type ec --alias "staging-evidence-key"
 #     
 #     [Production Environment]
-#     export JFROG_URL="https://swampupsec.jfrog.io"
+#     export JFROG_URL="https://apptrusttraining1.jfrog.io"
 #     export JFROG_ADMIN_TOKEN="prod-token"
 #     ./update_evidence_keys.sh --generate --key-type ed25519 --alias "prod-evidence-key"
 #
